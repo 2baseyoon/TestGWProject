@@ -1,0 +1,51 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 multi-row-table tableStyle linePlus mt10" id="SubTable1" cellpadding="0" cellspacing="0">
+  <tbody><tr class="multi-row-control">
+    <td colspan="6">
+        <span style="display:block;float:right">
+            <input type="button" value="+추가" class="multi-row-add smButton">
+            <input type="button" value="-삭제" class="multi-row-del-auto smButton">
+        </span>
+    </td>
+  </tr>
+  <tr>
+      <th style="width: 12%;">작업요청일</th>
+      <th style="width: 15%;">신청자</th>
+      <th style="width: 15%;">신청자 부서</th>
+      <th style="width: 20%;">신청 사유</th>
+      <th style="width: 10%;">저장미디어</th>
+      <th style="width: 28%;">파일 위치</th>
+  </tr>
+  <tr class="multi-row-template">
+      <td style="text-align: center;">
+          <input title="작업요청일자" type="text" data-type="stField" name="REQDATE" data-pattern="date" style="width:99%; text-align: center;" readonly="readonly">
+      </td>
+      <td style="text-align: center;">
+          <input title="신청자" type="text" data-type="stField" name="REQUSERNAME" style="width:65%; text-align: center;" required="">
+          <span data-mode="writeOnly">
+                <a onclick="OpenWinEmployee('REQUSERNAME', this);">
+                    <img alt="search" style="vertical-align: middle; cursor:pointer;" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/btn_org.gif" width="25" height="21">
+                </a>
+          </span>
+      </td>
+      <td style="text-align: center;">
+          <input title="신청자 부서" type="text" data-type="stField" name="REQUSERDEPT" style="width:99%; text-align: center;" readonly="readonly" required="">
+      </td>
+      <td>
+          <input title="신청 사유" type="text" data-type="stField" name="REQREASON" style="width:99%;" required="">
+      </td>
+      <td style="text-align: center;">
+          <select title="저장미디어" data-type="stField" data-element-type="sel_d_v" name="REQEQUIP" style="width:99%;" required="">
+              <option value="">선택</option>
+              <option value="USB">USB</option>
+              <option value="DVD">DVD</option>
+              <option value="메일">메일</option>
+              <option value="원격공유">원격공유</option>
+          </select>
+      </td>
+      <td>
+          <input title="파일 위치" type="text" data-type="stField" name="REQFILELOC" style="width:99%;" required="">
+      </td>
+  </tr>
+</tbody></table>
+<!--실 결재양식 내용 부분 끝 -->

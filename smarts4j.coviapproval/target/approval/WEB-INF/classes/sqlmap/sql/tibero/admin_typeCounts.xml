@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.typeCounts">
+    <select id="selectStatDeptList" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/> 
+        	SELECT LIST.* FROM (
+			     SELECT PF.UserCode AS "UserCode"
+							, U.DisplayName AS "UNIT_NAME"
+							, SUM( CASE PF.SubKind WHEN 'A' THEN 1 ELSE 0 END) AS "A_Count"
+							, SUM( CASE PF.SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS "REQCMP_count"
+			        		, CAST(AVG((P.endDate - P.startDate)*24*60) AS INTEGER)  AS "document_leadtime"
+				FROM jwf_performer PF
+				INNER JOIN jwf_workitem W ON W.WorkitemID = PF.WorkitemID
+				INNER JOIN  jwf_process  P ON W.ProcessID = P.ProcessID
+				INNER JOIN sys_object_group  U ON PF.UserCode = U.GroupCode
+				WHERE PF.ActualKind = '1' 
+					AND PF.SubKind IN ('A','REQCMP')
+					AND P.BusinessState LIKE '02_01%'
+					AND P.endDate IS NOT NULL
+					AND P.ProcessState = 528
+					AND U.CompanyCode = #{EntCode}
+					<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+					     <![CDATA[ AND P.endDate >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND  P.endDate  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+					</if> 
+				GROUP BY PF.UserCode, U.DisplayName
+			) LIST
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("A_Count")'>"A_Count"</when>
+						<when test='sortColumn.equalsIgnoreCase("REQCMP_count")'>"REQCMP_count"</when>
+						<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>"document_leadtime"</when>
+						<otherwise>"UNIT_NAME"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+       <include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectStatDeptListcnt" resultType="java.lang.Long">
+     	SELECT COUNT(*) FROM (
+			     SELECT PF.UserCode
+							, U.DisplayName
+				FROM jwf_performer PF
+				INNER JOIN jwf_workitem W ON W.WorkitemID = PF.WorkitemID
+				INNER JOIN  jwf_process  P ON W.ProcessID = P.ProcessID
+				INNER JOIN sys_object_group  U ON PF.UserCode = U.GroupCode
+				WHERE PF.ActualKind = '1' 
+					AND PF.SubKind IN ('A','REQCMP')
+					AND P.BusinessState LIKE '02_01%'
+					AND P.ProcessState = 528
+					AND P.endDate IS NOT NULL
+					AND U.CompanyCode = #{EntCode}
+					<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+					     <![CDATA[ AND P.endDate >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND  P.endDate  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+					</if> 
+				GROUP BY PF.UserCode, U.DisplayName
+			) LIST
+	</select>
+	
+    
+    <select id="selectStatFormList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+	        SELECT  LIST.*
+			FROM (
+						SELECT P.FormPrefix AS "FormPrefix"
+	        					, MAX(P.FormName) AS "FormName"
+								, COUNT( *) AS "document_Count"
+								, CAST(AVG((P.endDate - P.startDate)*24*60) AS INTEGER)  AS "document_leadtime"
+						FROM jwf_process  P
+						INNER JOIN sys_object_group  U ON P.InitiatorUnitID = U.GroupCode
+						WHERE P.BusinessState LIKE '02_01%'
+									AND P.ParentProcessID = 0
+									AND P.endDate IS NOT NULL
+									AND U.CompanyCode = #{EntCode}
+					<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+					      <![CDATA[ AND P.endDate >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND  P.endDate  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+					</if>
+					GROUP BY P.FormPrefix
+			) LIST
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("document_Count")'>"document_Count"</when>
+						<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>"document_leadtime"</when>
+						<otherwise>"FormName"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectStatFormListcnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+			FROM (
+				SELECT P.FormPrefix
+	        		, MAX(P.FormName) AS FormName
+					, COUNT( *) AS document_Count
+					, CAST(AVG((P.endDate- P.startDate)*24*60) AS INTEGER)  AS document_leadtime
+				FROM jwf_process  P
+				INNER JOIN sys_object_group  U ON P.InitiatorUnitID = U.GroupCode
+				WHERE P.BusinessState LIKE '02_01%'
+							AND P.ParentProcessID = 0
+							AND P.endDate IS NOT NULL
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+				      <![CDATA[ AND P.endDate >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND  P.endDate  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+				</if>
+				GROUP BY P.FormPrefix
+			) A
+	</select>
+	
+    
+    <select id="selectStatPersonList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+       		SELECT LIST.* 
+			FROM (
+				SELECT P.UserCode AS "UR_Code"
+				, ( CASE P.IsUse WHEN 'Y' THEN P.DisplayName ELSE '(비사용)'|| P.DisplayName END ) AS "DISPLAY_NAME"
+				, ( 	SELECT U.DisplayName AS DEPT_Name
+						FROM sys_object_group U
+						WHERE BG.DeptCode = U.GroupCode
+					) AS "UNIT_NAME"
+				, ( 	SELECT COUNT(*) 
+						FROM jwf_process WP 
+						WHERE WP.InitiatorID = P.UserCode 
+						AND WP.ParentProcessID = 0
+						AND WP.BusinessState LIKE '02_01%' 
+			            <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+			                <![CDATA[ AND WP.endDate >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND WP.endDate  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+						</if>	
+					) AS "Draft_Count"   -- 기안후 승인 완료된 건수
+				, ( 	SELECT COUNT(*) 
+						FROM jwf_workitem W 
+						WHERE W.UserCode = P.UserCode
+           				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND W.Finished >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND W.Finished  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+						</if>
+					) AS "Approval_Count"   -- 결재행위(승인/반려)건수
+				, ( 	SELECT CAST(AVG((W.Finished - W.Created)*24*60) AS INTEGER) Approval_time
+						FROM jwf_workitem  W 
+						WHERE W.UserCode = P.UserCode 
+       				    <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND W.Finished >= TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')  AND W.Finished  <= TO_CHAR(ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') ,'0')+1, 'YYYY-MM-DD')	]]>
+						</if>
+        		) AS "Approval_leadtime"  -- 결재행위 소요시간(분)
+				FROM sys_object_user  P
+				INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode
+				WHERE BG.CompanyCode = #{EntCode}
+			) LIST
+			WHERE ( "Draft_Count" > 0 OR "Approval_Count" > 0 )
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("UNIT_NAME")'>"UNIT_NAME"</when>
+						<when test='sortColumn.equalsIgnoreCase("Draft_Count")'>"Draft_Count"</when>
+						<when test='sortColumn.equalsIgnoreCase("Approval_Count")'>"Approval_Count"</when>
+						<when test='sortColumn.equalsIgnoreCase("Approval_leadtime")'>"Approval_leadtime"</when>
+						<otherwise>"DISPLAY_NAME"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		 <include refid="oracle.include.pagingFooter"/>	
+	</select>
+    
+    <select id="selectStatPersonListcnt" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM
+			  (SELECT * 
+			FROM (
+				SELECT 
+				( 	SELECT COUNT(*) 
+						FROM jwf_process WP 
+						WHERE WP.InitiatorID = P.UserCode 
+						AND WP.ParentProcessID = 0
+						AND WP.BusinessState LIKE '02_01%'
+						AND WP.ProcessState = 528
+					) AS Draft_Count   -- 기안후 승인 완료된 건수
+				, ( 	SELECT COUNT(*) 
+						FROM jwf_workitem W 
+						WHERE W.UserCode = P.UserCode
+						AND W.State = 528
+					) AS Approval_Count   -- 결재행위(승인/반려)건수
+				FROM sys_object_user P
+				INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode
+				WHERE BG.CompanyCode = #{EntCode}
+			) LIST
+			WHERE ( Draft_Count > 0 OR Approval_Count > 0 )
+		) A
+	</select>
+</mapper>
+

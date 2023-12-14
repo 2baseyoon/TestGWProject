@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.task">
+    <!-- 특정 사용자가 수행자로 지정된 업무 -->
+    <select id="selectPerformerTask" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT a.TaskID
+			, a.FolderID AS "FolderID"
+			, b.DisplayName AS "FolderName"
+			, a.Subject AS "Subject"
+			, a.State AS "TaskState"
+			, TO_CHAR( a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			, a.OwnerCode AS "OwnerCode"
+			, a.RegisterCode AS "RegisterCode"
+			, a.ModifyDate
+		FROM task a
+		INNER JOIN task_folder b ON a.FolderID = b.FolderID
+		LEFT JOIN task_folder_share_member c ON b.FolderID = c.FolderID
+		LEFT JOIN task_performer e ON a.TaskID = e.TaskID
+		WHERE ( (a.OwnerCode = #{userID} ) OR (c.MemberCode IN Fn_GetAssignedSubject_R(#{userCode}) AND a.OwnerCode != #{userID}) )
+		AND e.PerformerCode =#{userID}
+		AND a.DeleteDate IS NULL
+		AND b.DeleteDate IS NULL
+		AND ROWNUM &lt;= 5
+		ORDER BY a.ModifyDate DESC
+	</select>
+	
+     <!-- 마감임박 업무  -->
+     <select id="selectDeadlineImminentTask" parameterType="cmap" resultType="cmap">
+	    SELECT DISTINCT a.TaskID
+			, a.FolderID AS "FolderID"
+            , b.DisplayName AS FolderName
+			, a.Subject AS "Subject"
+			, a.State AS "TaskState"
+			, TO_DATE(a.EndDate, 'YYYY-MM-DD') - SYSDATE AS "DDay"
+			, TO_CHAR( a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			, a.OwnerCode AS "OwnerCode"
+			, a.RegisterCode AS "RegisterCode"
+			, a.EndDate AS "EndDate"
+		FROM task a
+		INNER JOIN task_folder b ON a.FolderID = b.FolderID
+		LEFT JOIN task_folder_share_member c ON b.FolderID = c.FolderID
+		WHERE ( (a.OwnerCode = #{userID}) OR (c.MemberCode IN Fn_GetAssignedSubject_R(#{userCode}) AND a.OwnerCode != #{userID}) )
+		AND a.DeleteDate IS NULL
+		AND b.DeleteDate IS NULL
+		AND a.EndDate IS NOT NULL
+		AND a.State != 'Complete'
+		AND TO_DATE(a.EndDate || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS')>= SYSDATE 
+		ORDER BY "DDAY"
+	</select>
+    
+    
+     <!-- 특정 사용자의 안 읽은 업무 순 -->
+     <select id="selectUnreadTask" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT a.TaskID
+			, a.FolderID AS "FolderID"
+			, b.DisplayName AS "FolderName"
+			, a.Subject AS "Subject"
+			, a.State AS "TaskState"
+			, CASE WHEN d.ReadDate IS NULL THEN 'N' ELSE  'Y' END AS "IsRead"
+			, TO_CHAR( a.RegistDate,'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			, a.OwnerCode AS "OwnerCode"
+			, a.RegisterCode AS "RegisterCode"
+	    FROM task a
+		INNER JOIN task_folder b ON a.FolderID = b.FolderID
+		LEFT JOIN task_folder_share_member c ON b.FolderID = c.FolderID
+		LEFT JOIN task_read d ON a.TaskID = d.TaskID AND d.UserID =  #{userID}
+		WHERE ( (a.OwnerCode = #{userID}) OR (c.MemberCode IN Fn_GetAssignedSubject_R(#{userCode}) AND a.OwnerCode !=#{userID}) )
+		AND a.DeleteDate IS NULL
+		AND b.DeleteDate IS NULL
+		AND d.ReadDate IS NULL
+		AND ROWNUM &lt;= 5
+		ORDER BY "RegistDate" ASC 
+	</select>
+	
+     
+     <!-- 시작 지연 업무 (오래 지연된 순) -->
+     <select id="selectStartDelayTask" parameterType="cmap" resultType="cmap">
+         <![CDATA[
+	 		SELECT DISTINCT a.TaskID
+				, a.FolderID AS "FolderID"
+				, a.Subject AS "Subject"
+				, b.DisplayName AS "FolderName"
+				, TO_CHAR( a.StartDate ,'YYYY-MM-DD') AS "StartDate"
+				, TO_DATE(a.StartDate, 'YYYY-MM-DD') - SYSDATE AS "DelayDay"
+				, a.State AS "TaskState"
+				, a.RegistDate AS "RegistDate"
+				, a.OwnerCode AS "OwnerCode"
+				, a.RegisterCode AS "RegisterCode"
+			FROM task a
+			INNER JOIN task_folder b ON a.FolderID = b.FolderID
+			LEFT JOIN task_folder_share_member c ON b.FolderID = c.FolderID
+			WHERE ( (a.OwnerCode = #{userID}) OR (c.MemberCode IN Fn_GetAssignedSubject_R(#{userCode}) AND a.OwnerCode != #{userID}) )
+			AND a.DeleteDate IS NULL
+			AND b.DeleteDate IS NULL
+			AND a.StartDate IS NOT NULL
+			AND a.State = 'Waiting'  
+			AND TO_DATE(a.StartDate || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS')>= SYSDATE 
+			ORDER BY "StartDate"
+         ]]>
+	</select>
+	
+     <!-- 마감 지연 업무 (오래 지연된 순) -->
+     <select id="selectEndDelayTask" parameterType="cmap" resultType="cmap">
+         <![CDATA[
+	 		SELECT DISTINCT a.TaskID
+				, a.FolderID AS "FolderID"
+				, a.Subject AS "Subject"
+				, b.DisplayName AS "FolderName"
+				, TO_CHAR( a.EndDate ,'YYYY-MM-DD') AS "EndDate"
+				, TO_DATE(a.EndDate, 'YYYY-MM-DD') - SYSDATE AS "DelayDay"
+				, a.State AS "TaskState"
+				, a.RegistDate AS "RegistDate"
+				, a.OwnerCode AS "OwnerCode"
+				, a.RegisterCode AS "RegisterCode"
+			FROM task a
+			INNER JOIN task_folder b ON a.FolderID = b.FolderID
+			LEFT JOIN task_folder_share_member c ON b.FolderID = c.FolderID
+			WHERE ( (a.OwnerCode = #{userID}) OR (c.MemberCode IN Fn_GetAssignedSubject_R(#{userCode}) AND a.OwnerCode != #{userID}) )
+			AND a.DeleteDate IS NULL
+			AND b.DeleteDate IS NULL
+			AND a.EndDate IS NOT NULL
+			AND (a.State ='PROCESS' OR (a.State = 'WAITING' AND a.StartDate IS NULL) )  
+			AND TO_DATE(a.EndDate|| ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS')>= SYSDATE 
+			ORDER BY "EndDate"
+         ]]>
+	</select>
+</mapper>
+

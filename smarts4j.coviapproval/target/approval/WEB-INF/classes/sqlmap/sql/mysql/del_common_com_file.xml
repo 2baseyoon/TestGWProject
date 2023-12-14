@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="del_common.ComFile">
+    <select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	SELECT	FileID
+		, StorageID
+		, ServiceType
+		, ObjectID
+		, ObjectType
+		, MessageID
+		, Version
+		, SaveType
+		, LastSeq
+		, Seq
+		, FilePath
+		, FileName
+		, SavedName
+		, Extention
+		, Size
+		, ThumWidth
+		, ThumHeight
+		, Description
+		, RegistDate
+	FROM covi_smart4j.com_file
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="fileID != null">AND FileID = #{fileID}</if>
+	</trim>	
+	</select>	
+ 	<select id="selectList" parameterType="cmap" resultType="cmap">			
+	<![CDATA[
+	SELECT	FileID
+		, StorageID
+		, ServiceType
+		, ObjectID
+		, ObjectType
+		, MessageID
+		, Version
+		, SaveType
+		, LastSeq
+		, Seq
+		, FilePath
+		, FileName
+		, SavedName
+		, Extention
+		, Size
+		, ThumWidth
+		, ThumHeight
+		, Description
+		, RegistDate
+	FROM covi_smart4j.com_file
+	]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="fileID != null">AND FileID = #{fileID}</if>
+	</trim>
+	<!-- Order by 절 -->
+	<trim prefix="ORDER BY">
+	  	<if test="sortColumn != null and sortDirection != null">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("FileID")'>FileID</when>
+				<when test='sortColumn.equalsIgnoreCase("StorageID")'>StorageID</when>
+				<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+				<when test='sortColumn.equalsIgnoreCase("ObjectID")'>ObjectID</when>
+				<when test='sortColumn.equalsIgnoreCase("ObjectType")'>ObjectType</when>
+				<when test='sortColumn.equalsIgnoreCase("MessageID")'>MessageID</when>
+				<when test='sortColumn.equalsIgnoreCase("Version")'>Version</when>
+				<when test='sortColumn.equalsIgnoreCase("SaveType")'>SaveType</when>
+				<when test='sortColumn.equalsIgnoreCase("LastSeq")'>LastSeq</when>
+				<when test='sortColumn.equalsIgnoreCase("Seq")'>Seq</when>
+				<when test='sortColumn.equalsIgnoreCase("FilePath")'>FilePath</when>
+				<when test='sortColumn.equalsIgnoreCase("FileName")'>FileName</when>
+				<when test='sortColumn.equalsIgnoreCase("SavedName")'>SavedName</when>
+				<when test='sortColumn.equalsIgnoreCase("Extention")'>Extention</when>
+				<when test='sortColumn.equalsIgnoreCase("Size")'>Size</when>
+				<when test='sortColumn.equalsIgnoreCase("ThumWidth")'>ThumWidth</when>
+				<when test='sortColumn.equalsIgnoreCase("ThumHeight")'>ThumHeight</when>
+				<otherwise>Description</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</trim>
+	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+ 	<select id="selectCount" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) 
+			FROM covi_smart4j.com_file
+		]]>
+	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="fileID != null">AND FileID = #{fileID}</if>
+	</trim>
+	</select>
+	<insert id="insert" parameterType="cmap" useGeneratedKeys="true" keyProperty="FileID">
+	<![CDATA[	
+		INSERT INTO covi_smart4j.com_file (
+			StorageID
+			, ServiceType
+			, ObjectID
+			, ObjectType
+			, MessageID
+			, Version
+			, SaveType
+			, LastSeq
+			, Seq
+			, FilePath
+			, FileName
+			, SavedName
+			, Extention
+			, Size
+			, ThumWidth
+			, ThumHeight
+			, Description
+			, RegistDate)
+		VALUES (		
+			  #{storageID}
+			, #{serviceType}
+			, #{objectID}
+			, #{objectType}
+			, #{messageID}
+			, #{version}
+			, #{saveType}
+			, #{lastSeq}
+			, #{seq}
+			, #{filePath}
+			, #{fileName}
+			, #{savedName}
+			, #{extention}
+			, #{size}
+			, #{thumWidth}
+			, #{thumHeight}
+			, #{description}
+			, NOW(3)
+		)
+		]]>	
+	</insert>	
+	<update id="update" parameterType="cmap">			
+		UPDATE covi_smart4j.com_file		
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="storageID != null">StorageID=#{storageID},</if>
+			<if test="serviceType != null">ServiceType=#{serviceType},</if>
+			<if test="objectID != null">ObjectID=#{objectID},</if>
+			<if test="objectType != null">ObjectType=#{objectType},</if>
+			<if test="messageID != null">MessageID=#{messageID},</if>
+			<if test="version != null">Version=#{version},</if>
+			<if test="saveType != null">SaveType=#{saveType},</if>
+			<if test="lastSeq != null">LastSeq=#{lastSeq},</if>
+			<if test="seq != null">Seq=#{seq},</if>
+			<if test="filePath != null">FilePath=#{filePath},</if>
+			<if test="fileName != null">FileName=#{fileName},</if>
+			<if test="savedName != null">SavedName=#{savedName},</if>
+			<if test="extention != null">Extention=#{extention},</if>
+			<if test="size != null">Size=#{size},</if>
+			<if test="thumWidth != null">ThumWidth=#{thumWidth},</if>
+			<if test="thumHeight != null">ThumHeight=#{thumHeight},</if>
+			<if test="description != null">Description=#{description},</if>
+			<if test="registDate != null">RegistDate=#{registDate},</if>}
+		</trim>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  <if test="fileID != null">AND FileID = #{fileID}</if>
+		</trim>
+	</update>
+	<delete id="delete" parameterType="cmap">        
+    	UPDATE covi_smart4j.com_file		
+		WHERE FileID in
+        <foreach collection="fileID" item="item" index="index" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+	</delete>	
+</mapper>

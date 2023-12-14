@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.govDoc.openDoc">
+	<insert id="insertGovOpenDocMaster" parameterType="cmap">
+		INSERT INTO GOV_OPENDOC_MASTER (
+			DOC_MNGE_CARD_ID
+			,UNIT_TASK_ID
+			,MNGE_TASK_ID
+			,UNIT_TASK_NM
+			,MNGE_TASK_NM
+			,UNIT_TASK_CARD_NM
+			,MNGE_TASK_CARD_NM
+			,SJ
+			,DOC_OBJET_DTLS
+			,CREAT_DT
+			,NST_CD
+			
+			,NST_NM
+			,DEPT_CD
+			,DEPT_NM
+			,REPORTR_NMPN
+			,DOC_NO
+			,DOC_NO_NM
+			,PRSRV_PD_NUM
+			,OPP_YN
+			,CLSDR_BASIS_DC
+			,CLSDR_RESN_DC
+			,RCEPT_DOC_NO
+			,DOC_RGST_SE_CD
+			,OPERTN_DOC_NO
+			,OPERTN_DOC_SJ
+			,LIST_OPP_YN
+			,INFO_TY_CD
+			,NEW_UPDT_SE_CD
+			,LAST_SNCTR_NMPN
+			,LAST_SNCTR_OFPS_CLSF_NM
+			,REDG_LMTT_END_YMD
+			,RCORD_WATERSEASN_ID
+			,RCEPT_RGST_NO
+			,DOC_HOLD_SYS_CD
+			
+			,PROCESSID
+			,APPROVALCONTEXT
+			,STATE
+			,SENDDATE
+			,REGISTDATE
+			,REGISTUSERCODE
+			,CHGDATE
+			,CHGUSERCODE
+		) VALUES (
+			#{DOC_MNGE_CARD_ID}
+			,#{UNIT_TASK_ID}
+			,#{MNGE_TASK_ID}
+			,#{UNIT_TASK_NM}
+			,#{MNGE_TASK_NM}
+			,#{UNIT_TASK_CARD_NM}
+			,#{MNGE_TASK_CARD_NM}
+			,#{SJ}
+			,#{DOC_OBJET_DTLS}
+			,#{CREAT_DT}
+			,#{NST_CD}
+			,#{NST_NM}
+			,#{DEPT_CD}
+			,#{DEPT_NM}
+			,#{REPORTR_NMPN}
+			,#{DOC_NO}
+			,#{DOC_NO_NM}
+			
+			,#{PRSRV_PD_NUM}
+			,#{OPP_YN}
+			,#{CLSDR_BASIS_DC}
+			,#{CLSDR_RESN_DC}
+			,#{RCEPT_DOC_NO}
+			,#{DOC_RGST_SE_CD}
+			,#{OPERTN_DOC_NO}
+			,#{OPERTN_DOC_SJ}
+			,#{LIST_OPP_YN}
+			,#{INFO_TY_CD}
+			,#{NEW_UPDT_SE_CD}
+			,#{LAST_SNCTR_NMPN}
+			,#{LAST_SNCTR_OFPS_CLSF_NM}
+			,#{REDG_LMTT_END_YMD}
+			,#{RCORD_WATERSEASN_ID}
+			,#{RCEPT_RGST_NO}
+			,#{DOC_HOLD_SYS_CD}
+			<!-- 내부처리용 데이터 -->
+			,#{PROCESSID}
+			,#{APPROVALCONTEXT}
+			,#{STATE}
+			,#{SENDDATE}
+			,SYSDATE
+			,#{REGISTUSERCODE}
+			,SYSDATE
+			,#{CHGUSERCODE}
+		)
+	</insert>
+	<insert id="insertGovOpenDocFiles" parameterType="cmap" >
+		INSERT INTO GOV_OPENDOC_FILES (
+			DOC_MNGE_CARD_ID
+			,FILE_SE_CD
+			,FILE_ID
+			,FILE_NM
+			,FILE_MG
+			,FILE_ORDR
+			,FILE_OPP_YN
+			,FILE_PATH
+		) VALUES (
+			#{DOC_MNGE_CARD_ID}
+			,#{FILE_SE_CD}
+			,#{FILE_ID}
+			,#{FILE_NM}
+			,#{FILE_MG}
+			,#{FILE_ORDR}
+			,#{FILE_OPP_YN}
+			,#{FILE_PATH}
+		)
+	</insert>
+	<delete id="deleteGovOpenDocFiles" parameterType="cmap">
+		DELETE FROM GOV_OPENDOC_FILES
+		WHERE DOC_MNGE_CARD_ID = #{DOC_MNGE_CARD_ID}
+	</delete>
+	<update id="updateState" parameterType="cmap">
+		UPDATE GOV_OPENDOC_MASTER
+		SET STATE = #{STATE}
+			, CHGDATE = SYSDATE
+			, RESULTMSG = #{RESULTMSG:CLOB}
+		WHERE DOC_MNGE_CARD_ID = #{DOC_MNGE_CARD_ID}
+	</update>
+	<!-- 문서공개범위등 정보변경시 재연동 요청 -->
+	<update id="updateGovOpenDocMaster">
+		UPDATE GOV_OPENDOC_MASTER
+		SET SJ = #{SJ}
+			, OPP_YN = #{OPP_YN}
+			, NEW_UPDT_SE_CD = #{NEW_UPDT_SE_CD}
+			, STATE = #{STATE}
+			, CHGUSERCODE = #{CHGUSERCODE}
+			, CHGDATE = SYSDATE
+		WHERE DOC_MNGE_CARD_ID = #{DOC_MNGE_CARD_ID}
+	</update>
+	
+	<!-- 원문공개 문서 단건 조회 -->
+	<select id="selectOpenDoc" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DOC_MNGE_CARD_ID
+			,UNIT_TASK_ID
+			,MNGE_TASK_ID
+			,UNIT_TASK_NM
+			,MNGE_TASK_NM
+			,UNIT_TASK_CARD_NM
+			,MNGE_TASK_CARD_NM
+			,SJ
+			,DOC_OBJET_DTLS
+			,CREAT_DT
+			,NST_CD
+			,NST_NM
+			,DEPT_CD
+			,DEPT_NM
+			,REPORTR_NMPN
+			,DOC_NO
+			,DOC_NO_NM
+			,PRSRV_PD_NUM
+			,OPP_YN
+			,CLSDR_BASIS_DC
+			,CLSDR_RESN_DC
+			,RCEPT_DOC_NO
+			,DOC_RGST_SE_CD
+			,OPERTN_DOC_NO
+			,OPERTN_DOC_SJ
+			,LIST_OPP_YN
+			,INFO_TY_CD
+			,NEW_UPDT_SE_CD
+			,LAST_SNCTR_NMPN
+			,LAST_SNCTR_OFPS_CLSF_NM
+			,REDG_LMTT_END_YMD
+			,RCORD_WATERSEASN_ID
+			,RCEPT_RGST_NO
+			,DOC_HOLD_SYS_CD
+			<!-- 내부처리용 데이터 -->
+			,APPROVALCONTEXT
+			,STATE
+			,SENDDATE
+			,REGISTDATE
+			,REGISTUSERCODE
+		FROM GOV_OPENDOC_MASTER
+		WHERE DOC_MNGE_CARD_ID = #{formInstID}
+	</select>
+	
+	<select id="selectGovOpenDocFile" parameterType="cmap" resultType="cmap">
+	SELECT 
+			DOC_MNGE_CARD_ID
+			,FILE_SE_CD
+			,FILE_ID
+			,FILE_PATH
+		FROM GOV_OPENDOC_FILES
+		WHERE DOC_MNGE_CARD_ID = #{DOC_MNGE_CARD_ID}
+		AND FILE_SE_CD = '본문'
+	</select>
+		
+	<select id="selectGovOpenDocFileList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			FILE_SE_CD AS "Gubun"
+			,FILE_ID AS "FileID"
+			,FILE_NM AS "FileName"
+			,FILE_MG AS "Size"
+			,FILE_PATH AS "FilePath"
+		FROM GOV_OPENDOC_FILES
+		WHERE DOC_MNGE_CARD_ID = #{docID}
+		ORDER BY FILE_SE_CD, FILE_ORDR
+	</select>
+		
+	<select id="selectGovOpenDocMaster" parameterType="cmap" resultType="cmap">
+		WITH OEPNDOC_LIST AS (	
+			SELECT
+				GOM.DOC_MNGE_CARD_ID AS DOCID
+				,GOM.SJ AS SUBJECT
+				,GOM.NST_CD AS COMPANYCODE
+				,GOM.NST_NM AS COMPANYNAME
+				,GOM.DEPT_CD AS DEPTCODE
+				,GOM.DEPT_NM AS DEPTNAME
+				,GOM.REPORTR_NMPN AS USERNAME
+				,GOM.DOC_NO_NM AS DOCNUMBER
+				,GOM.NEW_UPDT_SE_CD
+				<!-- 내부처리용 데이터 -->
+				,GOM.RESULTMSG
+				,GOM.PROCESSID
+				,GOM.STATE
+				,GOM.REGISTDATE
+				<![CDATA[,(SELECT CASE WHEN COUNT(0) > 0 THEN 1 ELSE 0 END FROM GOV_OPENDOC_FILES GOF WHERE GOF.DOC_MNGE_CARD_ID = GOM.DOC_MNGE_CARD_ID) AS ISFILE ]]>
+				,COUNT(0) OVER() AS TOTAL_COUNT
+			FROM GOV_OPENDOC_MASTER GOM
+		    <!-- 검색 데이터 Where 절 -->
+		    WHERE 1=1
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    AND REGISTDATE BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	</if>
+			<if test="searchType != null and searchType !='' and searchType != 'all' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+	    		AND 
+	    		<choose>
+					<when test='searchType.equalsIgnoreCase("title")'>SJ </when>
+					<when test='searchType.equalsIgnoreCase("docnumber")'>DOC_NO_NM </when>
+				</choose>
+				LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchType == 'all'  and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND (
+					SJ LIKE CONCAT('%',#{searchWord},'%') 			OR <!-- 제목 -->
+					DOC_NO_NM LIKE CONCAT('%',#{searchWord},'%') 	OR <!-- 문서번호 -->
+				)
+			</if>
+			<trim prefix="ORDER BY">
+		    	<if test="sortBy != null and !sortBy.equals('') ">
+			   		<choose>
+						<when test='sortBy.equalsIgnoreCase("SUBJECT")'> SJ</when>
+						<when test='sortBy.equalsIgnoreCase("COMPANYNAME")'> NST_NM</when>
+						<when test='sortBy.equalsIgnoreCase("DEPTNAME")'> DEPT_NM</when>
+						<when test='sortBy.equalsIgnoreCase("USERNAME")'> REPORTR_NMPN</when>
+						<when test='sortBy.equalsIgnoreCase("DOCNUMBER")'> DOC_NO_NM</when>
+						<when test='sortBy.equalsIgnoreCase("STATE")'> STATE</when>
+						<otherwise> REGISTDATE</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose> 
+				</if>
+			    <if test="sortBy == '' or sortBy == null or sortDirection == '' or sortDirection == null">
+			         REGISTDATE Desc
+			    </if>
+			</trim>
+		)
+		SELECT ROWNUM
+			   ,A.*
+		FROM (
+			SELECT 	ODL.*			
+					,ROWNUM R_NUM
+			FROM OEPNDOC_LIST ODL			
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	
+	<!-- 원문공개 연계이력조회 -->
+	<select id="selectSendHistory" parameterType="cmap" resultType="cmap">
+		WITH OEPNDOC_LIST AS (	
+			SELECT
+			
+				A.HISTORY_ID
+				,A.FORMINSTID
+				,B.SJ AS SUBJECT
+				,B.DEPT_NM AS DEPTNAME
+				,B.REPORTR_NMPN AS USERNAME
+				,B.DOC_NO_NM AS DOCNUMBER
+				,A.SENDDATE
+				,A.SENDTYPE -- NEW, UPDATE
+				,COUNT(0) OVER() AS TOTAL_COUNT
+			FROM GOV_OPENDOC_HIST A
+			INNER JOIN GOV_OPENDOC_MASTER B
+				ON B.DOC_MNGE_CARD_ID = A.FORMINSTID
+		    <!-- 검색 데이터 Where 절 -->
+		    WHERE 1=1
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    AND A.SENDDATE BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	</if>
+			<if test="searchType != null and searchType !='' and searchType != 'all' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+	    		AND 
+	    		<choose>
+					<when test='searchType.equalsIgnoreCase("title")'>B.SJ </when>
+					<when test='searchType.equalsIgnoreCase("docnumber")'>B.DOC_NO_NM </when>
+				</choose>
+				LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchType == 'all'  and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND (
+					B.SJ LIKE CONCAT('%',#{searchWord},'%') 			OR <!-- 제목 -->
+					B.DOC_NO_NM LIKE CONCAT('%',#{searchWord},'%')<!-- 문서번호 -->
+				)
+			</if>
+			<trim prefix="ORDER BY">
+		    	<if test="sortBy != null and !sortBy.equals('') ">
+			   		<choose>
+						<when test='sortBy.equalsIgnoreCase("SUBJECT")'> SJ</when>
+						<when test='sortBy.equalsIgnoreCase("DEPTNAME")'> DEPT_NM</when>
+						<when test='sortBy.equalsIgnoreCase("USERNAME")'> REPORTR_NMPN</when>
+						<when test='sortBy.equalsIgnoreCase("DOCNUMBER")'> DOC_NO_NM</when>
+						<when test='sortBy.equalsIgnoreCase("SENDTYPE")'> SENDTYPE</when>
+						<otherwise> SENDDATE</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose> 
+				</if>
+			    <if test="sortBy == '' or sortBy == null or sortDirection == '' or sortDirection == null">
+			         SENDDATE Desc
+			    </if>
+			</trim>
+		)
+		SELECT ROWNUM
+			   ,A.*
+		FROM (
+			SELECT 	ODL.*			
+					,ROWNUM R_NUM
+			FROM OEPNDOC_LIST ODL			
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	
+	<!-- 원문공개 연계 현황데이터 조회 -->
+	<select id="selectSendStatistics" parameterType="cmap" resultType="cmap">
+		WITH OEPNDOC_LIST AS (	
+			SELECT   
+					 DAY.DAY_RANGE, -- yyyyMMdd
+			         STAT.TARGETDATE,
+			         STAT.SENDDATE,
+			         STAT.TOTCNT,
+			         STAT.UPDCNT,
+			         STAT.NEWCNT,
+			         STAT.CSVFILEID,
+			         STAT.RST
+			         ,COUNT(0) OVER() AS TOTAL_COUNT
+			FROM     GOV_OPENDOC_STAT STAT
+			         RIGHT OUTER JOIN
+			          ( SELECT TO_CHAR(END_DATE, 'YYYYMMDD') AS DAY_RANGE
+			            FROM ( 
+			            		SELECT ( START_DATE + LEVEL - 1 ) AS END_DATE
+			                FROM (
+			                	SELECT TO_DATE(#{startDate}, 'YYYY-MM-DD') AS START_DATE, TO_DATE(#{endDate}, 'YYYY-MM-DD') AS END_DATE
+			                	FROM DUAL
+			                )
+			                CONNECT BY LEVEL <![CDATA[<=]]> END_DATE - START_DATE + 1
+			          	)
+			          ) DAY
+			         ON STAT.TARGETDATE = DAY.DAY_RANGE
+			WHERE    1=1
+			<trim prefix="ORDER BY">
+		    	<if test="sortBy != null and !sortBy.equals('') ">
+			   		<choose>
+						<when test='sortBy.equalsIgnoreCase("DAY_RANGE")'> DAY_RANGE</when>
+						<when test='sortBy.equalsIgnoreCase("TOTCNT")'> TOTCNT</when>
+						<when test='sortBy.equalsIgnoreCase("UPDCNT")'> UPDCNT</when>
+						<when test='sortBy.equalsIgnoreCase("NEWCNT")'> NEWCNT</when>
+						<otherwise> SENDDATE</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC NULLS FIRST</when>
+						<otherwise> DESC NULLS LAST</otherwise>
+					</choose>
+				</if>
+			    <if test="sortBy == '' or sortBy == null or sortDirection == '' or sortDirection == null">
+			         DAY_RANGE Desc
+			    </if>
+			</trim>
+		)
+		SELECT ROWNUM
+			   ,A.*
+		FROM (
+			SELECT 	ODL.*			
+					,ROWNUM R_NUM
+			FROM OEPNDOC_LIST ODL			
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	<delete id="deleteHistory">
+		DELETE FROM GOV_OPENDOC_HIST 
+		WHERE HISTORY_ID IN 
+		<foreach collection="chkHistoryIds" item="id" open="(" close=")" separator=",">
+			#{id}
+		</foreach>
+	</delete>
+	
+	<update id="updateStatSatus">
+		MERGE INTO GOV_OPENDOC_STAT MASTER USING (
+			SELECT #{targetDate} TARGETDATE
+				,0 TOTCNT
+				,0 UPDCNT
+				,0 NEWCNT
+				,#{RST} RST FROM DUAL
+		) SUB
+		ON (
+			MASTER.TARGETDATE = SUB.TARGETDATE
+		) 
+		WHEN MATCHED THEN
+			UPDATE 
+			SET RST = #{RST}
+		WHEN NOT MATCHED THEN
+			INSERT (TARGETDATE, TOTCNT, UPDCNT, NEWCNT, RST)
+			VALUES (SUB.TARGETDATE, SUB.TOTCNT, SUB.UPDCNT, SUB.NEWCNT, SUB.RST)
+	</update>
+</mapper>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.board">
+    
+ 	<select id="selectTreeFolderMenu" parameterType="cmap" resultType="cmap">
+	    SELECT       
+		 	SOF.FolderID AS FolderID
+			,SOF.MemberOf AS MemberOf
+			, SOF.FolderType AS itemType
+	    	, SOF.FolderType
+	    	, SOF.FolderPath
+			, SOF.MenuID
+			, ( CONCAT('board_',SOF.FolderType) )AS type
+			, IFNULL(Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName), SOF.DisplayName ) AS FolderName
+			, SOF.MemberOf
+			, SOF.DisplayName AS DisplayName
+			, SOF.SortPath
+			,(SELECT COUNT(0) FROM sys_object_folder AS self WHERE self.MemberOf=sof.FolderID AND self.IsUse = 'Y' AND self.DeleteDate IS NULL) AS hasChild
+			,(IF(INSTR(SOF.OwnerCode, #{userCode})>0,'Y','N')) AS OwnerFlag
+	    FROM sys_object_folder AS SOF
+<!-- 		WHERE SOF.DomainID IN (0, #{domainID}) -->
+		WHERE 1=1
+		<!-- 최상단 메뉴에 소속된 메뉴 조회 -->
+		AND (SOF.MenuID = #{menuID} OR SOF.DomainID = 0) 
+		<choose>
+		    <when test="communityID != null and communityID !=''">
+				AND SOF.ObjectType = 'Community'
+			</when>
+			<otherwise>
+				AND SOF.ObjectType = #{bizSection}
+			</otherwise>
+		</choose>
+		AND SOF.DeleteDate IS NULL
+		AND SOF.IsUse = 'Y'
+		AND SOF.IsDisplay = 'Y'
+		AND SOF.FolderPath NOT REGEXP (
+			SELECT GROUP_CONCAT(FolderID SEPARATOR ';|') FROM sys_object_folder
+			WHERE (IsUse = 'N' OR IsDisplay = 'N')
+		)
+		<if test="mode != null and mode == 'Copy'">	<!-- 한줄게시와 컨텐츠는 복사, 이동 X -->
+		    AND SOF.FolderType NOT IN ('QuickComment', 'Contents')
+		</if>
+		<if test="IsMobileSupport != null and IsMobileSupport == 'Y'">	<!-- 모바일 지원 여부 확인 -->
+		    AND SOF.IsMobileSupport = 'Y'
+		</if>
+<!-- 		<if test="folderIDs != null and folderIDs.size()>0"> -->
+<!-- 			AND SOF.FolderID IN -->
+<!-- 			<foreach item="item" index="index" collection="folderIDs" open="(" close=")" separator=","> -->
+<!-- 	            #{item.ObjectID} -->
+<!-- 		    </foreach> -->
+<!-- 	    </if> -->
+		ORDER BY SOF.MenuID, SOF.FolderPath, SOF.SortKey ASC
+	</select>
+</mapper>

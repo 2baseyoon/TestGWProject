@@ -1,0 +1,77 @@
+
+<!--실 결재양식 내용 부분 시작 -->
+<table class="tableStyle linePlus mt10"><!-- class="table_10" -->
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+     <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduNm'/></th>
+    	<td><input type="text" data-type="mField" id="eduName" value="{{ doc.BodyContext.eduName }}" readonly="readonly" style="width:98%"></td>
+    </tr>
+    <tr>
+    	 <th style="width: 536px;"><spring:message code='Cache.lbl_hrApp_eduTerm'/></th>
+         <td>
+         	<input title="시작일" id="SDATE" style="width: 15%;" required="" type="text" readonly="readonly" value="{{ doc.BodyContext.SDATE }}" data-type="mField" onchange="calSDATEEDATE(this);">
+         	<b> ~ </b>             
+         	<input title="종료일" id="EDATE" style="width: 15%;" required="" onchange="calSDATEEDATE(this);" type="text" readonly="readonly" value="{{ doc.BodyContext.EDATE }}" data-type="mField">                         
+         	(<input id="NIGHTS" style="width: 40px; text-align: right;" type="text" size="5" readonly="readonly" value="{{ doc.BodyContext.NIGHTS }}" data-type="mField" data-pattern="period" data-period-ref="SDATE,EDATE"><b><spring:message code='Cache.lbl_hrApp_eduNight'/></b>              
+         	<input id="DAYS" style="width: 40px;text-align: right;" type="text" size="5" readonly="readonly" value="{{ doc.BodyContext.DAYS }}" data-type="mField" data-pattern="period" data-period-ref="SDATE,EDATE,1"><b><spring:message code='Cache.lbl_hrApp_eduDays'/></b>)
+			&nbsp;<input type="text" data-type="rField" data-pattern="numeric" id="eduTime" readonly="readonly" value="{{ doc.BodyContext.eduTime }}" style="width:50px"><b><spring:message code='Cache.lbl_hrApp_eduTime'/></b>
+         </td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduCenter'/></th>
+    	<td><input type="text" data-type="mField" id="eduAgency" readonly="readonly" value="{{ doc.BodyContext.eduAgency }}" style="width:98%"></td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_edu_teacher'/></th> 
+    	<td><input type="text" data-type="mField" id="eduIns" readonly="readonly" value="{{ doc.BodyContext.eduIns }}" style="width:98%"></td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduCompletionSts'/></th>
+    	<td>
+    		<div data-type="mField" data-element-type="rdo_d" data-node-name="finish">
+			    <input type="radio" id="finish1" name="finish" value="Y" checked/> <spring:message code='Cache.lbl_hrApp_eduCompletion'/> &nbsp; &nbsp;
+			    <input type="radio" id="finish2" name="finish" value="N"/> <spring:message code='Cache.lbl_hrApp_eduUnCompletion'/> &nbsp; &nbsp;
+			</div>
+    	</td>
+    </tr>
+    
+    <tr>
+    	<th><spring:message code='Cache.lbl_edu_sat'/></th>
+    	<td>
+    		<div data-type="mField" data-element-type="rdo_d" data-node-name="eduSat">
+			    <input type="radio" id="eduSat5" name="eduSat" value="5" checked/> 5 &nbsp; &nbsp;
+			    <input type="radio" id="eduSat4" name="eduSat" value="4"/> 4 &nbsp; &nbsp;
+			    <input type="radio" id="eduSat3" name="eduSat" value="3"/> 3 &nbsp; &nbsp;
+			    <input type="radio" id="eduSat2" name="eduSat" value="2"/> 2 &nbsp; &nbsp;
+			    <input type="radio" id="eduSat1" name="eduSat" value="1"/> 1 &nbsp; &nbsp;
+			</div>
+    	</td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_hr_spr_subject'/></th> 
+    	<td><input type="text" data-type="mField" id="sprSubject" value="{{ doc.BodyContext.sprSubject }}" style="width:98%"></td>
+    </tr>
+    
+    <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduContent'/></th>
+    	<td><textarea id="eduContent" data-type="mField" readonly="readonly" style="width:98%" rows="4">{{ doc.BodyContext.eduContent }}</textarea></td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduPracticalCont'/></th>
+    	<td><textarea id="workingContent" data-type="mField" style="width:98%" rows="4">{{ doc.BodyContext.workingContent }}</textarea></td>
+    </tr>
+    <tr>
+    	<th><spring:message code='Cache.lbl_hrApp_eduReview'/></th> 
+    	<td><textarea id="review" data-type="mField" style="width:98%" rows="4" placeholder="<spring:message code='Cache.lbl_hrApp_eduPlaceHolder'/>">{{ doc.BodyContext.review }}</textarea></td>
+    </tr>
+    <tr style="cursor: default;" data-mode="writeOnly">
+    	<td colspan="2" style="padding-left:25px;">
+    		<u><b><spring:message code='Cache.lbl_hrApp_eduEtc'/></b></u><br>
+    		<spring:message code='Cache.lbl_hrApp_eduBigoMsg'/>
+    	</td>
+    </tr>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

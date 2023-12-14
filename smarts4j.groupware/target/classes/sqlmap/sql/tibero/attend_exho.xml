@@ -1,0 +1,1149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="attend.exho">
+
+	<!-- 보상휴가 기준 리스트 조회 -->
+	<select id="selectExHoInfoListCnt" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				SUM(CASE WHEN WORKTIME > 52 * 60 THEN 1 ELSE 0 END) AS "OverCnt"
+				, NVL(SUM(EXHOCNT), 0) AS "ExHoCnt"
+				, NVL(SUM(WORKTIME), 0) AS "TotTime"
+				, NVL(SUM(NOTCNT), 0) AS "NotCnt"
+				, NVL(SUM(CANCNT), 0) AS "CanCnt"
+			FROM (
+				SELECT
+					USERCODE
+					, COUNT(*) AS EXHOCNT
+					, SUM(WHOUR * 60 + WMIN) / 60 AS WORKTIME
+					, SUM(CASE WHEN APPROVALSTSU = 'NOT' THEN 1 ELSE 0 END) AS NOTCNT
+					, SUM(CASE WHEN APPROVALSTS = 'S' THEN 1 ELSE 0 END) AS CANCNT
+				FROM (
+					SELECT
+						AME.USERCODE
+						, NVL(APPROVALSTS, 'Y') AS APPROVALSTS
+						, CASE
+							WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD') THEN
+								CASE
+									WHEN ACM.ATTENDTIME IS NULL THEN 'NOT'
+									ELSE
+										CASE
+											WHEN TO_CHAR(ACM.ATTENDTIME, 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD') THEN 'SUCCESS'
+											ELSE
+												CASE
+													WHEN TO_CHAR(ACM.ATTENDTIME, 'HH24:MI') < TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24:MI') THEN 'NOT'
+													ELSE 'SUCCESS'
+												END
+										END
+								END
+							ELSE APPROVALSTS
+						END AS APPROVALSTSU
+						, SUBSTR(WORKTIME, 1, 2) AS WHOUR
+						, SUBSTR(WORKTIME, 3, 2) AS WMIN
+						, CASE
+							WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD') THEN 'Y'
+							ELSE 'N'
+						END AS PREYN
+					FROM ATTEND_EXTENSIONHOLIDAY AME
+						JOIN SYS_OBJECT_USER UR ON AME.USERCODE = UR.USERCODE
+						JOIN SYS_OBJECT_USER_BASEGROUP BG
+							ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+						JOIN SYS_OBJECT_GROUP OG
+							ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE  IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+						LEFT JOIN ATTEND_COMMUTING_MST ACM ON AME.USERCODE = ACM.USERCODE AND AME.JOBDATE = ACM.TARGETDATE
+					WHERE UR.ISDISPLAY = 'Y'
+						AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+						AND JOBDATE BETWEEN TO_DATE(#{StartDate}, 'YYYY-MM-DD') AND TO_DATE(#{EndDate}, 'YYYY-MM-DD')
+						AND NVL(APPROVALSTS, '') <> 'N'
+		]]>
+						<if test='RetireUser == "N"'>
+							AND ur.IsUse = 'Y'
+							AND ur.IsDisplay = 'Y'
+						</if>
+						<if test="JobStsName != null and JobStsName != ''">
+							AND JOBSTSNAME = #{JobStsName}
+						</if>
+						<if test="p_UserCode != null and p_UserCode != ''">
+							AND AME.USERCODE = #{p_UserCode}
+						</if>
+						<if test='searchText != null and searchText != ""'>
+							AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+						</if>
+						<if test="ExHoSeq != null and ExHoSeq != ''">
+							AND EXHOSEQ = #{ExHoSeq}
+						</if>
+						<if test="ApprovalSts != null and ApprovalSts != '' ">
+							AND NVL(APPROVALSTS, 'Y') = #{ApprovalSts}
+						</if>
+						<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+							 <choose>
+							 	<when test ="ApprovalStsU == 'NOT' ">
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND (ACM.ATTENDTIME IS NULL OR TO_CHAR(ACM.ATTENDTIME,'HH24MI') < TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'),'HH24MI'))
+									]]>
+								</when>
+								<when test ="ApprovalStsU == 'SUCCESS' ">
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND TO_CHAR(ACM.ATTENDTIME,'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+									]]>
+								</when>
+								<otherwise>
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') <= TO_CHAR(JOBDATE,'%YYYYMMDD')
+									]]>
+								</otherwise>
+							</choose>
+						</if>
+				) R
+				GROUP BY USERCODE
+			) A
+	</select>
+
+	<select id="selectExHoInfoListCnt2" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				SUM(CASE WHEN WORKTIME > 52 * 60 THEN 1 ELSE 0 END) AS "OverCnt"
+				, NVL(SUM(EXHOCNT), 0) AS "ExHoCnt"
+				, NVL(SUM(WORKTIME), 0) AS "TotTime"
+				, NVL(SUM(NOTCNT), 0) AS "NotCnt"
+				, NVL(SUM(CANCNT), 0) AS "CanCnt"
+			FROM (
+				SELECT
+					USERCODE
+					, COUNT(*) AS EXHOCNT
+					, SUM(TO_CHAR(WORKTIME, 'HH24') * 60 + TO_CHAR(WORKTIME, 'MI')) / 60 AS WORKTIME
+					, SUM(CASE WHEN APPROVALSTSU = 'NOT' THEN 1 ELSE 0 END) AS NOTCNT
+					, SUM(CASE WHEN APPROVALSTS = 'S' THEN 1 ELSE 0 END) AS CANCNT
+				FROM (
+					SELECT
+                      AME.USERCODE
+                       , JOBSTSNAME
+                       , EXHOSEQ
+                       , NVL(APPROVALSTS, 'Y') AS APPROVALSTS
+                       , CASE
+                             WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD') THEN
+                                 CASE
+                                     WHEN ATTENDTIME IS NULL OR ATTENDTIME = '' THEN 'NOT'
+                                     ELSE 'SUCCESS'
+                                     END
+                             ELSE APPROVALSTS
+                      END                          AS APPROVALSTSU
+                       , JOBDATE
+                       , CASE
+                             WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD') THEN
+                                 CASE
+                                     WHEN JOBSTSNAME = 'O' THEN TO_DATE(EXTENAC * 60, 'SSSSS')
+                                     ELSE TO_DATE(HOLIAC * 60, 'SSSSS')
+                                     END
+                             ELSE TO_DATE((ame.WorkTime||'00'), 'HH24MISS')
+                      END AS WORKTIME
+					FROM ATTEND_EXTENSIONHOLIDAY AME
+						JOIN SYS_OBJECT_USER UR ON AME.USERCODE = UR.USERCODE
+						JOIN SYS_OBJECT_USER_BASEGROUP BG
+							ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+						JOIN SYS_OBJECT_GROUP OG
+							ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE  IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+						LEFT JOIN ATTEND_COMMUTING_MST ACM ON AME.USERCODE = ACM.USERCODE AND AME.JOBDATE = ACM.TARGETDATE
+					WHERE UR.ISDISPLAY = 'Y'
+						AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+						AND JOBDATE BETWEEN TO_DATE(#{StartDate}, 'YYYY-MM-DD') AND TO_DATE(#{EndDate}, 'YYYY-MM-DD')
+						AND NVL(APPROVALSTS, '') <> 'N'
+		]]>
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<if test="JobStsName != null and JobStsName != ''">
+			AND JOBSTSNAME = #{JobStsName}
+		</if>
+		<if test="p_UserCode != null and p_UserCode != ''">
+			AND AME.USERCODE = #{p_UserCode}
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+		</if>
+		<if test="ExHoSeq != null and ExHoSeq != ''">
+			AND EXHOSEQ = #{ExHoSeq}
+		</if>
+		<if test="ApprovalSts != null and ApprovalSts != '' ">
+			AND NVL(APPROVALSTS, 'Y') = #{ApprovalSts}
+		</if>
+		<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+			<choose>
+				<when test ="ApprovalStsU == 'NOT' ">
+					<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND (ACM.ATTENDTIME IS NULL OR TO_CHAR(ACM.ATTENDTIME,'HH24MI') < TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'),'HH24MI'))
+									]]>
+				</when>
+				<when test ="ApprovalStsU == 'SUCCESS' ">
+					<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND TO_CHAR(ACM.ATTENDTIME,'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+									]]>
+				</when>
+				<otherwise>
+					<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') <= TO_CHAR(JOBDATE,'%YYYYMMDD')
+									]]>
+				</otherwise>
+			</choose>
+		</if>
+		) R
+		GROUP BY USERCODE
+		) A
+	</select>
+
+	<select id="selectExHoInfoList" parameterType="cmap" resultType="cmap">
+		/* queryID = attend.exho.selectExHoInfoList */
+		<include refid="oracle.include.pagingHeader" />
+		<![CDATA[
+			SELECT
+				AME.USERCODE AS "UserCode"
+				, JOBSTSNAME AS "JobStsName"
+				, (SELECT CODENAME FROM SYS_BASE_CODE A WHERE CODEGROUP='AttendReqType' AND CODE = AME.JOBSTSNAME) AS "JobStsNameKr"
+				, EXHOSEQ AS "ExHoSeq"
+				, NVL(APPROVALSTS,'Y') AS "ApprovalSts"
+				, CASE
+					WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD') THEN
+						CASE
+							WHEN ACM.ATTENDTIME IS NULL THEN 'NOT'
+							ELSE
+								CASE
+									WHEN TO_CHAR(ACM.ATTENDTIME,'YYYYMMDD')  >  TO_CHAR(JOBDATE,'YYYYMMDD') THEN 'SUCCESS'
+									ELSE
+										CASE
+											WHEN TO_CHAR(ACM.ATTENDTIME,'HH24MI') < TO_CHAR(TO_DATE(ENDTIME,'YYYY-MM-DD HH24:MI:SS'), 'HH24MI') THEN 'NOT'
+											ELSE 'SUCCESS'
+										END
+								END
+						END
+					ELSE APPROVALSTS
+				END AS "ApprovalStsU"
+				, TO_CHAR(JOBDATE, 'YYYY-MM-DD') AS "JobDate"
+				, STARTTIME AS "StartTime"
+				, ENDTIME AS "EndTime"
+				, TO_CHAR(TO_DATE(((TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS') - TO_DATE(STARTTIME, 'YYYY-MM-DD HH24:MI:SS'))  * (24 * 60 * 60)), 'SSSSS'), 'HH24:MI:SS') AS "WorkingTime"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI:SS'), 'HH24:MI:SS') AS "WorkTime"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI'), 'HH24') AS "WorkTimeHour"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI'), 'MI') AS "WorkTimeMin"
+				, AME.ETC AS "Etc"
+				, BILLNAME AS "BillName"
+				, PROCESSID AS "ProcessId"
+				, FORMINSTID AS "FormInstId"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS "TransMultiDisplayName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIDEPTNAME) AS "TransMultiDeptName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIJOBPOSITIONNAME) AS "TransMultiJobPositionName"
+				, TO_CHAR(TO_DATE(STARTTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24') AS "sHour"
+				, TO_CHAR(TO_DATE(STARTTIME, 'YYYY-MM-DD HH24:MI:SS'), 'MI') AS "sMin"
+				, TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24') AS "eHour"
+				, TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'), 'MI') AS "eMin"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI'), 'HH24') AS "wHour"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI'), 'MI') AS "wMin"
+				, TO_CHAR(TO_DATE(STARTTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24:MI') AS "f_StartTime"
+				, TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24:MI') AS "f_EndTime"
+				, TO_CHAR(TO_DATE(WORKTIME, 'HH24:MI'), 'HH24:MI') AS "f_WorkTime"
+				, CASE
+					WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') >  TO_CHAR(JOBDATE,'YYYYMMDD') THEN 'Y'
+					ELSE 'N'
+				END AS "PreYn"
+				, DEPTCODE AS "DeptCode"
+				, ENTERDATE AS "EnterDate"
+				, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = OG.MEMBEROF) AS "DeptFullPath"
+				, case when ame.ProcessId is null then Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+					else (SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM ATTEND_REQUEST ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = ame.ProcessId AND ROWNUM=1) end AS "RegistName"
+			FROM ATTEND_EXTENSIONHOLIDAY AME
+				JOIN SYS_OBJECT_USER UR ON AME.USERCODE = UR.USERCODE
+				JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+				JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+				LEFT JOIN ATTEND_COMMUTING_MST ACM ON AME.USERCODE = ACM.USERCODE	 AND AME.JOBDATE = ACM.TARGETDATE
+			WHERE NVL(APPROVALSTS, '')  <> 'N'
+		]]>
+				<if test='RetireUser == "N"'>
+					AND ur.IsUse = 'Y'
+					AND ur.IsDisplay = 'Y'
+				</if>
+				<choose>
+					<when test ="ExHoSeq !=null and ExHoSeq !='' ">
+						AND ExHoSeq = #{ExHoSeq}
+					</when>
+					<otherwise>
+						AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+						AND JOBDATE BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+						<if test="JobStsName != null and JobStsName != ''">
+							AND JOBSTSNAME = #{JobStsName}
+						</if>
+						<if test="p_UserCode != null and p_UserCode != ''">
+							AND AME.USERCODE = #{p_UserCode}
+						</if>
+						<if test='searchText != null and searchText != ""'>
+							AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+						</if>
+						<if test="ApprovalSts != null and ApprovalSts != '' ">
+							AND NVL(APPROVALSTS, 'Y') = #{ApprovalSts}
+						</if>
+						<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+							<choose>
+								<when test ="ApprovalStsU == 'NOT' ">
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND (ACM.ATTENDTIME IS NULL OR TO_CHAR(ACM.ATTENDTIME,'HH24MI') < TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'),'HH24MI'))
+									]]>
+								</when>
+								<when test ="ApprovalStsU == 'SUCCESS' ">
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND TO_CHAR(ACM.ATTENDTIME,'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+									]]>
+								</when>
+								<otherwise>
+									<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') <= TO_CHAR(JOBDATE,'%YYYYMMDD')
+									]]>
+								</otherwise>
+							</choose>
+						</if>
+					</otherwise>
+				</choose>
+			<trim prefix='ORDER BY'>
+				<if test='sortColumn != null and sortDirection != null'>
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>"TransMultiDisplayName"</when>
+						<when test='sortColumn.equalsIgnoreCase("JobStsNameKr")'>"JobStsNameKr"</when>
+						<when test='sortColumn.equalsIgnoreCase("JobDate")'>"JobDate"</when>
+						<when test='sortColumn.equalsIgnoreCase("f_StartTime")'>"f_StartTime"</when>
+						<when test='sortColumn.equalsIgnoreCase("f_EndTime")'>"f_EndTime"</when>
+						<when test='sortColumn.equalsIgnoreCase("f_WorkTime")'>"f_WorkTime"</when>
+						<when test='sortColumn.equalsIgnoreCase("Etc")'>"Etc"</when>
+						<when test='sortColumn.equalsIgnoreCase("ApprovalSts")'>"ApprovalSts"</when>
+						<when test='sortColumn.equalsIgnoreCase("ApprovalStsU")'>"ApprovalStsU"</when>
+						<when test='sortColumn.equalsIgnoreCase("BillName")'>"BillName"</when>
+						<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>"TransMultiDeptName"</when>
+						<otherwise>"JobDate"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="selectExHoInfoList2" parameterType="cmap" resultType="cmap">
+		/* queryID = attend.exho.selectExHoInfoList2 */
+		<include refid="oracle.include.pagingHeader" />
+		<![CDATA[
+			SELECT A.USERCODE AS "UserCode"
+			 , A.JOBSTSNAME AS "JobStsName"
+			 , (SELECT CODENAME
+				FROM SYS_BASE_CODE A
+				WHERE CODEGROUP = 'AttendReqType'
+				  AND CODE = A.JOBSTSNAME) AS "JobStsNameKr"
+			 , A.EXHOSEQ AS "ExHoSeq"
+			 , A.APPROVALSTS AS "ApprovalSts"
+			 , CASE
+				   WHEN A.PREYN = 'Y' THEN
+					   CASE WHEN JobStsName = 'O' THEN
+						   CASE
+							   WHEN A.ATTENDTIME is not null  and A.ATTENDTIME >= A.ExtenEnd THEN 'SUCCESS'
+						   ELSE 'NOT'
+						   END
+					   ELSE
+						   CASE
+							   WHEN A.AttStartTime is not null
+								   and A.AttStartTime <= A.HoliStart AND A.ATTENDTIME is not null
+								   and A.ATTENDTIME >= A.HoliEnd THEN 'SUCCESS'
+						   ELSE 'NOT'
+						   END
+						END
+				   ELSE A.APPROVALSTS
+			END                          AS "ApprovalStsU"
+			 , A.JOBDATE AS "JobDate"
+			 , A.ETC AS "Etc"
+			 , A.BILLNAME AS "BillName"
+			 , A.PROCESSID AS "ProcessId"
+			 , A.FORMINSTID AS "FormInstId"
+			 , A.TRANSMULTIDISPLAYNAME AS "TransMultiDisplayName"
+			 , A.TRANSMULTIDEPTNAME AS "TransMultiDeptName"
+			 , A.TRANSMULTIJOBPOSITIONNAME AS "TransMultiJobPositionName"
+			 , A.PREYN AS "PreYn"
+			 , A.DEPTCODE AS "DeptCode"
+			 , A.ENTERDATE AS "EnterDate"
+			 , A.DEPTFULLPATH AS "DeptFullPath"
+			 , TO_CHAR(A.STARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS "StartTime"
+			 , TO_CHAR(A.ENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS "EndTime"
+			 , A.IDLETIME AS "IdleTime"
+			 , TO_CHAR(TO_DATE((A.ENDTIME - A.STARTTIME) * (24*60*60), 'sssss'), 'HH24:MI:SS') AS "WorkingTime"
+			 , TO_CHAR(A.WORKTIME, 'HH24:MI:SS') AS "WorkTime"
+			 , TO_CHAR(A.WORKTIME, 'HH24') AS "WorkTimeHour"
+			 , TO_CHAR(A.WORKTIME, 'MI') AS "WorkTimeMin"
+			 , TO_CHAR(A.STARTTIME, 'HH24') AS "sHour"
+			 , TO_CHAR(A.STARTTIME, 'MI') AS "sMin"
+			 , TO_CHAR(A.ENDTIME, 'HH24') AS "eHour"
+			 , TO_CHAR(A.ENDTIME, 'MI') AS "eMin"
+			 , TO_CHAR(A.WORKTIME, 'HH24') AS "wHour"
+			 , TO_CHAR(A.WORKTIME, 'MI') AS "wMin"
+			 , TO_CHAR(A.STARTTIME, 'HH24:MI') AS "f_StartTime"
+			 , TO_CHAR(A.ENDTIME, 'HH24:MI') AS "f_EndTime"
+			 , TO_CHAR(A.WORKTIME, 'HH24:MI') AS "f_WorkTime"
+			 , case when a.ProcessId is null then TransMultiDisplayName
+			 else (SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM ATTEND_REQUEST ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = a.ProcessId AND ROWNUM=1) end AS "RegistName"
+		FROM (
+			SELECT AME.USERCODE
+              , JOBSTSNAME
+              , EXHOSEQ
+              , NVL(APPROVALSTS, 'Y')                                                      AS APPROVALSTS
+              , TO_CHAR(JOBDATE, 'YYYY-MM-DD')                                             AS JOBDATE
+              , AME.ETC
+              , BILLNAME
+              , PROCESSID
+              , FORMINSTID
+              , FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME)                          AS TRANSMULTIDISPLAYNAME
+              , FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIDEPTNAME)                             AS TRANSMULTIDEPTNAME
+              , FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIJOBPOSITIONNAME)                      AS TRANSMULTIJOBPOSITIONNAME
+              , CASE
+                    WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') >
+                         TO_CHAR(JOBDATE, 'YYYYMMDD') THEN 'Y'
+                    ELSE 'N'
+             END                                                                           AS PREYN
+              , DEPTCODE
+              , ENTERDATE
+              , (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = OG.MEMBEROF) AS DEPTFULLPATH
+              , NVL(CASE WHEN JOBSTSNAME = 'O' THEN EXTENSTART ELSE HOLISTART END, TO_DATE(AME.STARTTIME, 'YYYY-MM-DD HH24:MI:SS')) AS STARTTIME
+              , NVL(CASE WHEN JOBSTSNAME = 'O' THEN EXTENEND ELSE HOLIEND END, TO_DATE(AME.ENDTIME, 'YYYY-MM-DD HH24:MI:SS')) AS ENDTIME
+              , CASE
+                    WHEN IDLETIME is null or IDLETIME = '' THEN '0'
+                    ELSE IDLETIME
+             END                                                                           AS IDLETIME
+			  , AttStartTime
+			  , ExtenEnd
+			  , HoliStart
+			  , HoliEnd
+              , ATTENDTIME
+              , NVL(CASE WHEN TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD')
+              		THEN CASE WHEN JOBSTSNAME = 'O' THEN TO_DATE(ExtenAC * 60, 'SSSSS') ELSE TO_DATE(HoliAc * 60, 'SSSSS') END
+                    ELSE TO_DATE(ame.WorkTime || '00', 'HH24MISS')
+             		END
+             	, TO_DATE(ame.WorkTime || '00', 'HH24MISS')
+             ) AS WORKTIME
+			FROM ATTEND_EXTENSIONHOLIDAY AME
+				JOIN SYS_OBJECT_USER UR ON AME.USERCODE = UR.USERCODE
+				JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+				JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+				LEFT JOIN ATTEND_COMMUTING_MST ACM ON AME.USERCODE = ACM.USERCODE	 AND AME.JOBDATE = ACM.TARGETDATE
+			WHERE NVL(APPROVALSTS, '')  <> 'N'
+		]]>
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<choose>
+			<when test ="ExHoSeq !=null and ExHoSeq !='' ">
+				AND ExHoSeq = #{ExHoSeq}
+			</when>
+			<otherwise>
+				AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+				AND JOBDATE BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+				<if test="JobStsName != null and JobStsName != ''">
+					AND JOBSTSNAME = #{JobStsName}
+				</if>
+				<if test="p_UserCode != null and p_UserCode != ''">
+					AND AME.USERCODE = #{p_UserCode}
+				</if>
+				<if test='searchText != null and searchText != ""'>
+					AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+				</if>
+				<if test="ApprovalSts != null and ApprovalSts != '' ">
+					AND NVL(APPROVALSTS, 'Y') = #{ApprovalSts}
+				</if>
+				<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+					<choose>
+						<when test ="ApprovalStsU == 'NOT' ">
+							<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND (ACM.ATTENDTIME IS NULL OR TO_CHAR(ACM.ATTENDTIME,'HH24MI') < TO_CHAR(TO_DATE(ENDTIME, 'YYYY-MM-DD HH24:MI:SS'),'HH24MI'))
+									]]>
+						</when>
+						<when test ="ApprovalStsU == 'SUCCESS' ">
+							<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+										AND TO_CHAR(ACM.ATTENDTIME,'YYYYMMDD') > TO_CHAR(JOBDATE,'YYYYMMDD')
+									]]>
+						</when>
+						<otherwise>
+							<![CDATA[
+										AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'),'YYYYMMDD') <= TO_CHAR(JOBDATE,'%YYYYMMDD')
+									]]>
+						</otherwise>
+					</choose>
+				</if>
+			</otherwise>
+		</choose>		
+		) A
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>"TransMultiDisplayName"</when>
+					<when test='sortColumn.equalsIgnoreCase("JobStsNameKr")'>"JobStsNameKr"</when>
+					<when test='sortColumn.equalsIgnoreCase("JobDate")'>"JobDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("f_StartTime")'>"f_StartTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("f_EndTime")'>"f_EndTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("f_WorkTime")'>"f_WorkTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("Etc")'>"Etc"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalSts")'>"ApprovalSts"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalStsU")'>"ApprovalStsU"</when>
+					<when test='sortColumn.equalsIgnoreCase("BillName")'>"BillName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>"TransMultiDeptName"</when>
+					<otherwise>"JobDate"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="getCallingList" parameterType="cmap" resultType="cmap">
+		/* queryID = attend.exho.getCallingList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			USERCODE AS "UserCode"
+			, CALLINGSEQ AS "CallingSeq"
+			, TO_CHAR(TARGETDATE, 'YYYY-MM-DD') AS "TargetDate"
+			, TO_CHAR(JOBDATE, 'YYYY-MM-DD') AS "JobDate"
+			, CASE
+			WHEN COMMUTETYPE = 'Y' THEN FN_GETSELDICTIONARY(#{lang}, 'lbl_att_goWork',0)
+			WHEN COMMUTETYPE = 'N' THEN FN_GETSELDICTIONARY(#{lang}, 'lbl_leave',0)
+			END AS "CommuteYnStr"
+			, TO_CHAR(PRECHANGETIME, 'YYYY-MM-DD HH24:MI') AS "PreChangeTime"
+			, TO_CHAR(CHANGETIME, 'YYYY-MM-DD HH24:MI') AS "ChangeTime"
+			, ETC AS "Etc"
+			, BILLNAME AS "BillName"
+			, PROCESSID AS "ProcessId"
+			, FN_COMURTIMEZONETRANS_S(USERCODE, C.REGISTDATE) AS "RegistDate"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDISPLAYNAME) AS "TransMultiDisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDEPTNAME) AS "TransMultiDeptName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MULTIJOBPOSITIONNAME) AS "TransMultiJobPositionName"
+			, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = C.MEMBEROF) AS "DeptFullPath"
+			, ENTERDATE AS "EnterDate"
+			,(SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM ATTEND_REQUEST ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = C.ProcessId AND ROWNUM=1) AS "RegistName"
+		FROM
+		(
+			SELECT
+				AMC.USERCODE AS USERCODE
+				, CALLINGSEQ
+				, TARGETDATE
+				, TARGETDATE AS JOBDATE
+				, COMMUTETYPE
+				, PRECHANGETIME
+				, CHANGETIME
+				, ETC
+				, BILLNAME
+				, PROCESSID
+				, AMC.REGISTDATE
+				, UR.MULTIDISPLAYNAME
+				, BG.MULTIDEPTNAME
+				, BG.MULTIJOBPOSITIONNAME
+				, MEMBEROF
+				, ENTERDATE
+			FROM ATTEND_CALLING AMC
+				JOIN SYS_OBJECT_USER UR ON AMC.USERCODE = UR.USERCODE
+				JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+				JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+			WHERE AMC.COMPANYCODE = #{CompanyCode}
+				AND VALIDYN = 'Y'
+				AND TARGETDATE BETWEEN TO_DATE(#{StartDate}, 'YYYY-MM-DD') AND TO_DATE(#{EndDate}, 'YYYY-MM-DD')
+				AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+				<if test='RetireUser == "N"'>
+					AND ur.IsUse = 'Y'
+					AND ur.IsDisplay = 'Y'
+				</if>
+				<if test="p_UserCode != null and p_UserCode != ''">
+					AND AMC.USERCODE = #{p_UserCode}
+				</if>
+				<if test='searchText != null and searchText != ""'>
+					AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+				</if>
+		) C
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>"TransMultiDisplayName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>"TransMultiDeptName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TargetDate")'>"TargetDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("CommuteYnStr")'>"CommuteYnStr"</when>
+					<when test='sortColumn.equalsIgnoreCase("PreChangeTime")'>"PreChangeTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ChangeTime")'>"ChangeTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("Etc")'>"Etc"</when>
+					<when test='sortColumn.equalsIgnoreCase("BillName")'>"BillName"</when>
+					<otherwise>"JobDate"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<if test ='!sortColumn.equalsIgnoreCase("RegistDate")'>
+				 , "RegistDate" DESC
+				 </if>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="getCallingListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(AMC.USERCODE) AS "cUserCode"
+		FROM ATTEND_CALLING AMC
+			JOIN SYS_OBJECT_USER UR ON AMC.USERCODE = UR.USERCODE
+			JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = UR.USERCODE AND BG.COMPANYCODE = #{CompanyCode} AND BG.JOBTYPE = 'Origin'
+			JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND OG.GROUPTYPE IN ('Dept','Company') AND BG.DEPTCODE = OG.GROUPCODE
+		WHERE AMC.COMPANYCODE = #{CompanyCode}
+			AND VALIDYN = 'Y'
+			AND TARGETDATE BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+			AND OG.GROUPPATH LIKE #{GroupPath}||'%'
+			<if test='RetireUser == "N"'>
+				AND ur.IsUse = 'Y'
+				AND ur.IsDisplay = 'Y'
+			</if>
+			<if test="p_UserCode != null and p_UserCode != ''">
+				AND AMC.USERCODE = #{p_UserCode}
+			</if>
+			<if test='searchText != null and searchText != ""'>
+				AND UR.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+			</if>
+	</select>
+
+	<update id="updExHoInfo" parameterType="cmap">
+		UPDATE ATTEND_EXTENSIONHOLIDAY SET
+			MODIFYERCODE = #{UserCode}
+			, MODIFYDATE = SYSDATE
+			<if test="ApprovalSts != null and ApprovalSts != ''">
+				, APPROVALSTS = #{ApprovalSts}
+			</if>
+			<if test="StartTime != null and StartTime != ''">
+				, STARTTIME = #{StartTime}
+			</if>
+			<if test="EndTime != null and EndTime != ''">
+				, ENDTIME = #{EndTime}
+			</if>
+			<if test="WorkTime != null and WorkTime != ''">
+				, WORKTIME = #{WorkTime}
+			</if>
+		WHERE EXHOSEQ = #{ExHoSeq}
+	</update>
+
+	<delete id="deleteExHoInfo" parameterType="cmap">
+		DELETE FROM ATTENDANCE_MNG_EXTENSIONHOLIDAY WHERE EXHOSEQ = #{ExHoSeq}
+	</delete>
+
+	<select id="getAttendCommList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				A.USERCODE AS "UserCode"
+				, A.DEPTNAME AS "DeptName"
+				, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = A.MEMBEROF) AS "DeptFullPath"
+				, MEMBEROF AS "MemberOf"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS "URName"
+				, A.JOBPOSITIONNAME AS "JobPositionName"
+				, UR.ENTERDATE AS "EnterDate"
+				, TARGETDATE AS "TargetDate"
+				, VACFLAG AS "VacFlag"
+				, VACOFFFLAG AS "VacOffFlag"
+				, NVL(ATTSTARTTIME,'') AS "AttStartTime"
+				, NVL(ATTENDTIME,'') AS "AttEndTime"
+				, NVL(ATTSTARTTIME,'') AS "AttStartTime"
+				, NVL(ATTENDTIME,'') AS "AttEndTime"
+				, CASE
+					WHEN VACFLAG !='' THEN (SELECT CODENAME FROM SYS_BASE_CODE SC WHERE SC.CODEGROUP = 'VACATION_TYPE' AND A.VACFLAG = SC.CODE)
+					ELSE ''
+				END AS "VacName"
+			FROM (
+				SELECT
+					USERCODE
+					, TARGETDATE
+					, MAX(JOBPOSITIONNAME) AS JOBPOSITIONNAME
+					, MAX(DEPTNAME) AS DEPTNAME
+					, MAX(MEMBEROF) AS MEMBEROF
+					, CASE
+						WHEN MAX(VACFLAG) = '' THEN SUM(ATTAC)
+						ELSE
+							CASE
+								WHEN MAX(VACFLAG) = 'VACATION_OFF' THEN TRUNC(SUM(ATTDAYAC) /2 + SUM(ATTAC), 0)
+								ELSE SUM(ATTDAYAC)
+							END
+					END AS ATTAC
+					, SUM(EXTENAC) AS EXTENAC
+					, SUM(HOLIAC) AS HOLIAC
+					, MAX(ATTSTARTTIME) AS ATTSTARTTIME
+					, MAX(ATTENDTIME) AS ATTENDTIME
+					, MAX(ATTDAYSTARTTIME) AS ATTDAYSTARTTIME
+					, MAX(ATTDAYENDTIME) AS ATTDAYENDTIME
+					, MAX(VACFLAG) AS VACFLAG
+					, MAX(VACOFFFLAG) AS VACOFFFLAG
+				FROM (
+					SELECT
+						BG.USERCODE
+						, JOBPOSITIONNAME
+						, DEPTNAME
+						, MEMBEROF
+						, M.TARGETDATE
+						, ATTAC
+						, EXTENAC
+						, HOLIAC
+						, ATTSTARTTIME
+						, ATTENDTIME
+						, ATTDAYSTARTTIME
+						, ATTDAYENDTIME
+						, '' AS VACFLAG
+						, '' AS VACOFFFLAG
+						, 0 ATTDAYAC
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE  AND BG.JOBTYPE = 'Origin'
+						JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+					WHERE  OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DEPTID}||'%'
+						AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+					UNION ALL
+					SELECT
+						BG.USERCODE
+						, JOBPOSITIONNAME
+						, DEPTNAME
+						, MEMBEROF
+						, M.DAYLIST
+						, 0
+						, 0
+						, 0
+						, null
+						, null
+						, null
+						, null
+						, VM.VACFLAG
+						, VM.VACOFFFLAG
+						, J.ATTDAYAC AS ATTDAYAC
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE  AND BG.JOBTYPE = 'Origin'
+						JOIN VM_VACATIONINFO VM ON VM.UR_CODE = BG.USERCODE
+						JOIN ATTEND_DAYLIST M ON M.DAYLIST BETWEEN VM.SDATE AND VM.EDATE
+						LEFT JOIN ATTEND_JOB J ON BG.COMPANYCODE = J.COMPANYCODE AND BG.USERCODE = J.USERCODE AND M.DAYLIST = J.JOBDATE
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND  OG.GROUPPATH LIKE #{DEPTID}||'%'
+						AND  M.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+					GROUP BY
+						BG.USERCODE,
+						JOBPOSITIONNAME,
+						DEPTNAME,
+						MEMBEROF,
+						M.DAYLIST,
+						0,
+						0,
+						0,
+						null,
+						null,
+						null,
+						null,
+						VM.VACFLAG,
+						VM.VACOFFFLAG,
+						J.ATTDAYAC
+					HAVING SUM(FN_ATTEND_CALVACDAY(VACFLAG, VACOFFFLAG, GUBUN)) > 0
+				) AA
+				GROUP BY USERCODE, TARGETDATE
+			) A
+				JOIN SYS_OBJECT_USER UR ON A.USERCODE = UR.USERCODE
+			ORDER BY DEPTNAME, UR.DISPLAYNAME, TARGETDATE
+		]]>
+  	</select>
+
+	<select id="getAttendLate50List" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT DeptFullPath as "DeptFullPath"
+		, DeptName as "DeptName"
+		, URName as "URName"
+		, TargetDate as "TargetDate"
+		, Late50 as "Late50"
+		, Late51 as "Late51"
+		, Late52 as "Late52"
+		, Late53 as "Late53"
+		, Late54 as "Late54"
+		, Late55 as "Late55"
+		, Late56 as "Late56"
+		, Late57 as "Late57"
+		, Late58 as "Late58"
+		, Late59 as "Late59"
+		, LateSum as "LateSum"
+	FROM (
+         SELECT CASE
+                    WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then '총 요약'
+                    ELSE CASE
+                             WHEN COALESCE(DeptCode, 'ALL') = 'ALL' then CONCAT(DeptFullPath, ' 요약')
+                             ELSE DeptFullPath END
+                    END                                                 as DeptFullPath
+                 ,
+                CASE
+                    WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR COALESCE(DeptCode, 'ALL') = 'ALL' then ''
+                    ELSE CASE WHEN COALESCE(UserCode, 'ALL') = 'ALL' then CONCAT(DeptName, ' 요약') ELSE DeptName END
+                    END                                                 as DeptName
+                 ,
+                CASE
+                    WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR COALESCE(DeptCode, 'ALL') = 'ALL' OR
+                         COALESCE(UserCode, 'ALL') = 'ALL' then ''
+                    ELSE CASE WHEN COALESCE(TargetDate, 'ALL') = 'ALL' then CONCAT(URName, ' 요약') ELSE URName END
+                    END                                                 as URName
+                 ,
+                COALESCE(TargetDate, '')                                as TargetDate,
+                CASE WHEN LATE50 = 0 THEN '' ELSE TO_CHAR(LATE50) END   AS Late50,
+                CASE WHEN LATE51 = 0 THEN '' ELSE TO_CHAR(LATE51) END   AS Late51,
+                CASE WHEN LATE52 = 0 THEN '' ELSE TO_CHAR(LATE52) END   AS Late52,
+                CASE WHEN LATE53 = 0 THEN '' ELSE TO_CHAR(LATE53) END   AS Late53,
+                CASE WHEN LATE54 = 0 THEN '' ELSE TO_CHAR(LATE54) END   AS Late54,
+                CASE WHEN LATE55 = 0 THEN '' ELSE TO_CHAR(LATE55) END   AS Late55,
+                CASE WHEN LATE56 = 0 THEN '' ELSE TO_CHAR(LATE56) END   AS Late56,
+                CASE WHEN LATE57 = 0 THEN '' ELSE TO_CHAR(LATE57) END   AS Late57,
+                CASE WHEN LATE58 = 0 THEN '' ELSE TO_CHAR(LATE58) END   AS Late58,
+                CASE WHEN LATE59 = 0 THEN '' ELSE TO_CHAR(LATE59) END   AS Late59,
+                CASE WHEN LATESUM = 0 THEN '' ELSE TO_CHAR(LATESUM) END AS LateSum
+			FROM (
+				SELECT
+					MEMBEROF
+					, DEPTCODE
+					, BG.USERCODE AS USERCODE
+					, TO_CHAR(TARGETDATE, 'YYYYMM') AS TARGETDATE
+					, DEPTNAME
+					, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = OG.MEMBEROF) AS DEPTFULLPATH
+					, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '50' THEN 1 ELSE 0 END) AS LATE50
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '51' THEN 1 ELSE 0 END) AS LATE51
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '52' THEN 1 ELSE 0 END) AS LATE52
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '53' THEN 1 ELSE 0 END) AS LATE53
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '54' THEN 1 ELSE 0 END) AS LATE54
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '55' THEN 1 ELSE 0 END) AS LATE55
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '56' THEN 1 ELSE 0 END) AS LATE56
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '57' THEN 1 ELSE 0 END) AS LATE57
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '58' THEN 1 ELSE 0 END) AS LATE58
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'MI') = '59' THEN 1 ELSE 0 END) AS LATE59
+					, COUNT(TARGETDATE) AS LATESUM
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG
+						ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DEPTID}||'%'
+					AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+					AND TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '0850' AND '0859'
+				GROUP BY ROLLUP(MEMBEROF, DEPTCODE, BG.USERCODE, TO_CHAR(TARGETDATE, 'YYYYMM'), DEPTNAME, UR.MULTIDISPLAYNAME)
+			) A
+	) TBL
+	WHERE TBL.DEPTFULLPATH is not null
+	AND (TBL.DEPTNAME is not null and TBL.URNAME is not null)
+	   OR TBL.DEPTFULLPATH like ('%요약%')
+	]]>
+  	</select>
+
+  	<select id="getAttendLateList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT DeptFullPath as "DeptFullPath"
+			, DeptName as "DeptName"
+			, URName as "URName"
+			, TargetDate as "TargetDate"
+			, Late0900 as "Late0900"
+			, Late0901 as "Late0901"
+			, Late0902 as "Late0902"
+			, Late0903 as "Late0903"
+			, Late0904 as "Late0904"
+			, Late0905 as "Late0905"
+			, Late0906 as "Late0906"
+			, Late0907 as "Late0907"
+			, Late0908 as "Late0908"
+			, Late0909 as "Late0909"
+			, Late0910 as "Late0910"
+			, Late0920 as "Late0920"
+			, Late0930 as "Late0930"
+			, Late1000 as "Late1000"
+			, Late1100 as "Late1100"
+			, LateEtc as "LateEtc"
+			, LateSum as "LateSum"
+		FROM (
+				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'
+							ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END
+						END  DeptFullPath
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL' then  ''
+							ELSE  CASE WHEN COALESCE(UserCode, 'ALL') ='ALL'  then	CONCAT(	DeptName,' 요약')	   ELSE 	DeptName		 END
+						END DeptName
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL'  OR COALESCE(UserCode,'ALL')  ='ALL' then  ''
+							ELSE CASE WHEN COALESCE(TargetDate, 'ALL') ='ALL' then	CONCAT(	URName,' 요약')        ELSE URName	       END
+					  END URName
+				  , COALESCE(TargetDate,'') TargetDate
+				  , CASE WHEN Late0900  = 0 then '' ELSE TO_CHAR(Late0900) END  Late0900
+				  , CASE WHEN Late0901  = 0 then '' ELSE TO_CHAR(Late0901) END  Late0901
+				  , CASE WHEN Late0902  = 0 then '' ELSE TO_CHAR(Late0902) END  Late0902
+				  , CASE WHEN Late0903  = 0 then '' ELSE TO_CHAR(Late0903) END  Late0903
+				  , CASE WHEN Late0904  = 0 then '' ELSE TO_CHAR(Late0904) END  Late0904
+				  , CASE WHEN Late0905  = 0 then '' ELSE TO_CHAR(Late0905) END  Late0905
+				  , CASE WHEN Late0906  = 0 then '' ELSE TO_CHAR(Late0906) END  Late0906
+				  , CASE WHEN Late0907  = 0 then '' ELSE TO_CHAR(Late0907) END  Late0907
+				  , CASE WHEN Late0908  = 0 then '' ELSE TO_CHAR(Late0908) END  Late0908
+				  , CASE WHEN Late0909  = 0 then '' ELSE TO_CHAR(Late0909) END  Late0909
+				  , CASE WHEN Late0910  = 0 then '' ELSE TO_CHAR(Late0910) END  Late0910
+				  , CASE WHEN Late0920  = 0 then '' ELSE TO_CHAR(Late0920) END  Late0920
+				  , CASE WHEN Late0930  = 0 then '' ELSE TO_CHAR(Late0930) END  Late0930
+				  , CASE WHEN Late1000  = 0 then '' ELSE TO_CHAR(Late1000) END  Late1000
+				  , CASE WHEN Late1100  = 0 then '' ELSE TO_CHAR(Late1100) END  Late1100
+				  , CASE WHEN LateEtc  = 0 then '' ELSE TO_CHAR(LateEtc) END  LateEtc
+				  , CASE WHEN LateSum = 0 then '' ELSE TO_CHAR(LateSum) END LateSum
+			FROM (
+				SELECT
+					MEMBEROF
+					, DEPTCODE
+					, BG.USERCODE AS USERCODE
+					, TO_CHAR(TARGETDATE, 'YYYYMM') AS TARGETDATE
+					, DEPTNAME
+					, (SELECT DisplayName FROM sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+					, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0900' THEN 1 ELSE 0 END) AS LATE0900
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0901' THEN 1 ELSE 0 END) AS LATE0901
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0902' THEN 1 ELSE 0 END) AS LATE0902
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0903' THEN 1 ELSE 0 END) AS LATE0903
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0904' THEN 1 ELSE 0 END) AS LATE0904
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0905' THEN 1 ELSE 0 END) AS LATE0905
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0906' THEN 1 ELSE 0 END) AS LATE0906
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0907' THEN 1 ELSE 0 END) AS LATE0907
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0908' THEN 1 ELSE 0 END) AS LATE0908
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') = '0909' THEN 1 ELSE 0 END) AS LATE0909
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '0910' AND '0919' THEN 1 ELSE 0 END) AS LATE0910
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '0920' AND '0929' THEN 1 ELSE 0 END) AS LATE0920
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '0930' AND '1000' THEN 1 ELSE 0 END) AS LATE0930
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '1001' AND '1059' THEN 1 ELSE 0 END) AS LATE1000
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') BETWEEN '1101' AND '1159' THEN 1 ELSE 0 END) AS LATE1100
+					, SUM(CASE WHEN TO_CHAR(ATTSTARTTIME, 'HH24MI') >= '1200' THEN 1 ELSE 0 END) AS LATEETC
+					, COUNT(TARGETDATE) AS LATESUM
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN ATTEND_COMMUTING_MST M ON BG.USERCODE = M.USERCODE
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DEPTID}||'%'
+					AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+					AND TO_CHAR(ATTSTARTTIME, 'HH24MI') >= '0900'
+				GROUP BY ROLLUP (MEMBEROF, DEPTCODE, BG.USERCODE, TO_CHAR(TARGETDATE, 'YYYYMM'), DEPTNAME, UR.MULTIDISPLAYNAME)
+			) A
+		) TBL
+		WHERE TBL.DEPTFULLPATH is not null
+		AND (TBL.DEPTNAME is not null and TBL.URNAME is not null)
+		OR TBL.DEPTFULLPATH like ('%요약%')
+	]]>
+  	</select>
+
+  	<select id="getAttendCommSummList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT DeptFullPath as "DeptFullPath"
+			, DeptName as "DeptName"
+			, URName as "URName"
+			, TargetDate as "TargetDate"
+			, Late00 as "Late00"
+			, Late01 as "Late01"
+			, Late02 as "Late02"
+			, Late03 as "Late03"
+			, Late04 as "Late04"
+			, Late05 as "Late05"
+			, Late06 as "Late06"
+			, Late07 as "Late07"
+			, Late08 as "Late08"
+			, Late17 as "Late17"
+			, Late18 as "Late18"
+			, Late19 as "Late19"
+			, Late20 as "Late20"
+			, Late21 as "Late21"
+			, Late22 as "Late22"
+			, Late23 as "Late23"
+			, LateSum as "LateSum"
+		FROM (
+				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'
+						ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END
+					END  DeptFullPath
+				, CASE
+					WHEN COALESCE(MEMBEROF, 'ALL') = 'ALL' OR COALESCE(DEPTCODE, 'ALL') = 'ALL' THEN ''
+					ELSE CASE WHEN COALESCE(USERCODE, 'ALL') = 'ALL' THEN CONCAT(DEPTNAME, ' 요약') ELSE DEPTNAME END
+				END AS DeptName
+				, CASE
+					WHEN COALESCE(MEMBEROF, 'ALL') = 'ALL' OR COALESCE(DEPTCODE, 'ALL') = 'ALL' OR COALESCE(USERCODE, 'ALL') = 'ALL' THEN ''
+					ELSE CASE WHEN COALESCE(TARGETDATE, 'ALL') = 'ALL' THEN CONCAT(URNAME, ' 요약') ELSE URNAME END
+				END AS URName
+				, COALESCE(TARGETDATE, '') AS TargetDate
+				, CASE WHEN LATE00 = 0 THEN '' ELSE TO_CHAR(LATE00) END AS Late00
+				, CASE WHEN LATE01 = 0 THEN '' ELSE TO_CHAR(LATE01) END AS Late01
+				, CASE WHEN LATE02 = 0 THEN '' ELSE TO_CHAR(LATE02) END AS Late02
+				, CASE WHEN LATE03 = 0 THEN '' ELSE TO_CHAR(LATE03) END AS Late03
+				, CASE WHEN LATE04 = 0 THEN '' ELSE TO_CHAR(LATE04) END AS Late04
+				, CASE WHEN LATE05 = 0 THEN '' ELSE TO_CHAR(LATE05) END AS Late05
+				, CASE WHEN LATE06 = 0 THEN '' ELSE TO_CHAR(LATE06) END AS Late06
+				, CASE WHEN LATE07 = 0 THEN '' ELSE TO_CHAR(LATE07) END AS Late07
+				, CASE WHEN LATE08 = 0 THEN '' ELSE TO_CHAR(LATE08) END AS Late08
+				, CASE WHEN LATE17 = 0 THEN '' ELSE TO_CHAR(LATE17) END AS Late17
+				, CASE WHEN LATE18 = 0 THEN '' ELSE TO_CHAR(LATE18) END AS Late18
+				, CASE WHEN LATE19 = 0 THEN '' ELSE TO_CHAR(LATE19) END AS Late19
+				, CASE WHEN LATE20 = 0 THEN '' ELSE TO_CHAR(LATE20) END AS Late20
+				, CASE WHEN LATE21 = 0 THEN '' ELSE TO_CHAR(LATE21) END AS Late21
+				, CASE WHEN LATE22 = 0 THEN '' ELSE TO_CHAR(LATE22) END AS Late22
+				, CASE WHEN LATE23 = 0 THEN '' ELSE TO_CHAR(LATE23) END AS Late23
+				, CASE WHEN LATESUM = 0 THEN '' ELSE TO_CHAR(LATESUM) END AS LateSum
+			FROM (
+				SELECT
+					MEMBEROF
+					, DEPTCODE
+					, BG.USERCODE AS USERCODE
+					, TO_CHAR(TARGETDATE, 'YYYYMM') AS TARGETDATE
+					, DEPTNAME
+					, (SELECT DisplayName FROM sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+					, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '00' THEN 1 ELSE 0 END) AS LATE00
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '01' THEN 1 ELSE 0 END) AS LATE01
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '02' THEN 1 ELSE 0 END) AS LATE02
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '03' THEN 1 ELSE 0 END) AS LATE03
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '04' THEN 1 ELSE 0 END) AS LATE04
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '05' THEN 1 ELSE 0 END) AS LATE05
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '06' THEN 1 ELSE 0 END) AS LATE06
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '07' THEN 1 ELSE 0 END) AS LATE07
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '08' THEN 1 ELSE 0 END) AS LATE08
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '17' THEN 1 ELSE 0 END) AS LATE17
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '18' THEN 1 ELSE 0 END) AS LATE18
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '19' THEN 1 ELSE 0 END) AS LATE19
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '20' THEN 1 ELSE 0 END) AS LATE20
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '21' THEN 1 ELSE 0 END) AS LATE21
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '22' THEN 1 ELSE 0 END) AS LATE22
+					, SUM(CASE WHEN TO_CHAR(ATTENDTIME, 'HH24') = '23' THEN 1 ELSE 0 END) AS LATE23
+					, COUNT(TARGETDATE) AS LATESUM
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN ATTEND_COMMUTING_MST M ON BG.USERCODE = M.USERCODE
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DEPTID}||'%'
+					AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+					AND (TO_CHAR (ATTENDTIME, 'HH24MI') < '0900' OR TO_CHAR (ATTENDTIME, 'HH24MI') >= '1700')
+				GROUP BY ROLLUP(MEMBEROF, DEPTCODE, BG.USERCODE, TO_CHAR(TARGETDATE, 'YYYYMM'), DEPTNAME, UR.MULTIDISPLAYNAME)
+			) A
+		) TBL
+		WHERE TBL.DEPTFULLPATH is not null
+		AND (TBL.DEPTNAME is not null and TBL.URNAME is not null)
+		OR TBL.DEPTFULLPATH like ('%요약%')
+		]]>
+  	</select>
+
+  	<select id="getAttendExSummList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT DeptFullPath as "DeptFullPath"
+			, DeptName as "DeptName"
+			, URName as "URName"
+			, URName as "URName"
+			, TargetDate as "TargetDate"
+			, Late00 as "Late00"
+			, Late01 as "Late01"
+			, Late02 as "Late02"
+			, Late03 as "Late03"
+			, Late04 as "Late04"
+			, Late05 as "Late05"
+			, Late06 as "Late06"
+			, Late07 as "Late07"
+			, Late08 as "Late08"
+			, Late17 as "Late17"
+			, Late18 as "Late18"
+			, Late19 as "Late19"
+			, Late20 as "Late20"
+			, Late21 as "Late21"
+			, Late22 as "Late22"
+			, Late23 as "Late23"
+			, LateSum as "LateSum"
+		FROM (
+			SELECT
+				CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'
+						ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END
+					END  DeptFullPath
+				, CASE
+					WHEN COALESCE(MEMBEROF, 'ALL') = 'ALL' OR COALESCE(DEPTCODE, 'ALL') = 'ALL' THEN ''
+					ELSE CASE WHEN COALESCE(USERCODE, 'ALL') = 'ALL' THEN CONCAT(DEPTNAME, ' 요약') ELSE DEPTNAME END
+				END AS DeptName
+				, CASE
+					WHEN COALESCE(MEMBEROF, 'ALL') = 'ALL' OR COALESCE(DEPTCODE, 'ALL') = 'ALL' OR COALESCE(USERCODE, 'ALL') = 'ALL' THEN ''
+					ELSE CASE WHEN COALESCE(TARGETDATE, 'ALL') = 'ALL' THEN CONCAT(URNAME, ' 요약') ELSE URNAME END
+				END AS URName
+				, COALESCE(TARGETDATE, '') AS TargetDate
+            	, CASE WHEN LATE00 = 0 THEN '' ELSE TO_CHAR(LATE00) END   AS Late00
+            	, CASE WHEN LATE01 = 0 THEN '' ELSE TO_CHAR(LATE01) END   AS Late01
+              , CASE WHEN LATE02 = 0 THEN '' ELSE TO_CHAR(LATE02) END   AS Late02
+              , CASE WHEN LATE03 = 0 THEN '' ELSE TO_CHAR(LATE03) END   AS Late03
+              , CASE WHEN LATE04 = 0 THEN '' ELSE TO_CHAR(LATE04) END   AS Late04
+              , CASE WHEN LATE05 = 0 THEN '' ELSE TO_CHAR(LATE05) END   AS Late05
+              , CASE WHEN LATE06 = 0 THEN '' ELSE TO_CHAR(LATE06) END   AS Late06
+              , CASE WHEN LATE07 = 0 THEN '' ELSE TO_CHAR(LATE07) END   AS Late07
+              , CASE WHEN LATE08 = 0 THEN '' ELSE TO_CHAR(LATE08) END   AS Late08
+              , CASE WHEN LATE17 = 0 THEN '' ELSE TO_CHAR(LATE17) END   AS Late17
+              , CASE WHEN LATE18 = 0 THEN '' ELSE TO_CHAR(LATE18) END   AS Late18
+              , CASE WHEN LATE19 = 0 THEN '' ELSE TO_CHAR(LATE19) END   AS Late19
+              , CASE WHEN LATE20 = 0 THEN '' ELSE TO_CHAR(LATE20) END   AS Late20
+              , CASE WHEN LATE21 = 0 THEN '' ELSE TO_CHAR(LATE21) END   AS Late21
+              , CASE WHEN LATE22 = 0 THEN '' ELSE TO_CHAR(LATE22) END   AS Late22
+              , CASE WHEN LATE23 = 0 THEN '' ELSE TO_CHAR(LATE23) END   AS Late23
+              , CASE WHEN LATESUM = 0 THEN '' ELSE TO_CHAR(LATESUM) END AS LateSum
+			FROM (
+				SELECT
+					MEMBEROF
+					, DEPTCODE
+					, BG.USERCODE AS USERCODE
+					, TO_CHAR(TARGETDATE, 'YYYYMM') AS TARGETDATE
+					, DEPTNAME
+					, (SELECT DisplayName FROM sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+					, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '00' THEN 1 ELSE 0 END) AS LATE00
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '01' THEN 1 ELSE 0 END) AS LATE01
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '02' THEN 1 ELSE 0 END) AS LATE02
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '03' THEN 1 ELSE 0 END) AS LATE03
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '04' THEN 1 ELSE 0 END) AS LATE04
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '05' THEN 1 ELSE 0 END) AS LATE05
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '06' THEN 1 ELSE 0 END) AS LATE06
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '07' THEN 1 ELSE 0 END) AS LATE07
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '08' THEN 1 ELSE 0 END) AS LATE08
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '17' THEN 1 ELSE 0 END) AS LATE17
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '18' THEN 1 ELSE 0 END) AS LATE18
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '19' THEN 1 ELSE 0 END) AS LATE19
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '20' THEN 1 ELSE 0 END) AS LATE20
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '21' THEN 1 ELSE 0 END) AS LATE21
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '22' THEN 1 ELSE 0 END) AS LATE22
+					, SUM(CASE WHEN TO_CHAR(EXTENEND, 'HH24') = '23' THEN 1 ELSE 0 END) AS LATE23
+					, COUNT(TARGETDATE) AS LATESUM
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN ATTEND_COMMUTING_MST M ON BG.USERCODE = M.USERCODE
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					JOIN ATTEND_EXTENSIONHOLIDAY AME ON M.TARGETDATE = AME.JOBDATE AND M.USERCODE = AME.USERCODE AND JOBSTSNAME = 'O' AND TO_CHAR(M.ATTENDTIME, 'YYYYMMDD') > TO_CHAR(JOBDATE, 'YYYYMMDD')
+				WHERE OG.COMPANYCODE =  #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DEPTID}||'%'
+					AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+				GROUP BY ROLLUP (MEMBEROF, DEPTCODE, BG.USERCODE, TO_CHAR(TARGETDATE, 'YYYYMM'), DEPTNAME, UR.MULTIDISPLAYNAME)
+			) A
+		) TBL
+		WHERE TBL.DEPTFULLPATH is not null
+		AND (TBL.DEPTNAME is not null and TBL.URNAME is not null)
+		OR TBL.DEPTFULLPATH like ('%요약%')
+		]]>
+  	</select>
+
+	<select id="selectExHoTimeInfo" parameterType="cmap" resultType="cmap">
+		/* queryID : attend.exho.selectExHoTimeInfo */
+		SELECT  SUBSTR(STARTTIME, -8, 2) AS "sHour"
+		        , SUBSTR(STARTTIME, -5, 2) AS "sMin"
+		        , SUBSTR(ENDTIME, -8, 2) AS "eHour"
+		        , SUBSTR(ENDTIME, -5, 2) AS "eMin"
+		        , SUBSTR(WORKTIME, 1, 2) AS "WorkTimeHour"
+		        , SUBSTR(WORKTIME, 3, 2) AS "WorkTimeMin"
+		FROM    ATTEND_EXTENSIONHOLIDAY
+		WHERE   EXHOSEQ = #{ExHoSeq}
+	</select>
+
+</mapper>
+

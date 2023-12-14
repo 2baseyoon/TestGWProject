@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.UserListFolder">
+    <!-- 사용자별 폴더 리스트 조회 -->
+	<select id="selectUserFolderList" parameterType="cmap" resultType="cmap">
+		SELECT
+				 FolderID AS "FolderID"
+				,ParentsID AS "ParentsID"
+				,OwnerID AS "OwnerID"
+				,FolDerName AS "FolDerName"
+				,FolDerMode AS "FolDerMode"
+				, TO_CHAR(RegDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegDate"
+				, CASE WHEN ParentsID ='0' THEN FolderID ELSE ParentsID END || ' ' ||  FolderID ||  ' ' AS "SortKey"
+		FROM JWF_UserFolder
+		WHERE OwnerID = #{userID}
+		AND FolDerMode = 'M'
+		<if test="checkYn != null">
+			AND ParentsID = '0'
+		</if>
+		ORDER BY ParentsID, FolDerName
+	</select>
+
+	<select id="selectFolderList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT
+				FolderID AS "FolderID"
+				, ParentsID AS "ParentsID"
+				, OwnerID AS "OwnerID"
+				, FolDerName AS "FolDerName"
+				, FolDerMode AS "FolDerMode"
+				, RegDate AS "RegDate"
+				, SortKey AS "SortKey"
+			FROM (
+				SELECT
+					 FolderID
+					,ParentsID
+					,OwnerID
+					,FolDerName
+					,FolDerMode
+					, TO_CHAR(RegDate, 'YYYY-MM-DD HH24:MI:SS') AS RegDate
+					,CASE WHEN ParentsID ='0' THEN FolderID ELSE ParentsID END || ' ' || FolderID || ' ' AS SortKey
+				FROM JWF_UserFolder
+				WHERE OwnerID = #{userID}
+				AND FolDerMode = 'M'
+				ORDER BY SortKey , FolDerMode , FolDerName
+			 )UserFolder
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	    RegDate BETWEEN #{startDate} AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1, 'YYYY-MM-DD')
+			  	 </if>
+			</trim>
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+					FolderID
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectFolderListCnt" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM (
+			SELECT UserFolder.*
+			FROM (
+				SELECT
+						 FolderID
+						,ParentsID
+						,OwnerID
+						,FolDerName
+						,FolDerMode
+						, TO_CHAR(RegDate, 'YYYY-MM-DD HH24:MI:SS') AS RegDate
+						,CASE WHEN ParentsID ='0' THEN FolderID ELSE ParentsID END || ' ' || FolderID || ' ' AS SortKey
+				FROM JWF_UserFolder
+				WHERE OwnerID = #{userID}
+				AND FolDerMode = 'M'
+				ORDER BY SortKey , FolDerMode , FolDerName
+			 )UserFolder
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	    RegDate BETWEEN #{startDate} AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1, 'YYYY-MM-DD')
+			  	 </if>
+			</trim>
+		) A
+	</select>
+
+	<select id="selectFolderIDList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT
+				FolderID AS "FolderID"
+				, ParentsID AS "ParentsID"
+				, OwnerID AS "OwnerID"
+				, FolDerName AS "FolDerName"
+				, FolDerMode AS "FolDerMode"
+				, RegDate AS "RegDate"
+				, FolderListID AS "FolderListID"
+				, InitiatorID AS "InitiatorID"
+				, InitiatorName AS "InitiatorName"
+				, InitiatorUnitID AS "InitiatorUnitID"
+				, InitiatorUnitName AS "InitiatorUnitName"
+				, UserFolderListDescriptionID AS "UserFolderListDescriptionID"
+				, ProcessID AS "ProcessID"
+				, FormInstID AS "FormInstID"
+				, FormID AS "FormID"
+				, FormName AS "FormName"
+				, FormSubject AS "FormSubject"
+				, IsSecureDoc AS "IsSecureDoc"
+				, IsFile AS "IsFile"
+				, FileExt AS "FileExt"
+				, IsComment AS "IsComment"
+				, ApproverCode AS "ApproverCode"
+				, ApproverName AS "ApproverName"
+				, ApprovalStep AS "ApprovalStep"
+				, ApproverSIPAddress AS "ApproverSIPAddress"
+				, IsReserved AS "IsReserved"
+				, ReservedGubun AS "ReservedGubun"
+				, ReservedTime AS "ReservedTime"
+				, Priority AS "Priority"
+				, IsModify AS "IsModify"
+				, Reserved1 AS "Reserved1"
+				, Reserved2 AS "Reserved2"
+			FROM (
+				SELECT
+					 A.FolderID
+					,A.ParentsID
+					,A.OwnerID
+					,A.FolDerName
+					,A.FolDerMode
+					, TO_CHAR(B.RegDate, 'YYYY-MM-DD HH24:MI:SS') AS RegDate
+					,B.FolderListID
+					,B.InitiatorID
+					,B.InitiatorName
+					,B.InitiatorUnitID
+					,B.InitiatorUnitName
+					,C.*
+				FROM JWF_UserFolder A
+				INNER JOIN JWF_UserFolderList B ON B.FolderID = A.FolderID
+				INNER JOIN jwf_userfolerlistdescription C ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+				WHERE A.OwnerID = #{userID}
+				AND A.FolderID	= #{folderId}
+				AND B.DeleteDate IS NULL
+			 ) UserFolder
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	    RegDate BETWEEN #{startDate} AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1, 'YYYY-MM-DD')
+			  	 </if>
+			  	 <if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND 
+				 	<choose>
+						<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					</choose>
+					LIKE '%' || #{searchWord} || '%'
+				</if>
+			</trim>
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+				 	<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>					
+						<otherwise>RegDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectFolderIDListCnt" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM (
+			SELECT UserFolder.*
+			FROM (
+				SELECT
+						 A.FolderID
+						,A.ParentsID
+						,A.OwnerID
+						,A.FolDerName
+						,A.FolDerMode
+						, TO_CHAR(B.RegDate, 'YYYY-MM-DD HH24:MI:SS') AS RegDate
+						,B.FolderListID
+						,B.InitiatorID
+						,B.InitiatorName
+						,B.InitiatorUnitID
+						,B.InitiatorUnitName
+						,C.*
+				FROM JWF_UserFolder A
+				INNER JOIN JWF_UserFolderList B ON B.FolderID = A.FolderID
+				INNER JOIN jwf_userfolerlistdescription C ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+				WHERE A.OwnerID = #{userID}
+				AND A.FolderID	= #{folderId}
+				AND B.DeleteDate IS NULL
+			 ) UserFolder
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	    RegDate BETWEEN #{startDate} AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1, 'YYYY-MM-DD')
+			  	 </if>
+			  	 <if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND 
+				 	<choose>
+						<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					</choose>
+					LIKE '%' || #{searchWord} || '%'
+				</if>
+			</trim>
+		) A
+	</select>
+
+	<update id="updateUserFolder" parameterType="cmap">
+		UPDATE JWF_UserFolder
+		SET FolDerName = #{FolDerName}
+		WHERE FolderID = #{folderId}
+		AND OwnerID = #{userID}
+	</update>
+
+	<update id="updateUserFolderMove" parameterType="cmap">
+		UPDATE (
+			SELECT
+				UFL.FolderId,
+				UFL.FolderListID,
+				UFLD.ProcessID
+			FROM JWF_UserFolderList UFL
+			INNER JOIN jwf_userfolerlistdescription UFLD ON UFL.UserFolderListDescriptionID = UFLD.UserFolderListDescriptionID
+		) A
+		SET FolderId = #{folderId}
+		WHERE FolderListID IN
+		<foreach collection="FolederListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+		AND NOT EXISTS (
+			SELECT
+				ProcessID 
+			FROM (
+				SELECT
+					SUB_UFLD.ProcessID
+				FROM JWF_UserFolderList SUB_UFL
+				INNER JOIN jwf_userfolerlistdescription SUB_UFLD ON SUB_UFL.UserFolderListDescriptionID = SUB_UFLD.UserFolderListDescriptionID
+				WHERE SUB_UFL.FolderID = #{folderId}
+				AND SUB_UFL.DeleteDate IS NULL
+			) B
+			WHERE A.ProcessID = B.ProcessID
+		)
+	</update>
+
+	<update id="update1LvJWF_UserFolderList" parameterType="cmap">
+		UPDATE JWF_UserFolderList
+		SET DeleteDate = SYSTIMESTAMP
+		WHERE FolderID IN (
+			SELECT FolderID
+			FROM JWF_UserFolder
+			WHERE folderID IN
+			<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+			OR ParentsID IN
+			<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+		)
+	</update>
+
+	<update id="update1LvJWF_UserFolder" parameterType="cmap">
+		UPDATE JWF_UserFolder
+		SET FolderMode = 'X'
+		WHERE folderID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+		OR ParentsID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</update>
+
+	<update id="update2LvJWF_UserFolderList" parameterType="cmap">
+		UPDATE JWF_UserFolderList
+		SET DeleteDate = SYSDATE
+		WHERE FolderListID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</update>
+
+	<update id="update2LvJWF_UserFolder" parameterType="cmap">
+		UPDATE JWF_UserFolder
+		SET FolderMode = 'X'
+		WHERE FolderID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</update>
+
+
+	<select id="selectUserFolderAuth" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM JWF_UserFolder
+		WHERE FOLDERID = #{folderId}
+		AND OWNERID = #{userID}
+	</select>
+</mapper>
+

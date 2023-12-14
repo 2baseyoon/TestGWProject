@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="common.excelDownload">
+	<select id="selectApprovalListExcel" parameterType="cmap" resultType="cmap">
+	    <![CDATA[ 
+			SELECT ApprovalList.SubKind AS "SubKind"
+				 , ApprovalList.ApprovalStep AS "ApprovalStep"
+				 , ApprovalList.FormSubject AS "FormSubject"
+				 , ApprovalList.InitiatorName AS "InitiatorName"
+				 , ApprovalList.InitiatorUnitName AS "InitiatorUnitName"
+				 , ApprovalList.IsFile AS "IsFile"
+				 , ApprovalList.FormName AS "FormName"
+				 , ApprovalList.Created AS "Created"
+				 , ApprovalList.IsComment AS "IsComment"
+				 , ApprovalList.IsModify AS "IsModify"
+				FROM (
+					SELECT C.SubKind
+					,D.ApprovalStep
+					,D.FormSubject
+					,A.InitiatorName
+					,A.InitiatorUnitName
+					,D.IsFile
+					,D.FormName
+					,B.Created
+					,D.IsComment
+					,D.IsModify
+					FROM JWF_PROCESS A
+					INNER JOIN JWF_WORKITEM B ON A.ProcessID = B.ProcessID
+					INNER JOIN JWF_PERFORMER C ON B.WorkItemID = C.WorkItemID
+					INNER JOIN JWF_PROCESSDESCRIPTION D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+					WHERE C.UserCode = #{userID}
+					AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019')
+					AND C.State = 1
+					AND B.State = 288
+					AND A.ProcessState = 288
+					AND A.DeleteDate IS NULL
+					
+					UNION ALL
+					
+					SELECT C.SubKind
+					,D.ApprovalStep
+					,D.FormSubject
+					,A.InitiatorName
+					,A.InitiatorUnitName
+					,D.IsFile
+					,D.FormName
+					,B.Created
+					,D.IsComment
+					,D.IsModify
+					FROM JWF_PROCESS A
+					INNER JOIN JWF_WORKITEM B ON A.ProcessID = B.ProcessID
+					INNER JOIN JWF_PERFORMER C ON B.WorkItemID = C.WorkItemID
+					INNER JOIN JWF_PROCESSDESCRIPTION D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+					WHERE B.DeputyID = #{userID}
+					AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017')
+					AND C.State = 1
+					AND B.State = 288
+					AND A.ProcessState = 288
+					AND A.DeleteDate IS NULL
+			) ApprovalList
+	    ]]>
+	    <!-- 검색 생략 -->
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalStep")'>ApprovalStep</when>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("Created")'>Created</when>
+					<when test='sortColumn.equalsIgnoreCase("IsComment")'>IsComment</when>
+					<when test='sortColumn.equalsIgnoreCase("IsModify")'>IsModify</when>
+					<otherwise>SubKind</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+</mapper>

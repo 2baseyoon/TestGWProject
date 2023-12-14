@@ -1,0 +1,580 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.common">
+
+	<!-- 근태관리 사용자 권한 조회 -->
+	<select id="getUserAuthType" parameterType="cmap" resultType="int">
+		SELECT
+			COUNT(1) AS "cnt"
+		FROM
+		(
+			SELECT 'User' AS "Type"
+				, GM.USERCODE AS "Code"
+				, NVL(UR.DISPLAYNAME, '') AS "CodeName"
+				, NVL(UR.MAILADDRESS, '') AS "MailAddress"
+				, GM.GROUPMEMBERID AS MemberID
+			FROM SYS_OBJECT_GROUP_MEMBER GM
+				LEFT JOIN SYS_OBJECT_USER UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GROUPCODE = #{AuthType}
+			UNION
+			SELECT 'Dept' AS "Type"
+				, GM.MEMBERGROUPCODE AS "Code"
+				, NVL(GR.DISPLAYNAME, '') AS "CodeName"
+				, NVL(GR.PRIMARYMAIL, '') AS "MailAddress"
+				, GM.MEMBERGROUPID AS "MemberID"
+			FROM SYS_OBJECT_GROUP_MEMBERGROUP GM
+				LEFT JOIN SYS_OBJECT_GROUP GR ON GM.MEMBERGROUPCODE = GR.GROUPCODE
+			WHERE GM.GROUPCODE = #{AuthType}
+		) A
+		WHERE A."Code" = #{UserCode}
+	</select>
+	
+	<!-- 하위부서 리스트 조회 -->
+	<select id="getSubDeptList" parameterType="cmap" resultType="cmap">
+		/* attend.common.getSubDeptList */
+		SELECT  
+			GROUPID AS "GroupID"
+			,GROUPCODE AS "GroupCode"
+			,COMPANYCODE AS "CompanyCode"
+			,GROUPTYPE AS "GroupType"
+			,MEMBEROF AS "MemberOf"
+			,DISPLAYNAME AS "DisplayName"
+			,MULTIDISPLAYNAME AS "MultiDisPlayName"
+			,FN_BASEGETDICTIONARY_S(#{lang},MULTIDISPLAYNAME) AS "TransMultiDisplayName"
+			,LENGTH(SORTPATH) - LENGTH(REPLACE(SORTPATH,';','')) AS "SortDepth"
+			,GROUPPATH AS "GroupPath"
+		FROM SYS_OBJECT_GROUP
+		WHERE 1=1
+		AND GROUPTYPE IN ('Dept','Company')
+		<if test='CompanyCode != null'>
+			AND CompanyCode = #{CompanyCode}
+		</if>
+		<if test='attendAuth eq "USER"'>
+			<if test='jobType neq "DEVISION"' > <!-- 팀장, 팀원인 경우 -->
+				AND GROUPCODE = #{DeptCode}
+			</if>
+			<if test='jobType eq "DEVISION"' > <!-- 본부장인경우 본인포함 하위 부서 리스트 조회 -->
+				AND GROUPCODE = #{DeptCode} 
+					OR (';'||GROUPPATH) LIKE '%;'||#{DeptCode}||';%'
+			</if>
+		</if>
+		<if test='attendAuth neq "ADMIN"'>
+			AND GROUPCODE = #{DeptCode} OR ISUSE = 'Y'
+		</if>
+		ORDER BY SORTPATH ASC
+	</select>
+	
+	<!-- 부서별 사용자 리스트 -->
+	<select id="getUserListByDept" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 
+			SOU.USERCODE AS "UserCode"
+			, SOU.PHOTOPATH AS "PhotoPath"
+			, SOU.ENTERDATE AS "EnterDate"
+			, FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MULTIDEPTNAME) AS "DeptName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MULTIJOBPOSITIONNAME) AS "JobPositionName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, SOU.MULTIDISPLAYNAME) AS "DisplayName"
+			, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = SOG.MEMBEROF) AS "DeptFullPath"
+			, SOU.ISUSE AS "IsUse"
+			, SOU.ISDISPLAY AS "IsDisplay"
+			, DEPTCODE AS "DeptCode"
+		FROM SYS_OBJECT_USER_BASEGROUP SOUB
+			JOIN SYS_OBJECT_USER SOU ON SOUB.USERCODE = SOU.USERCODE
+			LEFT JOIN SYS_OBJECT_GROUP SOG	ON SOUB.DEPTCODE = SOG.GROUPCODE
+		WHERE SOUB.COMPANYCODE = #{CompanyCode}
+		<if test='groupPath != null and groupPath != ""'>
+			AND SOG.GROUPPATH LIKE #{groupPath}||'%'
+		</if>		
+		<if test='deptList != null and deptList.size != 0'>
+			<foreach collection="deptList" item="dept" open="AND SOUB.DEPTCODE IN (" close=")" separator=",">
+				#{dept.GroupCode}
+			</foreach>
+		</if>
+		<if test='retireUser != null and retireUser != ""'>
+			<choose>
+				<when test='retireUser eq "INOFFICE"'>
+					AND SOU.ISUSE = 'Y'
+					AND SOU.ISDISPLAY = 'Y'
+				</when>
+				<when test='retireUser eq "RETIRE"'>
+					AND SOU.ISUSE = 'N'
+					AND SOU.ISDISPLAY = 'N'
+				</when>
+			</choose>
+		</if>
+		<!-- 직책   -->
+		<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+			AND SOUB.JOBTITLECODE = #{sJobTitleCode}
+		</if>
+		<!-- 직급 -->
+		<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+			AND SOUB.JOBLEVELCODE = #{sJobLevelCode}
+		</if>
+		<!-- PRAMETER 별 검색 필터 -->
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND SOUB.DEPTCODE = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND SOU.USERCODE = #{sUserCode}
+		</if>
+		<if test='sUserTxt != null and sUserTxt != ""'>
+			AND SOU.DISPLAYNAME LIKE '%'||#{sUserTxt}||'%'
+		</if>
+		<if test="KeyWord != null and KeyWord != '' ">
+		 	AND SOU.MULTIDISPLAYNAME LIKE '%'||#{KeyWord}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			SOUB.JOBPOSITIONSORTKEY ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			SOUB.JOBLEVELSORTKEY ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			SOUB.JOBTITLESORTKEY ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			SOU.DisplayName ASC
+				  		</if>
+				  	</foreach>
+				  	, "DeptFullPath", SOUB.DEPTSORTKEY, SOU.SORTKEY, SOU.USERCODE
+			  	</when>
+			</choose>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="getUserListByDeptCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+		COUNT(*)
+		FROM SYS_OBJECT_USER_BASEGROUP SOUB
+		JOIN SYS_OBJECT_USER SOU ON SOUB.USERCODE = SOU.USERCODE
+		LEFT JOIN SYS_OBJECT_GROUP SOG	ON SOUB.DEPTCODE = SOG.GROUPCODE
+		WHERE SOUB.COMPANYCODE = #{CompanyCode}
+		<if test='groupPath != null and groupPath != ""'>
+			AND SOG.GROUPPATH LIKE #{groupPath}||'%'
+		</if>
+		<if test='deptList != null and deptList.size != 0'>
+			<foreach collection="deptList" item="dept" open="AND SOUB.DEPTCODE IN (" close=")" separator=",">
+				#{dept.GroupCode}
+			</foreach>
+		</if>
+		<if test='retireUser != null and retireUser != ""'>
+			<choose>
+				<when test='retireUser eq "INOFFICE"'>
+					AND SOU.ISUSE = 'Y'
+					AND SOU.ISDISPLAY = 'Y'
+				</when>
+				<when test='retireUser eq "RETIRE"'>
+					AND SOU.ISUSE = 'N'
+					AND SOU.ISDISPLAY = 'N'
+				</when>
+			</choose>
+		</if>
+		<!-- 직책   -->
+		<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+			AND SOUB.JOBTITLECODE = #{sJobTitleCode}
+		</if>
+		<!-- 직급 -->
+		<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+			AND SOUB.JOBLEVELCODE = #{sJobLevelCode}
+		</if>
+		<!-- PRAMETER 별 검색 필터 -->
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND SOUB.DEPTCODE = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND SOU.USERCODE = #{sUserCode}
+		</if>
+		<if test='sUserTxt != null and sUserTxt != ""'>
+			AND SOU.DISPLAYNAME LIKE '%'||#{sUserTxt}||'%'
+		</if>
+		<if test="KeyWord != null and KeyWord != '' ">
+			AND SOU.MULTIDISPLAYNAME LIKE '%'||#{KeyWord}||'%'
+		</if>
+	</select>
+	
+	<!-- 내  사용자 정보 조회 -->
+	<select id="getMyUserInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			sou.USERCODE AS "UserCode"
+			,sou.PHOTOPATH AS "PhotoPath"
+			,sou.ENTERDATE AS "EnterDate"
+			,FN_BASEGETDICTIONARY_S(#{lang},soub.MULTIDEPTNAME) AS "DeptName"
+			,FN_BASEGETDICTIONARY_S(#{lang},soub.MULTIJOBPOSITIONNAME) AS "JobPositionName"
+			,FN_BASEGETDICTIONARY_S(#{lang},sou.MULTIDISPLAYNAME) AS "DisplayName"
+			,(SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP r WHERE GROUPCODE = sog.MEMBEROF) AS "DeptFullPath"
+			,sou.ISUSE AS "IsUse"
+			,sou.ISDISPLAY AS "IsDisplay"
+			,DEPTCODE AS "DeptCode"
+		FROM
+			(
+				SELECT * FROM SYS_OBJECT_USER_BASEGROUP
+				WHERE DEPTCODE = #{DeptCode}
+			) soub
+			JOIN
+				(
+					SELECT * FROM SYS_OBJECT_USER
+					WHERE USERCODE = #{UserCode}
+				) sou ON soub.USERCODE = sou.USERCODE
+			LEFT JOIN SYS_OBJECT_GROUP sog ON soub.DEPTCODE = sog.GROUPCODE
+		WHERE soub.COMPANYCODE = #{CompanyCode}
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DEPTCODE = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.USERCODE = #{sUserCode}
+		</if>
+	</select>
+
+	<select id="getMyUserInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+		COUNT(*)
+		FROM
+		(
+		SELECT * FROM SYS_OBJECT_USER_BASEGROUP
+		WHERE DEPTCODE = #{DeptCode}
+		) soub
+		JOIN
+		(
+		SELECT * FROM SYS_OBJECT_USER
+		WHERE USERCODE = #{UserCode}
+		) sou ON soub.USERCODE = sou.USERCODE
+		LEFT JOIN SYS_OBJECT_GROUP sog ON soub.DEPTCODE = sog.GROUPCODE
+		WHERE soub.COMPANYCODE = #{CompanyCode}
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DEPTCODE = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.USERCODE = #{sUserCode}
+		</if>
+	</select>
+	<!-- 근무마스터 키
+	<select id="chkAttendanceBaseInfoYn" parameterType="cmap" resultType="String">
+		SELECT 
+			amm.ATTSEQ AS "AttSeq"
+		FROM
+			(
+				SELECT * FROM ATTEND_MST
+				WHERE VALIDYN = #{ValidYn}
+				AND COMPANYCODE = #{CompanyCode}
+			) amm
+			,(
+				SELECT * FROM ATTEND_SCHEDULE
+				WHERE VALIDYN = 'Y'
+				AND BASEYN = 'Y'
+			) ams
+		WHERE
+			1=1
+		AND
+			amm.ATTSEQ = ams.ATTSEQ
+ 	</select>  -->
+	<select id="chkAttendanceBaseInfoYn" parameterType="cmap" resultType="String">
+		SELECT
+			ATTSEQ AS "AttSeq"
+		FROM ATTEND_MST
+		WHERE VALIDYN = #{ValidYn}
+			AND COMPANYCODE = #{CompanyCode}
+	</select>
+	
+	<!-- 근무 템플릿 조회 -->
+	<select id="getScheduleList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT AMS.SCHSEQ AS "SchSeq"
+			, SCHNAME AS "SchName"
+			, ATTDAYSTARTTIME AS "AttDayStartTime"
+			, ATTDAYENDTIME AS "AttDayEndTime"
+			, STARTSUNHOUR||':'||STARTSUNMIN||'~'||ENDSUNHOUR||':'||ENDSUNMIN AS "WorkTimeSun"
+			, STARTMONHOUR||':'||STARTMONMIN||'~'||ENDMONHOUR||':'||ENDMONMIN AS "WorkTimeMon"
+			, STARTTUEHOUR||':'||STARTTUEMIN||'~'||ENDTUEHOUR||':'||ENDTUEMIN AS "WorkTimeTue"
+			, STARTWEDHOUR||':'||STARTWEDMIN||'~'||ENDWEDHOUR||':'||ENDWEDMIN AS "WorkTimeWed"
+			, STARTTHUHOUR||':'||STARTTHUMIN||'~'||ENDTHUHOUR||':'||ENDTHUMIN AS "WorkTimeThu"
+			, STARTFRIHOUR||':'||STARTFRIMIN||'~'||ENDFRIHOUR||':'||ENDFRIMIN AS "WorkTimeFri"
+			, STARTSATHOUR||':'||STARTSATMIN||'~'||ENDSATHOUR||':'||ENDSATMIN AS "WorkTimeSat"
+			, CASE
+				WHEN NEXTDAYYNSUN = 'Y' THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTSUNHOUR||STARTSUNMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDSUNHOUR||ENDSUNMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTSUNHOUR||STARTSUNMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDSUNHOUR||ENDSUNMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeSun"
+			, CASE
+				WHEN NEXTDAYYNMON = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTMONHOUR||STARTMONMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDMONHOUR||ENDMONMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTMONHOUR||STARTMONMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDMONHOUR||ENDMONMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeMon"
+			, CASE
+				WHEN NEXTDAYYNTUE = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTTUEHOUR||STARTTUEMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDTUEHOUR||ENDTUEMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTTUEHOUR||STARTTUEMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDTUEHOUR||ENDTUEMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeTue"
+			, CASE
+				WHEN NEXTDAYYNWED = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTWEDHOUR||STARTWEDMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDWEDHOUR||ENDWEDMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTWEDHOUR||STARTWEDMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDWEDHOUR||ENDWEDMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeWed"
+			, CASE
+				WHEN NEXTDAYYNTHU = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTTHUHOUR||STARTTHUMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDTHUHOUR||ENDTHUMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTTHUHOUR||STARTTHUMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDTHUHOUR||ENDTHUMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeThu"
+			, CASE
+				WHEN NEXTDAYYNFRI = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTFRIHOUR||STARTFRIMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDFRIHOUR||ENDFRIMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTFRIHOUR||STARTFRIMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDFRIHOUR||ENDFRIMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeFri"
+			, CASE
+				WHEN NEXTDAYYNSAT = 'Y'	THEN FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTSATHOUR||STARTSATMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200102'||ENDSATHOUR||ENDSATMIN), 'YYYYMMDDHH24MI'))
+				ELSE FN_ATTEND_GETATTDAYACTIME(
+					TO_DATE(('20200101'||STARTSATHOUR||STARTSATMIN), 'YYYYMMDDHH24MI'),
+					TO_DATE(('20200101'||ENDSATHOUR||ENDSATMIN), 'YYYYMMDDHH24MI'))
+			END AS "AcTimeSat"
+			, ams.BaseYn as "BaseYn"
+		FROM ATTEND_SCHEDULE AMS
+		LEFT  JOIN
+			(  select AllocSEQ, SchSeq, AllocType, AllocID, GroupCode, GroupPath
+				from attend_schedule_alloc a
+				LEFT JOIN (select CompanyCode, GroupType, GroupCode, GroupPath  from sys_object_group) sog
+				ON  sog.CompanyCode = #{CompanyCode} AND GroupType = 'Dept' AND GroupCode <![CDATA[<>]]> a.AllocID AND GroupPath like '%'||a.AllocID||';%'
+			) amsa ON ams.SchSeq = amsa.SchSeq
+			<if test='UserCode != null and UserCode != ""'>
+				AND ((AMSA.ALLOCTYPE = 'UR' AND AMSA.ALLOCID = #{UserCode}) OR (amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})) )
+			</if>
+			<if test='(UserCode == null or UserCode == "") and (DeptID != null and DeptID != "")'>
+				AND amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})
+			</if>
+		WHERE AMS.COMPANYCODE = #{CompanyCode}
+			<if test='SchName != null and SchName != ""'>
+				AND AMS.SCHNAME LIKE ('%'||#{SchName}||'%')
+			</if>
+			AND AMS.VALIDYN = 'Y'
+		<if test='UserCode != null and UserCode != ""'>
+			AND (AMS.BASEYN = 'Y' OR ((AMSA.ALLOCTYPE = 'UR' AND AMSA.ALLOCID = #{UserCode}) OR (amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})) ))
+		</if>
+		<if test='(UserCode == null or UserCode == "") and (DeptID != null and DeptID != "")'>
+			AND (AMS.BASEYN = 'Y' OR (AMSA.ALLOCSEQ IS NOT NULL AND (amsa.GroupCode IS NOT NULL OR amsa.AllocID =#{UserCode})))
+		</if>
+		ORDER BY ams.BaseYn desc, ams.SchName
+	</select>
+
+	<!-- 관리자 여부 확인 -->
+	<select id="selectGroupMemberList" parameterType="cmap" resultType="int">
+		SELECT
+			COUNT(1) CNT
+		FROM (
+			SELECT
+				'User' AS "Type"
+				, GM.USERCODE AS "Code"
+				, NVL(UR.DISPLAYNAME, '') AS "CodeName"
+				, NVL(UR.MAILADDRESS, '') AS "MailAddress"
+				, GM.GROUPMEMBERID AS "MemberID"
+			FROM SYS_OBJECT_GROUP_MEMBER GM
+				LEFT JOIN SYS_OBJECT_USER UR
+					ON GM.USERCODE = UR.USERCODE
+			WHERE GM.GROUPCODE = 'Attendance_Admin'
+			UNION
+			SELECT
+				'Dept' AS "Type"
+				, GM.MEMBERGROUPCODE AS "Code"
+				, NVL(GR.DISPLAYNAME, '') AS "CodeName"
+				, NVL(GR.PRIMARYMAIL, '') AS "MailAddress"
+				, GM.MEMBERGROUPID AS "MemberID"
+			FROM SYS_OBJECT_GROUP_MEMBERGROUP GM
+				LEFT JOIN SYS_OBJECT_GROUP GR
+					ON GM.MEMBERGROUPCODE = GR.GROUPCODE
+			WHERE GM.GROUPCODE = 'Attendance_Admin'
+		) A
+		WHERE "Code" = #{UserCode}
+	</select>
+	
+	<select id="getDayScope" parameterType="cmap" resultType="String">
+		SELECT
+			FN_ATTEND_GETDAYSCOPE(#{DayTerm},#{TargetDate},#{CompanyCode}) AS "dayScope"
+		FROM DUAL
+	</select>
+	
+	<!-- 기타근무 리스트조회 -->
+	<select id="getOtherJobList" parameterType="cmap" resultType="cmap">
+		SELECT
+			AMJS.JOBSTSSEQ AS "JobStsSeq"
+			, AMJS.JOBSTSNAME AS "JobStsName"
+			, AMJS.VALIDYN AS "ValidYn"
+			, AMJS.MEMO AS "Memo"
+			, AMJS.REQMETHOD AS "ReqMethod"
+			, AMJS.UPDMETHOD AS "UpdMethod"
+			, AMJS.DELMETHOD AS "DelMethod"
+		FROM ATTEND_JOB_STATUS AMJS
+			JOIN ATTEND_MST AMM
+				ON AMM.ATTSEQ = AMJS.ATTSEQ
+				AND AMM.COMPANYCODE = #{CompanyCode}
+		WHERE 1 = 1
+		<if test="JobStsSeq != null and JobStsSeq != ''">
+			AND AMJS.JOBSTSSEQ = #{JobStsSeq}
+		</if>
+		<if test="ValidYn != null and ValidYn != ''">
+			AND AMJS.VALIDYN = #{ValidYn}
+		</if>
+		ORDER BY AMJS.JOBSTSSEQ DESC
+	</select>
+
+	<!-- 회사 휴무일 조회 -->	
+	<select id="getHolidaySchedule"  parameterType="cmap" resultType= "cmap" >
+		/* queryID : attend.common.getHolidaySchedule */
+		SELECT
+			DAYLIST AS "dayList"
+			, HOLIDAYSTART AS "HolidayStart"
+			, HOLIDAYEND AS "HolidayEnd"
+			, HOLIDAYNAME AS "HolidayName"
+		FROM ATTEND_HOLIDAY_SCHEDULE
+			LEFT JOIN ATTEND_DAYLIST AD
+				ON AD.DAYLIST BETWEEN HOLIDAYSTART AND HOLIDAYEND
+		WHERE COMPANYCODE = #{CompanyCode}
+		<if test="StartDate != null and StartDate != ''">
+			AND #{StartDate} BETWEEN TO_CHAR(HOLIDAYSTART, '%YYYY%MM') AND TO_CHAR(HOLIDAYEND, '%YYYY%MM')
+		</if>
+	</select>
+	
+	<!-- 근태 달력조회 -->
+	<select id="getJobCalendar"  parameterType="cmap" resultType= "cmap" >
+		SELECT TO_CHAR(AJ.JOBDATE, 'YYYY-MM-DD') AS "JobDate"
+			, AJ.SCHSEQ AS "SchSeq"
+			, ASH.SCHNAME AS "SchName"
+			, AJ.WORKSTS AS "WorkSts"
+			, TO_CHAR(AJ.ATTDAYSTARTTIME, 'HH24MI') AS "AttDayStartTime"
+			, TO_CHAR(AJ.ATTDAYENDTIME, 'HH24MI') AS "AttDayEndTime"
+			, AJ.CONFMYN AS "ConfmYn"
+			, NVL(VACFLAG, 'N') AS "VacFlag"
+			, VACOFFFLAG AS "VacOffFlag"
+			, cast(cast(NVL(VACDAY,0) as DECIMAL(9,3)) as float) AS "VacDay"
+			, CASE WHEN VACFLAG IS NOT NULL THEN (SELECT CODENAME FROM SYS_BASE_CODE WHERE DOMAINID = #{domainID} AND CODEGROUP='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VACFLAG,'|',1)) END AS "CodeName"
+			, TO_CHAR(AM.ATTSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS "AttStartTime"
+			, TO_CHAR(AM.ATTENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS "AttEndTime"
+			, AM.STARTSTS AS "StartSts"
+			, AM.ENDSTS AS "EndSts"
+			, AM.HOLIAC AS "HoliAc"
+			, AM.EXTENAC AS "ExtenAC"
+			, ASH.ASSYN AS "AssYn"
+			, AJ.ATTDAYAC AS "AttDayAC"
+		FROM ATTEND_JOB AJ
+			LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+			LEFT JOIN (
+				SELECT DAYLIST
+					, UR_CODE
+					, SUM(VV.VACDAY) AS VACDAY
+					, LISTAGG(TRIM(VV.VACFLAG), '|') WITHIN GROUP(ORDER BY VV.VACOFFFLAG) AS VACFLAG
+					, LISTAGG(TRIM(VV.VACOFFFLAG), '|') WITHIN GROUP(ORDER BY VV.VACOFFFLAG) AS VACOFFFLAG
+				FROM ATTEND_DAYLIST D
+					JOIN VM_VACATIONINFO_DAY VV ON D.DAYLIST = VV.VACDATE
+				WHERE VV.UR_CODE = #{UR_Code}
+					AND D.DAYLIST BETWEEN TO_DATE((#{StartDate}||'01'), 'YYYYMMDD')
+					AND LAST_DAY(TO_DATE(#{StartDate}, 'YYYYMM'))
+				GROUP BY
+					DAYLIST
+					, UR_CODE
+			) VV ON AJ.JOBDATE = VV.DAYLIST
+			LEFT JOIN ATTEND_COMMUTING_MST AM
+				ON AJ.USERCODE = AM.USERCODE AND AJ.JOBDATE = AM.TARGETDATE
+		WHERE AJ.USERCODE = #{UR_Code}
+			AND AJ.JOBDATE BETWEEN TO_DATE((#{StartDate}||'01'), 'YYYYMMDD')
+			AND LAST_DAY(TO_DATE(#{StartDate}, 'YYYYMM'))
+		ORDER BY JOBDATE
+	</select>
+	
+	<!-- 사용자 timezone 적용 시간 조회 -->
+	<select id="getUserNowDateTime" parameterType="cmap" resultType="String">
+		SELECT
+			TO_CHAR(
+				(
+					SYSDATE
+					+ TO_NUMBER(REGEXP_SUBSTR(NVL(C.RESERVED1, '00:00:00'), '[^:]+', 1, 1)) / 24 /* h */
+					+ TO_NUMBER(REGEXP_SUBSTR(NVL(C.RESERVED1, '00:00:00'), '[^:]+', 1, 2)) / (24 * 60) /* m */
+					+ TO_NUMBER(REGEXP_SUBSTR(NVL(C.RESERVED1, '00:00:00'), '[^:]+', 1, 3)) / (24 * 60 * 60) /* s */
+				), #{DateFormat}
+			) AS "UserDateTime"
+		FROM SYS_OBJECT_USER U
+			LEFT JOIN SYS_BASE_CODE C ON U.TIMEZONECODE = C.CODE
+			LEFT JOIN sys_object_user_basegroup UB ON UB.UserCode = U.UserCode AND UB.JobType = 'ORIGIN'
+			LEFT JOIN sys_object_domain D ON D.DomainCode = UB.CompanyCode
+		WHERE USERCODE = #{UserCode}
+			AND C.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = C.Code AND DomainID = D.DomainID)
+	</select>
+	
+	<select id="getMyManagerName" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM (
+			SELECT S.LOGONID AS "LogonID"
+				, FN_BASEGETDICTIONARY_S(#{lang}, S.MULTIDISPLAYNAME) AS "DisplayName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UB.MULTIDEPTNAME) AS "DeptName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UB.MULTIJOBLEVELNAME) AS "JobLevelName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UB.MULTIJOBTITLENAME) AS "JobTitleName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, UB.MULTIJOBPOSITIONNAME) AS "JobPositionName"
+				, S.DESCRIPTION AS "Description"
+				, S.BIRTHDATE AS "Birthdate"
+				, S.PHONENUMBER AS "PhoneNumber"
+				, S.MOBILE AS "Mobile"
+				, S.FAX AS "Fax"
+				, S.PHOTOPATH AS "PhotoPath"
+				, S.MAILADDRESS AS "MailAddress"
+				, S.ADDRESS AS "Address"
+				, S.CHARGEBUSINESS AS "ChargeBusiness"
+			FROM SYS_OBJECT_USER S
+				INNER JOIN SYS_OBJECT_USER_BASEGROUP UB ON S.USERCODE = UB.USERCODE
+			WHERE S.USERCODE = #{userId}
+				AND UB.JOBTYPE = 'Origin'
+		)
+		WHERE ROWNUM = 1
+	</select>	
+	
+	<select id="getBaseConfig" parameterType="cmap" resultType="cmap">
+		SELECT
+			CONFIGID AS "ConfigID"
+			, BIZSECTION AS "BizSection"
+			, SETTINGKEY AS "SettingKey"
+			, SETTINGVALUE AS "SettingValue"
+		FROM SYS_BASE_CONFIG A
+			INNER JOIN SYS_OBJECT_DOMAIN B ON A.DOMAINID = B.DOMAINID
+		WHERE B.DOMAINCODE =  #{CompanyCode}
+			AND A.SETTINGKEY =  #{settingVal}
+	</select>
+
+	<!-- 월 법정근로시간 계산 -->
+	<select id="getMonthlyMaxWorkTime" parameterType="cmap" resultType="int">
+		SELECT
+			ROUND(40 * TO_NUMBER(TO_CHAR(LAST_DAY(#{TargetDate}), 'DD')) / 7, 1) * 60
+		FROM DUAL
+	</select>
+
+	<!-- 회사설정 휴게시간관리 정보 가져오기 -->
+	<select id="getRewardTimeInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			OVERTIME AS "OverTime"
+			, REWARDTIME AS "RewardTime"
+		FROM ATTEND_MST_REWARD
+		WHERE COMPANYCODE = #{CompanyCode}
+			AND  REWARDCODE = 'rest'
+			AND ROWNUM = 1
+	</select>
+</mapper>
+

@@ -1,0 +1,37 @@
+<table class="tableStyle linePlus mt10" id="TBL_HOLIDAY_WORK_INFO">
+    <colgroup>
+        <col style="width:13%;" />
+        <col style="width:37%;" />
+        <col style="width:13%;" />
+        <col style="width:37%;" />
+    </colgroup>
+    <tr>
+    	<th>부서</th>
+    	<td>
+    		<input type="text" data-type="mField" id="DEPT2" value="{{ doc.BodyContext.DEPT2 }}" style="width:97%;" />
+    		<input type="hidden" data-type="mField" id="UserCode" value="{{ doc.BodyContext.UserCode }}" style="width:97%;" />
+    		<input type="hidden" data-type="mField" id="CompanyCode" value="{{ doc.BodyContext.CompanyCode }}" style="width:97%;" />
+    	</td>
+    	
+    	<th>신청자</th>
+    	<td><input type="text" data-type="mField" id="USER2" value="{{ doc.BodyContext.USER2 }}" style="width:97%;" /></td>
+    </tr>
+    <tr>
+        <th>담당업무</th>
+        <td colspan="3"><input type="text" data-type="mField" id="auth" value="{{ doc.BodyContext.auth }}" style="width:97%;" /></td>
+    </tr>
+    <tr>
+        <th>휴일 근무일</th>
+        <td colspan="3"><input type="text" id="HolidayDate" data-type="mField" data-pattern="date" data-date-min="0" onchange="checkHolidayOne(this);" value="{{ doc.BodyContext.HolidayDate }}" /></td>
+    </tr>
+    <tr>
+        <th>휴일근무 사유</th>
+        <td colspan="3" style="padding-top:5px; padding-bottom:5px; min-height:80px">
+            <textarea data-type="mField" id="HOLIDAY_WORK" rows="3" style="overflow:auto;width:98%;">{{ doc.BodyContext.HOLIDAY_WORK }}</textarea>
+        </td>
+    </tr>
+    <tr>
+        <th>휴일대체 <br>지정일</th>
+        <td colspan="3"><input type="text" id="AlternativeHolidayDate" data-type="mField" data-pattern="date" data-date-min="0" onchange="attendDayJobCheck(this);" value="{{ doc.BodyContext.AlternativeHolidayDate }}" /></td>
+    </tr>
+</table>

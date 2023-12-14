@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.typeCounts">
+    <select id="selectStatDeptList" parameterType="cmap" resultType="cmap">
+        SELECT A.* FROM
+				(SELECT PF.UserCode
+					, U.DisplayName AS UNIT_NAME 
+					, SUM( CASE PF.SubKind WHEN 'A' THEN 1 ELSE 0 END) AS A_Count
+					, SUM( CASE PF.SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS REQCMP_count
+					, AVG( TIMESTAMPDIFF( MINUTE ,P.startDate,P.endDate )) AS document_leadtime
+				FROM covi_approval4j.jwf_performer as PF
+					INNER JOIN covi_approval4j.jwf_workitem as W ON W.WorkitemID = PF.WorkitemID
+					INNER JOIN  covi_approval4j.jwf_process as P ON W.ProcessID = P.ProcessID
+					INNER JOIN covi_smart4j.sys_object_group as U ON PF.UserCode = U.GroupCode
+				WHERE PF.ActualKind = '1' 
+					AND PF.SubKind IN ('A','REQCMP')
+					AND P.BusinessState LIKE '02_01%'
+					AND P.endDate IS NOT NULL
+					AND P.ProcessState = 528
+					AND U.CompanyCode = #{EntCode}
+				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+					<![CDATA[ AND ( P.endDate >= #{startDate} 		 AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+				</if> 
+				GROUP BY PF.UserCode, U.DisplayName
+			) A
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("A_Count")'>A_Count</when>
+					<when test='sortColumn.equalsIgnoreCase("REQCMP_count")'>REQCMP_count</when>
+					<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>document_leadtime</when>
+					<otherwise>UNIT_NAME</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectStatDeptListcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+				(SELECT PF.UserCode
+					, U.DisplayName AS UNIT_NAME 
+					, SUM( CASE PF.SubKind WHEN 'A' THEN 1 ELSE 0 END) AS A_Count
+					, SUM( CASE PF.SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS REQCMP_count
+					, AVG( TIMESTAMPDIFF( MINUTE ,P.startDate,P.endDate )) AS document_leadtime
+				FROM covi_approval4j.jwf_performer as PF
+					INNER JOIN covi_approval4j.jwf_workitem as W ON W.WorkitemID = PF.WorkitemID
+					INNER JOIN  covi_approval4j.jwf_process as P ON W.ProcessID = P.ProcessID
+					INNER JOIN covi_smart4j.sys_object_group as U ON PF.UserCode = U.GroupCode
+				WHERE PF.ActualKind = '1' 
+					AND PF.SubKind IN ('A','REQCMP')
+					AND P.BusinessState LIKE '02_01%'
+					AND P.ProcessState = 528
+					AND P.endDate IS NOT NULL
+					AND U.CompanyCode = #{EntCode}
+				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+					<![CDATA[ AND ( P.endDate >= #{startDate} 		 AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+				</if> 
+				GROUP BY PF.UserCode, U.DisplayName
+			) A
+	</select>
+	
+    
+    <select id="selectStatFormList" parameterType="cmap" resultType="cmap">
+        SELECT A.*
+			FROM (
+				SELECT P.FormPrefix, P.FormName
+					, COUNT( *) AS document_Count
+					, avg( TIMESTAMPDIFF( MINUTE ,P.startDate,P.endDate )) AS document_leadtime
+				FROM covi_approval4j.jwf_process as P
+					INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode
+				WHERE P.BusinessState LIKE '02_01%'
+					AND P.ParentProcessID = 0
+					AND P.endDate IS NOT NULL
+					AND P.ProcessState = 528
+					AND U.CompanyCode = #{EntCode}
+				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+				    <![CDATA[ AND	( P.endDate >= #{startDate} AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>  
+				</if>
+				GROUP BY P.FormPrefix
+			) A
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("document_Count")'>document_Count</when>
+					<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>document_leadtime</when>
+					<otherwise>FormName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectStatFormListcnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+			FROM (
+				SELECT P.FormPrefix, P.FormName
+					, COUNT( *) AS document_Count
+					, avg( TIMESTAMPDIFF( MINUTE ,P.startDate,P.endDate )) AS document_leadtime
+				FROM covi_approval4j.jwf_process as P
+					INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode
+				WHERE P.BusinessState LIKE '02_01%'
+					AND P.ParentProcessID = 0
+					AND P.endDate IS NOT NULL
+					AND P.ProcessState = 528
+					AND U.CompanyCode = #{EntCode}
+				<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+				    <![CDATA[ AND	( P.endDate >= #{startDate} AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>  
+				</if>
+				GROUP BY P.FormPrefix
+			) A
+	</select>
+	
+    
+    
+    
+    
+    <select id="selectStatPersonList" parameterType="cmap" resultType="cmap">
+        SELECT * 
+			FROM (
+				SELECT P.UserCode AS UR_Code
+				, ( CASE P.IsUse WHEN 'Y' THEN P.DisplayName ELSE CONCAT('(비사용)', P.DisplayName) END ) AS DISPLAY_NAME
+				, ( 	SELECT U.DisplayName AS DEPT_Name
+						FROM covi_smart4j.sys_object_group as U
+						WHERE BG.DeptCode = U.GroupCode
+					) AS UNIT_NAME
+				, IFNULL(Draft_Count.Draft_Count, 0) AS Draft_Count   -- 기안후 승인 완료된 건수
+				, IFNULL(Approval_Count.Approval_Count, 0) AS Approval_Count   -- 결재행위(승인/반려)건수
+				, IFNULL(Approval_leadtime.Approval_leadtime, 0) AS Approval_leadtime  -- 결재행위 소요시간(분)
+				FROM covi_smart4j.sys_object_user as P
+				INNER JOIN covi_smart4j.sys_object_user_basegroup as BG ON P.UserCode = BG.UserCode
+				<!-- sub query to group by change. -->
+				LEFT JOIN (
+						SELECT WP.InitiatorID, COUNT(*) AS Draft_Count
+						FROM covi_approval4j.jwf_process as WP 
+						WHERE 1=1 
+						AND WP.ParentProcessID = 0
+						AND WP.BusinessState LIKE '02_01%'
+						AND WP.ProcessState = 528 
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND	( WP.endDate >= #{startDate} AND WP.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						GROUP BY WP.InitiatorID
+					) AS Draft_Count
+					ON Draft_Count.InitiatorID = P.UserCode
+				LEFT JOIN (
+						SELECT W.UserCode, COUNT(*) AS Approval_Count
+						FROM covi_approval4j.jwf_workitem as W 
+						WHERE 1=1
+						AND W.State = 528
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND	( W.Finished >= #{startDate} AND W.Finished < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						GROUP BY W.UserCode
+					) AS Approval_Count
+					ON Approval_Count.UserCode = P.UserCode
+				LEFT JOIN (
+						SELECT W.UserCode, AVG(IFNULL(TIMESTAMPDIFF( MINUTE, W.Created, W.Finished ), 0)) AS Approval_leadtime
+						FROM covi_approval4j.jwf_workitem as W 
+						WHERE 1=1
+						AND W.State = 528 
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND	( W.Finished >= #{startDate} AND W.Finished < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						GROUP BY W.UserCode
+					) AS Approval_leadtime
+					ON Approval_leadtime.UserCode = P.UserCode
+				WHERE BG.CompanyCode = #{EntCode}
+			) LIST
+			WHERE ( Draft_Count > 0 OR Approval_Count > 0 )
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("UNIT_NAME")'>UNIT_NAME</when>
+					<when test='sortColumn.equalsIgnoreCase("Draft_Count")'>Draft_Count</when>
+					<when test='sortColumn.equalsIgnoreCase("Approval_Count")'>Approval_Count</when>
+					<when test='sortColumn.equalsIgnoreCase("Approval_leadtime")'>Approval_leadtime</when>
+					<otherwise>DISPLAY_NAME</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지} 
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectStatPersonListcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			(SELECT *
+			FROM (
+				SELECT 
+					IFNULL(Draft_Count.Draft_Count, 0) AS Draft_Count,   -- 기안후 승인 완료된 건수
+					IFNULL(Approval_Count.Approval_Count, 0) AS Approval_Count   -- 결재행위(승인/반려)건수
+				FROM covi_smart4j.sys_object_user as P
+				INNER JOIN covi_smart4j.sys_object_user_basegroup as BG ON P.UserCode = BG.UserCode
+				LEFT JOIN (
+						SELECT WP.InitiatorID, COUNT(*) AS Draft_Count
+						FROM covi_approval4j.jwf_process as WP 
+						WHERE 1=1 
+						AND WP.ParentProcessID = 0
+						AND WP.BusinessState LIKE '02_01%'
+						AND WP.ProcessState = 528 
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND	( WP.endDate >= #{startDate} AND WP.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						GROUP BY WP.InitiatorID
+					) AS Draft_Count
+					ON Draft_Count.InitiatorID = P.UserCode
+				LEFT JOIN (
+						SELECT W.UserCode, COUNT(*) AS Approval_Count
+						FROM covi_approval4j.jwf_workitem as W 
+						WHERE 1=1
+						AND W.State = 528
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND	( W.Finished >= #{startDate} AND W.Finished < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						GROUP BY W.UserCode
+					) AS Approval_Count
+					ON Approval_Count.UserCode = P.UserCode
+				WHERE BG.CompanyCode = #{EntCode}
+			) LIST
+			WHERE ( Draft_Count > 0 OR Approval_Count > 0 )
+		) A
+	</select>
+</mapper>
+

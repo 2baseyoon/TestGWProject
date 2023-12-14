@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.oAuth2">
+	
+	<select id="getEmail" parameterType="cmap" resultType="String">
+	    <![CDATA[
+		    SELECT Mail 
+		    FROM sys_object_user_google
+		    WHERE 1=1
+		    AND UserCode = #{UserCode}
+	    ]]>
+	</select>
+	
+	<select id="getOAuthInfo" parameterType="cmap" resultType="String">
+	    <![CDATA[
+		    SELECT SettingValue 
+		    FROM sso_config sso
+		    WHERE 1=1
+		    AND Code = #{code}
+		    AND DomainID = (SELECT DomainID FROM covi_smart4j.sso_config WHERE Code = sso.Code ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+	    ]]>
+	</select>
+	<select id="getOAuthClient" parameterType="cmap" resultType="String">
+	    SELECT  client_id
+		FROM oauth_client
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM oauth_client bc
+				  INNER JOIN sys_object_domain sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN sys_object_user_basegroup soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN sys_object_user ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code})AS b)
+	    
+	</select>
+	<select id="getOAuthRedirect" parameterType="cmap" resultType="String">
+	    SELECT redirect_uri
+		FROM oauth_client
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM oauth_client bc
+				  INNER JOIN sys_object_domain sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN sys_object_user_basegroup soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN sys_object_user ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code})AS b)
+	</select>
+	<select id="getOAuthClientKey" parameterType="cmap" resultType="String">
+	    SELECT client_secret
+		FROM oauth_client
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM oauth_client bc
+				  INNER JOIN sys_object_domain sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN sys_object_user_basegroup soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN sys_object_user ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code})AS b)
+	    
+	</select>
+</mapper>
+

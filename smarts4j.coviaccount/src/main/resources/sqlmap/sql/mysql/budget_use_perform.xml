@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget.perform">
+		<select id="getBudgetUsePerformListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*)
+			FROM   (SELECT r.FiscalYear, b.CostCenterType, r.CostCenter, r.AccountCode,   r.StandardBriefID, r.periodLabel
+					FROM   covi_budget4j.bem_regist r 
+				    JOIN   covi_budget4j.vw_cost_center b ON r.CompanyCode = b.CompanyCode AND r.CostCenter = b.CostCenterCode
+					JOIN   covi_account4j_si.act_account c    ON   r.CompanyCode = c.CompanyCode AND r.AccountCode = c.AccountCode
+			   LEFT JOIN   covi_budget4j.bem_execute_regist e ON   r.CompanyCode = e.CompanyCode AND r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid AND  e.ExecuteDate BETWEEN r.validFrom AND r.validTo AND r.CostCenter = e.BudgetCode
+					WHERE  r.companyCode = #{companyCode}
+	    			AND     r.FiscalYear = #{fiscalYear}
+					 <if test ="costCenterType != null and costCenterType !=''">
+					AND		b.CostCenterType = #{costCenterType}
+					</if>
+				    <if test ="costCenterName != null and costCenterName !=''">
+					AND		b.costCenterName LIKE CONCAT('%',  #{costCenterName},'%')
+					</if>
+					<choose>
+						<when test="searchStr != null and searchStr !=''">
+							<choose>
+							    <when test="searchType == null or searchType ==''">
+					AND		(	c.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR  
+								C.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+								C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+							)
+							    </when>
+							    <when test="searchType == 'GLC'.toString()">
+					AND		C.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+							    </when>
+							    <when test="searchType == 'GLN'.toString()">
+					AND		C.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+							    </when>
+								<when test="searchType == 'GLS'.toString()">
+					AND		C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+							    </when>
+							</choose>
+						</when>
+					</choose>
+					<if test ='authMode == null or authMode != "A" '>
+						AND r.CostCenter IN (
+							SELECT u.CostCenterCode
+							FROM covi_account4j_si.act_user_cost_center u
+							WHERE u.CompanyCode = r.CompanyCode
+							AND u.CostCenterCode = r.CostCenter
+							AND u.usercode = #{UR_Code}
+							UNION 
+							SELECT #{UR_Code}
+							FROM DUAL
+						)
+					</if>
+				GROUP BY r.FiscalYear,	r.CostCenter,	r.AccountCode,  r.StandardBriefID, r.periodLabel
+				) a
+
+   	</select>
+	<select id="getBudgetUsePerformList"  parameterType="cmap" resultType="cmap">
+		SELECT a.FiscalYear
+				,	a.CostCenterType
+				,	covi_account4j_si.Fn_GetBaseCodeName('BudgetType', a.CostCenterType, #{companyCode}) AS CostCenterTypeName
+		    	,	a.CostCenter
+		    	,   a.CostCenterName
+		    	,	a.AccountCode
+		    	,   a.AccountName
+		    	,   a.StandardBriefID
+		    	,   ifnull(d.StandardBriefName,'') StandardBriefName
+				,	concat(DATE_FORMAT(a.ValidFrom, '%Y/%m/%d'),'~', DATE_FORMAT(ValidTo, '%Y/%m/%d')) ValidTerm
+				,	DATE_FORMAT(a.ValidFrom, '%Y-%m-%d') ValidFrom
+				,	DATE_FORMAT(a.ValidTo, '%Y-%m-%d') ValidTo
+				,   a.PeriodLabel
+		    	,	covi_account4j_si.Fn_GetBaseCodeName('PeriodLabel',a.PeriodLabel,'ALL')		AS PeriodLabelName
+				,   a.BudgetAmount
+				,	a.PendingAmount
+				,   a.CompletAmount
+				,   a.BudgetAmount- (ifnull(a.PendingAmount,0)+ifnull(a.CompletAmount,0)) RemainAmount
+				,   ifnull(a.PendingAmount,0)+ifnull(a.CompletAmount,0) UsedAmount
+				,   a.CompanyCode
+				,   covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',a.CompanyCode, #{companyCode}) CompanyCodeName
+		FROM  (
+			SELECT  r.CompanyCode, r.FiscalYear, b.CostCenterType, r.CostCenter, b.CostCenterName,	c.AccountID, r.AccountCode,  c.AccountName, r.StandardBriefID, r.periodLabel
+					,validFrom
+					,validto
+					, BudgetAmount
+					, SUM(case when STATUS='P' then usedAmount else 0 END) PendingAmount
+					, SUM(case when STATUS='C' then usedAmount else 0 end) CompletAmount
+					, COUNT(*)
+			FROM   covi_budget4j.bem_regist r 
+		    JOIN   covi_budget4j.vw_cost_center b ON r.CompanyCode = b.CompanyCode AND r.CostCenter = b.CostCenterCode
+			JOIN   covi_account4j_si.act_account c    ON  r.CompanyCode = c.CompanyCode AND r.AccountCode = c.AccountCode
+	LEFT	JOIN   covi_budget4j.bem_execute_regist e ON  r.CompanyCode = e.CompanyCode AND r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid	AND  e.ExecuteDate BETWEEN r.validFrom AND r.validTo AND r.CostCenter = e.BudgetCode
+			WHERE  r.companyCode = #{companyCode}
+	    	AND    r.FiscalYear = #{fiscalYear}
+			 <if test ="costCenterType != null and costCenterType !=''">
+			AND		b.CostCenterType = #{costCenterType}
+			</if>
+		    <if test ="costCenterName != null and costCenterName !=''">
+			AND		b.costCenterName LIKE CONCAT('%',  #{costCenterName},'%')
+			</if>
+			<choose>
+				<when test="searchStr != null and searchStr !=''">
+					<choose>
+					    <when test="searchType == null or searchType ==''">
+			AND		(	c.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+						C.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+						C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+					)
+					    </when>
+					    <when test="searchType == 'GLC'.toString()">
+			AND		C.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+					    <when test="searchType == 'GLN'.toString()">
+			AND		C.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+						<when test="searchType == 'GLS'.toString()">
+			AND		C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+					</choose>
+				</when>
+			</choose>
+			<if test ='authMode == null or authMode != "A" '>
+				AND r.CostCenter IN (
+					SELECT u.CostCenterCode
+					FROM covi_account4j_si.act_user_cost_center u
+					WHERE u.CompanyCode = r.CompanyCode
+					AND u.CostCenterCode = r.CostCenter
+					AND u.usercode = #{UR_Code}
+					UNION 
+					SELECT #{UR_Code}
+					FROM DUAL
+				)
+			</if>
+			GROUP BY r.FiscalYear,	r.CostCenter,	c.AccountID, r.AccountCode,   r.StandardBriefID, r.periodLabel
+		) a	
+		LEFT JOIN covi_account4j_si.act_standard_brief d ON a.AccountID = d.AccountID AND a.StandardBriefID = d.StandardBriefID
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,CostCenter , AccountCode, StandardBriefID desc, ValidTerm
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FiscalYear")'>FiscalYear</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterTypeName")'>CostCenterTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("BudgetAmount")'>BudgetAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("CompletAmount")'>CompletAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("PendingAmount")'>PendingAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("RemainAmount")'>RemainAmount</when>
+					<otherwise>CompanyCodeName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	<select id="getBudgetUsePerformDetailCnt" parameterType="cmap" resultType="java.lang.Long">
+    	  SELECT  count(*)
+		    FROM   covi_budget4j.bem_regist r 
+	        JOIN   covi_budget4j.bem_execute_regist e ON  r.CompanyCode = e.CompanyCode AND r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid	AND  e.ExecuteDate BETWEEN r.validFrom AND r.validTo AND r.CostCenter = e.BudgetCode
+		   WHERE    r.companyCode = #{companyCode}
+	    	 AND    r.FiscalYear = #{fiscalYear}
+			 AND    r.Costcenter = #{costCenter}
+			 AND    r.AccountCode= #{accountCode}
+			 AND    r.StandardBriefid= #{standardBriefID}
+			 AND    r.PeriodLabel= #{periodLabel}
+	 		 AND	DATE_FORMAT(r.ValidFrom, '%Y-%m-%d') = #{validFrom}
+	 		 AND	DATE_FORMAT(r.ValidTo, '%Y-%m-%d') = #{validTo}
+	</select>
+	<select id="getBudgetUsePerformDetail"  parameterType="cmap" resultType="cmap">
+			SELECT  e.FiscalYear
+			    	,	e.CostCenter
+			    	,	e.AccountCode
+			    	,   e.StandardBriefID
+					,   DATE_FORMAT(e.ExecuteDate,'%Y.%m.%d') ExecuteDate
+					,   e.UsedAmount
+					,	e.Description
+				    ,   InitiatorName, InitiatorDeptName, ExecuteDate, UsedAmount, Description, Status
+					,   DATE_FORMAT(e.RegistDate,'%Y.%m.%d') RegistDate
+			    	,	case when STATUS = '' then '상태없음' ELSE  covi_account4j_si.Fn_GetBaseCodeName('ExcuteStatus',Status,'ALL') end		AS StatusName
+			FROM  (
+					  SELECT r.companyCode, r.FiscalYear,	r.CostCenter, r.AccountCode,r.StandardBriefID
+					  		  ,InitiatorName, e.RegistDate, InitiatorDeptName, ExecuteDate, UsedAmount, Description, status
+					  FROM   covi_budget4j.bem_regist r 
+				      JOIN   covi_budget4j.bem_execute_regist e ON  r.CompanyCode = e.CompanyCode AND r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid	AND  e.ExecuteDate BETWEEN r.validFrom AND r.validTo AND r.CostCenter = e.BudgetCode
+					  WHERE  r.companyCode = #{companyCode}
+	    			  AND    r.FiscalYear = #{fiscalYear}
+					  AND    r.Costcenter = #{costCenter}
+					  AND    r.AccountCode= #{accountCode}
+					  AND    r.StandardBriefid= #{standardBriefID}
+					  AND    r.PeriodLabel= #{periodLabel}
+			 		  AND	 DATE_FORMAT(r.ValidFrom, '%Y-%m-%d') = #{validFrom}
+			 		  AND	 DATE_FORMAT(r.ValidTo, '%Y-%m-%d') = #{validTo}
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+						,r.CostCenter , r.AccountCode, r.StandardBriefID desc 
+				    </if>
+				  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					 	, 	
+						<choose>	
+							<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+							<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+							<when test='sortColumn.equalsIgnoreCase("InitiatorDeptName")'>InitiatorDeptName</when>
+							<when test='sortColumn.equalsIgnoreCase("ExecuteDate")'>ExecuteDate</when>
+							<when test='sortColumn.equalsIgnoreCase("UsedAmount")'>UsedAmount</when>
+							<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+							<when test='sortColumn.equalsIgnoreCase("StatusName")'>StatusName</when>
+						</choose>	
+						<choose>	
+							<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+							<otherwise> DESC</otherwise>
+						</choose>	
+											 	
+					</if>
+			</trim>
+			
+			<if test="pageSize != null and pageOffset != null">
+				LIMIT #{pageSize} OFFSET #{pageOffset}
+			</if>) e
+			
+	</select>
+	<select id="getBudgetUsePerformChart"  parameterType="cmap" resultType="cmap">
+			  SELECT  r.FiscalYear
+			  	<if test="groupbyCol == 'Cost'">
+			  		,	r.CostCenter GroupbyCol, b.CostCenterName GroupbyName 
+			  	</if>	
+			  	<if test="groupbyCol == 'Account'">
+			  		,	r.AccountCode GroupbyCol,  c.AccountName GroupbyName
+			  	</if>	
+					, SUM(BudgetAmount) BudgetAmount
+					, SUM(IFNULL(usedamount,0)) UsedAmount
+			  FROM   covi_budget4j.bem_regist r 
+			  LEFT JOIN   covi_budget4j.bem_execute_regist e ON  r.CompanyCode = e.CompanyCode AND r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid	AND  e.ExecuteDate BETWEEN r.validFrom AND r.validTo AND r.CostCenter = e.BudgetCode
+			  JOIN   covi_budget4j.vw_cost_center b ON  r.CompanyCode = b.CompanyCode AND r.CostCenter = b.CostCenterCode
+			JOIN   covi_account4j_si.act_account c ON r.CompanyCode = c.CompanyCode AND r.AccountCode = c.AccountCode
+			WHERE  r.companyCode = #{companyCode}
+	        AND    r.FiscalYear = #{fiscalYear}
+				 <if test ="costCenterType != null and costCenterType !=''">
+				AND		b.costCenterType = #{costCenterType}
+				</if>
+			    <if test ="costCenterName != null and costCenterName !=''">
+				AND		b.costCenterName LIKE CONCAT('%',  #{costCenterName},'%')
+				</if>
+				<choose>
+					<when test="searchStr != null and searchStr !=''">
+						<choose>
+						    <when test="searchType == null or searchType ==''">
+				AND		(	c.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+							C.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+							C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+						)
+						    </when>
+						    <when test="searchType == 'GLC'.toString()">
+				AND		C.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+						    </when>
+						    <when test="searchType == 'GLN'.toString()">
+				AND		C.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+						    </when>
+							<when test="searchType == 'GLS'.toString()">
+				AND		C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+						    </when>
+						</choose>
+					</when>
+				</choose>
+				<if test ='authMode == null or authMode != "A" '>
+					AND r.CostCenter IN (
+						SELECT u.CostCenterCode
+						FROM covi_account4j_si.act_user_cost_center u
+						WHERE u.CompanyCode = r.CompanyCode
+						AND u.CostCenterCode = r.CostCenter
+						AND u.usercode = #{UR_Code}
+						UNION 
+						SELECT #{UR_Code}
+						FROM DUAL
+					)
+				</if>
+				GROUP BY r.FiscalYear
+				<if test="groupbyCol == 'Cost'">
+			  		,	r.CostCenter , b.CostCenterName  
+			  	</if>	
+			  	<if test="groupbyCol == 'Account'">
+			  		,	r.AccountCode ,  c.AccountName 
+			  	</if>
+			  		
+	</select>
+</mapper>
+

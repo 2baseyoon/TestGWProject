@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.workitem">
+	<update id="updateBusinessData" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		<trim prefix="SET" suffixOverrides=",">
+		    BusinessData6 = 'MODIFY'
+		</trim>		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  P.FormInstID = #{FormInstID}
+		</trim>		
+	</update>
+	
+	<select id="selectAutoIncrement" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT LAST_INSERT_ID()	AS fiid	
+    ]]>
+	</select>
+	
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM covi_approval4j.jwf_workitem
+	    WHERE ProcessID = #{ProcessID}
+	</delete>
+		
+	<select id="selectDeputy" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		 select count(*) AS Count, DeputyCode, DeputyName, DeputyOption
+		from covi_smart4j.sys_object_user_approval
+		where UserCode = #{userCode} and UseDeputy = 'Y' and left(#{today},10) >= DeputyFromDate and left(#{today},10) <= DeputyToDate;
+		]]> 
+    </select>
+    
+	<update id="updateWorkitem" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_workitem
+		SET UserCode = #{userCode}
+			, UserName = #{userName}
+			<if test="deputyCode != null ">
+		        ,DeputyID = #{deputyCode}
+		    </if>
+		    <if test="deputyName != null ">
+		        ,DeputyName = #{deputyName}
+		    </if>
+		WHERE WorkitemID = #{workitemId}
+	</update>
+	
+	<update id="updateState" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_workitem
+		SET STATE = #{State}
+		WHERE WorkitemID = #{WorkitemID}
+	</update>
+	
+	<update id="updateWorkitemforFinish" parameterType="cmap">
+ 	    UPDATE covi_approval4j.jwf_workitem 
+ 	    SET State = #{State}, Finished = now(3)
+ 	    <if test="isMobile != null and isMobile != '' and (isMobile eq 'Y'.toString())">
+ 	        , BusinessData2 = 'MOBILE'
+ 	    </if>
+ 	    WHERE WorkitemID = #{WorkitemID}
+ 	    AND Finished IS NULL;
+ 	</update>
+ 	
+	<insert id="insert" parameterType="hashmap">
+        INSERT INTO covi_approval4j.jwf_workitem
+        (
+            TaskID,
+            ProcessID,
+            PerformerID,
+            WorkItemDescriptionID,
+            Name,
+            DSCR,
+            Priority,
+            ActualKind,
+            UserCode,
+            UserName,
+            DeputyID,
+            DeputyName,
+            State,
+            Created,
+            FinishRequested,
+            Finished,
+            `Limit`,
+            LastRepeated,
+            Finalized,
+            Deleted,
+            InlineSubProcess,
+            Charge,
+            BusinessData1,
+            BusinessData2,
+            BusinessData3,
+            BusinessData4,
+            BusinessData5,
+            BusinessData6,
+            BusinessData7,
+            BusinessData8,
+            BusinessData9,
+            BusinessData10
+        )
+        VALUES
+        (
+        	#{TaskID},
+        	#{ProcessID},
+        	#{PerformerID},
+            #{WorkItemDescriptionID}, 
+            #{Name}, 
+            #{DSCR},
+            #{Priority},
+            #{ActualKind},
+            #{UserCode},
+            #{UserName},
+            #{DeputyID},
+            #{DeputyName},
+            #{State},
+            #{Created},
+            #{FinishRequested},
+            #{Finished},
+            #{Limit},
+            #{LastRepeated},
+            #{Finalized},
+            #{Deleted},
+            #{InlineSubProcess},
+            #{Charge},
+            #{BusinessData1},
+            #{BusinessData2},
+            #{BusinessData3},
+            #{BusinessData4},
+            #{BusinessData5},
+            #{BusinessData6},
+            #{BusinessData7},
+            #{BusinessData8},
+            #{BusinessData9},
+            #{BusinessData10}
+        );
+        <selectKey keyProperty="WorkItemID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+    <select id="select" parameterType="cmap" resultType="cmap">
+    	SELECT *
+		FROM covi_approval4j.jwf_workitem
+		WHERE WorkitemID = #{workitemID}
+    </select>
+    
+    <update id="updatePerformerID" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_workitem
+		SET PerformerID = #{performerID}
+		WHERE WorkitemID = #{workitemID}
+	</update>
+	
+    <select id="selectOriginWorkItemID" parameterType="cmap" resultType="java.lang.String">
+    	SELECT BusinessData5
+		FROM covi_approval4j.jwf_workitem
+		WHERE WorkitemID = #{WorkitemID}
+    </select>
+	
+	<delete id="deleteUserWorkItemID" parameterType="cmap">
+		DELETE 
+		FROM covi_approval4j.jwf_workitem
+		WHERE BusinessData5 = #{workitemID}
+		AND WorkItemID IN
+		<foreach collection="deleteInfos" item="item" index="index"  open="(" close=")" separator=",">
+           #{item.wiid}
+        </foreach>
+	</delete>
+</mapper>

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountInterFace.AccountSI">
+	<select id="getInterFaceListCostCenter" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListCostCenter
+	    */
+		SELECT	CostCenter
+			,	CostCenterName
+			,	Gubun
+			,	GW_ID
+			,	valid_from
+			,	valid_to
+			,	IsUse
+			,	Description
+		FROM covi_account_si.bem_costcenter
+	</select>
+	
+	<select id="getInterFaceListAccountManage" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListAccountManage
+	    */
+		SELECT	GLAccountCode
+			,	GLAccountClass
+			,	GLAccountName
+			,	GLAccountShortName
+			,	IsUse
+			,	Description
+			,	DATE_FORMAT(INSERTED,	'%Y%m%d') AS INSERTED
+			,	INSERTUSER
+			,	DATE_FORMAT(UPDATED,	'%Y%m%d') AS UPDATED
+			,	UPDATEUSER
+		FROM covi_account_si.bem_gl_account
+	</select>
+	
+	<select id="getInterFaceListExchangeRate" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListExchangeRate
+	    */
+		SELECT	DATE
+			,	AUD
+			,	CAD
+			,	CHF
+			,	CNY
+			,	EUR
+			,	GBP
+			,	JPY
+			,	SGD
+			,	USD
+		FROM covi_account_si.exchange_rate
+	</select>
+	
+	<select id="getInterFaceListCorpcard" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListCorpcard
+	    */
+		SELECT	DISTINCT
+				CORP.CARD_NUMB
+			,	CORP.CARD_BRAND
+			,	CORP.CARD_CLASS
+			,	CORP.CARD_STATUS
+			,	CORP.WITHDRAW_DATE
+			,	CORP.PAY_DATE
+			,	CORP.VALID_DATE
+			,	CORP.CARD_LIMT
+			,	CORP.MEMO_TEXT
+			,	OWNR.SEARCH_EMPL
+			,	OWNR.VENDOR_CODE
+			,	OWNR.SEARCH_KRNM
+		FROM	covi_account_si.card_corp	CORP
+		JOIN	covi_account_si.card_owner	OWNR
+			ON
+				CORP.CARD_NUMB	= OWNR.CARD_NUMB
+		ORDER BY CORP.CARD_NUMB
+	</select>
+	
+	<select id="getInterFaceListCardBill" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListCardBill
+	    */
+		SELECT	DATA_INDEX,			SEND_DATE,		ITEM_NO,			CARD_NO
+			,	EMPLOYEE_CODE,		INFO_INDEX,		INFO_TYPE,			CARD_COMP_INDEX
+			,	CARD_REG_TYPE,		CARD_TYPE,		BIZ_PLACE_NO,		DEPT
+			,	CARD_USER,			USE_DATE,		APPROVE_DATE,		APPROVE_TIME
+			,	APPROVE_NO,			WITHDRAW_DATE,	COUNTRY_INDEX,		AMOUNT_SIGN
+			,	AMOUNT_CHARGE,		AMOUNT_WON,		FOREIGN_CURRENCY,	AMOUNT_FOREIGN
+			,	STORE_REG_NO,		STORE_NAME,		STORE_NO,			STORE_REPRESENTATIVE
+			,	STORE_CONDITION,	STORE_CATEGORY,	STORE_ZIP_CODE,		STORE_ADDRESS_1
+			,	STORE_ADDRESS_2,	STORE_TEL,		REP_AMOUNT,			TAX_AMOUNT
+			,	SERVICE_AMOUNT,		PAYMENT_FLAG,	PAYMENT_DATE,		COLLNO
+			,	CLASS
+		FROM	covi_account_si.card_bill
+	</select>
+	
+	<select id="getInterFaceListCardReceipt" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListCardReceipt
+	    */
+	    SELECT
+	    		RECEIPT_ID
+	    	,   APPROVE_STATUS,		DATA_INDEX,			SEND_DATE
+	    	,	ITEM_NO,			CARD_NO,			INFO_INDEX
+	    	,	INFO_TYPE,			CARD_COMP_INDEX,	CARD_REG_TYPE
+	    	,	CARD_TYPE,			BIZ_PLACE_NO,		DEPT
+	    	,	CARD_USER,			USE_DATE,			APPROVE_DATE
+	    	,	APPROVE_TIME,		APPROVE_NO,			WITHDRAW_DATE
+	    	,	COUNTRY_INDEX,		AMOUNT_SIGN,		AMOUNT_WON
+	    	,	FOREIGN_CURRENCY,	AMOUNT_FOREIGN,		STORE_REG_NO
+	    	,	STORE_NAME,			STORE_NO,			STORE_REPRESENTATIVE
+	    	,	STORE_CONDITION,	STORE_CATEGORY,		STORE_ZIP_CODE
+	    	,	STORE_ADDRESS_1,	STORE_ADDRESS_2,	STORE_TEL
+	    	,	REP_AMOUNT,			TAX_AMOUNT,			SERVICE_AMOUNT
+	    	,	ACTIVE,				INT_DATETIME,		COLLNO
+	    	,	TaxType,			TaxTypeDate,		MerchCessDate
+	    	,	CLASS,				TOSS_EMPLOYEE_CODE,	TOSS_SENDER
+	    	,	TOSS_DATETIME,		TOSS_COMMENT
+	    FROM	covi_account_si.card_receipt
+		WHERE	Data_Index = 'AUT'
+	</select>
+	
+	<select id="getInterFaceListVendor" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.AccountSI.getInterFaceListVendor
+	    */
+		SELECT	VENDOR_CODE
+			,	VENDOR_NAME
+			,	VENDOR_GBN
+			,	VENDOR_REGNO
+			,	VENDOR_BANK_ACCOUNT
+			,	VENDOR_BANK_NAME
+			,	VENDOR_PAY_TERM
+	    FROM	covi_account_si.vendor_master
+	</select>
+</mapper>

@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.portal">
+    <select id="selectPortalTheme" parameterType="cmap" resultType="cmap">
+    	SELECT IFNULL(PortalCode, 'default') PortalCode
+    		, IFNULL(ThemeCode, 'default')		ThemeCode 
+    	FROM portal 
+    	WHERE PortalID = #{portalID}
+    </select>
+    
+    <select id="selectPortalTag" parameterType="cmap" resultType="java.lang.String">
+        SELECT PortalTag FROM covi_smart4j.portal WHERE PortalID = #{portalID}
+    </select>
+    
+    <select id="selectPortalWebpart" parameterType="cmap" resultType="cmap">
+        SELECT b.WebpartID
+			, a.LayoutDivNumber
+			, a.WebpartOrder
+			, b.DisplayName
+			, b.HtmlFilePath
+			, b.JsFilePath
+			, b.JsModuleName
+			, b.Preview
+			, b.`Resource`
+			, b.ScriptMethod
+			, b.MinHeight
+			, b.DataJSON
+			, b.ExtentionJSON  
+			, b.Reserved3
+		FROM covi_smart4j.portal_layout_webpart AS a
+		INNER JOIN covi_smart4j.portal_webpart AS b ON a.WebpartID = b.WebpartID
+		WHERE a.PortalID = #{portalID} AND b.IsUse = 'Y'
+		ORDER BY a.LayoutDivNumber ASC, a.LayoutDivSort ASC
+    </select>
+    
+    <select id="selectLayoutInfo" parameterType = "cmap" resultType = "cmap">
+        SELECT a.URL, b.IsDefault, b.LayoutType, a.PortalType
+		FROM covi_smart4j.portal as a
+		LEFT JOIN covi_smart4j.portal_layout as b ON a.LayoutID = b.LayoutID
+		WHERE a.PortalID = #{portalID}
+    </select>
+    
+    <select id="selectDefaultInitPortalID" parameterType="cmap" resultType="java.lang.String" >
+	    SELECT IFNULL(	
+	    	(SELECT PortalID FROM covi_smart4j.portal 
+			WHERE BizSection = 'Portal' AND IsUse = 'Y'
+			AND PortalID IN
+			<foreach item="item" index="index" collection="aclPortalArr" open="(" close=")" separator=",">
+           		 #{item}
+       		</foreach>
+			ORDER BY SortKey ASC 
+			LIMIT 1)
+			 , 0) AS InitPortalID
+	</select>
+	
+	<select id="selectMyPortalList" parameterType="cmap" resultType="cmap">
+		SELECT	  PortalID
+				, CASE WHEN MultiDisplayName IS NULL OR MultiDisplayName = '' THEN DisplayName
+					   ELSE covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)
+				  END AS DisplayName
+		FROM covi_smart4j.portal
+		WHERE BizSection = 'Portal' AND IsUse = 'Y'
+		AND PortalID IN
+		<foreach item="item" index="index" collection="aclPortalArr" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY SortKey ASC 
+	</select>
+	
+	<update id="updateUserInitPortal" parameterType="cmap">
+	    	UPDATE covi_smart4j.sys_object_user 
+			SET InitPortal = #{initPortalID}
+			WHERE UserCode = #{userCode}
+	</update>
+	
+	<select id="selectMyContentsWebpartList" parameterType="cmap" resultType="cmap">
+    	SELECT WebpartID
+			,  Fn_BaseGetDictionary_S(#{lang},  MultiDisplayName) AS DisplayName
+			,  BizSection
+		FROM covi_smart4j.portal_webpart
+		WHERE `Range` = #{cMode}
+		AND CompanyCode IN ('ORGROOT', #{CompanyCode})
+		AND IsUse = 'Y'
+		AND   WebpartID IN (''
+ 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+            #{item}
+    	</foreach>
+		)    	
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+	</select>
+	
+	<delete id="deleteMyContentsSetting" parameterType="cmap" >
+	    DELETE FROM covi_smart4j.mycontents_webpart
+	    WHERE UserCode = #{userCode}
+	    AND ContentsMode = #{cMode}
+	</delete>
+	
+	<insert id="insertMyContentsSetting" parameterType="cmap" >
+	     INSERT INTO covi_smart4j.mycontents_webpart(UserCode, WebpartID, ContentsMode, SortKey)
+	     VALUES
+         <foreach item="item" index="index" collection="webpartArr" separator=",">
+        	 (#{userCode}, #{item}, #{cMode}, #{index})
+   		</foreach>
+	</insert>
+	
+	<delete id="deleteMyContentsWebpart" parameterType="cmap" >
+	    DELETE FROM covi_smart4j.mycontents_webpart
+	    WHERE UserCode = #{userCode}
+	    AND ContentsMode = #{cMode}
+		AND 	  ServiceDevice = #{serviceDevice}
+		 <if test='webpartId != null and webpartId !=""'>
+		 		AND 	  webpartId = #{webpartId}
+		 </if>		
+	</delete>
+
+	<insert id="saveMyContentsWebpart" parameterType="cmap" >
+	     INSERT INTO mycontents_webpart(UserCode, WebpartID, ContentsMode, SortKey, ServiceDevice)
+	     VALUES (#{userCode}, #{webpartId}, #{cMode}, #{sortKey}, #{serviceDevice})
+	     ON DUPLICATE KEY
+			UPDATE SortKey = #{sortKey}
+	</insert>
+	
+	<insert id="saveMyContentsWebpartColor" parameterType="cmap" >
+		  UPDATE mycontents_webpart
+		  	SET  WebpartColor = #{webpartColor}
+		  WHERE UserCode = #{userCode}
+		    AND WebpartID = #{webpartId}
+		    AND ServiceDevice = #{serviceDevice}
+	</insert>
+
+	<update id="saveMyContentsOrder"   parameterType="cmap"  >
+		<foreach collection="webpartList" item="lst" open="" close="" separator=";">
+			INSERT INTO mycontents_webpart(UserCode, WebpartID, ContentsMode, SortKey, ServiceDevice, WebpartColor)
+		     VALUES (#{userCode}, #{lst.webpartId}, #{cMode}, #{lst.sortKey}, #{serviceDevice}, #{lst.webpartColor})
+		     ON DUPLICATE KEY
+				UPDATE SortKey = #{lst.sortKey}
+		</foreach>	   
+	</update>
+	
+	
+
+	<select id="selectMyContentsCnt"  parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+		FROM covi_smart4j.MyContents
+		WHERE UserCode = #{userCode}
+       	AND   ContentsMode = #{cMode}
+	
+	</select>
+	
+	<insert id="insertMyContents"  parameterType="cmap" >
+	     INSERT INTO covi_smart4j.mycontents(UserCode, WebpartCnt, ContentsMode, RegistDate, ModifyDate)
+ 		 VALUES(
+	 		  #{userCode}
+	        , (SELECT COUNT(*) FROM covi_smart4j.mycontents_webpart WHERE UserCode = #{userCode} AND ContentsMode = #{cMode})
+	        , #{cMode}
+	        , now(3)
+	        , now(3)
+	     )
+	</insert> 
+	
+	
+	<update id="updateMyContents" parameterType="cmap">
+	    UPDATE covi_smart4j.mycontents
+		SET WebpartCnt = (SELECT COUNT(*) FROM covi_smart4j.mycontents_webpart WHERE UserCode = #{userCode} AND ContentsMode = #{cMode})
+		  , ModifyDate = now(3)
+		WHERE UserCode = #{userCode}
+		AND ContentsMode = #{cMode}
+	</update>
+	
+	<select id="selectMyContentAllWebpartList" parameterType="cmap" resultType="cmap">
+	    SELECT WebpartID
+				, HtmlFilePath
+				, JsFilePath
+				, ScriptMethod
+				, ExtentionJSON
+				, BizSection
+				, JsModuleName
+		FROM covi_smart4j.portal_webpart
+		WHERE `Range` = #{cMode}
+		AND    IsUse = 'Y'
+		AND    CompanyCode IN ('ORGROOT', #{CompanyCode})
+		AND    WebpartID IN (''
+	 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+	            #{item}
+	    	</foreach>
+		)    	
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		ORDER BY RegistDate
+	</select>
+	
+	<select id="selectMyContentSetWebpartList" parameterType="cmap" resultType="cmap">
+	    SELECT M.WebpartID
+				, HtmlFilePath
+				, JsFilePath
+				, ScriptMethod
+				, ExtentionJSON
+				, BizSection
+				, Reserved3
+				, P.Preview
+				, P.JsModuleName
+		FROM covi_smart4j.mycontents_webpart M
+		INNER JOIN covi_smart4j.portal_webpart P ON M.WebpartID = P.WebpartID AND P.`Range` = #{cMode}
+		WHERE P.IsUse = 'Y'
+		AND   M.UserCode = #{userCode}
+		AND   p.WebpartID IN (''
+	 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+	            #{item}
+	    	</foreach>
+		)    	
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		ORDER BY M.SortKey 
+	</select>
+	
+	<select id="selectContentsWebpart" parameterType="cmap" resultType="cmap">
+	    /* queryId : user.portal.selectContentsWebpart */
+	    SELECT p.WebpartID
+	    		, CASE WHEN P.MultiDisplayName IS NULL OR P.MultiDisplayName = '' THEN P.DisplayName
+					ELSE covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, P.MultiDisplayName)
+					END AS DisplayName
+				, HtmlFilePath
+				, JsFilePath
+				, ScriptMethod
+				, ExtentionJSON
+				, BizSection
+				, P.Preview
+				, P.DataJSON
+				, p.Reserved1
+				, Reserved1
+				, Reserved2
+				, Reserved3
+				, Reserved4
+				, Reserved5
+				, Reserved6
+				, P.JsModuleName
+				, ifnull(case when m.webpartid IS not  NULL then M.SortKey
+					ELSE p.sortkey END,0) SortKey
+				, M.WebpartColor
+		FROM      covi_smart4j.portal_webpart P
+		LEFT JOIN covi_smart4j.mycontents_webpart M ON p.WebpartID = m.WebpartID  AND m.UserCode = #{userCode} and m.serviceDevice = #{serviceDevice}
+		WHERE     P.IsUse = 'Y'
+		AND       P.`Range` = #{cMode}
+		AND       (p.Reserved2 is null or p.Reserved2 = 'A' OR p.Reserved2 = #{serviceDevice})
+		AND       (P.Reserved1='FIX' OR m.webpartid IS NOT null
+		<if test="method != null and method == 'DEF'">	or P.Reserved1='DEF'</if> 
+		)
+		AND 	  p.WebpartID IN (''
+	 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+	            #{item}
+	    	</foreach>
+		)    	
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		p.BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		ORDER BY  ifnull(M.SortKey,99), P.Reserved1 desc, P.SortKey
+	</select>
+	
+	<select id="selectMyContentWebpartList" parameterType="cmap" resultType="cmap">
+	    SELECT	  WebpartID
+				, HtmlFilePath
+				, JsFilePath
+				, ScriptMethod
+				, ExtentionJSON
+				, Preview
+				, Reserved1
+				, Reserved2
+				, Reserved3
+				, Reserved4
+				, Reserved5
+				, JsModuleName
+		FROM covi_smart4j.portal_webpart
+		WHERE IsUse = 'Y'
+		AND WebpartID = #{webpartID}
+	</select>
+	
+	<update id="updateWebpartExtJson" parameterType="cmap">
+		/* queryID : user.portal.updateWebpartExtJson */
+		UPDATE 	covi_smart4j.portal_webpart
+		SET 	ExtentionJSON = #{extentionJSON}
+		WHERE 	WebPartID = #{webpartID}
+	</update>
+	
+	
+	<select id="selectWebpartSettingKey" parameterType="cmap" resultType="cmap">
+	   SELECT   BizSection, DomainID, SettingKey, SettingValue
+		FROM    sys_base_config 
+		WHERE   IsUse = 'Y' 
+		AND		DomainID		in (0,#{domainId})
+		AND		SettingKey		= #{settingKey}
+		ORDER BY domainid desc
+		limit 1
+	</select>
+	
+	<update id="updateWebpartSettingKey" parameterType="cmap">
+		/* queryID : user.portal.updateWebpartSettingKey */
+		INSERT INTO sys_base_config
+		(  ConfigID, BizSection,DomainID,SettingKey,SettingValue
+			, IsCheck,IsUse,Description,RegisterCode,RegistDate
+			, ModifierCode,ModifyDate
+			, ConfigType
+		)
+		(SELECT
+			(SELECT  ConfigID FROM	sys_base_config
+				WHERE SettingKey = #{settingKey}
+				AND   domainid= #{domainId}
+			)
+			, 'Portal'
+			, #{domainId}
+			, #{settingKey}
+			, #{settingVal}
+			, 'Y','Y', ''
+			, #{UserCode}, NOW()
+			, #{UserCode}, NOW()
+			, 'Manage'
+		)
+		ON   DUPLICATE KEY
+		UPDATE 	 SettingValue = #{settingVal}
+				,ModifierCode = #{UserCode}
+				,ModifyDate= NOW()
+	</update>
+	
+ 	<select id="selectBoardFolderByType" parameterType="cmap" resultType="cmap">
+        /* queryID : user.portal.selectBoardFolderByType */
+		SELECT 	FolderID
+				, IFNULL(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName), SOF.DisplayName) AS DisplayName
+				, (SELECT DisplayName FROM covi_smart4j.sys_object_menu 
+			    WHERE 1=1 AND MenuID = SOF.MenuID) AS GroupText,
+			    MenuID AS GroupValue
+		FROM 	covi_smart4j.sys_object_folder SOF
+		WHERE 	1=1
+		<if test="limitFolderID != null and limitFolderID != ''">
+		AND 	SOF.FolderID = #{limitFolderID}
+		</if>
+		AND 	DomainID IN (0, #{domainId}) 
+		AND 	ObjectType = 'Board'
+		<if test="folderType != null and folderType != ''">
+		AND 	LOWER(FolderType) = LOWER(#{folderType})
+		</if>
+		AND 	DeleteDate IS NULL
+		AND 	FolderType NOT IN('Root', 'Folder', 'OneToOne')
+		AND		IsUse = 'Y'
+		AND		IsDisplay = 'Y'
+		<if test="limitFolderID != null and limitFolderID != ''">
+		ORDER BY DomainID DESC
+        LIMIT 1
+        </if>
+ 	</select>
+ 	
+</mapper>

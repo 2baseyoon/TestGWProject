@@ -1,0 +1,119 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 20%">
+        <col style="width: 65%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>신청유형</th>			
+			<td>
+				<select data-type="mField" id="card_application_type" codegroup="CardApplicationType" data-element-type="sel_d_t" onchange="appTypeChange(this);" required=""></select>
+			</td>
+			<td style="font-size: 0.75em; line-height: 15px;" name="newArea">
+				처리부서 승인 완료 되면 회계팀에 오셔서 카드신청서에 자필서명 부탁드립니다. <br>
+				<font color="red">*</font> 준비서류: 신분증 사본 1부
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblCorpPrCard" style="display: none;">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 35%">
+        <col style="width: 15%">
+        <col style="width: 35%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>카드번호</th>
+			<td id="cardNumTd">
+				<select data-type="mField" name="card_num" data-element-type="sel_d_t" style="width:75%;" onchange="cardNumChange(this);" required=""></select>
+				<input type="text" data-type="mField" name="card_num" value="{{ doc.BodyContext.card_num }}" style="width:75%;" onkeypress="return inputNumChk(event)" onkeydown="pressHan(this)" onchange="changeCardNoInput(this)">
+			</td>
+			<th name="limitArea">요청구분</th>
+			<td name="limitArea">
+				<input type="text" data-type="mField" id="limit_type" value="{{ doc.BodyContext.limit_type }}" style="width:75%;" readonly="readonly" disabled="disabled">
+				<select data-type="mField" id="limit_type_combo" codegroup="CardLimitType" data-element-type="sel_d_t" style="display: none;" data-mode="writeOnly"></select>
+			</td>
+			<th name="reissueArea">재발급구분</th>
+			<td name="reissueArea">
+				<select data-type="mField" id="reissuance_type" codegroup="CardReissueType" data-element-type="sel_d_t" style="width:75%;" required=""></select>
+			</td>
+			<th name="privateArea">카드회사</th>
+			<td name="privateArea">
+				<select data-type="mField" id="card_company" codegroup="CardCompany" data-element-type="sel_d_t" style="width:75%;" ></select>
+			</td>
+		</tr>
+		<tr name="nonPrivateArea">
+			<th>유효기간</th>
+			<td>
+				<input type="text" data-type="mField" id="expiration_date" value="{{ doc.BodyContext.expiration_date }}" style="width:75%;" data-pattern="date" readonly="readonly" disabled="disabled">
+			</td>
+			<th>한도금액</th>
+			<td>
+				<input type="text" data-type="mField" id="limit_amount" value="{{ doc.BodyContext.limit_amount }}" style="width:75%;" data-pattern="currency" readonly="readonly" disabled="disabled">
+				<input type="hidden" data-type="mField" id="limit_amount_type" value="{{ doc.BodyContext.limit_amount_type }}">
+			</td>
+		</tr>
+		<tr name="limitArea">
+			<th>변경한도금액</th>
+			<td colspan="3">
+				<input type="text" data-type="mField" id="change_amount" value="{{ doc.BodyContext.change_amount }}" style="width:30%;" data-pattern="currency" onchange="amountChange(this);" required="">
+				<select data-type="mField" id="change_amount_combo" codegroup="CardLimitAmount" data-element-type="sel_d_t" style="width:30%;" onchange="amountComboChange(this);" data-mode="writeOnly"></select>
+			</td>
+		</tr>
+		<tr name="limitArea" style="display: none;">
+			<th>변경만료일</th>
+			<td colspan="3">
+				<input type="text" data-type="mField" id="change_expiration_date" value="{{ doc.BodyContext.change_expiration_date }}" style="width:30%;" data-pattern="date" readonly="readonly" required="">
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblPublicCard" style="display: none;">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 35%">
+        <col style="width: 15%">
+        <col style="width: 35%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>시작일</th>
+			<td>
+				<input type="text" data-type="mField" id="start_date" value="{{ doc.BodyContext.start_date }}" style="width:75%;" readonly="readonly" data-pattern="date" onchange="calSDateEDate();" required="">
+			</td>
+			<th>종료일</th>
+			<td>
+				<input type="text" data-type="mField" id="end_date" value="{{ doc.BodyContext.end_date }}" style="width:75%;" readonly="readonly" data-pattern="date" onchange="calSDateEDate();" required="">
+			</td>
+		</tr>
+		<tr>
+			<th>신청금액</th>
+			<td colspan="3">
+				<input type="text" data-type="mField" id="application_amount" value="{{ doc.BodyContext.application_amount }}" style="width:30%;" data-pattern="currency" required="">
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 85%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>신청사유</th>
+			<td>
+				<textarea data-type="mField" id="application_reason" data-binding="pre" rows="5" title="사유" style="border:1px solid #C0C0C0;width:100%;margin-top:5px;margin-bottom:5px;overflow:auto;">{{ doc.BodyContext.application_reason }}</textarea>
+			</td>
+		</tr>
+	</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

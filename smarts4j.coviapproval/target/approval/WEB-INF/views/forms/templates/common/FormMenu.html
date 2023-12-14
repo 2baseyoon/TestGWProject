@@ -1,0 +1,224 @@
+<div id="div_formmenu" class="wordTop">
+	<div class="topWrap" style="min-height: 50px;">
+		<!-- 이전 -->
+		<input type="button" class="AXButton"id="btPreList" name="cbBTN" onclick="doButtonAction(this);" value="▲" style="display:none;" >	<!-- 아이콘 -->
+		<!-- 다음 -->
+		<input type="button" class="AXButton" id="btNextList" name="cbBTN" onclick="doButtonAction(this);" value="▼" style="display:none;" ><!-- 아이콘 -->
+		<!-- 문서정보 접기/펼치기 -->
+		<input type="button" class="AXButton" id="btDocInfo" onclick="displayDocInfo();" value="<spring:message code='Cache.lbl_apv_doc_infomation'/>"   style="display:none;">
+		<!-- 저장 -->
+		<input type="button" class="AXButton" id="btchangeSave" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_save'/>" style="display:none;">
+		<!-- 편집 -->
+		<input type="button" class="AXButton" id="btModify" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_modify'/>" style="display:none;">
+		<!-- 기안 -->
+		<input type="button" class="blBtn" id="btDraft" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_draft'/>"  style="display:none;">
+		<!-- 접수 -->
+		<input type="button" class="AXButton" id="btRec" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_receipt'/>"   style="display:none;">
+		<!-- 재기안 -->
+		<input type="button" class="AXButton" id="btDeptDraft" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_redraft'/>"   style="display:none;">
+		<!-- 승인 -->
+		<input type="button" class="AXButton" id="btApproved" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_Approved'/>"  style="display:none;">
+		<!-- 반려 -->
+		<input type="button" class="AXButton" id="btReject" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_reject'/>"   style="display:none;">
+		<!-- 반송 -->
+		<input type="button" class="AXButton" id="btRejectOut" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_RejectOut'/>" style="display:none;">
+		<!-- 선승인(예고함) -->
+		<input type="button" class="AXButton" id="btApprovedLast" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_preApproved'/>"  style="display:none;">
+		<!-- 선반려(예고함) -->
+		<input type="button" class="AXButton" id="btRejectLast" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_prereject'/>"   style="display:none;">
+		<!-- 지정반송 -->
+		<input type="button" class="AXButton" id="btRejectedto" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_rejectedto'/>"   style="display:none;">
+		<!-- 보류 -->
+		<input type="button" class="AXButton" id="btHold" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_hold'/>"  style="display:none;">
+		<!-- 부서내반송 -->
+		<input type="button" class="AXButton" id="btRejectedtoDept" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_rejectedtodept'/>"   style="display:none;">
+		<!-- 확인 (미구현) -->
+		<!-- <input type="button" class="AXButton" id="btShared" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_Confirm'/>"   style="display:none;"> -->
+		<!-- (검토)동의 -->
+		<input type="button" class="AXButton" id="btCAgree" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_agree'/>" style="display:none;">
+		<!-- (검토)거부 -->
+		<input type="button" class="AXButton" id="btCDisagree" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_disagree'/>" style="display:none;">
+		<!-- 결재선 -->
+		<input type="button" class="AXButton" id="btLine" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_approver'/>"   style="display:none;">
+		<!-- 수신처 -->
+		<input type="button" class="AXButton" id="btRecDept" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_recdept'/>"   style="display:none;">
+		<!-- 전달 -->
+		<input type="button" class="AXButton" id="btForward" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_forward'/>"   style="display:none;">
+		<!-- 현결재자 후결변경 -->
+		<input type="button" class="AXButton" id="btApproverChangeReview" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='btn_apv_changereview'/>"   style="display:none;">
+		<!-- 회수 -->
+		<input type="button" class="AXButton" id="btWithdraw" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_Withdraw'/>"   style="display:none;">
+		<!-- 취소 -->
+		<input type="button" class="AXButton" id="btAbort" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_cancel'/>"   style="display:none;">
+		<!-- 승인취소 -->
+		<input type="button" class="AXButton" id="btApproveCancel" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_CancelApproval'/>"   style="display:none;">
+		<!-- 재기안회수 -->
+		<input type="button" class="AXButton" id="btRedraftWithdraw" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_RedraftWithdraw'/>"   style="display:none;">
+		<!-- X 변환 -->
+		<!-- <span id="btTrans" name="cbBTN" onclick="doButtonAction(this);" style="display:none;"><a href="#"><em class="btn_ws_l"><span class="btn_ws_r"><strong class="txt_btn_ws">{{ doc.oLang.lbl_apv_Trans }}</strong></span></em></a></span> -->
+		<!-- 대외공문 -->
+		<input type="button" class="AXButton" id="btOTrans" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_OTrans'/>" >
+		<!-- (본사운영) 발주 -->
+		<input type="button" class="AXButton" id="btPurchaseOrder" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_PurchaseOrder'/>" >
+		<!-- (본사운영) 외주 -->
+		<input type="button" class="AXButton" id="btPrintContract" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_PrintContract'/>" >
+		<!-- (본사운영) 라이센스 -->
+		<input type="button" class="AXButton" id="btPrintLicense" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_btPrintLicense'/>">
+		<!-- (본사운영) 휴가취소신청서 -->
+		<input type="button" class="AXButton" id="btVacationCancle" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_vacation_cancel_form'/>">
+		<!-- 담당자 -->
+		<input type="button" class="AXButton" id="btCharge" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_charge'/>"   style="display:none;">
+		<!-- 결재선 -->
+		<input type="button" class="AXButton" id="btDeptLine" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_assignapprover'/>"   style="display:none;">
+		<!-- 임시저장 -->
+		<input type="button" class="AXButton" id="btSave" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_tempsave'/>"   style="display:none;">
+		<!-- 재사용 -->
+		<input type="button" class="AXButton" id="btReUse" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_reuse'/>"   style="display:none;">
+		<!-- (본사운영) 출장복명서 작성 -->
+		<input type="button" class="AXButton" id="btBizrip" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_BizTripRequest'/>" style="display:none;">
+		<!-- (본사운영) 프로젝트 집행계획서 작성 -->
+		<input type="button" class="AXButton", id="btnExecPlan" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_writeExecutivePlan'/>" style="display:none;">
+		<!-- 문서연결 -->
+		<input type="button" class="AXButton" id="btDocLinked" onclick="openDocLink();" value="<spring:message code='Cache.btn_apv_doclink'/>"   style="display:none;">
+		<!-- 기록물철 -->
+		<input type="button" class="AXButton" id="btRecordDoc" onclick="openRecordDocLink();" value="<spring:message code='Cache.lbl_recordFile'/>"   style="display:none;">		
+		<!-- EDMS 문서연결 -->
+		<input type="button" class="AXButton" id="btEDMSDocLinked" onclick="openEDMSDocLink();" value="<spring:message code='Cache.btn_apv_EDMSdoclink'/>"   style="display:none;">
+		<!-- 강제합의	 -->
+		<input type="button" class="AXButton" id="btForcedConsent" name="cbBTN"  onclick="doButtonAction(this); " value="<spring:message code='Cache.btn_apv_forcedconsent'/>"  style="display:none;">
+		<!-- 근무일정 변경 신청 -->
+		<input type="button" class="AXButton" id="btWorkSchChange" name="cbBTN"  onclick="doButtonAction(this); " value="<spring:message code='Cache.btn_apv_workScheduleChange'/>"  style="display:none;">
+		<!-- 기타근무 변경 신청 -->
+		<input type="button" class="AXButton" id="btOtherWorkChange" name="cbBTN"  onclick="doButtonAction(this); " value="<spring:message code='Cache.btn_apv_otherWorkChange'/>"  style="display:none;">
+		<!-- 연장근무 변경 신청 -->
+		<input type="button" class="AXButton" id="btOvertimeWorkChange" name="cbBTN"  onclick="doButtonAction(this); " value="<spring:message code='Cache.btn_apv_overtimeWorkChange'/>"  style="display:none;">
+		<!-- 휴일근무 변경 신청 -->
+		<input type="button" class="AXButton" id="btHolidayWorkChange" name="cbBTN"  onclick="doButtonAction(this); " value="<spring:message code='Cache.btn_apv_holidayWorkChange'/>"  style="display:none;">
+		<!-- X 문서  삭제 -->
+		<!-- <span id="btDeleteDoc" name="cbBTN" onclick="doButtonAction(this);" style="display:none;"><a href="#"><em class="btn_ws_l"><span class="btn_ws_r"><strong class="txt_btn_ws">{{ doc.oLang.btn_apv_docdelete }}</strong></span></em></a></span> -->
+		<!-- X (관)기안취소-->
+		<!-- <span id="btAdminAbort" name="cbBTN" onclick="doButtonAction(this);" style="display:none;"><a href="#"><em class="btn_ws_l"><span class="btn_ws_r"><strong class="txt_btn_ws">{{ doc.oLang.btn_apv_draftabort }}</strong></span></em></a></span> -->
+		<!-- 전결규정 -->
+		<input type="button" class="AXButton" id="btnRuleApv" name="btnRuleApv" onclick="doButtonAction(this);" value="<spring:message code='Cache.apv_btn_rule'/>" style="display:none;">
+		<!-- 미리보기 -->
+		<input type="button" class="AXButton" id="btPreView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_preview'/>"   style="display:none;">
+		<!-- 닫기(preview) -->
+		<input type="button" class="AXButton" id="btExitPreView" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_close'/>"   style="display:none;">
+		<!-- 인쇄 -->
+		<input type="button" class="AXButton" id="btPrint" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_print'/>"   style="display:none;">
+		<!-- 인쇄미리보기 -->
+		<input type="button" class="AXButton" id="btPrintView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_printview'/>"   style="display:none;">
+		<!-- 새창보기 -->
+		<input type="button" class="AXButton" id="btNewFormWindow" onclick="openNewFormWindow();" value="<spring:message code='Cache.lbl_apv_newWin'/>"   style="display:none;">
+		<!-- 증빙 미리보기 -->
+		<input type="button" class="AXButton" id="btEvidPreview" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.ACC_btn_EvidPreview'/>"   style="display:none;">
+		<!-- 증빙 일괄출력 -->
+		<input type="button" class="AXButton" id="btPrintEvid" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.ACC_btn_printAllEvid'/>"   style="display:none;">
+		<!-- 증빙별 첨부 일괄저장 -->
+		<input type="button" class="AXButton" id="btDownloadEvidFile" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.ACC_btn_downloadAllEvidFile'/>"   style="display:none;">
+		<!-- 지정취소[연속결재] -->
+		<input type="button" class="AXButton" id="btSerialCancel" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.btn_apv_serialCancel'/>">
+		<!-- 검토요청 -->
+		<input type="button" class="AXButton" id="btConsultReq" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_consultReq'/>" style="display:none;">
+		<!-- 검토요청취소 -->
+		<input type="button" class="AXButton" id="btConsultReqCancel" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_consultReqCancel'/>" style="display:none;">
+		<!-- 검토자변경 -->
+		<input type="button" class="AXButton" id="btConsultReqModify" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_consultReqModify'/>" style="display:none;">
+		<!-- 재검토요청 -->
+		<input type="button" class="AXButton" id="btReConsultReq" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_ReconsultReq'/>" style="display:none;">
+		<!-- 양식도움말 -->
+		<input type="button" class="AXButton" id="btDocPopup" onclick="helpOpen('popupbtn');" value="<spring:message code='Cache.lbl_apv_formcreate_LCODE28'/>" style="display:none">
+		<!-- 공공버전 한글기안기 관련 -->
+		<!-- 요약전 -->
+		<input type="button" class="AXButton" id="btSummaryPopup" onclick="SummaryPopupOpen();" value="<spring:message code='Cache.btn_apv_summary'/>" style="display:none">
+		<!-- 보존년한 변경 (미구현) -->
+		<!-- <input type="button" class="AXButton" id="btPreserveDateUpdate" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_PreserveDateUpdate'/>"   style="display: none;"> -->
+		<!-- 게시등록 -->
+		<input type="button" class="AXButton" id="btApprovalTransfer" onclick="doButtonAction(this);" value="<spring:message code='CPMail_mail_transfer'/>" style="display:none;">
+		<!-- 업무등록 -->
+		<input type="button" class="AXButton" id="btApprovalTransferCollab" onclick="doButtonAction(this);" value="<spring:message code='btn_apv_AddTask'/>" style="display:none;">
+		<!-- 문서24 개인사용자에 대해 회신 -->
+		<input type="button" class="AXButton"id="btGovDocsReply" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_govdocs_Reply'/>" style="display:none;" >
+		<!-- 공문 미리보기 -->
+		<input type="button" class="AXButton"id="btOTransView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_OTransPV'/>" style="display:none;" >
+		<span class="wordCheck" id="divMenuRight">
+		    <!--긴급-->
+		    <span id="urgent" style="display:none; cursor:default;">
+		    	<input type="checkbox" name="chk_urgent" id="chk_urgent" onclick="chk_urgent_onclick();" value="0" class="input_check" />
+		    	<label for="chk_urgent" style="user-select: none;">
+		    		<spring:message code='Cache.lbl_apv_urgent_aprv'/>
+		    	</label>
+		    </span>
+		    <!--기밀-->
+		    <span id="secrecy" style="display:none;">
+		    	<input type="checkbox" name="chk_secrecy" id="chk_secrecy" onclick="chk_secrecy_onclick();" value="0" class="input_check" />
+		    	<label for="chk_secrecy" style="user-select: none;">
+		    		<spring:message code='Cache.lbl_apv_secret_doc'/>
+		    	</label>
+		    </span>
+		    <!-- 예약기안 -->
+		    <span id="reservedDraft" style="display:none;cursor:default;">
+		    	<input type="checkbox" name="chk_reserved_draft" id="chk_reserved_draft" onclick="chk_reserved_onclick('DRAFT');" value="0" class="input_check" />
+		    	<label for="chk_reserved_draft" style="user-select: none;">
+		    		<spring:message code='Cache.lbl_apv_setschema_scReserveDraft'/>
+		    	</label>
+		    </span>
+		    <!-- 예약배포 -->
+		    <span id="reservedDist" style="display:none;cursor:default;">
+			    <input type="checkbox" name="chk_reserved_dist" id="chk_reserved_dist" onclick="chk_reserved_onclick('DIST');" value="0" class="input_check" />
+			    <label for="chk_reserved_dist" style="user-select: none;">
+			    	<spring:message code='Cache.lbl_apv_setschema_scReserveDist'/>
+			    </label>
+		    </span>
+		</span>
+		<ul id="divMenu02" class="formIcn">
+			<!-- PC SAVE -->
+			<li id="btPcSave"  style="display:none;"><a href="javascript:void(0);" id="btPcSave"  class="icnSave" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.btn_apv_PCSave'/>"><span><spring:message code='Cache.btn_apv_PCSave'/></span></a></li>
+			<!-- 메일보내기 -->
+			<li id="btMailSend" style="display:none;"><a href="javascript:void(0);"  id="btMailSend" class="icnMail" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.btn_apv_mail'/>"><span><spring:message code='Cache.btn_apv_mail'/></span></a></li>
+			<!-- 의견 -->
+			<li id="btComment"  style="display:none;"><a href="javascript:void(0);"  id="btComment"  class="icnAddComment" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.btn_apv_comment'/>"><span><spring:message code='Cache.btn_apv_comment'/></span></a></li>
+			<!-- 의견보기 -->
+			<li id="btCommentView" style="display:none;"><a href="javascript:void(0);"  id="btCommentView" class="icnView" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.lbl_apv_comment_view'/>"><span><spring:message code='Cache.lbl_apv_comment_view'/></span></a></li>
+			<!-- 검토의견보기 -->
+			<li id="btConsultationCommentView" style="display:none;"><a href="javascript:void(0);" id="btConsultationCommentView" class="icnReview" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.lbl_apv_consult_comment_view'/>"><span><spring:message code='Cache.lbl_apv_consult_comment_view'/></span></a></li>
+			<!-- 배포/회람  -->
+			<li id="btCirculate"  style="display:none;"><a href="javascript:void(0);" id="btCirculate"  class="icnSend" name="cbBTN" onclick="doButtonAction(this);"  title="<spring:message code='Cache.btn_apv_Circulate'/>"><span><spring:message code='Cache.btn_apv_Circulate'/></span></a></li>
+			<!-- 배포현황 -->
+			<li id="btCirculate_View" style="display:none;"><a href="javascript:void(0);" id="btCirculate_View" class="icnList"  name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.btn_apv_CCorCirculation_View'/>"><span><spring:message code='Cache.btn_apv_CCorCirculation_View'/></span></a></li>
+			<!-- 수신현황 -->
+			<li id="btReceiptView"  style="display:none;"><a href="javascript:void(0);" id="btReceiptView"  class="icnReceipt" name="cbBTN" onclick="doButtonAction(this);" title="<spring:message code='Cache.lbl_apv_receipt_view'/>"><span><spring:message code='Cache.lbl_apv_receipt_view'/></span></a></li>
+			<!-- 히스토리 -->
+			<li id="btHistory" ><a href="javascript:void(0);" id="btHistory" class="icnHistory" name="cbBTN" onclick="javascript:doButtonAction(this);" title="<spring:message code='Cache.lbl_apv_History'/>"><span><spring:message code='Cache.lbl_apv_History'/></span></a></li>
+		</ul>
+		<!-- 즐겨찾기 등록 -->
+		<span id="favorformadd" class="staroff"  style="display:none;"><a id="a_favorformadd" href="javascript:void(0);" onclick="favorform('insert');" class="remove-cstf" ><spring:message code='Cache.btn_Favorite_register'/></a></span> 
+		<!-- 즐겨찾기 제거 -->
+		<span id="favorformdelete" class="staron"  style="display:none;"><a id="a_favorformdelete" href="javascript:void(0);"  onclick="favorform('delete');" class="remove-cstf"><spring:message code='Cache.btn_Favorite_remove'/></a></span> 
+	</div>
+	<div class="editorDate" id="reservedchk" style="display:none;margin:0px;padding:5px 20px;">
+		<div id="reservedDraftChk" >
+			<span class="chkStyle01">
+				<spring:message code='Cache.lbl_apv_setschema_scReserveDraft'/>
+			</span>
+			<div class="dateSel type02">
+				<input type="hidden" id="reservedTime" >
+				<input type="text" class="adDate" kind="date" date_separator="." id="reservedDate" data-type="mField" value="{{ doc.BodyContext.reservedDate }}" />
+			</div>
+			<select name="reservedHour" id="reservedHour" data-type="mField" data-element-type="sel_d_v" disabled></select>
+			<select name="reservedMin" id="reservedMin" data-type="mField" data-element-type="sel_d_v" disabled></select>
+		</div>
+		<div id="reservedDistChk">
+			<span class="chkStyle01">
+				<spring:message code='Cache.lbl_apv_setschema_scReserveDist'/>
+			</span>
+			<!-- 비활성화일때 -->
+			<div class="dateSel type02">
+				<input type="hidden" id="distReservedTime" >
+				<input type="text" class="adDate" kind="date" date_separator="." id="distReservedDate" data-type="mField" value="{{ doc.BodyContext.distReservedDate }}" />
+			</div>
+			<select name="distReservedHour" id="distReservedHour" data-type="mField" data-element-type="sel_d_v" disabled></select>
+			<select name="distReservedMin" id="distReservedMin" data-type="mField" data-element-type="sel_d_v" disabled></select>
+		</div>
+	</div>
+</div>

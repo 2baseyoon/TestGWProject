@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.docFolderManager">
+    <select id="selectdocclass" parameterType="cmap" resultType="cmap">
+		SELECT 	TRIM(DocClassID) AS no
+		,ClassName AS nodeName
+		, IF(CNT<![CDATA[ > ]]> 0,'0','6') AS type
+		,ParentDocClassID AS pno	
+		,KeepYear
+		#,SortKey AS SortKey
+		,CONCAT(ParentDocClassID, ' ', SortKey) AS SortKey
+		#,CONCAT(ParentDocClassID, ' ', DocClassID, ' ', SortKey) AS SortKey
+		#,'#' AS url
+		,'N' AS chk
+		,IF(CNT <![CDATA[ > ]]> 0,'N','Y')  AS rdo
+		FROM (
+			SELECT
+				A.* 
+				, (
+					SELECT COUNT(*) 
+					FROM covi_approval4j.jwf_docclass B 
+					WHERE B.ParentDocClassID  = A.DocClassID
+					AND B.EntCode = A.EntCode
+				) AS CNT
+			FROM covi_approval4j.jwf_docclass A
+		) T
+		WHERE EntCode = #{EntCode}
+		ORDER BY SortKey
+	</select>
+	
+    <select id="selectDocClassPopup" parameterType="cmap" resultType="cmap">
+        SELECT 	TRIM(DocClassID) AS no
+		,ClassName AS nodeName
+		, IF(CNT<![CDATA[ > ]]> 0,'0','6') AS type
+		,ParentDocClassID AS pno	
+		,KeepYear
+		#,SortKey AS SortKey
+		,CONCAT(ParentDocClassID, ' ', SortKey) AS SortKey
+		#,CONCAT(ParentDocClassID, ' ', DocClassID, ' ', SortKey) AS SortKey
+		#,'#' AS url
+		,'N' AS chk
+		,IF(CNT <![CDATA[ > ]]> 0,'N','Y')  AS rdo
+		FROM (
+			SELECT
+				A.* 
+				, (
+					SELECT COUNT(*) 
+					FROM covi_approval4j.jwf_docclass B 
+					WHERE B.ParentDocClassID  = A.DocClassID
+					AND B.EntCode = A.EntCode
+				) AS CNT
+			FROM covi_approval4j.jwf_docclass A
+		) T
+		<trim prefix="WHERE" prefixOverrides="AND | OR ">
+	 		<if test="EntCode !=null and EntCode != '' and (EntCode eq 'ORGROOT'.toString()) ">
+	 		    EntCode = #{EntCode}
+	 		</if>
+	 		<if test="EntCode !=null and EntCode != '' and (EntCode neq 'ORGROOT'.toString()) ">
+	 		    EntCode IN (#{EntCode}, 'ORGROOT')
+	 		</if>
+	 	</trim>
+		ORDER BY SortKey
+    </select>
+	
+	<select id="selectdocclassRetrieveFolder" parameterType="cmap" resultType="java.lang.Long">
+	<![CDATA[
+			SELECT 	COUNT(*) AS cnt
+			FROM covi_approval4j.jwf_docclass A
+			WHERE EntCode = #{EntCode}		
+				AND ParentDocClassID = #{DocClassID}
+    ]]>  
+	</select>
+    
+    
+	   <select id="selectdocclassOne" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+			SELECT 	TRIM(DocClassID) AS no
+			,ClassName AS nodeName
+			, IF((SELECT COUNT(*) 
+				FROM covi_approval4j.jwf_docclass B 
+				WHERE B.ParentDocClassID  = A.DocClassID
+				AND B.EntCode = A.EntCode )  > 0,'0','6') AS type
+			,ParentDocClassID AS pno	
+			,KeepYear
+			,SortKey
+			,'#' AS url
+			,'N' AS chk
+			,'N' AS rdo
+			FROM covi_approval4j.jwf_docclass A
+			WHERE DocClassID = #{DocClassID}
+			AND EntCode = #{EntCode}
+    ]]> 
+	</select>
+    
+    
+	<insert id="insert" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_docclass (	
+			DocClassID
+			,ParentDocClassID
+			,EntCode
+			,ClassName
+			,CreateDate			
+			,SortKey			
+			,KeepYear			
+		)
+		value
+		(
+			#{DocClassID}
+			,#{ParentDocClassID}
+			,#{EntCode}
+			,#{ClassName}
+			,now(3)			
+			,#{SortKey}			
+			,#{KeepYear}			
+		)	
+	]]>
+	</insert>
+	
+	<update id="update" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_docclass
+		SET 
+			ClassName =#{ClassName}
+		   ,KeepYear = #{KeepYear}
+		   ,SortKey = #{SortKey}
+		   ,UpdateDate = now(3)
+		WHERE
+			DocClassID = #{DocClassID}
+		AND EntCode =#{EntCode}
+	]]>
+	</update>
+	
+	<select id="selectDdlCompany" resultType="cmap" >
+	    <![CDATA[	   
+		SELECT DomainCode AS optionValue ,Displayname as optionText 
+		FROM covi_smart4j.sys_object_domain
+		WHERE DeleteDate IS NULL AND IsUse = 'Y'
+		]]>
+	</select>
+	
+	<delete id="delete" parameterType="cmap">
+	<![CDATA[
+		delete FROM covi_approval4j.jwf_docclass		
+		WHERE
+			DocClassID = #{DocClassID}
+		AND EntCode =#{EntCode}
+	]]>
+	</delete>
+	
+	<select id="selectDocClassSearchList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			(SELECT ClassName FROM covi_approval4j.jwf_docclass D WHERE C.ParentDocClassID = D.DocClassID) AS ParentDocClassName,
+			C.ClassName,
+			C.DocClassID,
+			C.keepYear
+		FROM (
+			SELECT 
+				A.*,
+				(SELECT COUNT(*) AS count
+					FROM covi_approval4j.jwf_docclass B 
+					WHERE B.ParentDocClassID  = A.DocClassID
+					AND B.EntCode = A.EntCode
+				) AS rdo
+			FROM covi_approval4j.jwf_docclass A
+			WHERE EntCode IN (#{EntCode}, 'ORGROOT')
+			ORDER BY ParentDocClassID || ' ' || SortKey
+		) C WHERE C.rdo = 0
+		<if test="searchWord != null and searchWord != ''">
+			AND C.ClassName LIKE CONCAT('%',#{searchWord},'%')
+		</if>
+	</select>
+
+	<select id="selectDocFavoritesList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.DocClassID, B.ClassName, A.ParentDocClassID,
+			(SELECT ClassName FROM covi_approval4j.jwf_docclass C WHERE C.DocClassID = A.ParentDocClassID) AS ParentDocClassName
+		FROM covi_approval4j.jwf_docclass A
+		INNER JOIN covi_approval4j.jwf_user_docclass B ON A.DocClassID = B.DocClassID
+		WHERE A.EntCode IN ('ORGROOT', #{EntCode})
+		AND B.UserCode = #{UserCode}
+	</select>
+	
+	<insert id="insertDocFavorites" parameterType="cmap">
+		INSERT IGNORE INTO covi_approval4j.jwf_user_docclass
+			(UserCode, DocClassID, ClassName)
+		VALUES
+			(#{UserCode}, #{DocClassID}, #{DocClassName})
+	</insert>
+	
+	<delete id="deleteDocFavorites" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_user_docclass
+		WHERE UserCode = #{UserCode}
+		AND DocClassID = #{DocClassID}
+	</delete>
+</mapper>
+

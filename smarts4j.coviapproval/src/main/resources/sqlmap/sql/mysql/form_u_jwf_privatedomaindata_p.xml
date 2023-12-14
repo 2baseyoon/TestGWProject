@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.privatedomaindata">
+	<insert id="insert" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_privatedomaindata (
+			CustomCategory,
+			DefaultYN,
+			DisplayName,
+			OwnerID,
+			Abstract,
+			Description,
+			PrivateContext
+		)
+		VALUES (
+			#{CustomCategory},
+			#{DefaultYN},
+			#{DisplayName},
+			#{OwnerID},
+			#{Abstract},
+			#{Description},
+			#{PrivateContext}
+		)
+	</insert>
+	
+	<select id="selectCountTemp" parameterType="cmap" resultType="int">
+	    SELECT IFNULL((
+			SELECT COUNT(*) AS CNT
+			FROM covi_approval4j.jwf_privatedomaindata
+			WHERE OwnerID = #{OwnerID}
+		), 0) AS CNT
+	</select>
+	
+	<update id="update" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_privatedomaindata SET
+	    DisplayName = #{DisplayName},
+	    Description = #{Description},
+		PrivateContext = #{PrivateContext}
+		WHERE OwnerID = #{OwnerID}
+	</update>
+	
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM covi_approval4j.jwf_privatedomaindata
+	    WHERE OwnerID = #{OwnerID}
+	</delete>
+	
+	<delete id="deleteTemp" parameterType="cmap">
+        DELETE FROM covi_approval4j.jwf_privatedomaindata
+        WHERE OwnerID = #{FormTempInstBoxID}
+    </delete>
+</mapper>

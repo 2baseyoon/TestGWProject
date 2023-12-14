@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.timelinemessaging">
+    <!-- <select id="selectTargetList" parameterType="cmap" resultType="cmap">
+        SELECT WorkItemID, UserCode, UserName
+        FROM (
+        	SELECT A.*, B.ParentProcessID
+        	FROM covi_approval4j.jwf_workitem A
+        	LEFT JOIN covi_approval4j.jwf_process B ON A.ProcessID = B.ProcessID
+        ) A
+        WHERE A.ParentProcessID = (
+        	SELECT ProcessID
+        	FROM covi_approval4j.jwf_process
+        	WHERE FormInstID = #{formInstId}
+        	AND ParentProcessID = '0'
+        	#AND ProcessState = '288'
+        )
+        AND A.State = '528'
+        AND A.Name <> 'preview'
+        ORDER BY A.Created ASC
+	</select> -->
+    <select id="selectTargetList" parameterType="cmap" resultType="cmap">
+        SELECT  A.ProcessID, WorkItemID, UserCode, UserName
+		FROM covi_approval4j.jwf_workitem A
+		LEFT JOIN covi_approval4j.jwf_process B ON A.ProcessID = B.ProcessID
+		WHERE B.FormInstID = #{formInstId}
+		AND A.State = '528'
+		AND A.Name <![CDATA[<>]]> 'preview'
+		ORDER BY A.Created ASC
+	</select>
+	
+    <!-- <select id="selectDistributionTargetList" parameterType="cmap" resultType="cmap">
+        SELECT  A.ProcessID, WorkItemID, UserCode, UserName
+        FROM (
+        	SELECT A.*, B.ParentProcessID
+        	FROM covi_approval4j.jwf_workitem A
+        	LEFT JOIN covi_approval4j.jwf_process B ON A.ProcessID = B.ProcessID
+        ) A
+        WHERE A.ProcessID = #{processID}
+        AND A.State = '528'
+        AND A.Name <> 'preview'
+        ORDER BY A.Created ASC
+	</select> -->
+	<select id="selectDistributionTargetList" parameterType="cmap" resultType="cmap">
+	    SELECT  ProcessID, WorkItemID, UserCode, UserName
+		FROM covi_approval4j.jwf_workitem
+		WHERE ProcessID = #{processID}
+		AND State = '528'
+		AND Name <![CDATA[<>]]> 'preview'
+		ORDER BY Created ASC
+	</select>
+	    
+    <select id="selectFormData" parameterType="cmap" resultType="cmap">
+	    SELECT A.ProcessID, A.FormInstID, B.FormName, A.Subject, A.InitiatorID
+		  FROM covi_approval4j.jwf_forminstance A
+		  LEFT JOIN covi_approval4j.jwf_forms B 
+		    ON A.FormID = B.FormID
+		 WHERE 1 = 1
+	     <if test="formInstId != null and formInstId != ''">
+			AND A.FormInstID = #{formInstId}
+	   	 </if>
+ 	     <if test="processId != null and processId != ''">
+ 	        AND A.ProcessID = #{processId}
+	   	 </if>	   	 		 
+	</select>
+	    
+	<insert id="insertMessage" parameterType="cmap">	
+		INSERT 
+		  INTO covi_approval4j.jwf_timelinemessaging (ServiceType, MessageType, ObjectID, ProcessID, FormSubject, Subject, 
+		  											  Context, GotoURL, RecipientCode, RegistDate, RegisterCode
+		  											 )
+	    VALUES (#{serviceType}, #{messageType}, #{objectId}, #{processID}, #{formSubject}, #{subject}, 
+	    		#{context}, #{gotoUrl}, #{recipientCode}, now(3), #{registerCode}
+	    	   )
+	</insert>
+	
+    <select id="selectAlarmDates" parameterType="cmap" resultType="cmap">
+		SELECT GROUP_CONCAT(A.substrRegDate SEPARATOR ',') AS dates
+		  FROM (SELECT DATE_FORMAT(RegistDate,'%Y/%c/%e') AS substrRegDate FROM (
+			  		SELECT Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, RegistDate) AS RegistDate
+					 FROM covi_approval4j.jwf_timelinemessaging A
+			 		INNER JOIN covi_approval4j.jwf_process B
+	        		<!-- ON A.ObjectID = B.forminstid and B.parentprocessid = 0 -->
+	        		ON A.ProcessID = B.ProcessID 
+					INNER JOIN covi_approval4j.jwf_processdescription E
+					ON B.ProcessDescriptionID = E.ProcessDescriptionID
+					 WHERE RecipientCode = #{userId}
+					 <if test="term != null and term != ''">
+						AND RegistDate > DATE_ADD(now(3), INTERVAL - CAST(#{term} AS INTEGER) MONTH)
+				   	 </if>
+					 AND A.DeleteDate IS NULL
+	                 AND B.DeleteDate IS NULL
+					 <choose>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+							AND (E.BusinessData1 IS NULL
+								<if test='bizDataList != null'>
+									OR E.BusinessData1 IN 
+									<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+										#{item}
+									</foreach>
+								</if>
+							)
+						</when>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+							AND E.BusinessData1 = #{businessData1}
+						</when>
+					</choose>
+	                 ORDER BY RegistDate DESC
+	                 <if test="count != null and count != ''">
+						LIMIT #{count}
+				   	 </if>
+				   	 ) B
+					 GROUP BY DATE_FORMAT(RegistDate, "%Y-%m-%d")
+					 ORDER BY RegistDate DESC
+			   ) A
+	</select>
+		
+    <select id="selectAlarmList" parameterType="cmap" resultType="cmap">
+		SELECT A.MessagingID, A.MessageType, A.ObjectID, A.FormSubject, D.FormPrefix,
+			   A.Subject, A.Context, A.GotoURL, A.RegistDate,
+			   LOWER(covi_smart4j.Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, A.RegistDate)) AS viewRegDate, 
+			   DATE_FORMAT(covi_smart4j.Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, A.RegistDate),'%Y/%c/%e') AS substrRegDate, B.ProcessState AS State
+			   , E.BusinessData1, E.BusinessData2, F.TaskID
+			   , D.FormID
+			   , U.PhotoPath
+		FROM covi_approval4j.jwf_timelinemessaging A
+		INNER JOIN covi_approval4j.jwf_process B
+        	<!-- ON A.ObjectID = B.forminstid and B.parentprocessid = 0 -->
+        	ON A.ProcessID = B.ProcessID 
+		INNER JOIN covi_approval4j.jwf_forminstance C
+       		ON B.forminstid = C.forminstid
+		INNER JOIN covi_approval4j.jwf_forms D
+        	ON C.formid = D.formid
+		INNER JOIN covi_approval4j.jwf_processdescription E
+			ON B.ProcessDescriptionID = E.ProcessDescriptionID
+		LEFT OUTER JOIN covi_approval4j.jwf_workitem F
+			ON B.processid = F.processid AND F.UserCode = A.RecipientCode AND F.state = '288'
+		LEFT OUTER JOIN covi_smart4j.sys_object_user U
+			ON U.UserCode = C.InitiatorID
+		WHERE RecipientCode = #{userId}
+		<if test="term != null and term != ''">
+			AND A.RegistDate > DATE_ADD(now(3), INTERVAL - CAST(#{term} AS INTEGER) MONTH)
+	   	</if>
+		AND A.DeleteDate IS NULL
+        AND B.DeleteDate IS NULL
+		<choose>
+			<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+				AND (E.BusinessData1 IS NULL
+					<if test='bizDataList != null'>
+						OR E.BusinessData1 IN 
+						<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+							#{item}
+						</foreach>
+					</if>
+				)
+			</when>
+			<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+				AND E.BusinessData1 = #{businessData1}
+			</when>
+		</choose>
+		ORDER BY A.RegistDate DESC
+		<if test="count != null and count != ''">
+			LIMIT #{count}
+	   	</if>
+	</select>
+
+    <select id="selectUser" parameterType="cmap" resultType="cmap">
+        SELECT UserCode AS UR_Code, MultiDisplayName AS UR_Name
+		FROM covi_smart4j.sys_object_user
+		WHERE UserCode = #{userId}
+	</select>
+</mapper>

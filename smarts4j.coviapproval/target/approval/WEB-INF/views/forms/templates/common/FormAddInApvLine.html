@@ -1,0 +1,114 @@
+<div class="approver_info" style="display: none">
+	<h3 class="apptit_h3 mt20" style="display: none">
+		<span><spring:message code='Cache.lbl_apv_ApproverInformation'/></span>
+		<p>
+			<select class="myappr" onchange="addInApvLine.setMyAppLine(this);">
+				<option value="" class="noData"><spring:message code='Cache.lbl_apv_SelectMyApprovalLine'/></option>
+			</select>
+			<input type="button" class="AXButton myappr_save" onclick="addInApvLine.saveMyAppLine();" value="<spring:message code='Cache.btn_apv_SaveMyApprovalLine'/>" />
+			<input type="button" class="AXButton myappr_list" onclick="addInApvLine.openMyAppLine();" value="<spring:message code='Cache.btn_apv_MyApprovalLine'/>" />
+		</p>
+	</h3>
+	<table class="tableStyle linePlus mt5" cellpadding="0" cellspacing="0">
+		<colgroup>
+			<col style="width: 12%">
+			<col style="width: *">
+		</colgroup>
+		<tbody>
+			<tr>
+				<th><spring:message code='Cache.ApvType_approve'/></th>
+				<td class="approver_list_wrap">
+					<div class="org_btn">
+						<input type="button" class="AXButton" onclick="addInApvLine.openApvOrg('Apv');" value="<spring:message code='Cache.lbl_apv_org'/>">
+					</div>
+					<div class="approver_list_box">
+						<ul class="al_symbol">
+							<li></li>
+						</ul>
+						<ul class="approver_list">
+							<li class="sortable_fix li_apv">
+								<table>
+									<tbody>
+										<tr>
+											<td></td>
+											<td class="al_num">1</td>
+											<td class="al_status"><spring:message code='Cache.lbl_apv_charge_apvline'/></td>
+											<td class="al_name"></td>
+											<td class="al_position"></td>
+											<td class="al_dept"></td>
+											<td></td>
+										</tr>
+									</tbody>
+								</table>
+							</li>
+							<li class="sortable_fix input_li">
+								<table>
+									<tbody>
+										<tr>
+											<td class="dk_table">
+												<div class="search_org">
+													<input type="text" name="txtAddInAutoSearch" data-type="Apv" autocomplete="off" class="w100" placeholder="<spring:message code='Cache.msg_at_least_two_characters'/>">
+													<div class="org_search_user Apv hide">
+														<ul></ul>
+													</div>
+												</div>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</li>
+						</ul>
+					</div>
+				</td>
+			</tr>
+			<tr class="tr_Rec" style="display: none">
+				<th><spring:message code='Cache.lbl_apv_receive'/></th>
+				<td>
+					<div class="search_org wbutt">
+						<ul class="org_select_user Rec">
+							<li class="org_input">
+								<input type="text" name="txtAddInAutoSearch" data-type="Rec" autocomplete="off" placeholder="<spring:message code='Cache.msg_at_least_two_characters'/>">
+							</li>
+						</ul>
+						<div class="org_search_user Rec hide">
+							<ul></ul>
+						</div>
+					</div>
+					<input type="button" class="AXButton" onclick="addInApvLine.openApvOrg('Rec');" value="<spring:message code='Cache.lbl_apv_org'/>">
+				</td>
+			</tr>
+			<tr class="tr_BCC" style="display: none">
+				<th><spring:message code='Cache.btn_apv_CReference'/></th>
+				<td>
+					<div class="search_org wbutt">
+						<ul class="org_select_user BCC">
+							<li class="org_input">
+								<input type="text" name="txtAddInAutoSearch" data-type="BCC" autocomplete="off" placeholder="<spring:message code='Cache.msg_at_least_two_characters'/>">
+							</li>
+						</ul>
+						<div class="org_search_user BCC hide">
+							<ul></ul>
+						</div>
+					</div>
+					<input type="button" class="AXButton" onclick="addInApvLine.openApvOrg('BCC');" value="<spring:message code='Cache.lbl_apv_org'/>">
+				</td>
+			</tr>
+			<tr class="tr_CC" style="display: none">
+				<th><spring:message code='Cache.lbl_apv_cc'/></th>
+				<td>
+					<div class="search_org wbutt">
+						<ul class="org_select_user CC">
+							<li class="org_input">
+								<input type="text" name="txtAddInAutoSearch" data-type="CC" autocomplete="off" placeholder="<spring:message code='Cache.msg_at_least_two_characters'/>">
+							</li>
+						</ul>
+						<div class="org_search_user CC hide">
+							<ul></ul>
+						</div>
+					</div>
+					<input type="button" class="AXButton" onclick="addInApvLine.openApvOrg('CC');" value="<spring:message code='Cache.lbl_apv_org'/>">
+				</td>
+			</tr>
+		</tbody>
+	</table>
+</div>

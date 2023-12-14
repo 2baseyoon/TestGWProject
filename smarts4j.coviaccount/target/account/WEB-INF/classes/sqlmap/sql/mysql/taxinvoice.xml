@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.taxInvoice">
+
+	<select id="getTaxInvoiceList" parameterType="cmap" resultType="cmap">
+		SELECT	ACI.TaxInvoiceID
+			,	ACI.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACI.CompanyCode, #{companyCode})	AS CompanyName
+			,	DATE_FORMAT(ACI.WriteDate,'%Y.%m.%d') AS WriteDate
+			,	ACI.NTSConfirmNum
+			,	ACI.CONVERSATION_ID
+			,	ACI.InvoicerCorpName
+			,	ACI.InvoicerCorpNum
+			,	ACI.InvoicerContactName
+			,	FORMAT(ACI.TotalAmount,0)		AS TotalAmount
+			,	FORMAT(ACI.SupplyCostTotal,0)	AS SupplyCostTotal
+			,	FORMAT(ACI.TaxTotal,0)			AS TaxTotal
+			,	FORMAT(ATI_ITEM.SupplyCost,0)	AS SupplyCost
+			,	FORMAT(ATI_ITEM.Tax,0)			AS Tax
+			,	ACI.InvoiceeEmail1
+			,	ACI.InvoiceEmail2
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxInvoiceActive',
+														CASE	
+										                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+										                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+										                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+										                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+									                    	ELSE 'R' 
+									                    END
+													, #{companyCode})	AS TaxInvoiceActive
+			,	CASE
+					WHEN ACI.IsOffset = 'Y' THEN 'Y'
+					WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+					WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+					WHEN ACI.ApproveStatus = 'N' THEN 'N'
+					ELSE 'R' 
+                END AS TaxInvoiceActiveCode
+			,	ACI.Remark1
+			,	ACI.InvoiceType
+			,	ACI.ModifyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('ModifyCode',ACI.ModifyCode, #{companyCode})	AS ModifyName
+			,	ACI.OrgNTSConfirmNum
+			,	ACI.TossUserCode
+			,	ATI_ITEM.ItemName
+			,	USR.DisplayName	AS TossUserName
+	    FROM	covi_account4j_si.act_taxinvoice	ACI
+	    LEFT OUTER JOIN
+				covi_account4j_si.act_taxinvoice_item	ATI_ITEM
+		ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+	    LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACI.TossUserCode	= USR.UserCode
+		WHERE	1=1
+		AND		ACI.DataIndex	= 'BUY'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACI.CompanyCode	= #{companyCode}
+		</if>
+		<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= #{taxInvoiceActive}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')	OR 
+					ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.NTSConfirmNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoiceeEmail1		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoiceEmail2		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ATI_ITEM.ItemName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ATI_ITEM.Remark			LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.Remark1				LIKE CONCAT('%',#{searchStr},'%')
+				)
+					</when>
+					<when test="searchType == 'InvoicerCorpName'.toString()">
+		AND		ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'InvoicerContactName'.toString()">
+		AND		ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'InvoicerCorpNum'.toString()">
+		AND		ACI.InvoicerCorpNum	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'NTSConfirmNum'.toString()">
+		AND		ACI.NTSConfirmNum	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'InvoiceeEmail1'.toString()">
+		AND		(
+            	ACI.InvoiceeEmail1 LIKE CONCAT('%',#{searchStr},'%') OR
+            	ACI.InvoiceEmail2  LIKE CONCAT('%',#{searchStr},'%')
+            	)
+					</when>
+					<when test="searchType == 'ItemName'.toString()">
+		AND		ATI_ITEM.ItemName	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'Remark'.toString()">
+		AND		(
+				ATI_ITEM.Remark	LIKE CONCAT('%',#{searchStr},'%')	OR
+				ACI.Remark1		LIKE CONCAT('%',#{searchStr},'%')
+				)
+					</when>
+				</choose>
+			</when>
+		</choose>
+		<if test ="writeDateS != null and writeDateS !=''">
+		AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+		</if>
+		<if test ="writeDateE != null and writeDateE !=''">
+		AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+		</if>
+		<if test="SessionUser != null and SessionUser != ''">
+		AND (
+				ACI.InvoiceeEmail1 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{SessionUser}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{SessionUser}
+				)
+				OR
+				ACI.InvoiceEmail2 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{SessionUser}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{SessionUser}
+				)
+				OR
+				ACI.TossUserCode = #{SessionUser}
+			)
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACI.TaxInvoiceID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("WriteDate")'>WriteDate</when>
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>NTSConfirmNum</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>InvoicerCorpName</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>InvoicerCorpNum</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerContactName")'>InvoicerContactName</when>
+					<when test='sortColumn.equalsIgnoreCase("ItemName")'>ItemName</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>CAST(TotalAmount AS SIGNED)</when>
+					<when test='sortColumn.equalsIgnoreCase("SupplyCostTotal")'>CAST(SupplyCostTotal AS SIGNED)</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxTotal")'>TaxTotal</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoiceeEmail1")'>InvoiceeEmail1</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxInvoiceActive")'>TaxInvoiceActive</when>
+					<when test='sortColumn.equalsIgnoreCase("Remark1")'>Remark1</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyName")'>ModifyName</when>
+					<when test='sortColumn.equalsIgnoreCase("OrgNTSConfirmNum")'>OrgNTSConfirmNum</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>TossUserName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getTaxInvoiceExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	DATE_FORMAT(ACI.WriteDate,'%Y.%m.%d') AS WriteDate
+			,	ACI.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACI.CompanyCode, #{companyCode})	AS CompanyName
+			,	ACI.NTSConfirmNum
+			,	ACI.InvoicerCorpName
+			,	ACI.InvoicerCorpNum
+			,	ACI.InvoicerContactName
+			,	FORMAT(ACI.TotalAmount,0)		AS TotalAmount
+			,	FORMAT(ACI.SupplyCostTotal,0)	AS SupplyCostTotal
+			,	FORMAT(ACI.TaxTotal,0)			AS TaxTotal
+			,	ACI.InvoiceeEmail1
+			,	ACI.InvoiceEmail2
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxInvoiceActive',
+														CASE	
+										                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+										                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+										                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+										                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+									                    	ELSE 'R' 
+									                    END
+													, #{companyCode})	AS TaxInvoiceActive
+			,	ACI.Remark1
+			,	ACI.InvoiceType
+			,	ACI.ModifyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('ModifyCode',ACI.ModifyCode, #{companyCode})	AS ModifyName
+			,	ACI.OrgNTSConfirmNum
+			,	ATI_ITEM.ItemName
+			,	USR.DisplayName	AS TossUserName
+	    FROM	covi_account4j_si.act_taxinvoice	ACI
+	    LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACI.TossUserCode	= USR.UserCode
+	    LEFT OUTER JOIN
+				covi_account4j_si.act_taxinvoice_item	ATI_ITEM
+		ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+		WHERE	1=1
+		AND		ACI.DataIndex	= 'BUY'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACI.CompanyCode	= #{companyCode}
+		</if>
+		<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+	                   	ELSE 'R' 
+	               END
+				)	= #{taxInvoiceActive}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.NTSConfirmNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoiceeEmail1		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.InvoiceEmail2		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ATI_ITEM.ItemName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					ATI_ITEM.Remark			LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.Remark1				LIKE CONCAT('%',#{searchStr},'%')
+				)
+					</when>
+					<when test="searchType == 'InvoicerCorpName'.toString()">
+		AND		ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'InvoicerContactName'.toString()">
+		AND		ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'InvoicerCorpNum'.toString()">
+		AND		ACI.InvoicerCorpNum	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+					<when test="searchType == 'NTSConfirmNum'.toString()">
+		AND		ACI.NTSConfirmNum	LIKE CONCAT('%',#{searchStr},'%') 
+					</when>
+					<when test="searchType == 'InvoiceeEmail1'.toString()">
+		AND		(
+            	ACI.InvoiceeEmail1 LIKE CONCAT('%',#{searchStr},'%') OR
+            	ACI.InvoiceEmail2  LIKE CONCAT('%',#{searchStr},'%')
+            	)
+					</when>
+					<when test="searchType == 'ItemName'.toString()">
+		AND		(
+				ATI_ITEM.ItemName	LIKE CONCAT('%',#{searchStr},'%')	OR
+				ACI.Remark1			LIKE CONCAT('%',#{searchStr},'%')
+				)
+					</when>
+					<when test="searchType == 'Remark'.toString()">
+		AND		ATI_ITEM.Remark	LIKE CONCAT('%',#{searchStr},'%')
+					</when>
+				</choose>
+			</when>
+		</choose>
+		<if test ="writeDateS != null and writeDateS !=''">
+		AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+		</if>
+		<if test ="writeDateE != null and writeDateE !=''">
+		AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+		</if>
+		<if test="SessionUser != null and SessionUser != ''">
+		AND (
+				ACI.InvoiceeEmail1 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{SessionUser}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{SessionUser}
+				)
+				OR
+				ACI.InvoiceEmail2 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{SessionUser}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{SessionUser}
+				)
+				OR
+				ACI.TossUserCode = #{SessionUser}
+			)
+		</if>
+		ORDER BY ACI.TaxInvoiceID DESC
+	</select>
+	
+	<select id="getTaxInvoiceListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(AA.TaxInvoiceID)
+	    FROM	(
+			SELECT	ACI.TaxInvoiceID
+			FROM	covi_account4j_si.act_taxinvoice	ACI
+			LEFT OUTER JOIN
+					covi_account4j_si.act_taxinvoice_item	ATI_ITEM
+			ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+			LEFT OUTER JOIN
+					covi_smart4j.sys_object_user	USR
+			ON		ACI.TossUserCode	= USR.UserCode
+			WHERE	1=1
+			AND		ACI.DataIndex	= 'BUY'
+			<if test ="companyCode != null and companyCode !=''">
+			AND		ACI.CompanyCode	= #{companyCode}
+			</if>
+			<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+			AND		(	
+						CASE	
+		                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+		                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+		                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+		                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+	                    	ELSE 'R' 
+	                    END
+					)	= #{taxInvoiceActive}
+			</if>
+			<choose>
+				<when test="searchStr != null and searchStr !=''">
+					<choose>
+					    <when test="searchType == null or searchType ==''">
+			AND		(	ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')	OR
+						ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')	OR
+						ACI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+						ACI.NTSConfirmNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+						ACI.InvoiceeEmail1		LIKE CONCAT('%',#{searchStr},'%')	OR
+						ACI.InvoiceEmail2		LIKE CONCAT('%',#{searchStr},'%')	OR
+						ATI_ITEM.ItemName		LIKE CONCAT('%',#{searchStr},'%')	OR
+						ATI_ITEM.Remark			LIKE CONCAT('%',#{searchStr},'%')
+					)
+						</when>
+						<when test="searchType == 'InvoicerCorpName'.toString()">
+			AND		ACI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')
+						</when>
+						<when test="searchType == 'InvoicerContactName'.toString()">
+			AND		ACI.InvoicerContactName	LIKE CONCAT('%',#{searchStr},'%')
+						</when>
+						<when test="searchType == 'InvoicerCorpNum'.toString()">
+			AND		ACI.InvoicerCorpNum	LIKE CONCAT('%',#{searchStr},'%')
+						</when>
+						<when test="searchType == 'NTSConfirmNum'.toString()">
+			AND		ACI.NTSConfirmNum	LIKE CONCAT('%',#{searchStr},'%')
+						</when>
+						<when test="searchType == 'InvoiceeEmail1'.toString()">
+			AND		(
+	            	ACI.InvoiceeEmail1 LIKE CONCAT('%',#{searchStr},'%') OR
+	            	ACI.InvoiceEmail2  LIKE CONCAT('%',#{searchStr},'%')
+	            	)
+						</when>
+						<when test="searchType == 'ItemName'.toString()">
+			AND		ATI_ITEM.ItemName	LIKE CONCAT('%',#{searchStr},'%')
+						</when>
+						<when test="searchType == 'Remark'.toString()">
+			AND		(
+					ATI_ITEM.Remark	LIKE CONCAT('%',#{searchStr},'%')	OR
+					ACI.Remark1			LIKE CONCAT('%',#{searchStr},'%')
+					)
+					
+						</when>
+					</choose>
+				</when>
+			</choose>
+			<if test ="writeDateS != null and writeDateS !=''">
+			AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+			</if>
+			<if test ="writeDateE != null and writeDateE !=''">
+			AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+			</if>
+			<if test="SessionUser != null and SessionUser != ''">
+			AND (
+					ACI.InvoiceeEmail1 IN (
+						SELECT AM.TaxMailAddress
+						FROM covi_account4j_si.act_manager AM
+						WHERE AM.ManagerUserCode = #{SessionUser}
+						UNION
+						SELECT SOU.MailAddress
+						FROM covi_smart4j.sys_object_user SOU
+						WHERE SOU.UserCode = #{SessionUser}
+					)
+					OR
+					ACI.InvoiceEmail2 IN (
+						SELECT AM.TaxMailAddress
+						FROM covi_account4j_si.act_manager AM
+						WHERE AM.ManagerUserCode = #{SessionUser}
+						UNION
+						SELECT SOU.MailAddress
+						FROM covi_smart4j.sys_object_user SOU
+						WHERE SOU.UserCode = #{SessionUser}
+					)
+					OR
+					ACI.TossUserCode = #{SessionUser}
+				)
+			</if>
+	    ) AA
+	</select>
+		
+	<update id="updateIsOffset" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_taxinvoice
+ 			SET
+ 				<if test = "key == 'Y'.toString()">
+ 				IsOffset		= 'Y'
+				</if>
+				<if test = "key == 'N'.toString()">
+				IsOffset		= ''
+				</if>
+				<if test = "key == 'A'.toString()">
+				IsOffset		= 'A'
+				</if>
+ 		WHERE	TaxInvoiceID	= #{taxInvoiceID}
+ 	</update>
+ 	
+ 	<update id="updateExpence" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_taxinvoice
+ 			SET
+ 				SerialNum 		= #{tossComment}
+ 			,	IsOffset		= 'A'
+ 		WHERE	TaxInvoiceID	= #{taxInvoiceID}
+ 	</update>
+ 	
+	<update id="updateTaxInvoiceTossUser" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_taxinvoice
+ 			SET
+ 				TossUserCode		= #{tossUserCode}
+			,	TossSenderUserCode	= #{UR_Code}
+			,	TossDate			= now(3)
+			,	TossComment			= #{tossComment}
+ 		WHERE	TaxInvoiceID		= #{taxInvoiceID}
+ 	</update>
+	
+	<select id="getTaxInvoiceInterfaceInfoTechSaveCHK" parameterType="cmap" resultType="cmap">
+		SELECT	DISTINCT
+	    		TaxInvoiceID
+	    FROM	covi_account4j_si.act_taxinvoice
+	    WHERE	CONVERSATION_ID	= #{cONVERSATION_ID}
+	</select>
+	
+	<select id="getTaxInvoiceInterfaceKwicSaveCHK" parameterType="cmap" resultType="cmap">
+		SELECT	DISTINCT
+	    		TaxInvoiceID
+	    FROM	covi_account4j_si.act_taxinvoice
+	    WHERE	CONVERSATION_ID	= #{cONVERSATION_ID}
+	</select>
+	
+	<select id="getTaxInvoiceInterfaceSaveCHK" parameterType="cmap" resultType="cmap">
+		SELECT	DISTINCT
+	    		TaxInvoiceID
+	    FROM	covi_account4j_si.act_taxinvoice
+	    WHERE	CONVERSATION_ID	= #{cONVERSATION_ID}
+		AND		SUPBUY_TYPE		= #{sUPBUY_TYPE}
+		AND		DIRECTION		= #{dIRECTION}
+	</select>
+		
+	<delete id="taxInvoiceInterfaceMainDel">
+	    DELETE
+	    FROM	covi_account4j_si.act_taxinvoice
+	    WHERE	TaxInvoiceID = #{TaxInvoiceID}
+	</delete>
+	
+	<delete id="taxInvoiceInterfaceItemDel">
+	    DELETE
+	    FROM	covi_account4j_si.act_taxinvoice_item
+	    WHERE	TaxInvoiceID = #{TaxInvoiceID}
+	</delete>
+	
+	<insert id="taxInvoiceInterfaceMainInsert" parameterType="cmap" >
+		INSERT INTO covi_account4j_si.act_taxinvoice (
+				CompanyCode
+			,	DataIndex
+			,	WriteDate
+			,	IssueDT
+			,	InvoiceType
+			,	TaxType
+			,	TaxTotal
+			,	SupplyCostTotal
+			,	TotalAmount
+			,	PurposeType
+			,	SerialNum
+			,	Cash
+			,	ChkBill
+			,	Credit
+			,	Note
+			,	Remark1
+			,	Remark2
+			,	Remark3
+			,	NTSConfirmNum
+			,	ModifyCode
+			,	OrgNTSConfirmNum
+			,	InvoicerCorpNum
+			,	InvoicerMgtKey
+			,	InvoicerTaxRegID
+			,	InvoicerCorpName
+			,	InvoicerCEOName
+			,	InvoicerAddr
+			,	InvoicerBizType
+			,	InvoicerBizClass
+			,	InvoicerContactName
+			,	InvoicerDeptName
+			,	InvoicerTel
+			,	InvoicerEmail
+			,	InvoiceeCorpNum
+			,	InvoiceeType
+			,	InvoiceeMgtKey
+			,	InvoiceeTaxRegID
+			,	InvoiceeCorpName
+			,	InvoiceeCEOName
+			,	InvoiceeAddr
+			,	InvoiceeBizType
+			,	InvoiceeBizClass
+			,	InvoiceeContactName1
+			,	InvoiceeDeptName1
+			,	InvoiceeTel1
+			,	InvoiceeEmail1
+			,	InvoiceeContactName2
+			,	InvoiceDeptName2
+			,	InvoiceTel2
+			,	InvoiceEmail2
+			,	TrusteeCorpNum
+			,	TrusteeMgtKey
+			,	TrusteeTaxRegID
+			,	TrusteeCorpName
+			,	TrusteeCEOName
+			,	TrusteeAddr
+			,	TrusteeBizType
+			,	TrusteeBizClass
+			,	TrusteeContactName
+			,	TrusteeDeptName
+			,	TrusteeTel
+			,	TrusteeEmail
+			,	TossUserCode
+			,	TossSenderUserCode
+			,	TossDate
+			,	TossComment
+			,	RegistDate
+			,	IntDate
+			,	IsOffset
+			,	CONVERSATION_ID
+			,	SUPBUY_TYPE
+			,	DIRECTION
+		) VALUES (
+				#{companyCode}
+			,	#{dataIndex}
+			,	#{writeDate}
+			,	#{issueDT}
+			,	#{invoiceType}
+			,	#{taxType}
+			,	#{taxTotal}
+			,	#{supplyCostTotal}
+			,	#{totalAmount}
+			,	#{purposeType}
+			,	#{serialNum}
+			,	#{cash}
+			,	#{chkBill}
+			,	#{credit}
+			,	#{note}
+			,	#{remark1}
+			,	#{remark2}
+			,	#{remark3}
+			,	#{nTSConfirmNum}
+			,	#{modifyCode}
+			,	#{orgNTSConfirmNum}
+			,	#{invoicerCorpNum}
+			,	#{invoicerMgtKey}
+			,	#{invoicerTaxRegID}
+			,	#{invoicerCorpName}
+			,	#{invoicerCEOName}
+			,	#{invoicerAddr}
+			,	#{invoicerBizType}
+			,	#{invoicerBizClass}
+			,	#{invoicerContactName}
+			,	#{invoicerDeptName}
+			,	#{invoicerTel}
+			,	#{invoicerEmail}
+			,	#{invoiceeCorpNum}
+			,	#{invoiceeType}
+			,	#{invoiceeMgtKey}
+			,	#{invoiceeTaxRegID}
+			,	#{invoiceeCorpName}
+			,	#{invoiceeCEOName}
+			,	#{invoiceeAddr}
+			,	#{invoiceeBizType}
+			,	#{invoiceeBizClass}
+			,	#{invoiceeContactName1}
+			,	#{invoiceeDeptName1}
+			,	#{invoiceeTel1}
+			,	#{invoiceeEmail1}
+			,	#{invoiceeContactName2}
+			,	#{invoiceDeptName2}
+			,	#{invoiceTel2}
+			,	#{invoiceEmail2}
+			,	#{trusteeCorpNum}
+			,	#{trusteeMgtKey}
+			,	#{trusteeTaxRegID}
+			,	#{trusteeCorpName}
+			,	#{trusteeCEOName}
+			,	#{trusteeAddr}
+			,	#{trusteeBizType}
+			,	#{trusteeBizClass}
+			,	#{trusteeContactName}
+			,	#{trusteeDeptName}
+			,	#{trusteeTel}
+			,	#{trusteeEmail}
+			,	#{tossUserCode}
+			,	#{tossSenderUserCode}
+			,	#{tossDate}
+			,	#{tossComment}
+			,	IFNULL(NULLIF(#{registDate_main},''), current_timestamp())
+			,	NOW(3)
+			,	#{isOffset}
+			,	#{cONVERSATION_ID}
+			,	#{sUPBUY_TYPE}
+			,	#{dIRECTION}
+		)
+	    <selectKey keyProperty="taxInvoiceID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="taxInvoiceInterfaceItemInsert" parameterType="cmap" >
+		INSERT INTO covi_account4j_si.act_taxinvoice_item (
+				TaxInvoiceID
+			,	PurchaseDT
+			,	ItemName
+			,	Spec
+			,	Qty
+			,	UnitCost
+			,	SupplyCost
+			,	Tax
+			,	Remark
+			,	RegistDate
+		) VALUES (
+				#{taxInvoiceID}
+			,	#{purchaseDT}
+			,	#{itemName}
+			,	#{spec}
+			,	#{qty}
+			,	#{unitCost}
+			,	#{supplyCost}
+			,	#{tax}
+			,	#{remark}
+			,	IFNULL(NULLIF(#{registDate_item},''), current_timestamp())
+		)
+	</insert>
+	
+	<delete id="cashBillInterfaceDel">
+	    DELETE
+	    FROM	covi_account4j_si.act_cashbill
+	    WHERE	NTSConfirmNum = #{nTSConfirmNum}
+	</delete>
+	
+	<insert id="cashBillInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.act_cashbill (
+				companyCode
+			,	nTSConfirmNum
+			,	tradeDT
+			,	tradeUsage
+			,	tradeType
+			,	supplyCost
+			,	tax
+			,	serviceFree
+			,	totalAmount
+			,	invoiceType
+			,	franchiseCorpNum
+			,	franchiseCorpName
+			,	franchiseCorpType
+			,	registDate
+		) VALUES (
+				#{companyCode}
+			,	#{nTSConfirmNum}
+			,	#{tradeDT}
+			,	#{tradeUsage}
+			,	#{tradeType}
+			,	#{supplyCost}
+			,	#{tax}
+			,	#{serviceFree}
+			,	#{totalAmount}
+			,	#{invoiceType}
+			,	#{franchiseCorpNum}
+			,	#{franchiseCorpName}
+			,	#{franchiseCorpType}
+			,	#{registDate}
+		)
+	</insert>
+</mapper>

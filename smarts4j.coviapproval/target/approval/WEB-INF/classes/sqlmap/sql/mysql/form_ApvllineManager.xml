@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.apvlinemanager">
+	
+     <!-- 특정 사용자의 개인결재선 목록 조회  -->
+    <select id="selectPrivateDomainList" parameterType="cmap" resultType="cmap">
+        SELECT PrivateDomainDataID, DisplayName,Abstract, Description,PrivateContext,DefaultYN 
+		FROM covi_approval4j.jwf_privatedomaindata 
+		WHERE CustomCategory = 'APPROVERCONTEXT'
+		AND OwnerID = #{userID}
+		ORDER BY DisplayName ASC
+    </select>
+	
+    <!-- 특정 사용자의 개인결재선 목록 삭제  -->
+    <delete id="deletePrivateDomain" parameterType="cmap">
+        DELETE FROM covi_approval4j.jwf_privatedomaindata 
+		WHERE PrivateDomainDataID = #{privateDomainID}
+    </delete>
+    
+    <!-- 개인결재선 데이터 변경 (결재선 멤버 삭제)-->
+    <update id="updatePrivateDomain" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_privatedomaindata
+		SET Abstract = #{abstract}, PrivateContext = #{privateContext}
+		WHERE PrivateDomainDataID =  #{privateDomainDataID}
+    </update>
+
+    <!-- 공용 배포 목록 조회  -->
+    <select id="selectDistributionList" parameterType="cmap" resultType="cmap">
+	    SELECT GroupID, GroupCode, GroupName, Description
+		FROM covi_approval4j.jwf_group
+		WHERE EntCode = #{entCode}
+		ORDER BY SortKey
+    </select>
+    
+    <select id="selectDistributionMember" parameterType="cmap" resultType="cmap">
+	   	SELECT GroupCode AS Code, MultiDisplayName AS Name FROM (
+			SELECT gr.GroupCode ,gr.MultiDisplayName FROM covi_approval4j.jwf_groupmember AS mem 
+			INNER JOIN covi_smart4j.sys_object_group AS gr ON mem.UserCode = gr.GroupCode
+			WHERE mem.GroupID =  #{groupID}
+			UNION ALL
+			SELECT ur.UserCode, ur.MultiDisplayName FROM covi_approval4j.jwf_groupmember AS mem 
+			INNER JOIN covi_smart4j.sys_object_user AS ur ON mem.UserCode = ur.UserCode
+			WHERE GroupID = #{groupID}
+		) AS Member
+    </select>
+    
+    <!-- 개인수신처 목록 조회  -->
+    <select id="selectPrivateDistributionList" parameterType="cmap" resultType="cmap">
+	 	SELECT GroupID, Type, DisplayName, OwnerID
+		FROM covi_approval4j.jwf_privategroup
+		WHERE Type=#{type} and OwnerID = #{userID}
+    </select>
+    
+    <!-- 특정 개인수신처의 멤버 조회 -->
+    <select id = "selectPrivateDistributionMember" parameterType="cmap" resultType="cmap">
+	    SELECT *  FROM covi_approval4j.jwf_privategroupmember 
+		WHERE GroupID = #{groupID}
+    </select>
+    
+    <!-- 개인수신처 삭제 -->
+    <delete id = "deletePrivateDistribution" parameterType="cmap">
+        DELETE FROM covi_approval4j.jwf_privategroup 
+		WHERE GroupID = #{groupID}
+    </delete>
+    
+    <!-- 개인수신처 삭제 시 해당 멤버 삭제 -->
+    <delete id = "deletePrivateDistributionMember" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_privategroupmember
+		WHERE GroupID = #{groupID}
+    </delete>
+    
+    <!-- 개인수신처의 특정 수신자 삭제 -->
+    <delete id = "deletePrivateDistributionMemberData" parameterType="cmap">
+    	DELETE FROM covi_approval4j.jwf_privategroupmember
+		WHERE GroupMemberID = #{groupMemberID}
+    </delete>
+
+    <update  id = "updataPrivateDomainDefaultY" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_privatedomaindata
+		SET DefaultYN = 'Y'
+		WHERE PrivateDomainDataID= #{PrivateDomainID}
+    </update>
+    
+    <update  id = "updataPrivateDomainDefaultN" parameterType="cmap">
+       UPDATE covi_approval4j.jwf_privatedomaindata
+	   SET DefaultYN = 'N'
+	   WHERE OwnerID = #{userID}
+    </update>
+    
+    <select id="checkAbsentMember" parameterType="cmap" resultType="cmap">
+       <![CDATA[     
+			SELECT ur.UserCode AS PERSON_CODE
+		, 0 AS PERSON_ID
+		, ur.MultiDisplayName AS DISPLAY_NAME
+		, bg.DeptCode AS UNIT_CODE
+		, bg.MultiDeptName AS UNIT_NAME
+		,concat(bg.JobTitleCode,';',bg.MultiJobTitleName) AS JOBTITLE_Z
+		,concat(bg.JobLevelCode,';',bg.MultiJobLevelName) AS JOBLEVEL_Z
+		,concat(bg.JobPositionCode,';',bg.MultiJobPositionName) AS JOBPOSITION_Z
+		,bg.CompanyCode AS ENT_CODE
+		FROM covi_smart4j.sys_object_user_basegroup AS bg
+		LEFT JOIN covi_smart4j.sys_object_user AS ur ON ur.UserCode = bg.UserCode
+		WHERE ur.IsUse = 'Y'
+		AND ur.UserCode IN 
+		]]>
+	 	<foreach collection="userCodes" item="userCode" index="index"  open="(" close=")" separator=",">
+           #{userCode}
+        </foreach>
+    </select>
+    
+    <select id="checkAbsentGroup" parameterType="cmap" resultType="cmap">
+       	SELECT GroupCode, MultiDisplayName
+		FROM covi_smart4j.sys_object_group
+		WHERE	IsUse = 'Y'
+		AND 	GroupType = 'Dept'
+		AND		GroupCode IN
+	 	<foreach collection="groupCodes" item="groupCode" index="index"  open="(" close=")" separator=",">
+           #{groupCode}
+        </foreach>
+    </select>
+    
+    <insert id = "insertPrivateDomainData" parameterType="cmap">
+        <![CDATA[
+        	INSERT INTO covi_approval4j.jwf_privatedomaindata(CustomCategory,DisplayName,OwnerID,Abstract,Description,PrivateContext)
+			VALUES(#{customCategory},#{displayName},#{ownerID},#{abstract},#{description},#{privateContext})
+   		]]>
+    </insert>
+    
+    <insert id = "insertPrivateDistribution" parameterType="cmap" useGeneratedKeys="true" keyProperty="GroupID"  keyColumn="GroupID">
+        <![CDATA[
+        	INSERT INTO covi_approval4j.jwf_privategroup(Type,DisplayName,OwnerID) 
+        	VALUES(#{type},#{displayName},#{ownerID})
+   		]]>
+   		<selectKey keyProperty="GroupID" resultType="long" order="AFTER">
+            SELECT LAST_INSERT_ID();
+        </selectKey>
+   		
+    </insert>
+    
+    <insert id = "insertPrivateDistributionMember" parameterType="cmap" >
+        <![CDATA[
+	        INSERT INTO covi_approval4j.jwf_privategroupmember(GroupID,Type,ReceiptID,ReceiptName,ReceiptDeptID,ReceiptDeptName,DNName,HasChild,SortKey)
+			VALUES (#{groupID},#{type},#{receiptID},#{receiptName},#{receiptDeptID},#{receiptDeptName},#{DNName},#{hasChild},#{sortKey});
+		]]>
+    </insert>
+    
+    <!-- 특정 개인수신처의 멤버 조회 (문서유통) -->
+    <select id="selectPrivateGovDistributionMember" parameterType="cmap" resultType="cmap">
+	     SELECT 
+		    A.OUCODE AS "OUCODE"
+		    , A.OUCODE AS "AN"
+		    , A.OUORDER AS "OUORDER"
+		    , A.UCORGFULLNAME AS "UCORGFULLNAME"
+		    , A.OU AS "OU"
+		    , A.OU AS "DN"
+		    , A.TOPOUCODE AS "TOPOUCODE"
+		    , A.REPOUCODE AS "REPOUCODE"
+		    , A.PARENTOUCODE AS "PARENTOUCODE"
+		    , NVL(A.PARENTOUNAME, '') AS "PARENTOUNAME"
+		    , A.OULEVEL AS "OULEVEL"
+		    , A.ISUSE AS "ISUSE"			
+		    , OUReceiveDocumentYN AS "USEYN"
+		    , A.UCCHIEFTITLE AS "UCCHIEFTITLE"
+		    , A.OUSTEP AS "OUSTEP"
+		    ,(SELECT CASE WHEN A.OUCODE = A.REPOUCODE THEN A.UCCHIEFTITLE 
+					ELSE CASE WHEN IFNULL(A.UCCHIEFTITLE,' ') = ' ' THEN Z.UCCHIEFTITLE ELSE ( CONCAT(covi_smart4j.Fn_GetParentOUName_ReceiveY(Z.OUCODE),'(',A.UCCHIEFTITLE,')') ) END END
+					FROM covi_approval4j.jwf_processgov_ldap Z  
+					WHERE (Z.OUCODE = A.PARENTOUCODE AND A.PARENTOUCODE != '0000000')				
+						UNION ALL				
+					SELECT CASE WHEN A.OUCODE = A.REPOUCODE THEN A.UCCHIEFTITLE 
+					ELSE CASE WHEN IFNULL(A.UCCHIEFTITLE,' ') = ' ' THEN Z.UCCHIEFTITLE ELSE ( CONCAT(covi_smart4j.Fn_GetParentOUName_ReceiveY(Z.OUCODE),'(',A.UCCHIEFTITLE,')') ) END END
+					FROM covi_approval4j.jwf_processgov_ldap Z  
+					WHERE (Z.OUCODE = A.OUCODE AND A.PARENTOUCODE = '0000000')) AS "DISPLAY_UCCHIEFTITLE"
+		    , A.SUBCOUNT AS "HASSUBOU"
+		FROM covi_approval4j.jwf_processgov_ldap A
+		LEFT OUTER JOIN covi_approval4j.jwf_privategroupmember B ON A.OUCODE = B.RECEIPTID
+		WHERE B.GROUPID = #{groupID}
+    </select>
+    
+    <!-- 문서 내 결재선 임직원/부서 자동완성 목록 조회 -->
+    <select id="selectAddInLineAutoSearchList" parameterType="cmap" resultType="cmap">
+    	SELECT
+			A.itemType
+			, A.AN
+			, A.DN
+			, A.LV
+			, A.TL
+			, A.PO
+			, A.RG
+			, A.RGNM
+			, A.ETID
+			, A.ETNM
+			, A.EM
+		FROM (
+			<!-- 부서조회 -->
+			<if test='searchType == "" or searchType == "group" '>
+				SELECT
+					'group' AS itemType
+					, GR.GroupCode AS AN
+					, GR.MultiDisplayName AS DN
+					, '' AS LV
+					, '' AS TL
+					, '' AS PO
+					, GR.GroupCode AS RG
+					, GR.MultiDisplayName AS RGNM
+					, CN.CompanyCode AS ETID
+					, CN.MultiDisplayName AS ETNM
+					, GR.PrimaryMail AS EM
+					, GR.SortKey
+					, NULL AS JobTitleSortKey
+					, NULL AS JobLevelSortKey
+					, NULL AS JobTitleCode
+					, NULL AS EnterDate
+				FROM covi_smart4j.sys_object_group AS GR
+				INNER JOIN covi_smart4j.sys_object_group AS CN ON GR.CompanyCode = CN.GroupCode AND CN.GroupType = 'Company'
+				WHERE GR.IsUse = 'Y' AND GR.IsDisplay = 'Y'
+					AND (GR.MemberOf != 'NOUSE' OR GR.MemberOf IS NULL) #향후 그룹의 IsUse나 IsDisplay이를 변경한 경우 해당 그룹에 속한 다른 그룹들도 상태 변경하도록 한다. (운영용)
+					AND (GR.MemberOf != 'NOUNIT' OR GR.MemberOf IS NULL)
+					AND GR.GroupType IN ('Dept','Company')
+					AND (GR.DisplayName LIKE CONCAT('%', #{searchText}, '%')
+						OR GR.PrimaryMail LIKE CONCAT('%', #{searchText}, '%'))
+				<if test="companyCode != null and companyCode != 'ORGROOT'">
+		  			AND GR.CompanyCode = #{companyCode}
+		  		</if>
+			</if>
+			<if test='searchType == "" '>
+				UNION
+			</if>
+			<!-- 개인조회 -->
+			<if test='searchType == "" or searchType == "user" '>
+				SELECT
+					'user' AS itemType
+					, UR.UserCode AS AN
+					, UR.MultiDisplayName AS DN
+					, CONCAT(IFNULL(BG.JobLevelCode, ''), ';', IFNULL(BG.MultiJobLevelName, '')) AS LV
+					, CONCAT(IFNULL(BG.JobTitleCode, ''), ';', IFNULL(BG.MultiJobTitleName, '')) AS TL
+					, CONCAT(IFNULL(BG.JobPositionCode, ''), ';', IFNULL(BG.MultiJobPositionName, '')) AS PO
+					, BG.DeptCode AS RG
+					, BG.MultiDeptName AS RGNM
+					, BG.CompanyCode AS ETID
+					, BG.MultiCompanyName AS ETNM
+					, UR.MailAddress AS EM
+					, UR.SortKey
+					, BG.JobTitleSortKey
+					, BG.JobLevelSortKey
+					, BG.JobTitleCode
+					, UR.EnterDate
+				FROM covi_smart4j.sys_object_user_basegroup AS BG
+				INNER JOIN covi_smart4j.sys_object_user AS UR ON UR.UserCode = BG.UserCode
+				WHERE UR.IsUse = 'Y' AND UR.IsDisplay = 'Y'
+					AND (UR.DisplayName LIKE CONCAT('%', #{searchText}, '%')
+						OR BG.JobPositionName LIKE CONCAT('%', #{searchText}, '%')
+						OR BG.DeptName LIKE CONCAT('%', #{searchText}, '%')
+						OR UR.MailAddress LIKE CONCAT('%', #{searchText}, '%'))
+				<if test="companyCode != null and companyCode != 'ORGROOT'">
+		  			AND BG.CompanyCode = #{companyCode}
+		  		</if>
+			</if>
+		) A
+		Order BY A.itemType, (A.SortKey+0), A.JobTitleSortKey, A.JobLevelSortKey, A.JobTitleCode, A.EnterDate, A.DN;
+    </select>
+    
+    <select id="selectDocCommentList" parameterType="cmap" resultType="cmap">
+    SELECT  CommentID, ParentCommentID, FormInstID, ParentProcessID, ProcessID, Step, Sort, Comment, Comment_fileInfo, ApprovalMode, ApprovalState, 
+    		DATE_FORMAT(RegistDate,'%Y-%m-%d %H:%i') AS `RegistDate`, DATE_FORMAT(ModifyDate,'%Y-%m-%d %H:%i') AS `ModifyDate`, 
+    		RegistURCode, RegistURName, RegistGRCode, RegistGRName, RegistTitleCode, RegistTitleName, RegistLevelCode, RegistLevelName, 
+    		RegistPositionCode, RegistPositionName, ReplyCount    
+    FROM covi_approval4j.jwf_doc_comment
+    WHERE FormInstID = #{FormInstID} 
+   	<if test="ProcessID != null and ProcessID != ''">
+   		AND ProcessID = #{ProcessID}
+   	</if>
+    ORDER BY IFNULL(ParentCommentID, CommentID), Sort, Step
+    </select>
+    
+    <insert id="addDocComment" parameterType="cmap">
+    <![CDATA[
+		INSERT INTO covi_approval4j.jwf_doc_comment(FormInstID,ProcessID,ParentProcessID,Comment,Comment_fileinfo,ApprovalMode,ApprovalState,RegistURCode,RegistURName,RegistGRCode,RegistGRName,Step,Sort,ReplyCount)
+		VALUES(#{FormInstID},#{ProcessID},#{ParentProcessID},#{Comment},#{Comment_fileinfo},#{ApprovalMode},#{ApprovalState},#{RegistURCode},#{RegistURName},#{RegistGRCode},#{RegistGRName},0,Sort+1,0)
+   		]]>
+    </insert>
+    <insert id="addDocCommentReply" parameterType="cmap">
+    <![CDATA[
+		INSERT INTO covi_approval4j.jwf_doc_comment(ParentCommentID,FormInstID,ProcessID,ParentProcessID,Comment_fileinfo,ApprovalMode,ApprovalState,RegistURCode,RegistURName,RegistGRCode,RegistGRName,Step,Sort,Comment,ReplyCount)
+		SELECT (case a.Step+1 when 1 then a.CommentID else a.ParentCommentID end) AS "a.CommentID", a.FormInstID,#{ProcessID},a.ParentProcessID,a.Comment_fileinfo,a.ApprovalMode,a.ApprovalState,#{RegistURCode},#{RegistURName},#{RegistGRCode},#{RegistGRName}, a.Step+1, a.Sort+1
+		, #{Comment},0
+		FROM covi_approval4j.jwf_doc_comment as a
+		WHERE CommentID = #{CommentID}
+   		]]>
+    </insert>
+    <update id="updateDocCommentSort" parameterType="cmap">
+   	 	SET @MCI = (SELECT MAX(CommentID) from covi_approval4j.jwf_doc_comment WHERE FormInstID = #{FormInstID} and ParentCommentID = #{GroupCommentID});
+        UPDATE covi_approval4j.jwf_doc_comment 
+        SET Sort = Sort+1
+		WHERE  NOT CommentID IN(@MCI) and FormInstID = #{FormInstID} and ParentCommentID = #{GroupCommentID} and Sort >= (SELECT Sort FROM covi_approval4j.jwf_doc_comment WHERE CommentID = @MCI);
+    </update>
+    <update id="updateCommentRelpyCnt" parameterType="String">
+        UPDATE covi_approval4j.jwf_doc_comment
+		SET ReplyCount = ReplyCount+1  
+		WHERE CommentID =  #{CommentID}
+    </update>
+    <update id="modifyDocComment" parameterType="String">
+        UPDATE covi_approval4j.jwf_doc_comment
+		SET Comment = #{Comment}, ModifyDate = now(3)  
+		WHERE CommentID =  #{CommentID}
+    </update>
+    <delete id="delDocComment" parameterType="String">
+		DELETE FROM covi_approval4j.jwf_doc_comment
+		WHERE
+			CommentID = #{CommentID}
+	</delete>
+	<update id="delRelpyCnt" parameterType="String">
+        UPDATE covi_approval4j.jwf_doc_comment
+		SET ReplyCount = ReplyCount-1
+		WHERE
+		<choose>
+			<when test="Step > 1">ParentCommentID = #{ParentCommentID} AND Step = #{Step}-1 AND Sort = #{Sort}</when>
+			<otherwise>CommentID = #{ParentCommentID}</otherwise>
+		</choose>
+    </update>
+</mapper>
+

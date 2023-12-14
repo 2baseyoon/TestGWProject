@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="common.pdfconvert">
+    <select id="selectTargetApprovalList" parameterType="cmap" resultType="cmap">
+		    SELECT WF_PROCESS.*,
+					   ( CASE WHEN WF_PROCESS."PiBusinessState" = '02_02_' OR WF_PROCESS."PiBusinessState" = '02_01_'
+							  THEN WF_PROCESS."PiBusinessState"
+							  ELSE  '-'  END ) AS "BusinessState"
+			FROM (
+						SELECT
+						 Subject AS "Subject" ,
+						 form_.FormName AS "FormName" ,
+						 FI.FormInstID  AS "FormInstID",
+						 InitiatorName AS "InitiatorName" ,
+						 InitiatorID AS "InitiatorID" ,
+						 InitiatorUnitID AS "InitiatorUnitID" ,
+						 InitiatorUnitName AS "InitiatorUnitName" ,
+						 FI.ProcessID AS "PiID" ,
+						 P.ProcessState AS "PiState" ,
+						 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+						 P.BusinessState AS "DocBusinessState" ,
+						 DocNo AS "DocNo" ,
+						 InitiatedDate AS "WorkDt" ,
+						 FormPrefix AS "FormPrefix" ,
+						 FI.EntCode AS "EntCode",
+						 FI.ProcessID AS "ProcessID",
+						 CompletedDate AS "CompletedDate" ,
+						 P.ProcessState AS "ProcessState",
+						 InitiatedDate AS "InitiatedDate",
+						 P.BusinessData1 AS "BusinessData1",
+						 P.BusinessData2 AS "BusinessData2"
+				FROM jwf_forminstance FI
+					  INNER JOIN (
+					  					SELECT A.ProcessID, A.ProcessState, A.BusinessState, B.BusinessData1, B.BusinessData2
+										FROM 	jwf_process A
+					  					INNER JOIN JWF_ProcessDescription B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+									 ) P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN jwf_forms form_ on FI.formid = form_.formid
+			) WF_PROCESS
+		<!-- 검색 데이터 Where 절 -->
+		WHERE 1=1
+		AND NVL(BusinessData1, 'APPROVLAL') = 'APPROVAL'
+		<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+		    AND "EntCode" = #{selectEntinfoListData}
+		</if>
+	  	<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != '' ">
+		 	AND "CompletedDate" BETWEEN TO_DATE(#{StartDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{EndDate}, 'YYYY-MM-DD HH24:MI:SS')
+	  	 </if>
+        AND "ProcessState" = 528
+    	AND "DocBusinessState" LIKE '02_01%'
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	"CompletedDate" DESC
+		</trim>
+	</select>
+	<select id="selectConvertDupList" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(1) FROM jwf_pdfconvert_history 
+		WHERE FormInstID = #{FormInstID}
+		AND State = #{searchState}
+	</select>
+	<insert id="insertConvertHistory"  parameterType="cmap">
+		INSERT INTO jwf_pdfconvert_history (
+			State,
+			TaskID,
+			FormPrefix,
+			FormInstID,
+			UserCode,
+			Subject,
+			ConvertStartTime,
+			RegisterCode,
+			RegistDate
+		)
+		VALUES (
+			#{State},
+			#{TaskID},
+			#{FormPrefix},
+			#{FormInstID},
+			#{InitiatorID},
+			#{Subject},
+			#{ConvertStartTime},
+			#{RegisterCode},
+			now(3)
+		)
+		<selectKey keyProperty="HistoryID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	<update id="updateConvertHistory" parameterType="cmap">
+		UPDATE jwf_pdfconvert_history 
+		SET
+			State = #{State},
+			ConvertEndTime = #{ConvertEndTime},
+			ErrorStackTrace = #{ErrorStackTrace}
+		WHERE HistoryID = #{HistoryID}
+	</update>
+	
+	<!-- 이력조회 목록 -->
+	<select id="selectConvertHistoryCnt" parameterType="cmap" resultType="long">
+			SELECT	COUNT(1) AS CNT
+			FROM gwuser.jwf_pdfconvert_history C
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">				
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test="SearchType.equalsIgnoreCase('FormPrefix')">C.FormPrefix</when>
+						<when test="SearchType.equalsIgnoreCase('TaskID')">C.TaskID</when>
+						<when test="SearchType.equalsIgnoreCase('Subject')">C.Subject</when>
+						<when test="SearchType.equalsIgnoreCase('FormInstID')">C.FormInstID</when>
+						<otherwise>C.Subject</otherwise>
+	           		</choose>
+	          			LIKE '%' || #{SearchText} || '%'
+				</if>
+				<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+					AND ConvertStartTime BETWEEN to_Date(#{StartDate},'YYYY-MM-DD HH24:MI:SS') AND to_Date(#{EndDate},'YYYY-MM-DD HH24:MI:SS')
+				</if>
+			</trim>	
+	</select>
+	<select id="selectConvertHistory" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		
+			SELECT	C.HistoryID AS "HistoryID"
+				, C.State AS "State"
+				, C.TaskID AS "TaskID"
+				, C.ErrorStackTrace AS "ErrorStackTrace"
+				, C.FormPrefix AS "FormPrefix"
+				, C.FormInstID AS "FormInstID"
+				, C.UserCode AS "UserCode"
+				, DU.MultiDisplayName AS "UserName"
+				, C.Subject AS "Subject"
+				, C.ConvertStartTime AS "ConvertStartTime"
+				, C.ConvertEndTime AS "ConvertEndTime"
+				, C.RegisterCode AS "RegisterCode"
+				, U.MultiDisplayName AS "RegisterName"
+				, C.RegistDate AS "RegistDate"
+				, FI.ProcessID AS "ProcessID"
+			FROM gwuser.jwf_pdfconvert_history C
+			LEFT OUTER JOIN gwuser.sys_object_user U
+				ON U.UserCode = C.RegisterCode
+			LEFT OUTER JOIN gwuser.sys_object_user DU
+				ON DU.UserCode = C.UserCode
+			LEFT OUTER JOIN gwuser.jwf_forminstance FI
+				ON FI.FormInstID = C.FormInstID
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">				
+			<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+           		AND 
+           		<choose>
+					<when test="SearchType.equalsIgnoreCase('FormPrefix')">C.FormPrefix</when>
+					<when test="SearchType.equalsIgnoreCase('TaskID')">C.TaskID</when>
+					<when test="SearchType.equalsIgnoreCase('Subject')">C.Subject</when>
+					<when test="SearchType.equalsIgnoreCase('FormInstID')">C.FormInstID</when>
+					<otherwise>C.Subject</otherwise>
+           		</choose>
+          			LIKE '%' || #{SearchText} || '%'
+			</if>
+			<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+				AND ConvertStartTime BETWEEN to_Date(#{StartDate},'YYYY-MM-DD HH24:MI:SS') AND to_Date(#{EndDate},'YYYY-MM-DD HH24:MI:SS')
+			</if>
+		</trim>	
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test="sortColumn.equalsIgnoreCase('sort_CodeGroup')">C.RegistDate</when>
+					<when test="sortColumn.equalsIgnoreCase('sort_ConvertEndTime')">C.ConvertEndTime</when>
+					<when test="sortColumn.equalsIgnoreCase('sort_TaskID')">C.TaskID</when>
+					<otherwise>C.RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test="sortDirection.equalsIgnoreCase('ASC')"> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				C.HistoryID DESC
+			</if>
+		</trim>
+   		<include refid="oracle.include.pagingFooter"/>
+	</select>
+</mapper>

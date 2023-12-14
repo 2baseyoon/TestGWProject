@@ -1,0 +1,118 @@
+﻿﻿<!--실 결재양식 내용 부분 시작 -->
+<table class="tableStyle linePlus mt10 sortable" id="xformid_1"><!-- class="table_10" -->
+    <colgroup>
+        <col style="width: 12%;">
+      	<col>
+    </colgroup>
+    <tbody>
+      <tr>
+    	<th>금 액</th>
+    	<td class="ui-sortable">
+    		<input class="watch-value" id="TOTAL1" style="width: 99%;" type="text" readonly="readonly" value="{{ doc.BodyContext.TOTAL1 }}" data-type="mField" data-pattern="currency" data-watch="[id=TOTAL_SUM]" data-digit="2">
+        </td>
+    	</tr>
+	</tbody>
+</table>
+
+<table class="multi-row-table RowSumTable tableStyle linePlus mt10 sortable" id="TBLINFO">
+   <colgroup>
+        <col style="width: 15%;">
+    <col style="width: 30%;">
+     <col style="width: 15%;">
+     <col style="width: 13%;">
+     <col style="width: 15%;">
+     <col style="width: 15%;">
+    </colgroup>
+  <tbody><tr class="multi-row-control" data-mode="writeOnly">
+	<td class="ui-sortable" style="text-align: right;" colspan="6">
+		<input class="multi-row-add smButton" id="btnAdd" type="button" value="+추가">
+	    <input class="multi-row-del-auto smButton" id="btnDelSel" type="button" value="-삭제">
+	</td>
+  </tr>
+  <tr>
+    <th>계정과목</th>
+    <th>내역</th>
+    <th>공급가액</th>
+    <th>부가세</th>
+    <th>계</th>
+    <th>거래처명</th>
+  </tr>
+  <tr class="multi-row-template multi-row-sum">
+    <td class="ui-sortable">
+      <input name="ACCOUNT" style="width: 99%;" type="text" data-type="rField">
+    </td>
+    <td class="ui-sortable">
+      <input name="CONTENTS" style="width: 99%;" type="text" data-type="rField">
+    </td>
+    <td class="ui-sortable">
+      <input name="SUPPLY" class="sum-table-cell" style="width: 99%;" onblur="fn_setVAT()" type="text" data-type="rField" data-pattern="currency" data-digit="2">
+    </td>
+    <td class="ui-sortable">
+      <input name="VAT" style="width: 99%;" onblur="fn_setTOTAL()" type="text" data-type="rField" data-pattern="currency" data-digit="2">
+    </td>
+    <td class="ui-sortable">
+      <input name="TOTAL" class="sum-table-cell" style="width: 99%;" type="text" data-type="rField" data-pattern="currency" data-digit="2">
+    </td>
+    <td class="ui-sortable">
+      <input name="VENDOR_NAME" style="width: 99%;" type="text" data-type="rField">
+    </td>
+  </tr>
+  <tr>
+    <th colspan="2">계</th>
+    <td class="ui-sortable">
+      <input class="sum-table-colsum" id="SUPPLY_SUM" style="width: 99%;" type="text" readonly="readonly" value="{{ doc.BodyContext.SUPPLY_SUM }}" data-type="mField" data-pattern="currency" data-digit="2">
+    </td>
+    <th>
+    </th>
+    <td class="ui-sortable">
+      <input class="sum-table-colsum" id="TOTAL_SUM" style="width: 99%;" type="text" readonly="readonly" value="{{ doc.BodyContext.TOTAL_SUM }}" data-type="mField" data-pattern="currency" data-digit="2">
+    </td>
+    <th></th>
+  </tr>
+</tbody></table>
+
+<table class="tableStyle linePlus mt10 sortable" id="xformid_2"><!-- class="table_10" -->
+  <colgroup>
+        <col style="width: 12%;">
+    <col style="width: 20%;">
+    <col style="width: 12%;">
+    <col style="width: 20%;">
+    <col style="width: 12%;">
+    <col style="width: 20%;">
+    </colgroup>
+	<tbody><tr>
+      <th>계좌번호</th>
+      <td class="ui-sortable">
+        <input id="ACCOUNT_NUMBER" style="width: 98%;" type="text" value="{{ doc.BodyContext.ACCOUNT_NUMBER }}" data-type="mField">
+      </td>
+      <th>은행명</th>
+      <td class="ui-sortable">
+      	<input id="BANK_NAME" style="width: 98%;" type="text" value="{{ doc.BodyContext.BANK_NAME }}" data-type="mField">
+      </td>
+      <th>예금주</th>
+      <td class="ui-sortable">
+      	<input id="ACCOUNT_HOLDER" style="width: 98%;" type="text" value="{{ doc.BodyContext.ACCOUNT_HOLDER }}" data-type="mField">
+      </td>
+	</tr>
+  
+</tbody></table>
+
+<table class="tableStyle linePlus mt10 sortable" id="xformid_3"><!-- class="table_10" -->
+ 	 <colgroup>
+        <col style="width: 12%;">
+      	<col>
+    </colgroup>
+	<tbody><tr>
+      <th>지출일</th>
+      <td class="ui-sortable">
+        <input id="ACCOUNT_DATE" style="width: 98%;" type="text" value="{{ doc.BodyContext.ACCOUNT_DATE }}" data-type="mField" data-pattern="date">
+      </td>
+	</tr>
+  	<tr>
+      <th>비고</th>
+      <td class="ui-sortable">
+        <textarea id="ETC" style="width: 98%;" type="text" data-type="mField">{{ doc.BodyContext.ETC }}</textarea>
+      </td>
+	</tr>
+</tbody></table>
+<!--실 결재양식 내용 부분 끝 -->

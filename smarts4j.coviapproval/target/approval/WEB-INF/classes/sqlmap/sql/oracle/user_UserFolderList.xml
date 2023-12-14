@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.UserFolderList">
+    <!-- 사용자별 폴더 리스트 조회 -->
+	<select id="selectUserFolderList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				 FolderID AS "FolderID", 
+				 ParentsID AS "ParentsID", 
+				 OwnerID AS "OwnerID", 
+				 FolDerName AS "FolDerName", 
+				 FolDerMode AS "FolDerMode", 
+				 RegDate AS "RegDate"
+			FROM (
+				SELECT
+					TO_CHAR('0.1') AS FolderID
+					,TO_CHAR('0') AS ParentsID
+					,''  AS OwnerID
+					,#{userdefinedfolder} AS FolDerName
+					,'M' AS FolDerMode
+					,TO_DATE('') AS RegDate
+					FROM DUAL 
+				UNION ALL			
+				SELECT
+					TO_CHAR(FolderID) AS FolderID
+					, CASE WHEN TO_CHAR(ParentsID) = '0' THEN '0.1' ELSE TO_CHAR(ParentsID) END AS ParentsID
+					, OwnerID AS OwnerID
+					, FolDerName AS FolDerName
+					, FolDerMode AS FolDerMode
+					, RegDate AS RegDate
+				FROM JWF_UserFolder
+				WHERE OwnerID = #{userID}
+				AND FolDerMode = 'M'
+			) ORDER BY ParentsID, FolDerName
+	    ]]>
+	</select>
+	
+	<!-- 사용자별 1레벨 폴더 리스트 조회 -->
+	<select id="selectUserFolder1LvList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT
+			FolderID AS "FolderID"
+			, ParentsID AS "ParentsID"
+			, OwnerID  AS "OwnerID"
+			, FolDerName AS "FolDerName"
+			, FolDerMode AS "FolDerMode"
+		FROM (
+			SELECT
+					0 AS FolderID
+					,0 AS ParentsID
+					,''  AS OwnerID
+					,'1차 폴더' AS FolDerName
+					,'M' AS FolDerMode
+			FROM DUAL
+			
+			UNION ALL
+			
+			SELECT
+					 FolderID
+					,ParentsID
+					,OwnerID
+					,FolDerName
+					,FolDerMode
+			FROM JWF_UserFolder
+			WHERE OwnerID = #{userID}
+			AND ParentsID ='0'
+			AND FolDerMode = 'M'
+			ORDER BY ParentsID, FolDerName
+		) A
+	    ]]>
+	</select>
+
+	<insert id="insertJWF_TCInfoUserfolerlistdescription" parameterType="cmap">
+		INSERT INTO jwf_userfolerlistdescription
+		(
+			 ProcessID
+			,FormInstID
+			,FormID
+			,FormName
+			,FormSubject
+			,IsFile
+			,FileExt
+			,IsComment
+			,ApproverCode
+			,ApproverName
+			,ApprovalStep
+			,ApproverSIPAddress
+			,IsReserved
+			,ReservedGubun
+			,ReservedTime
+			,Priority
+		    ,IsModify
+			,Reserved1
+			,Reserved2
+		)
+		SELECT
+			A.ProcessID
+			, C.FormInstID
+			, C.FormID
+			, C.FormName
+			, C.FormSubject
+			, C.IsFile
+			, C.FileExt
+			, C.IsComment
+			, C.ApproverCode
+			, C.ApproverName
+			, C.ApprovalStep
+			, C.ApproverSIPAddress
+			, C.IsReserved
+			, C.ReservedGubun
+			, C.ReservedTime
+			, C.Priority
+			, C.IsModify
+			, 'Y'
+			, C.Reserved2
+		FROM JWF_CirculationBox A
+		INNER JOIN JWF_FormInstance B ON A.FormInstID = B.FormInstID
+		INNER JOIN JWF_CirculationBoxDescription C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+		<if test="mode != null and mode == 'TCInfo'"> 	<!-- 개인결재함-참조함 -->
+			WHERE A.ReceiptID = #{userID}
+			AND A.ProcessID = #{ProcessID}
+			AND A.State = 'C'
+			AND B.DeletedDate IS NULL
+			AND A.ReceiptType = 'P'
+			AND A.DataState != 'D'
+			AND A.CirculationBoxID = #{CirculationBoxID}
+		</if>
+		<if test="mode != null and mode == 'DeptTCInfo'"> 	<!-- 부서결재함-참조함 -->
+		    WHERE A.ReceiptID =  #{deptID}
+		    AND A.ProcessID = #{ProcessID}
+		    <!-- AND A.WorkitemID = #{WorkitemID} -->
+			AND A.State = 'C'
+			AND B.DeletedDate IS NULL
+			AND A.ReceiptType = 'U'
+			AND A.DataState != 'D'
+			AND A.CirculationBoxID = #{CirculationBoxID}
+		</if>
+		AND NOT EXISTS (
+			SELECT
+					Ufld.ProcessID
+			FROM JWF_UserFolder Uf
+			INNER JOIN JWF_UserFolderList Ufl ON Uf.FolderID =Ufl.FolderID
+			INNER JOIN jwf_userfolerlistdescription Ufld ON Ufl.UserFolderListDescriptionID =  Ufld.UserFolderListDescriptionID
+			WHERE Uf.OwnerID = #{userID}
+			AND Uf.FolderID	= #{FolderID}
+			AND Ufl.DeleteDate IS NULL
+			AND A.ProcessID  = Ufld.ProcessID
+		)
+	</insert>
+
+	<insert id="insertJWF_TCInfoUserFolderList" parameterType="cmap">
+		INSERT INTO JWF_UserFolderList
+		(
+			 FolderID
+			,FormName
+			,Subject
+			,InitiatorID
+			,InitiatorName
+			,InitiatorUnitID
+			,InitiatorUnitName
+			,UserFolderListDescriptionID
+			,LinkKey
+			,WFMode
+			,IsDeputy
+			,RegDate
+			,DeleteDate
+		)
+		SELECT
+			#{FolderID} FolderID
+			, C.FormName
+			, C.FormSubject
+			, B.InitiatorID
+			, B.InitiatorName
+			, B.InitiatorUnitID
+			, B.InitiatorUnitName
+			, D.UserFolderListDescriptionID
+			, '' as LinkKey
+		    , '' as WFMode
+			, '' as IsDeputy
+			-- , TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') as RegDate
+			, SYSDATE as RegDate
+			,NULL as DeleteDate
+		FROM JWF_CirculationBox A
+		INNER JOIN JWF_FormInstance B ON A.FormInstID = B.FormInstID
+		INNER JOIN JWF_CirculationBoxDescription C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+		INNER JOIN jwf_userfolerlistdescription D ON B.FormInstID = D.FormInstID AND A.ProcessID = D.ProcessID AND D.Reserved1 ='Y'
+		<if test="mode != null and mode == 'TCInfo'"> 	<!-- 개인결재함-참조함 -->
+			WHERE A.ReceiptID = #{userID}
+			AND A.ProcessID = #{ProcessID}
+			AND A.State = 'C'
+			AND B.DeletedDate IS NULL
+			AND A.ReceiptType = 'P'
+			AND A.DataState != 'D'
+			AND A.CirculationBoxID = #{CirculationBoxID}
+		</if>
+		<if test="mode != null and mode == 'DeptTCInfo'"> 	<!-- 부서결재함-참조함 -->
+		    WHERE A.ReceiptID =  #{deptID}
+		    AND D.ProcessID = #{ProcessID}
+			AND A.State = 'C'
+			AND B.DeletedDate IS NULL
+			AND A.ReceiptType = 'U'
+			AND A.DataState != 'D'
+			AND A.CirculationBoxID = #{CirculationBoxID}
+		</if>
+	</insert>
+
+	<insert id="insertJWF_Userfolerlistdescription" parameterType="cmap">
+		INSERT INTO jwf_userfolerlistdescription
+		(
+			ProcessID
+			,FormInstID
+			,FormID
+			,FormName
+			,FormSubject
+			,IsFile
+			,FileExt
+			,IsComment
+			,ApproverCode
+			,ApproverName
+			,ApprovalStep
+			,ApproverSIPAddress
+			,IsReserved
+			,ReservedGubun
+			,ReservedTime
+			,Priority
+		    ,IsModify
+			,Reserved1
+			,Reserved2
+		)
+		SELECT
+			 temp.ProcessArchiveID
+			 ,temp.FormInstID
+			 ,temp.FormID
+			 ,temp.FormName
+			 ,temp.FormSubject
+			 ,temp.IsFile
+			 ,temp.FileExt
+			 ,temp.IsComment
+			 ,temp.ApproverCode
+			 ,temp.ApproverName
+			 ,temp.ApprovalStep
+			 ,temp.ApproverSIPAddress
+			 ,temp.IsReserved
+			 ,temp.ReservedGubun
+			 ,temp.ReservedTime
+			 ,temp.Priority
+			 ,temp.IsModify
+			 ,'Y'
+			 ,temp.Reserved2
+		FROM (
+			SELECT
+			    B.ProcessID AS ProcessArchiveID
+				, A.PerformerID
+				, A.WorkitemID AS WorkitemArchiveID
+				, A.SubKind
+				, A.UserCode
+				, A.UserName
+				, C.*
+				, B.InitiatorName
+				, B.InitiatorID
+				, B.InitiatorUnitID
+				, B.InitiatorUnitName
+				, TO_CHAR(B.endDate, 'YYYY-MM-DD HH24:MI:SS') as EndDate
+			FROM JWF_Workitem A
+			INNER JOIN JWF_Process B ON B.ProcessID = A.ProcessID AND B.ProcessState = 528
+			INNER JOIN JWF_ProcessDescription C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+			<if test="mnid != null and mnid == 'Complete'"> 	<!-- 개인결재함-완료함 -->
+			    WHERE A.UserCode = #{userID}
+		    	AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021')
+		    	AND A.PIBusinessState = '02_01'
+			</if>
+			<if test="mnid != null and mnid == 'DeptComplete'"> 	<!-- 부서결재함-완료함 -->
+			    WHERE A.UserCode = #{deptID}
+				AND A.SubKind = 'A'
+			</if>
+			<if test="mnid != null and mnid == 'SenderComplete'"> 	<!-- 부서결재함-발신함 -->
+			    WHERE A.UserCode = #{deptID}
+		    	AND A.SubKind = 'S'
+			</if>
+			<if test="mnid != null and mnid == 'ReceiveComplete'"> 	<!-- 부서결재함-수신처리함 -->
+			    WHERE A.UserCode = #{deptID}
+		    	AND A.SubKind = 'REQCMP'
+			</if>
+			AND A.ProcessID  = #{ProcessID}
+			AND A.WorkitemID  = #{WorkitemID}
+			AND A.Deleted IS NULL
+			AND A.PIDeleted IS NULL
+			AND NOT EXISTS (
+				SELECT
+						C.ProcessID
+				FROM JWF_UserFolder A
+				INNER JOIN JWF_UserFolderList B ON B.FolderID = A.FolderID
+				INNER JOIN jwf_userfolerlistdescription C ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+				WHERE A.OwnerID = #{userID}
+				AND A.FolderID	= #{FolderID}
+				AND B.DeleteDate IS NULL
+				AND A.ProcessID  = C.ProcessID
+			)
+		) temp
+	</insert>
+
+	<insert id="insertJWF_UserFolderList" parameterType="cmap">
+		INSERT INTO JWF_UserFolderList
+		(
+			FolderID
+			,FormName
+			,Subject
+			,InitiatorID
+			,InitiatorName
+			,InitiatorUnitID
+			,InitiatorUnitName
+			,UserFolderListDescriptionID
+			,LinkKey
+			,WFMode
+			,IsDeputy
+			,RegDate
+			,DeleteDate
+		)
+		SELECT
+			#{FolderID} as FolderID
+			, C.FormName
+			, C.FormSubject
+			, B.InitiatorID
+			, B.InitiatorName
+			, B.InitiatorUnitID
+			, B.InitiatorUnitName
+			, D.UserFolderListDescriptionID
+			, '' as LinkKey
+			, '' as WFMode
+			, '' as IsDeputy
+			, SYSDATE as RegDate
+			,NULL as DeleteDate
+		FROM JWF_Workitem A
+		INNER JOIN JWF_Process B ON B.ProcessID = A.ProcessID AND B.ProcessState = 528
+		INNER JOIN JWF_ProcessDescription C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+		INNER JOIN jwf_userfolerlistdescription D ON C.FormInstID = D.FormInstID AND A.ProcessID = D.ProcessID AND D.Reserved1 ='Y'
+		<if test="mode != null and mode == 'Complete'"> 	<!-- 개인결재함-완료함 -->
+	    	WHERE A.UserCode = #{userID}
+		    AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021')
+		    AND A.PIBusinessState = '02_01'
+		</if>
+		<if test="mode != null and mode == 'DeptComplete'"> 	<!-- 부서결재함-완료함 -->
+	    	WHERE A.UserCode = #{deptID}
+			AND A.SubKind = 'A'
+		</if>
+		<if test="mode != null and mode == 'SenderComplete'"> 	<!-- 부서결재함-발신함 -->
+	    	WHERE A.UserCode = #{deptID}
+	    	AND A.SubKind = 'S'
+		</if>
+		<if test="mode != null and mode == 'ReceiveComplete'"> 	<!-- 부서결재함-수신처리함 -->
+	    	WHERE A.UserCode = #{deptID}
+		    AND A.SubKind = 'REQCMP'
+		</if>
+		AND D.ProcessID  = #{ProcessID}
+		AND A.WorkitemID  = #{WorkitemID}
+		AND A.Deleted IS NULL
+		AND A.PIDeleted IS NULL
+		AND NOT EXISTS (
+			SELECT
+					C.ProcessID
+			FROM JWF_UserFolder A
+			INNER JOIN JWF_UserFolderList B ON B.FolderID = A.FolderID
+			INNER JOIN jwf_userfolerlistdescription C ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+			WHERE A.OwnerID = #{userID}
+			AND A.FolderID	= #{FolderID}
+			AND B.DeleteDate IS NULL
+			AND D.ProcessID  = C.ProcessID
+		)
+	</insert>
+
+	<insert id="updateJWF_Userfolerlistdescription" parameterType="cmap">
+		UPDATE jwf_userfolerlistdescription
+		SET Reserved1 = ''
+		WHERE ProcessID = #{ProcessID}
+	</insert>
+
+	<insert id="insertUserFolder" parameterType="cmap">
+		INSERT INTO JWF_UserFolder
+		(
+			 ParentsID
+			,OwnerID
+			,FolDerName
+			,FolDerMode
+			,RegDate
+		)VALUES(
+			 #{ParentsID}
+			,#{userID}
+			,#{FolDerName}
+			,#{FolDerMode}
+			,SYSDATE
+		)
+	</insert>
+	
+	<select id="selectDuplicateFolderCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(FolderID)
+		FROM JWF_UserFolder
+		WHERE OwnerID = #{userID}
+		AND FolderName = #{FolDerName}
+		AND FolderMode = #{FolDerMode}
+	</select>
+</mapper>
+

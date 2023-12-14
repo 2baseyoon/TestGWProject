@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.formmanage">
+
+	<select id="getFormManageList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+				AEF.ExpenceFormID AS "ExpenceFormID"	
+			,	AEF.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', AEF.CompanyCode, #{companyCode}) AS "CompanyName"
+	    	,	AEF.FormCode AS "FormCode"
+	    	,	AEF.FormName AS "FormName"
+	    	,	AEF.SortKey AS "SortKey"
+	    	,	FN_GETACTBASECODENAME('ExpAppType', AEF.ExpAppType, #{companyCode})	AS "ExpAppTypeName"
+			,	FN_GETACTBASECODENAME('MenuType', AEF.MenuType, #{companyCode})		AS "MenuTypeName"
+			,	AEF.IsUse AS "IsUse"
+			,	AEF.ModifierID AS "ModifierID"
+			,	SOU.DisplayName AS "ModifierName"
+			,	TO_CHAR(AEF.ModifyDate, 'YYYY.MM.DD') AS "ModifyDate"
+	    FROM	act_expence_forms AEF
+		LEFT OUTER JOIN sys_object_user SOU ON AEF.ModifierID = SOU.UserCode
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AEF.CompanyCode = #{companyCode}
+		</if>
+	    <if test ="expAppType != null and expAppType !=''">
+		AND		AEF.ExpAppType = #{expAppType}
+		</if>
+		<if test ="menuType != null and menuType !=''">
+		AND		AEF.MenuType = #{menuType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AEF.IsUse = #{isUse}
+		</if>
+		<if test="searchStr != null and searchStr !=''">
+			<if test="searchType == null or searchType ==''">
+		AND		(	AEF.FormCode		LIKE '%' || #{searchStr} || '%'	OR
+					AEF.FormName		LIKE '%' || #{searchStr} || '%'	
+				)
+			</if>
+			<if test="searchType != null and searchType !=''">
+				AND	
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormCode")'>AEF.FormCode </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>AEF.FormName </when>
+				</choose>
+				LIKE '%' || #{searchStr} || '%' 
+			</if>
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AEF.SortKey ASC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormCode")'>"FormCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>"FormName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ExpAppTypeName")'>"ExpAppTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("MenuTypeName")'>"MenuTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>"SortKey"</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifierName")'>"ModifierName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>"ModifyDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getFormManageExcelList" parameterType="cmap" resultType="cmap">
+	    SELECT	
+    			AEF.ExpenceFormID AS "ExpenceFormID"	
+			,	AEF.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', AEF.CompanyCode, #{companyCode}) AS "CompanyName"
+	    	,	AEF.FormCode AS "FormCode"
+	    	,	AEF.FormName AS "FormName"
+	    	,	AEF.SortKey AS "SortKey"
+			,	AEF.ProofInfo AS "ProofInfo"
+			,	AEF.AccountInfo AS "AccountInfo"
+			,	AEF.StandardBriefInfo AS "StandardBriefInfo"
+			,	AEF.TaxInfo AS "TaxInfo"
+			,	AEF.RuleInfo AS "RuleInfo"
+			,	AEF.AuditInfo AS "AuditInfo"
+	    	,	FN_GETACTBASECODENAME('ExpAppType', AEF.ExpAppType, #{companyCode})	AS "ExpAppTypeName"
+			,	FN_GETACTBASECODENAME('MenuType', AEF.MenuType, #{companyCode})		AS "MenuTypeName"
+			,	AEF.AccountChargeInfo AS "AccountChargeInfo"
+			,	AEF.ApprovalFormInfo AS "ApprovalFormInfo"
+			,	AEF.IsUse AS "IsUse"
+			,	AEF.ModifierID AS "ModifierID"
+			,	SOU.DisplayName AS "ModifierName"
+			,	TO_CHAR(AEF.ModifyDate, 'YYYY.MM.DD') AS "ModifyDate"
+	    FROM	act_expence_forms AEF
+		LEFT OUTER JOIN sys_object_user SOU ON AEF.ModifierID = SOU.UserCode
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AEF.CompanyCode = #{companyCode}
+		</if>
+	    <if test ="expAppType != null and expAppType !=''">
+		AND		AEF.ExpAppType = #{expAppType}
+		</if>
+		<if test ="menuType != null and menuType !=''">
+		AND		AEF.MenuType = #{menuType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AEF.IsUse = #{isUse}
+		</if>
+		<if test="searchStr != null and searchStr !=''">
+			<if test="searchType == null or searchType ==''">
+		AND		(	AEF.FormCode		LIKE '%' || #{searchStr} || '%'	OR
+					AEF.FormName		LIKE '%' || #{searchStr} || '%'	
+				)
+			</if>
+			<if test="searchType != null and searchType !=''">
+				AND	
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormCode")'>AEF.FormCode </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>AEF.FormName </when>
+				</choose>
+				LIKE '%' || #{searchStr} || '%' 
+			</if>
+		</if>
+	</select>
+	
+	<select id="getFormCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_expence_forms
+	    WHERE	FormCode	= #{formCode}
+		AND		CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getFormManageListCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_expence_forms AEF
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AEF.CompanyCode = #{companyCode}
+		</if>
+	    <if test ="expAppType != null and expAppType !=''">
+		AND		AEF.ExpAppType = #{expAppType}
+		</if>
+		<if test ="menuType != null and menuType !=''">
+		AND		AEF.MenuType = #{menuType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AEF.IsUse = #{isUse}
+		</if>
+		<if test="searchStr != null and searchStr !=''">
+			<if test="searchType == null or searchType ==''">
+		AND		(	AEF.FormCode		LIKE '%' || #{searchStr} || '%'	OR
+					AEF.FormName		LIKE '%' || #{searchStr} || '%'	
+				)
+			</if>
+			<if test="searchType != null and searchType !=''">
+				AND	
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormCode")'>AEF.FormCode </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>AEF.FormName </when>
+				</choose>
+				LIKE '%' || #{searchStr} || '%' 
+			</if>
+		</if>
+	</select>
+	
+	<select id="getFormManageDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	
+	    		ExpenceFormID AS "ExpenceFormID"
+	    	,	CompanyCode AS "CompanyCode"
+			,	FormCode AS "FormCode"
+			,	FormName AS "FormName"
+			,	IsUse AS "IsUse"
+	    	,	AEF.SortKey AS "SortKey"
+			,	ProofInfo AS "ProofInfo"
+			,	AccountInfo AS "AccountInfo"
+			,	StandardBriefInfo AS "StandardBriefInfo"
+			,	TaxInfo AS "TaxInfo"
+			,	RuleInfo AS "RuleInfo"
+	    	,	AuditInfo AS "AuditInfo" 
+			,	ExpAppType AS "ExpAppType"
+			,	MenuType AS "MenuType"
+			,	AccountChargeInfo AS "AccountChargeInfo"
+			,	ApprovalFormInfo AS "ApprovalFormInfo"
+			,	ReservedStr1 AS "ReservedStr1"
+			,	ReservedStr2 AS "ReservedStr2"
+			,	ReservedStr3 AS "ReservedStr4"
+			,	ReservedStr4 AS "ReservedStr4"
+			,	ReservedStr5 AS "ReservedStr5"
+			,	RegisterID AS "RegisterID"
+			,	TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			,	ModifierID AS "ModifierID"
+			,	TO_CHAR(ModifyDate, 'YYYY-MM-DD HH24:MI:SS') AS "ModifyDate"
+			,   AEF.NoteIsUse AS "NoteIsUse"  
+	    FROM	act_expence_forms AEF
+	    WHERE	AEF.ExpenceFormID = #{expenceFormID}
+	</select>
+	
+	<select id="getApprovalFormInfoList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			BaseCodeID AS "ItemID",
+			Code AS "optionValue", 
+			DECODE(CompanyCode, 'ALL', CodeName, '['||Fn_ENTNAME_S(CompanyCode)||'] ' || CodeName) AS "optionText"
+		FROM act_base_code A
+		WHERE CodeGroup ='FormsLegacy' AND IsGroup ='N'
+		<if test="CompanyCode != null and CompanyCode != '' and CompanyCode != 'ALL'.toString()">
+			AND CompanyCode LIKE '%' || #{CompanyCode} || '%'
+		</if>
+		ORDER BY SortKey
+	</select>
+	
+	<select id="getAccountChargeInfoList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			JobFunctionId AS "ItemID",
+			JobFunctionCode AS "optionValue", 
+			JobFunctionName AS "optionText"
+		FROM jwf_jobfunction
+		WHERE UPPER(JobFunctionType) = 'ACCOUNT' 
+		AND IsUse = 'Y' 
+		<if test="CompanyCode != null and CompanyCode != '' and CompanyCode != 'ALL'.toString()">
+		AND EntCode = #{CompanyCode}
+		</if>
+		ORDER BY sortkey ASC
+	</select>
+	
+	<select id="getAccountInfoList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			AccountID AS "ItemID", 
+			AccountCode AS "ItemCode", 
+			AccountName AS "ItemName", 
+			Description AS "Description",
+			AC.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', AC.CompanyCode, #{CompanyCode}) AS "CompanyName" 
+		FROM act_account AC 
+		WHERE IsUse = 'Y'
+		<if test="CompanyCode != null and CompanyCode != '' and CompanyCode != 'ALL'.toString()">
+		AND CompanyCode = #{CompanyCode}
+		</if>
+	</select>
+	
+	<select id="getStandardBriefInfoList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			StandardBriefID AS "ItemID", 
+			StandardBriefID AS "ItemCode", 
+			StandardBriefName AS "ItemName", 
+			StandardBriefDesc AS "Description",
+			AC.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', AC.CompanyCode, #{CompanyCode}) AS "CompanyName" 
+		FROM act_account AC
+		INNER JOIN act_standard_brief ASB
+		ON AC.AccountID = ASB.AccountID 
+		WHERE ASB.IsUse = 'Y'
+		<if test="CompanyCode != null and CompanyCode != '' and CompanyCode != 'ALL'.toString()">
+		AND AC.CompanyCode = #{CompanyCode}
+		</if>
+	</select>
+	
+	<select id="getBaseCodeInfoList" parameterType="cmap" resultType="cmap">	
+		SELECT 
+			Code AS "ItemID",
+			Code AS "ItemCode", 
+			CodeName AS "ItemName",
+			'' AS "Description",
+			BC.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', BC.CompanyCode, #{CompanyCode}) AS "CompanyName" 
+		FROM act_base_code BC
+		WHERE IsUse = 'Y' 
+		AND IsGroup = 'N' 
+		AND CodeGroup = #{CodeGroup}
+		AND CompanyCode = (
+				CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE IsUse = 'Y' AND IsGroup = 'N' AND CodeGroup = #{CodeGroup} AND CompanyCode = #{CompanyCode})
+				THEN #{CompanyCode}
+				ELSE 'ALL'
+				END
+			)
+		ORDER BY SortKey ASC
+	</select>	
+	
+	<select id="getAuditInfoList" parameterType="cmap" resultType="cmap">	
+		SELECT 
+			RuleCode AS "ItemID",
+			RuleCode AS "ItemCode", 
+			RuleName AS "ItemName",
+			RuleDescription AS "Description",
+			AA.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', AA.CompanyCode, #{CompanyCode}) AS "CompanyName" 
+		FROM act_audit AA
+		WHERE IsUse = 'Y'
+		AND CompanyCode = (
+				CASE WHEN EXISTS (SELECT RuleCode FROM act_audit WHERE IsUse = 'Y' AND CompanyCode = #{CompanyCode})
+				THEN #{CompanyCode}
+				ELSE 'ALL'
+				END
+			)
+	</select>
+	
+	<insert id="insertFormManageInfo" parameterType="cmap" >
+	    INSERT INTO act_expence_forms (
+				CompanyCode
+			,	FormCode
+			,	FormName
+			,	ExpAppType
+			,	MenuType
+			,	IsUse
+			,	SortKey
+			,	ApprovalFormInfo
+			,	AccountChargeInfo
+			,	ReservedStr1
+			,	AccountInfo		
+			,	StandardBriefInfo
+			,	RuleInfo
+			,	ProofInfo
+			,	AuditInfo
+			,	TaxInfo
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+			<if test = 'noteIsUse != null and noteIsUse != ""'>
+			, 	NoteIsUse
+			</if>
+	    ) VALUES (
+				#{companyCode}
+			,	#{formCode}
+			,	#{formName}
+			,	#{expAppType}
+			,	#{menuType}
+			,	#{isUse}
+			,	#{sortKey}
+			,	#{approvalFormInfo}
+			,	#{accountChargeInfo}
+			,	#{reservedStr1}
+			,	#{accountInfo}
+			,	#{standardBriefInfo}
+			,	#{ruleInfo}
+			,	#{proofInfo}
+			,	#{auditInfo}
+			,	#{taxInfo}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+			<if test = 'noteIsUse != null and noteIsUse != ""'>
+			, 	#{noteIsUse}
+			</if>
+	    )
+ 	</insert>
+ 	
+	<update id="updateFormManageInfo" parameterType="cmap" >
+ 		UPDATE act_expence_forms
+ 			SET	IsUse				= #{isUse}
+			<if test = "listPage == 'N'.toString()">
+			,	CompanyCode			= #{companyCode}
+			,	FormName			= #{formName}
+			,	ExpAppType			= #{expAppType}
+			,	MenuType			= #{menuType}
+			,	SortKey				= #{sortKey}
+			,	ApprovalFormInfo	= #{approvalFormInfo}
+			,	AccountChargeInfo	= #{accountChargeInfo}
+			,	ReservedStr1		= #{reservedStr1}
+			,	AccountInfo			= #{accountInfo}
+			,	StandardBriefInfo	= #{standardBriefInfo}
+			,	RuleInfo			= #{ruleInfo}
+			,	ProofInfo			= #{proofInfo}
+			,	AuditInfo			= #{auditInfo}
+			,	TaxInfo				= #{taxInfo}
+			,   NoteIsUse = #{noteIsUse}
+			</if>
+			,	ModifierID			= #{UR_Code}
+			,	ModifyDate			= SYSDATE
+ 		WHERE	ExpenceFormID	= #{expenceFormID}
+ 	</update>
+	
+	<delete id="deleteFormManageInfo" parameterType="cmap" >
+	    DELETE FROM act_expence_forms		
+		WHERE	ExpenceFormID = #{expenceFormID}	
+	</delete>
+	
+	<select id="getFormCodeExpenceFormID" parameterType="cmap" resultType="cmap">
+	    SELECT 	AEF.ExpenceFormID
+	    FROM	act_expence_forms AEF
+	    WHERE	AEF.FormCode = #{formCode}
+		AND 	AEF.CompanyCode = #{companyCode}
+	</select>
+	
+	<update id="updateFormManageInfoExcel" parameterType="cmap" >
+ 		UPDATE act_expence_forms
+ 		SET		IsUse				= #{isUse}
+			,	SortKey				= #{sortKey}
+			,	FormName			= #{formName}
+			,	ExpAppType			= #{expAppType}
+			,	MenuType			= #{menuType}
+			,	ModifierID			= #{UR_Code}
+			,	ModifyDate			= SYSDATE
+ 		WHERE	ExpenceFormID		= #{expenceFormID}
+ 	</update>
+	
+	<select id="getFormMenuList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			FormCode AS "FormCode", 
+			FormName AS "FormName", 
+			ExpAppType AS "ExpAppType", 
+			MenuType AS "MenuType",
+			ReservedStr1 AS "ReservedStr1"
+		FROM act_expence_forms AEF
+		WHERE IsUse = 'Y'
+		AND	CompanyCode = (
+				CASE WHEN EXISTS (SELECT FormCode FROM act_expence_forms WHERE IsUse = 'Y' AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		ORDER BY SortKey ASC
+	</select>
+	
+	<select id="getFormManageInfo" parameterType="cmap" resultType="cmap">
+	    SELECT	
+	    	AEF.AccountInfo AS "AccountInfo",
+	    	AEF.StandardBriefInfo AS "StandardBriefInfo",
+	    	AEF.RuleInfo AS "RuleInfo",
+	    	AEF.ProofInfo AS "ProofInfo",
+	    	AEF.AuditInfo AS "AuditInfo",
+	    	AEF.TaxInfo AS "TaxInfo",
+	    	AEF.AccountChargeInfo AS "AccountChargeInfo",
+	    	AEF.ApprovalFormInfo AS "ApprovalFormInfo",
+		 	AEF.ApprovalFormInfo AS "FormPrefix",
+		 	FM.FormName AS "FormName",
+		 	FM.FormID AS "FormID",
+			FM.ExtInfo AS "ExtInfo",
+			SC.SchemaContext AS "SchemaContext",
+			(AEF.AccountChargeInfo || '@' || JF.JobFunctionName) AS "ChargeJob",
+			(CASE WHEN FM.CompanyCode = 'ORGROOT' THEN 0 ELSE 1 END) AS seq
+	    FROM act_expence_forms AEF
+	    INNER JOIN jwf_formslegacy FL ON AEF.ApprovalFormInfo = FL.LegacyForm
+		INNER JOIN jwf_forms FM ON FL.FORMID = FM.FORMID
+		INNER JOIN jwf_formsschema SC ON FM.SchemaID = SC.SchemaID
+ 		LEFT OUTER JOIN jwf_jobfunction JF ON AEF.AccountChargeInfo = JF.JobFunctionCode AND JF.EntCode =#{companyCode}
+	    WHERE	AEF.FormCode = #{formCode}
+	    AND		AEF.CompanyCode = (
+						CASE WHEN EXISTS (SELECT FormCode FROM act_expence_forms WHERE FormCode = #{formCode} AND CompanyCode = #{companyCode})
+						THEN #{companyCode}
+						ELSE 'ALL'
+						END
+					)
+		<if test='isSaaS != null and isSaaS == "Y"'>
+			AND FM.CompanyCode IN ('ORGROOT', #{companyCode})
+		</if>
+		ORDER BY seq DESC, FM.Revision DESC
+	</select>
+	
+	<select id="getFormLegacyManageInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+	   		AEF.AccountInfo AS "AccountInfo",
+	    	AEF.StandardBriefInfo AS "StandardBriefInfo",
+	    	AEF.RuleInfo AS "RuleInfo",
+	    	AEF.ProofInfo AS "ProofInfo",
+	    	AEF.AuditInfo AS "AuditInfo",
+	    	AEF.TaxInfo AS "TaxInfo",
+	    	AEF.AccountChargeInfo AS "AccountChargeInfo",
+	    	AEF.ApprovalFormInfo AS "ApprovalFormInfo",
+		 	AEF.ApprovalFormInfo AS "FormPrefix",
+		 	FM.FormName AS "FormName",
+		 	FM.FormID AS "FormID",
+			FM.ExtInfo AS "ExtInfo",
+			SC.SchemaContext AS "SchemaContext",
+			(AEF.AccountChargeInfo || '@' || JF.JobFunctionName) AS "ChargeJob"
+	    FROM act_expence_application AEA
+	    INNER JOIN jwf_process JP ON AEA.ProcessID = JP.ProcessID 
+	    INNER JOIN jwf_forminstance FI ON JP.FormInstID = FI.FormInstID 
+	    INNER JOIN jwf_forms FM ON FI.FormID = FM.FormID  
+	    INNER JOIN act_expence_forms AEF ON FM.FormPrefix = AEF.ApprovalFormInfo 
+	    INNER JOIN jwf_formsschema SC ON FM.SchemaID = SC.SchemaID
+ 		LEFT OUTER JOIN jwf_jobfunction JF ON AEF.AccountChargeInfo = JF.JobFunctionCode AND JF.EntCode =#{companyCode}
+	    WHERE AEA.ExpenceApplicationID = #{ExpAppID}
+	</select>
+
+	<select id="getFormManageCodeCombo" parameterType="cmap" resultType="cmap">
+	    /*
+	    	account.formmanage.getFormManageCodeCombo
+	    */
+		SELECT	FormCode AS "Code"
+			,	FormName AS "CodeName"
+		FROM	act_expence_forms
+		WHERE	IsUse = 'Y'
+		AND		CompanyCode = (
+					CASE WHEN EXISTS (SELECT FormCode FROM act_expence_forms WHERE IsUse = 'Y' AND CompanyCode = #{companyCode})
+					THEN #{companyCode}
+					ELSE 'ALL'
+					END
+				)
+		ORDER BY SortKey
+	</select>
+	
+	<select id="getNoteIsUse" parameterType="cmap" resultType="cmap">
+		/* account.formmanage.getNoteIsUse */
+		SELECT
+			NoteIsUse AS "NoteIsUse"
+		FROM
+			act_expence_forms
+		WHERE
+			CompanyCode = #{companyCode}
+			AND FormCode = #{formCode}
+	</select>
+</mapper>
+

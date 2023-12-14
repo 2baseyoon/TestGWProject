@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="store.adminCategory">
+	<select id="select" parameterType="cmap" resultType="cmap">
+		SELECT
+			A.CategoryID, A.CategoryName, A.IseUse, A.Seq, A.RegistDate,
+			COUNT(B.CategoryID) AS FormsCnt
+		FROM covi_approval4j.jwf_store_formscategory A
+		LEFT OUTER JOIN covi_approval4j.jwf_store_forms B ON A.CategoryID = B.CategoryID
+		GROUP BY CategoryID
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				Seq ASC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("CategoryName")'>CategoryName</when>
+					<when test='sortColumn.equalsIgnoreCase("IseUse")'>IseUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("Seq")'>Seq</when>
+					<when test='sortColumn.equalsIgnoreCase("FormsCnt")'>FormsCnt</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+    	<!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+		<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+ 	<select id="selectCount" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) 
+			FROM covi_approval4j.jwf_store_formscategory
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+				DomainId = #{DomainID}
+			</if>
+		</trim>
+	</select>
+	
+	<insert id="insertCategoryData" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_store_formscategory (
+			CategoryName, IseUse, Seq, RegistDate, RegisterCode
+		) VALUES (
+			#{CategoryName}
+			,'Y'
+			,#{SortKey}
+			,now(3)
+			,#{RegisterCode}
+		)
+	</insert>
+	
+	<update id="updateIsUseCategory" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_store_formscategory
+		SET IseUse = #{IseUse}, 
+			ModifyDate = now(3),
+			ModifierCode = #{ModUserId} 
+		WHERE CategoryID = #{CategoryID}
+	</update>
+	
+	<delete id="deleteCategory" parameterType="cmap">
+        DELETE 
+    	FROM covi_approval4j.jwf_store_formscategory
+		WHERE CategoryID IN
+		<foreach item="item" index="index" collection="CategoryID" open="(" close=")" separator=",">
+            #{item}
+    	</foreach> 
+	</delete>
+
+	<select id="selectCategoryData" parameterType="cmap" resultType="cmap">
+		SELECT 
+			CategoryID
+			,CategoryName
+			,Seq
+		 FROM covi_approval4j.jwf_store_formscategory
+		 WHERE CategoryID = #{CategoryID}
+	</select>	
+	
+	<update id="updateCategoryData" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_store_formscategory
+		SET CategoryName = #{CategoryName}, 
+			Seq = #{SortKey},
+			ModifyDate = now(3),
+			ModifierCode = #{ModUserId} 
+		WHERE CategoryID = #{CategoryID}
+	</update>
+</mapper>

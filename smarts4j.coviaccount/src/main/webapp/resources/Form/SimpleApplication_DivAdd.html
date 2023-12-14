@@ -1,0 +1,107 @@
+<div class="cnrl_bot" name="DivRowDL" proofcd="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}">
+	<div class="cnrl_mid" style="padding:0;">
+		<dl id="simpApp@@{ProofCode}_div_@@{KeyNo}_@@{Rownum}">
+			<!-- <dt>**{ACC_lbl_divExpence}</dt> -->
+			<dd style="padding: 0px 20px 0px 20px;">
+				<input type="checkbox" name="DivCheck" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}" />
+			</dd>
+			<dd style="display:table-cell; vertical-align:top;">
+				<!-- 표준적요 -->
+				<dl style="display:inline-table; margin:0 20px 7px 0;">
+					<dt style="width: 100px; display:table-cell; font-weight:bold; text-align:left; vertical-align:middle;">**{ACC_standardBrief}<span class="star"></span></dt>
+					<dd style="display:table-cell; vertical-align:top;">
+						<div class="searchBox02" style="width: 152px;">
+							<input type="hidden" id="simpApp@@{ProofCode}_accCD_@@{KeyNo}_@@{Rownum}" value="@@{accCDVal}" 
+								name="DivAccCd"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+							<input type="hidden" id="simpApp@@{ProofCode}_accNM_@@{KeyNo}_@@{Rownum}" value="@@{accNMVal}" 
+								name="DivAccNm"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+									style="border:none; height:23px;font-weight:normal;" disabled="disabled">
+							<span>
+								<select class="selectType02"
+									name="BriefSelectField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+									onchange="SimpleApplication@@{RequestType}.simpApp_ComboChange(this, 'StandardBriefID', '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+									style="width: 120px;">
+								@@{BriefOptions}
+								</select>
+								<button type="button" class="btnSearchType01"
+									onClick="SimpleApplication@@{RequestType}.simpApp_CallBriefPopup('@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">
+									**{ACC_btn_search}
+								</button>
+							</span>
+						</div>
+					</dd>
+				</dl>
+				<dl name="SelfDevelopInputArea" style="display: none;">
+					<dt style="width: 100px;">**{lbl_apv_detailItem}<span class="star"></span></dt>
+					<dd style="display:table-cell; vertical-align:top;">
+						<div class="searchBox02" style="width: 120px;">
+							<span>
+								<select class="selectType02"
+									name="SelfDevelopSelectField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+									onchange="SimpleApplication@@{RequestType}.simpApp_ComboChange(this, 'SelfDevelopDetail', '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+									style="width: 120px;">
+								</select>
+							</span>
+						</div>
+					</dd>
+				</dl>
+				<!-- 청구금액 -->
+				<dl style="display:inline-table; margin:0 20px 7px 0;">
+					<dt style="width: 100px; display:table-cell; font-weight:bold; text-align:left; vertical-align:middle;">**{ACC_billReqAmt}<span class="star"></span></dt>
+					<dd style="display:table-cell; vertical-align:top;">
+						<input type="text" id='combiCostApp@@{ProofCode}_billReqAmt_@@{KeyNo}_@@{Rownum}' 
+							kind="money" money_max="99999999999" money_min="0" tag="Amount" datafield="Amount"
+							name="DivAmountField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+							onblur="SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"  
+							value="@@{AmountVal}" style="text-align: right;"> **{ACC_krw}
+					</dd>
+				</dl>
+				<!-- 코스트센터 -->
+				<dl style="display:inline-table; margin:0 20px 7px 0;">
+					<dt style="width: 100px; display:table-cell; font-weight:bold; text-align:left; vertical-align:middle;">**{lbl_costCenter}<span class="star"></span></dt>
+					<dd style="display:table-cell; vertical-align:top;">
+						<div class="searchBox02" style="width: 152px;">
+							<span name="CostCenterField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+								<input type="hidden" id="simpApp@@{ProofCode}_CCCD_@@{KeyNo}_@@{Rownum}" value="@@{CCCDVal}" 
+									name="DivCCCd"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+								<input type="text" id="simpApp@@{ProofCode}_CCNM_@@{KeyNo}_@@{Rownum}" value="@@{CCNMVal}" 
+									name="DivCCNm"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+									style="border:none;width:120px;height:23px;font-weight:normal;" disabled="disabled">
+								<button type="button" class="btnSearchType01" style="background-position-x: 3px;"
+									onClick="SimpleApplication@@{RequestType}.simpApp_onCCSearch('@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">
+									**{ACC_btn_search}
+								</button>
+							</span>
+						</div>
+						<div class="searchBox02" name="noIOArea" style="display: none; margin-right: 5px;">
+							<span>
+								<input type="hidden" id="simpApp@@{ProofCode}_IOCD_@@{KeyNo}_@@{Rownum}" value="@@{IOCDVal}" 
+									name="DivIOCd"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+								<input type="text"  id="simpApp@@{ProofCode}_IONM_@@{KeyNo}_@@{Rownum}" value="@@{IONMVal}" 
+									name="DivIONM"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+									style="border:none;height:23px;font-weight:normal;" disabled="disabled">
+								<button type="button" class="btnSearchType01" style="background-position-x: 3px;"
+									onClick="SimpleApplication@@{RequestType}.simpApp_onIOSearch('@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">
+									**{ACC_btn_search}
+								</button>
+							</span>
+						</div>
+					</dd>
+				</dl>
+				<!-- 내역 -->
+				<dl style="display:inline-table; width:100%; margin:0 20px 7px 0;">
+					<dt style="width: 100px; display:table-cell; font-weight:bold; text-align:left; vertical-align:middle;">**{ACC_useHistory}<span class="star"></span></dt>
+					<dd style="display:table-cell; vertical-align:top;">
+						<textarea class="write_info_list_textarea" id='combiCostApp@@{ProofCode}_divComment_@@{KeyNo}_@@{Rownum}'
+							name="DivCommentField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}" 
+							style="width: 630px;" class="HtmlCheckXSS ScriptCheckXSS" tag="Comment" datafield="UsageComment"
+							onkeyup="SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+							onblur="SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">@@{UsageCommentVal}</textarea>
+						<p class="text_info" id='simpApp@@{ProofCode}_briefDecField_@@{KeyNo}'
+							name="BriefDecField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}" style="display: none;">@@{StandardBriefDesc}</p>
+					</dd>
+				</dl>
+			</dd>
+		</dl>
+	</div>
+</div>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="engineSvc.requestTaskManagement">
+    <select id="select" parameterType="cmap" resultType="int">
+        SELECT COUNT(*)
+        FROM covi_approval4j.jwf_requesttaskmanagement
+        WHERE RequestedTaskID = #{taskId};
+    </select>
+    <insert id="insert" parameterType="cmap">
+        INSERT INTO covi_approval4j.jwf_requesttaskmanagement
+        VALUES (
+        	#{taskId},
+        	now(3)
+        );
+	</insert>
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM covi_approval4j.jwf_requesttaskmanagement
+	    WHERE RequestedTaskID = #{taskId};
+	</delete>
+</mapper>

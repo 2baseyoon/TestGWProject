@@ -1,0 +1,79 @@
+<dl>
+	<dt style="width: 100px;">**{ACC_standardBrief}<span class="star"></span></dt>
+	<dd>
+		<div class="searchBox02" style="width: 152px;">
+			<input type="hidden" id="simpApp@@{ProofCode}_accCD_@@{KeyNo}_@@{Rownum}" value="@@{accCDVal}" 
+				name="DivAccCd"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+			<input type="hidden" id="simpApp@@{ProofCode}_accNM_@@{KeyNo}_@@{Rownum}" value="@@{accNMVal}" 
+				name="DivAccNm"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+				style="border:none; height:23px;font-weight:normal;" disabled="disabled">
+			<span>
+				<select class="selectType02"
+					name="BriefSelectField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+					onchange="SimpleApplication@@{RequestType}.simpApp_ComboChange(this, 'StandardBriefID', '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+					style="width: 120px;">
+				@@{BriefOptions}
+				</select>
+				<button type="button" class="btnSearchType01"
+					onClick="SimpleApplication@@{RequestType}.simpApp_CallBriefPopup('@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">
+					**{ACC_btn_search}
+				</button>
+			</span>
+		</div>
+	</dd>
+</dl>
+<dl name="SelfDevelopInputArea" style="display: none;">
+	<dt style="width: 100px;">**{lbl_apv_detailItem}<span class="star"></span></dt>
+	<dd>
+		<div class="searchBox02" style="width: 120px;">
+			<span>
+				<select class="selectType02"
+					name="SelfDevelopSelectField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+					onchange="SimpleApplication@@{RequestType}.simpApp_ComboChange(this, 'SelfDevelopDetail', '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+					style="width: 120px;">
+				</select>
+			</span>
+		</div>
+	</dd>
+</dl>
+<dl>
+	<dt style="width: 100px;">**{ACC_billReqAmt}<span class="star"></span></dt>
+	<dd>
+		<input type="text" id='simpApp@@{ProofCode}_billReqAmt_@@{KeyNo}_@@{Rownum}' 
+			tag="Amount" datafield="Amount"
+			name="AmountField"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+			onblur="removeCharMoney(this); SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}');"  
+			value="@@{AmountVal}" style="text-align: right;"> **{ACC_krw}
+	</dd>
+</dl>
+<!-- 코스트센터 -->
+<dl>
+	<dt style="width: 100px;">**{lbl_costCenter}<span class="star"></span></dt>
+	<dd>
+		<div class="searchBox02" style="width: 152px;">
+			<span name="CostCenterField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+				<input type="hidden" id="simpApp@@{ProofCode}_CCCD_@@{KeyNo}_@@{Rownum}" value="@@{CostCenterCode}" 
+					name="CostCenterCode"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}">
+				<input type="text" id="simpApp@@{ProofCode}_CCNM_@@{KeyNo}_@@{Rownum}" value="@@{CostCenterName}" 
+					name="CostCenterName"  keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}"
+					style="border:none;width:120px;height:23px;font-weight:normal;" disabled="disabled">
+				<button type="button" class="btnSearchType01" style="background-position-x: 3px;"
+					onClick="SimpleApplication@@{RequestType}.simpApp_onCCSearch('@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">
+					**{ACC_btn_search}
+				</button>
+			</span>
+		</div>
+	</dd>
+</dl>
+<dl class="cnrl_mid_ta">
+	<dt style="width: 100px;">**{ACC_useHistory}<span class="star"></span></dt>
+	<dd>
+		<textarea class="write_info_list_textarea" id='simpApp@@{ProofCode}_divComment_@@{KeyNo}'
+			name="UsageCommentField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}" 
+			style="width: 630px;" class="HtmlCheckXSS ScriptCheckXSS" tag="Comment" datafield="UsageComment"
+			onkeyup="SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"
+			onblur="SimpleApplication@@{RequestType}.simpApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">@@{UsageCommentVal}</textarea>
+		<p class="text_info" id='simpApp@@{ProofCode}_briefDecField_@@{KeyNo}'
+			name="BriefDecField" keyno="@@{KeyNo}" proofcd="@@{ProofCode}" rownum="@@{Rownum}" style="display: none;">@@{StandardBriefDesc}</p>
+	</dd>
+</dl>	

@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.adminFormClass">
+    <select id="selectFormClassList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+				(  SELECT 
+						FC.FormClassID
+						,FC.FormClassName
+						,FC.SortKey
+						,FC.AclAllYN
+						,IFNULL(sog.DisplayName,'') AS EntName
+						,IFNULL(FC.EntCode,'') AS EntCode
+						,(
+								SELECT 
+									IF( FC.AclAllYN='Y', '', 
+									GROUP_CONCAT(
+									IF(A.GroupType = 'Company', 
+										covi_smart4j.fn_entname_s(B.CompanyCode), 
+										CONCAT(covi_smart4j.fn_entname_s(B.CompanyCode), 
+										CONCAT('(',B.DisplayName,')')) )) 
+									)
+								FROM covi_approval4j.jwf_forms_acl A
+								INNER JOIN covi_smart4j.sys_object_group B ON A.GroupCode = B.GroupCode 
+								WHERE A.ObjectType ='CLASS' AND TargetID = FC.FormClassID 
+								<if test="DomainID != null and DomainID != '' and DomainID != 'ORGROOT'">
+									AND A.CompanyCode = #{DomainID}
+								</if>
+						) AS DisplayName
+					 FROM covi_approval4j.jwf_formclass FC
+					 LEFT JOIN covi_smart4j.sys_object_group sog ON FC.EntCode = sog.GroupCode 
+					<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+							and 
+							(
+								(
+									fc.AclAllYN = 'Y'
+									and fc.EntCode IN ('ORGROOT', #{DomainID})
+								)
+							OR 
+								(
+									exists 
+									( 
+										select 1 from covi_approval4j.jwf_forms_acl jfa 
+										where jfa.TargetID = fc.FormClassID and jfa.ObjectType = 'CLASS'
+										and jfa.CompanyCode=#{DomainID}
+									)
+									<if test='isSaaS != null and isSaaS.equals("Y")'>
+										and fc.EntCode IN ('ORGROOT', #{DomainID})
+									</if>
+								)
+							 )
+							
+						</if>
+						<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+							AND 
+							<choose>
+								<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+							</choose>  
+							LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+						</if>		
+						<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+							AND (
+								FormClassName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 		   
+							)
+						</if>
+					</trim> 
+			  ) A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+						<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+						<otherwise>SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					SortKey ASC
+				</if>
+			</trim>
+	   		<!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지} -->
+		    <if test="pageSize != null and pageOffset != null">
+		   		LIMIT #{pageSize} OFFSET #{pageOffset}
+		   	</if>
+	</select>
+	
+    
+    <select id="selectFormClassListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (		SELECT 
+						FC.FormClassID
+					 FROM covi_approval4j.jwf_formclass FC
+					 LEFT JOIN covi_smart4j.sys_object_group sog ON FC.EntCode = sog.GroupCode 
+					<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+							and 
+							(
+								(
+									fc.AclAllYN = 'Y'
+									and fc.EntCode IN ('ORGROOT', #{DomainID})
+								)
+							OR 
+								(
+									exists 
+									( 
+										select 1 from covi_approval4j.jwf_forms_acl jfa 
+										where jfa.TargetID = fc.FormClassID and jfa.ObjectType = 'CLASS'
+										and jfa.CompanyCode=#{DomainID}
+									)
+									<if test='isSaaS != null and isSaaS.equals("Y")'>
+										and fc.EntCode IN ('ORGROOT', #{DomainID})
+									</if>
+								)
+							 )
+						</if>
+						<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+							AND 
+							<choose>
+								<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+							</choose>  
+							LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+						</if>		
+						<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+							AND (
+								FormClassName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 		   
+							)
+						</if>
+					</trim>
+				) A 		
+	</select>
+	
+	<select id="selectFormClassData" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+					FC.FormClassID
+					,FC.FormClassName
+					,FC.SortKey
+					,IFNULL(FC.EntCode,'') AS EntCode
+					,IFNULL(BOD.DisplayName,'') AS DisplayName
+				 FROM covi_approval4j.jwf_formclass FC
+				 LEFT JOIN covi_smart4j.sys_object_domain BOD
+				 ON FC.EntCode = BOD.DomainCode
+				 WHERE FormClassID = #{FormClassID} 
+				) A		
+	</select>
+    
+    
+    
+    <insert id="insertFormClassData" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_formclass(			
+			FormClassName
+			,SortKey
+			,EntCode
+			,AclAllYN
+	)
+	VALUES
+	(
+			#{FormClassName}
+			,#{SortKey}
+			,#{EntCode}
+			,#{AclAllYN}	
+	)
+	]]>
+		<selectKey keyProperty="FormClassID" resultType="Integer" order="AFTER">
+		   SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateFormClassData" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_formclass
+		SET			
+			FormClassName = #{FormClassName}
+			,SortKey = #{SortKey}
+			,EntCode = #{EntCode}
+			,AclAllYN = #{AclAllYN}
+	WHERE
+		FormClassID = #{FormClassID}
+			
+	]]>
+	</update>
+	
+	<select id="selectEachFormClassData" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT * FROM covi_approval4j.jwf_forms
+				WHERE FormClassID = #{FormClassID}
+				) A		
+		
+	</select>
+	
+	<delete id="deleteFormClassData" parameterType="cmap">
+	<![CDATA[
+		DELETE FROM covi_approval4j.jwf_formclass		
+		WHERE
+			FormClassID = #{FormClassID}
+			
+	]]>
+	</delete>
+	
+	<delete id="deleteClassAcl" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_forms_acl
+		WHERE ObjectType = 'CLASS' AND TargetID = #{FormClassID}
+		AND ID NOT IN 
+		<foreach item="item" index="index" collection="list" open="(" close=")" separator=" ">
+			SELECT ID FROM covi_approval4j.jwf_forms_acl
+			WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+			AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+			AND GroupType = #{item.GroupType}
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</delete>
+	
+	<insert id="insertClassAcl" parameterType="java.util.List">
+		INSERT INTO covi_approval4j.jwf_forms_acl
+			(ObjectType,TargetID,CompanyCode,GroupCode,GroupType,RegisterCode)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.ObjectType}
+				,#{item.TargetID}
+				,#{item.CompanyCode}
+				,#{item.GroupCode}
+				,#{item.GroupType}
+				,#{item.RegisterCode}
+			FROM DUAL
+			WHERE NOT EXISTS(
+				SELECT 1 FROM covi_approval4j.jwf_forms_acl
+				WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+				AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+				AND GroupType = #{item.GroupType}
+			)
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteAllClassAcl" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_forms_acl
+		WHERE ObjectType = #{ObjectType}
+		AND TargetID = #{FormClassID}
+	</delete>
+	
+	<select id="getFormClassAclSelect" resultType="cmap">
+		SELECT
+			'group' AS itemType
+			,gr.GroupID
+			,gr.MultiDisplayName AS DN
+			,cn.MultiDisplayName AS ETNM
+			,gr.CompanyCode
+			,gr.GroupCode
+			,gr.GroupType
+		FROM covi_smart4j.sys_object_group AS gr
+		LEFT JOIN covi_smart4j.sys_object_group AS cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		INNER JOIN covi_approval4j.jwf_forms_acl jfa ON gr.GroupCode = jfa.GroupCode AND gr.GroupType = jfa.GroupType AND jfa.ObjectType = 'CLASS'
+		WHERE 1=1
+		AND gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+		AND gr.GroupType IN ('Dept','Company')
+		AND jfa.TargetID = #{FormClassID}
+	</select>	
+</mapper>
+

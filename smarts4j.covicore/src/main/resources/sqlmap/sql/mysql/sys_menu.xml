@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="menu">
+    <select id="selectone" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT a.MenuID, a.DomainID, a.IsAdmin, a.MenuType, a.BizSection, a.ParentObjectID, a.ParentObjectType, a.ServiceDevice, a.DisplayName, a.MultiDisplayName, a.IconClass, IFNULL(a.MemberOf,0) AS MemberOf,
+				a.MenuPath, a.LinkMenuID, a.SecurityLevel, a.SortKey, a.SiteMapPosition, a.SortPath, a.HasFolder, a.IsInherited, a.IsUse, a.IsDisplay,
+				case when a.OriginMenuID IS not null AND a.OriginMenuID>0   then b.URL ELSE a.URL end URL, 
+				case when a.OriginMenuID IS not null AND a.OriginMenuID>0   then b.MobileURL ELSE a.MobileURL end MobileURL, 
+				case when a.OriginMenuID IS not null AND a.OriginMenuID>0   then b.Reserved5 ELSE a.Reserved5 end Reserved5, 
+				a.Target, a.MobileTarget, a.Description, a.Reserved1, a.Reserved2, a.Reserved3, a.Reserved4 , a.OriginMenuID, a.IsCopy
+				, Fn_GetBaseCodeName(0, 'MenuType', a.MenuType) AS MenuTypeName, Fn_GetBaseCodeName(0, 'BizSection', a.BizSection) AS BizSectionName, a.MenuAlias
+		FROM	  covi_smart4j.sys_object_menu a
+		LEFT JOIN covi_smart4j.sys_object_menu b ON a.OriginMenuID = b.MenuID AND b.DomainID = 0
+		WHERE     a.MenuID = #{menuID} 
+	]]>
+	</select>
+	
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT	MenuID, DomainID, IsAdmin, MenuType, BizSection, ParentObjectID, ParentObjectType, ServiceDevice, Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS DisplayName, MultiDisplayName, IconClass, IFNULL(MemberOf,0) AS MemberOf, 
+			MenuPath, LinkMenuID, SecurityLevel, SortKey, SortPath, SiteMapPosition, HasFolder, IsInherited, IsUse, IsDisplay, URL, MobileURL, Target, MobileTarget, Description,
+			RegisterCode, RegistDate, ModifierCode, ModifyDate, DeleteDate, Reserved1, Reserved2, Reserved3, Reserved4, Reserved5
+			,Fn_BaseGetDictionary_S(#{lang},Fn_GetBaseMultiCodeName(0,'MenuType',MenuType)) as MenuTypeName
+			,Fn_BaseGetDictionary_S(#{lang},Fn_GetBaseMultiCodeName(0,'BizSection',BizSection)) as BizSectionName
+		FROM covi_smart4j.sys_object_menu
+		WHERE DomainID = #{domainID} 
+		AND IsAdmin = #{isAdmin}
+	]]>
+    	<if test='isAll == "N"'>
+    		AND IsUse = 'Y'
+		</if>
+		ORDER BY SortPath
+	<!--,(SELECT COUNT(0) FROM covi_smart4j.sys_object_menu WHERE DomainID = #{domainID} AND IsAdmin = #{isAdmin} AND IFNULL(MemberOf,0) = M.MenuID) AS ChildCount -->
+	</select>
+	
+	<select id="selectTree" parameterType="cmap" resultType="cmap">
+		/* queryId : menu.selectTree */
+		SELECT a.MenuID AS no, a.DisplayName AS nodeName, a.MemberOf AS pno, a.SortPath, a.DomainID, a.IsAdmin
+		  FROM covi_smart4j.sys_object_menu A
+     LEFT join covi_smart4j.sys_object_menu B on B.menuid=a.MemberOf AND B.DomainID = A.DomainID
+		 WHERE a.DomainID = #{domainID}
+		   AND a.IsAdmin = #{isAdmin}
+			<if test='IsUse != null and IsUse !=""'>
+			   AND a.IsUse = #{IsUse}
+		   </if>
+		   AND (a.MemberOf =0 or b.MenuID IS NOT NULL)
+		 ORDER BY a.SortPath
+	</select>
+	
+	<select id="selectMoveTargetForValidation" parameterType="cmap" resultType="cmap">
+		SELECT GROUP_CONCAT(MenuID SEPARATOR ',') AS menuIds,
+			   (SELECT MemberOf FROM covi_smart4j.sys_object_menu B WHERE B.MenuID = #{menuId}) AS parentMenuId,
+			   (SELECT IF((parentId = tarParentId) AND (tarSortKey <![CDATA[>]]> SortKey),'Y','N')
+				  FROM (SELECT MemberOf AS parentId, SortKey
+				    	 FROM covi_smart4j.sys_object_menu
+						WHERE MenuID = #{menuId}
+					   ) A,
+				 	   (SELECT MemberOf AS tarParentId, SortKey AS tarSortKey
+						  FROM covi_smart4j.sys_object_menu
+						 WHERE MenuID = #{tarMenuId}
+					   ) B
+			   ) AS tarSortUpYn
+		  FROM (SELECT MenuID
+			      FROM covi_smart4j.sys_object_menu A
+			     WHERE FIND_IN_SET(MenuID, (SELECT CONCAT(GROUP_CONCAT(Level SEPARATOR ','))
+		  							  		  FROM (SELECT @Ids := (SELECT GROUP_CONCAT(MenuID SEPARATOR ',')
+													          		  FROM covi_smart4j.sys_object_menu
+													         	     WHERE FIND_IN_SET(MemberOf, @Ids)
+			     												   ) Level
+											  	      FROM covi_smart4j.sys_object_menu
+											  	      JOIN (SELECT @Ids := #{menuId}) temp1
+											 	     WHERE FIND_IN_SET(MemberOf, @Ids)
+			  									   ) temp2
+									 	   )
+								  )
+			   ) temp3
+	</select>
+	
+	<insert id="insertMenu" parameterType="cmap" useGeneratedKeys="true">
+		INSERT INTO covi_smart4j.sys_object_menu (
+			DomainID, 
+			IsAdmin, 
+			MenuType, 
+			BizSection, 
+			ParentObjectID, 
+			ParentObjectType, 
+			ServiceDevice, 
+			DisplayName, 
+			MultiDisplayName, 
+			IconClass,
+			MemberOf, 
+			MenuPath, 
+			SecurityLevel, 
+			SortKey, 
+			SortPath, 
+			IsUse, 
+			IsCopy,
+			IsDisplay, 
+			URL, 
+			MobileURL, 
+			Target, 
+			MobileTarget,
+			Description,
+			RegisterCode, 
+			RegistDate, 
+			SiteMapPosition,
+			Reserved1, 
+			Reserved2, 
+			Reserved3, 
+			Reserved4, 
+			Reserved5,
+			IsInherited,
+			MenuAlias
+		)
+		VALUES (
+			#{domainID}, 
+			#{isAdmin}, 
+			#{menuType}, 
+			#{bizSection}, 
+			#{parentObjectID}, 
+			#{parentObjectType}, 
+			#{serviceDevice}, 
+			#{displayName}, 
+			#{multiDisplayName}, 
+			#{iconClass},
+			#{memberOf}, 
+			(SELECT CONCAT(IFNULL(MenuPath.MenuPath, ''), #{memberOf}, ';') FROM covi_smart4j.sys_object_menu AS MenuPath WHERE MenuPath.MenuID = #{memberOf}),
+			#{securityLevel}, 
+			#{sortKey}, 
+			#{sortPath}, 
+			#{isUse}, 
+			#{isCopy}, 
+			#{isDisplay}, 
+			#{url}, 
+			#{mobileURL}, 
+			#{target}, 
+			#{mobileTarget},
+			#{description},
+			#{registerCode}, 
+			NOW(3), 
+			#{siteMapPosition},
+			#{reserved1}, 
+			#{reserved2}, 
+			#{reserved3}, 
+			#{reserved4}, 
+			#{reserved5},
+			#{isInherited},
+			#{menuAlias}
+		)
+		<selectKey keyProperty="MenuID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	
+	<update id="updateMenu" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_menu
+		SET 
+			DisplayName=#{displayName},
+			MultiDisplayName=#{multiDisplayName},
+			MenuPath = (SELECT CONCAT(IFNULL(MenuPath.MenuPath, ''), #{memberOf}, ';') FROM covi_smart4j.sys_object_menu AS MenuPath WHERE MenuPath.MenuID = #{memberOf}),
+			IsInherited = #{isInherited},
+		<if test='isEasyAdmin == null or isEasyAdmin ==""'>
+			MenuType=#{menuType},
+			BizSection=#{bizSection},
+			ServiceDevice=#{serviceDevice},
+			IconClass=#{iconClass},
+			SecurityLevel=#{securityLevel},
+			IsUse=#{isUse},
+			IsCopy=#{isCopy},
+			URL=#{url},
+			MobileURL=#{mobileURL},
+			Target=#{target},
+			MobileTarget=#{mobileTarget},
+			Reserved1=#{reserved1},
+			Reserved2=#{reserved2},
+			Reserved5=#{reserved5},
+			SiteMapPosition=#{siteMapPosition},
+			Description=#{description},
+			MenuAlias=#{menuAlias},
+		</if>
+			ModifierCode=#{modID},
+			ModifyDate=NOW(3)
+		WHERE MenuID = #{menuID}
+	</update>
+	
+	<update id="updateMenuIsUse" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_menu
+		SET	  IsUse = #{isUse}
+			, ModifierCode = #{modID}
+			, ModifyDate = NOW(3)
+		WHERE MenuID = #{menuID}
+	</update>
+	
+	<delete id="deleteMenu" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_object_menu
+		WHERE MenuID IN 
+		<foreach collection="menuIDArr" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</delete>
+	
+	<update id="moveMenu" parameterType="cmap">	
+	<![CDATA[
+		UPDATE covi_smart4j.sys_object_menu
+		SET 
+			SortKey=#{sortKey},
+			MemberOf=#{memberOf},
+			SortPath=#{sortPath},
+			ModifierCode=#{modID},
+			ModifyDate=NOW(3)
+		WHERE MenuID = #{menuID}
+	]]>
+	</update>
+	
+	<select id="selectMoveTargetChild" parameterType="cmap" resultType="cmap">
+		SELECT MenuID, DisplayName, SortPath
+    	  FROM covi_smart4j.sys_object_menu A
+   	 WHERE FIND_IN_SET(MenuID, (SELECT CONCAT(GROUP_CONCAT(Level SEPARATOR ',')) 
+							  		  FROM (SELECT @Ids := (SELECT GROUP_CONCAT(MenuID SEPARATOR ',')
+											          		  FROM covi_smart4j.sys_object_menu
+											         	     WHERE FIND_IN_SET(MemberOf, @Ids)
+		    											   ) Level
+									  	      FROM covi_smart4j.sys_object_menu
+									  	      JOIN (SELECT @Ids := #{menuId}) temp1
+									 	     WHERE FIND_IN_SET(MemberOf, @Ids)
+ 									  	   ) temp2
+					 	  		   )
+				   	  )
+	ORDER BY a.SortPath			
+	</select>
+	
+	<select id="selectMoveTargetSiblings" parameterType="cmap" resultType="cmap">
+		SELECT A.MenuID, A.SortKey, A.SortPath
+		  FROM covi_smart4j.sys_object_menu A,
+		 	   (SELECT MenuID, MemberOf, SortKey, IsAdmin, DomainID 
+		 	  	  FROM covi_smart4j.sys_object_menu 
+		 	  	 WHERE MenuID = #{menuId}) B
+		 WHERE A.IsAdmin = B.IsAdmin
+		   AND A.DomainID = B.DomainID
+		   AND A.MemberOf = B.MemberOf
+		   AND A.SortKey <![CDATA[>]]> B.SortKey
+	</select>
+	
+	<update id="moveMenuByPopup" parameterType="cmap">
+        <foreach collection="dataList" item="item" separator=";">
+			UPDATE covi_smart4j.sys_object_menu
+			   SET <if test='item.sortKey != null and item.sortKey !=""'>
+					   SortKey = #{item.sortKey},
+				   </if>
+				   <if test='item.parentObjectId != null and item.parentObjectId !=""'>
+					   ParentObjectID = #{item.parentObjectId},
+				   </if>
+				   <if test='item.memberOf != null and item.memberOf !=""'>
+					   MemberOf = #{item.memberOf},
+				   </if>
+				   <if test='item.domainId != null and item.domainId !=""'>
+					   DomainID = #{item.domainId},
+				   </if>
+				   <if test='item.isAdmin != null and item.isAdmin !=""'>
+					   IsAdmin = #{item.isAdmin},
+				   </if>
+				   SortPath = #{item.sortPath},
+				   ModifierCode = #{item.userCode},
+				   ModifyDate = NOW(3)
+			 WHERE MenuID = #{item.menuId}
+        </foreach>
+	</update>
+	
+	<insert id="insertExportMenu" parameterType="cmap">
+		<foreach collection="cList" item="item" open="" close="" separator=";">
+			INSERT INTO covi_smart4j.sys_object_menu
+			(
+				  DomainID
+				, IsAdmin
+				, MenuType
+				, BizSection
+				, ParentObjectID
+				, ParentObjectType
+				, ServiceDevice
+				, DisplayName
+				, MultiDisplayName
+				, IconClass
+				, MemberOf
+				, MenuPath
+				, LinkMenuID
+				, SecurityLevel
+				, SortKey
+				, SortPath
+				, SiteMapPosition
+				, HasFolder
+				, IsInherited
+				, IsUse
+				, IsDisplay
+				, URL
+				, MobileURL
+				, Target
+				, MobileTarget
+				, Description
+				, RegisterCode
+				, RegistDate
+				, ModifierCode
+				, ModifyDate
+				, DeleteDate
+				, Reserved1
+				, Reserved2
+				, Reserved3
+				, Reserved4
+				, Reserved5
+				, OriginMenuID
+				, IsCopy
+			)
+			SELECT
+			  #{item.domainID} AS DomainID
+			, a.IsAdmin
+			, a.MenuType
+			, a.BizSection
+			, #{item.domainID} AS ParentObjectID
+			, a.ParentObjectType
+			, a.ServiceDevice
+			, a.DisplayName
+			, a.MultiDisplayName
+			, a.IconClass
+			, IFNULL(myTop.Menuid ,0)
+			, a.MenuPath
+			, a.LinkMenuID
+			, a.SecurityLevel
+			, #{item.sortKey}
+			, #{item.sortPath}
+			, a.SiteMapPosition
+			, a.HasFolder
+			, a.IsInherited
+			, a.IsUse
+			, a.IsDisplay
+			, a.URL
+			, a.MobileURL
+			, a.Target
+			, a.MobileTarget
+			, a.Description
+			, #{userCode} AS RegisterCode
+			, NOW(3) AS RegistDate
+			, #{userCode} AS ModifierCode
+			, NOW(3) AS ModifyDate
+			, a.DeleteDate
+			, a.Reserved1
+			, a.Reserved2
+			, a.Reserved3
+			, a.Reserved4
+			, a.Reserved5
+			, a.MenuID AS OriginMenuID
+			, a.IsCopy
+			FROM covi_smart4j.sys_object_menu a
+	   LEFT JOIN  covi_smart4j.sys_object_menu myTop ON myTop.OriginMenuID = a.MemberOf AND myTop.DomainID=#{item.domainID}
+	   LEFT JOIN  covi_smart4j.sys_object_menu B ON b.Menuid = myTop.Menuid   AND B.DomainID=myTop.DomainID
+		   WHERE a.DomainID = 0 
+			 AND a.MenuID = #{item.menuId}
+			</foreach>
+	</insert>
+	
+	<update id="updateExportMenu" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_menu trg,
+		(
+			SELECT	  trg.MenuID AS parentMenuId
+					, org.MenuID AS MenuID
+			FROM covi_smart4j.sys_object_menu org  
+			JOIN covi_smart4j.sys_object_menu trg ON org.ParentObjectID = trg.OriginMenuID
+			WHERE org.DomainID = 0
+			AND trg.DomainID = #{domainID}
+			AND org.MenuID IN 
+			<foreach collection="menuIDList" item="menuID" open="(" close=")" separator=",">
+				#{menuID}
+			</foreach>
+		) a
+		SET	  ParentObjectID = #{domainID}
+			, MemberOf = a.parentMenuId
+			, MenuPath = Fn_ComObjectPathCreate_S(trg.MenuID,'','MN')
+		WHERE trg.DomainID = #{domainID}
+		AND trg.menutype != 'Top'
+		AND trg.OriginMenuID = a.MenuID
+		AND EXISTS (SELECT 1 FROM covi_smart4j.sys_object_menu C WHERE C.OriginMenuID = trg.MenuID)
+	</update>
+	
+	<insert id="insertExportMenuACL" parameterType="cmap">
+		# 메뉴 권한 생성-사용자 권한-관리조직
+		INSERT INTO covi_smart4j.sys_object_acl (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		(
+			SELECT o.MenuID, 'MN', CONCAT(#{domainID}, '_', REPLACE(A.SubjectCode,'0_','')), A.SubjectType, A.AclList, SECURITY, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, '',#{userCode},now(3)
+			FROM covi_smart4j.sys_object_menu o
+			INNER JOIN covi_smart4j.sys_object_menu m ON o.OriginMenuID = m.MenuID AND m.domainid = 0
+			INNER JOIN covi_smart4j.sys_object_acl A ON m.MenuID = a.ObjectID
+			INNER JOIN covi_smart4j.sys_object_group g ON a.SubjectCode = g.GroupCode AND g.GroupType = 'Manage'
+			WHERE o.domainid = #{domainID}
+			AND o.IsAdmin = 'N'
+			AND o.IsUse = 'Y'
+			AND A.ObjectType = 'MN'
+			AND A.SubjectType = 'GR'
+			AND m.MenuID IN 
+			<foreach collection="menuIDList" item="menuID" open="(" close=")" separator=",">
+				#{menuID}
+			</foreach>
+		);
+		
+		# 메뉴 권한 생성-사용자 권한-설정 제외
+		INSERT INTO covi_smart4j.sys_object_acl (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		(
+			SELECT m.MenuId, 'MN', d.DomainCode, 'CM', 'SCDMEVR', 'S', 'C', 'D', 'M', 'E', 'V', 'R', '', #{userCode}, NOW(3)
+			FROM covi_smart4j.sys_object_menu m
+			INNER JOIN covi_smart4j.sys_object_domain d ON d.DomainID = m.DomainID
+			LEFT JOIN covi_smart4j.sys_object_acl a ON m.menuID = a.ObjectID AND a.ObjectType = 'MN' 
+			WHERE m.DomainID = #{domainID}
+			AND m.IsAdmin = 'N'
+			AND a.AclID IS NULL
+			AND m.BizSection != 'Conf'
+			AND m.OriginMenuID IN 
+			<foreach collection="menuIDList" item="menuID" open="(" close=")" separator=",">
+				#{menuID}
+			</foreach>
+		);
+		
+		# 메뉴 권한 생성-시스템  권한
+		INSERT INTO covi_smart4j.sys_object_acl (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		(
+			SELECT MenuId, 'MN', CONCAT(DomainID, '_Admin'), 'GR', 'SCDMEVR', 'S', 'C', 'D', 'M', 'E', 'V', 'R', '', #{userCode}, NOW(3)
+			FROM covi_smart4j.sys_object_menu 
+			WHERE DomainID = #{domainID}
+			AND (IsAdmin = 'Y' or  BizSection = 'Conf')
+			AND OriginMenuID IN 
+			<foreach collection="menuIDList" item="menuID" open="(" close=")" separator=",">
+				#{menuID}
+			</foreach>
+		);
+	</insert>
+	
+	<select id="selectMaxSortKey" parameterType="cmap" resultType="java.lang.Long">
+		SELECT IFNULL(MAX(SortKey), -1) + 1 AS SortKey
+		FROM covi_smart4j.sys_object_menu
+		WHERE DomainID = #{domainID}
+		AND MemberOf = 0
+		AND IsAdmin = (SELECT IsAdmin FROM covi_smart4j.sys_object_menu WHERE MenuID = #{menuId})
+	</select>
+	
+	<select id="selectChildCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT IFNULL(MAX(SortKey), -1)+1
+		  FROM covi_smart4j.sys_object_menu B	 
+		 WHERE DomainID = #{tarDomainId}
+		  AND  IsAdmin = #{tarIsAdmin}
+		  AND  MemberOf =#{tarMenuId}
+	</select>
+				   
+	<select id="selectExportMenu" parameterType="cmap" resultType="cmap">
+		SELECT T.MenuID, T.DisplayName, T.SortPath, T.IsAdmin, T.SortKey,
+			(CASE WHEN (T.MenuID NOT IN(
+	 						SELECT OriginMenuID FROM covi_smart4j.sys_object_menu
+							WHERE DomainID = #{ImportDomainId} AND OriginMenuID IS NOT NULL))
+		 	 THEN 'N' 
+	 	 	 ELSE 'Y' END) AS IsExistMenu
+		FROM (
+			SELECT A.MenuID, A.DisplayName, A.SortPath, A.IsAdmin, A.SortKey
+			FROM covi_smart4j.sys_object_menu A
+			WHERE 1=1
+			AND A.DomainID = #{ExportDomainId}
+			AND A.IsCopy = 'Y'
+			<if test='menuId != null and menuId == -1'>
+			AND A.IsAdmin = #{IsAdmin}
+			</if>
+			<if test='IsAll != null and IsAll == "N"'>
+			AND A.IsUse = 'Y'
+			</if>
+			<if test='menuId != null and menuId != -1'>
+			AND (CASE 
+				 WHEN (SELECT MemberOf FROM covi_smart4j.sys_object_menu WHERE MenuID = #{menuId}) = 0
+				 THEN A.MenuPath LIKE CONCAT(#{menuId}, ';%')
+				 ELSE A.MenuPath LIKE CONCAT('%;', #{menuId}, ';%') END OR (A.MenuID = #{menuId}))
+			</if>
+		) AS T
+	</select>
+	
+	<update id="updateExportMenuPath" parameterType="clist">
+		<foreach collection="list" item="item" index="index" separator=";">
+		UPDATE covi_smart4j.sys_object_menu SOB, (
+			SELECT CONCAT(Fn_ComObjectPathCreate_S(MenuID,'','MN'), MenuID, ';') AS MenuPath, MenuID FROM sys_object_menu
+			WHERE OriginMenuID IN (
+				SELECT ParentObJectID
+				FROM covi_smart4j.sys_object_menu
+				WHERE MenuID = #{item.menuId}
+			)	AND DomainID = #{item.domainID}
+		) T
+		SET 
+			SOB.ParentObjectID = #{item.domainID},
+			SOB.MemberOf = T.MenuID,
+			SOB.MenuPath = T.MenuPath,
+			SOB.SortKey = #{item.sortKey},
+			SOB.SortPath = #{item.sortPath}
+		WHERE 
+			SOB.DomainID = #{item.domainID} AND
+			SOB.MenuType != 'Top' AND
+			SOB.OriginMenuID = #{item.menuId} AND
+			EXISTS (SELECT 1 FROM covi_smart4j.sys_object_menu C WHERE C.OriginMenuID = sob.MENUID)
+		</foreach>
+	</update>
+	
+	<select id="checkDuplicatedMenuAlias" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM sys_object_menu
+		WHERE MenuAlias = #{menuAlias}
+		AND LENGTH(MenuAlias) <![CDATA[>]]> 0
+		AND DomainID = #{domainID}
+		<if test='menuID != null and menuID !=""'>
+			AND MenuID <![CDATA[<>]]> #{menuID}
+		</if>
+	</select>
+</mapper>

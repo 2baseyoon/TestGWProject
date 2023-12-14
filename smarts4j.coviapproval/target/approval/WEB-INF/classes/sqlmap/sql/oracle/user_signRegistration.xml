@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.signRegistration">
+    <select id="selectUserSignList" parameterType="cmap" resultType="cmap">
+    	<include refid="oracle.include.pagingHeader"/>
+			SELECT
+				Seq AS "SignID"
+				, UserCode AS "UserCode"
+				, IsUse AS "IsUse"
+				, FileName AS "FileName"
+				, SortKey AS "SortKey"
+				, InsertDate AS "InsertDate"
+				, FilePath AS "FilePath"
+				, FileID AS "FileID"
+			FROM jwf_signimage
+			WHERE UserCode = #{UserCode}
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectUserSignImage" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+			SELECT
+				Seq AS "SignID"
+				, UserCode AS "UserCode"
+				, IsUse AS "IsUse"
+				, FileName AS "FileName"
+				, SortKey AS "SortKey"
+				, InsertDate AS "InsertDate"
+				, FilePath AS "FilePath"
+				, FileID AS "FileID"
+			FROM jwf_signimage
+			WHERE Seq = #{signID}
+	    ]]>
+	</select>
+
+    <delete id="deleteUserSign" parameterType="cmap">
+    	DELETE FROM jwf_signimage
+    	WHERE seq = #{SignID}
+    </delete>
+
+    <update id="updateUserSignUseY" parameterType="cmap">
+		<![CDATA[
+        UPDATE jwf_signimage
+		SET IsUse = 'Y'
+		WHERE UserCode = #{UserCode}
+		And Seq = #{SignID}
+		]]>
+    </update>
+
+    <update id="insertUserSignUseYTop" parameterType="cmap">
+		<![CDATA[
+		UPDATE jwf_signimage
+		SET IsUse = 'Y'
+		WHERE usercode = #{UserCode}
+		and Seq IN (
+			SELECT SEQ FROM (
+				SELECT SEQ, ROWNUM AS R_ID FROM jwf_signimage
+				WHERE usercode = #{UserCode}
+				and Seq NOT IN (#{SignID})
+				ORDER BY InsertDate DESC
+			 )A
+			WHERE R_ID <=1
+		)
+		]]>
+    </update>
+    
+    <update id="updateUserSignUseN" parameterType="cmap">
+		<![CDATA[
+	        UPDATE jwf_signimage
+			SET IsUse = 'N'
+			WHERE UserCode = #{UserCode}
+			And Seq != #{SignID}
+		]]>
+    </update>
+
+    <insert id="insertUserSign" parameterType="cmap">
+        INSERT INTO jwf_signimage
+        	(UserCode, FileName, IsUse, InsertDate,FilePath,FileID)
+        VALUES(
+        	#{UserCode},#{FileName},#{IsUse},SYSDATE,#{FilePath},#{FileID}
+        )
+    </insert>
+
+    <!-- 사인등록시 다른 사인사용여부 N으로 변경  -->
+    <update id="insertUserSignUseN" parameterType="cmap">
+		UPDATE jwf_signimage
+		SET IsUse = 'N'
+		WHERE UserCode = #{UserCode}
+    </update>
+
+    <update id="updateUserSign" parameterType="cmap">
+		UPDATE jwf_signimage
+		SET IsUse = #{IsUse}
+		<if test="FileName != null">
+		    ,FileName = #{FileName}
+		</if>
+		<if test="FilePath != null">
+		    ,FilePath = #{FilePath}
+		</if>
+		<if test="FileID != null">
+		    ,FileID = #{FileID}
+		</if>
+		WHERE Seq = #{SignID}
+    </update>
+    
+    <select id="selectUserSignAuth" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM jwf_signimage
+		WHERE USERCODE = #{userID}
+		<choose>
+			<when test="signID != null and signID !=''"> AND SEQ = #{signID}</when>
+			<otherwise> AND FileName = #{fileName}</otherwise>
+		</choose>
+	</select>
+</mapper>
+

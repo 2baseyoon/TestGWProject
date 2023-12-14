@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.authority">
+ 	<sql id="searchGroup">
+ 		AND a.SubjectType != 'UR'
+	 	AND ((g.GroupType !='Dept' AND g.GroupCode IN 
+			<foreach collection="subjectCodeArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+			)
+			OR (g.GroupType ='Dept' AND a.IsSubInclude = 'Y' AND INSTR(#{deptPath},g.GroupPath) = 1) 
+			OR (g.GroupType ='Dept' AND a.IsSubInclude = 'N' AND #{deptPath}  = g.GroupPath)
+		 )
+ 	</sql>
+ 	
+    <!-- 비사용 -->
+ 	<select id="selectAssignedBaseGroup" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT CompanyCode AS "CompanyCode"
+			     , DeptCode AS "DeptCode"
+			     , RegionCode  AS "RegionCode"
+			     , JobPositionCode  AS "JobPositionCode"
+			     , JobTitleCode  AS "JobTitleCode"
+			     , JobLevelCode  AS "JobLevelCode"
+			FROM SYS_OBJECT_USER_BASEGROUP
+			WHERE UserCode = #{userCode}
+			AND CompanyCode = (SELECT DomainCode FROM sys_object_domain WHERE DomainID = #{domainID})
+	    ]]>
+	</select>
+
+    
+    <select id="selectGroupPath" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT GroupPath AS "GroupPath"
+			FROM sys_object_group
+			WHERE GroupCode = #{deptCode}
+	    ]]>
+	</select>
+    
+ 	<select id="selectAllowedURL" parameterType="cmap" resultType="cmap">
+		SELECT AccessUrlID AS "AccessUrlID"
+			, URL AS "URL"
+		FROM SYS_ACCESS_URL
+		WHERE IsUse = 'Y'
+		<if test="IsAdmin">
+			AND IsAdmin = 'Y' OR IsAdmin is null
+		</if>
+		<if test="!IsAdmin">
+			AND IsAdmin = 'N'
+		</if>
+	</select>
+ 	
+ 	<select id="selectAssignedGroup" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DISTINCT GM.GroupCode AS "GroupCode"
+			FROM sys_object_group_member GM
+			INNER JOIN sys_object_group G ON GM.GroupCode = G.GroupCode
+			WHERE UserCode = #{userCode}
+			AND G.CompanyCode IN (#{domainCode}, 'ORGROOT')
+			AND G.GroupType NOT IN ('Dept', 'JobLevel', 'JobPosition', 'JobTitle')
+	    ]]>
+	</select>
+	
+	<select id="selectAssignedGroupMember" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT gm.GroupCode AS "GroupCode"
+		FROM   sys_object_group_membergroup gm
+		INNER JOIN sys_object_group G ON gm.GroupCode = G.GroupCode
+		WHERE gm.MemberGroupCode IN ('' 
+		<foreach collection="groupIDArr" item="item" open="," close="" separator=",">
+			#{item}
+		</foreach>
+		)
+		AND G.CompanyCode IN (#{domainCode}, 'ORGROOT')
+		AND G.GroupType NOT IN ('Dept', 'JobLevel', 'JobPosition', 'JobTitle')
+	</select>
+	
+	
+	
+	<select id="selectAuthorizedACL_User" parameterType="cmap" resultType="cmap">
+   		SELECT AclID AS "AclID"
+			, ObjectID AS "ObjectID"
+			, ObjectType AS "ObjectType"
+			, AclList AS "AclList"
+		FROM sys_object_acl 
+		<if test="objectType == 'PT'">
+			INNER JOIN portal pt on pt.BizSection = 'Portal' AND pt.IsUse = 'Y' and pt.PortalID = ObjectID
+		</if>	
+		WHERE ObjectType = #{objectType}
+		AND SubjectType = 'UR'
+		AND SubjectCode = #{userCode}
+	</select>
+	<select id="selectAuthorizedACL_Group" parameterType="cmap" resultType="cmap">
+	    SELECT AclID AS "AclID"
+			, ObjectID AS "ObjectID"
+			, ObjectType AS "ObjectType"
+			, AclList AS "AclList"
+			, (
+				CASE WHEN SubjectType = 'CM' THEN '9'
+				WHEN SubjectType = 'DEPT' THEN '2' 
+				ELSE '3' END 
+			) AS "AclPriority"
+		FROM sys_object_acl a 
+		INNER JOIN sys_object_group g ON a.SubjectCode = g.GroupCode 
+		INNER JOIN sys_object_group_type gt ON gt.GroupType = g.GroupType
+		<if test="objectType == 'PT'">
+			INNER JOIN portal pt on pt.BizSection = 'Portal' AND pt.IsUse = 'Y' and pt.PortalID = ObjectID
+		</if>	
+		WHERE a.ObjectType = #{objectType}
+		<include refid="searchGroup" />
+		ORDER BY "AclPriority" DESC, Priority DESC, GroupPath ASC, AclID DESC
+	</select>
+ 	
+	<select id="selectAuthorizedACL_Lic" parameterType="cmap" resultType="cmap">
+   		SELECT  b.InitPortal ObjectID
+				, 'PT' ObjectType
+				, '_____V_' AclList
+		  FROM sys_object_user a
+		LEFT JOIN sys_license b  ON a.LicSeq = b.LicSeq
+		INNER JOIN portal pt on  pt.PortalType='Business' and  pt.IsUse = 'Y' and pt.PortalID = b.InitPortal
+		WHERE userCode = #{userCode}
+	</select>
+	
+	<select id="selectAuthorizedACL_Folder_User" parameterType="cmap" resultType="cmap">
+		SELECT AclID AS "AclID"
+			, ObjectID AS "ObjectID"
+			, A.ObjectType AS "ObjectType"
+			, AclList AS "AclList"
+			, F.ObjectType AS "BizSection"
+		FROM sys_object_acl a 
+		INNER JOIN sys_object_folder F ON A.ObjectID = F.FolderID
+		<if test="serviceType == 'Community'">
+			LEFT JOIN community_menu_top mt ON f.FolderID = mt.fd_id
+			LEFT JOIN community c ON mt.cu_id = c.cu_id 
+		</if>
+		WHERE a.ObjectType = 'FD'
+		AND a.SubjectType = 'UR'
+		AND a.SubjectCode = #{userCode}
+		<if test="serviceType != null and serviceType != '' ">
+		    AND F.ObjectType = #{serviceType}
+		</if>
+		<if test="serviceType == 'Community'">
+			AND (c.appstatus NOT IN ('UF', 'UV') OR c.appstatus IS NULL)
+		</if>
+	</select>
+	<select id="selectAuthorizedACL_Folder_Group" parameterType="cmap" resultType="cmap">
+		SELECT AclID AS "AclID"
+			, ObjectID AS "ObjectID"
+			, A.ObjectType AS "ObjectType"
+			, AclList AS "AclList"
+			, (
+				CASE WHEN SubjectType = 'CM' THEN '9'
+				WHEN SubjectType = 'DEPT' THEN '2' 
+				ELSE '3' END 
+			) AS "AclPriority"
+			, F.ObjectType AS "BizSection"
+		FROM sys_object_acl a 
+		INNER JOIN sys_object_group g ON a.SubjectCode = g.GroupCode 
+		INNER JOIN sys_object_group_type gt ON gt.GroupType = g.GroupType
+		INNER JOIN sys_object_folder F ON A.ObjectID = F.FolderID
+		<if test="serviceType == 'Community'">
+			LEFT JOIN community_menu_top mt ON f.FolderID = mt.fd_id
+			LEFT JOIN community c ON mt.cu_id = c.cu_id 
+		</if>
+		WHERE a.ObjectType = 'FD'
+		<include refid="searchGroup" />
+		<if test="serviceType != null and serviceType != '' ">
+		    AND F.ObjectType = #{serviceType}
+		</if>
+		<if test="serviceType == 'Community'">
+			AND (c.appstatus NOT IN ('UF', 'UV') OR c.appstatus IS NULL)
+		</if>
+		ORDER BY "AclPriority" DESC, Priority DESC, GroupPath ASC, AclID DESC
+	</select>
+	
+ 	<select id="selectAuthorizedMenu" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT  a.MenuID AS "MenuID"
+			      , a.DomainID AS "DomainID"
+			      , a.IsAdmin AS "IsAdmin"
+			      , a.MenuType AS "MenuType"
+			      , a.BizSection AS "BizSection"
+			      , a.ParentObjectID AS "ParentObjectID"
+			      , a.ParentObjectType AS "ParentObjectType"
+			      , a.ServiceDevice AS "ServiceDevice"
+			      , a.MultiDisplayName AS "MultiDisplayName"
+			      , a.IconClass AS "IconClass"
+			      , a.MemberOf AS "MemberOf"
+			      ,	a.MenuPath AS "MenuPath"
+			      , a.LinkMenuID AS "LinkMenuID"
+			      , a.SecurityLevel AS "SecurityLevel"
+			      , a.SortKey AS "SortKey"
+			      , a.SiteMapPosition AS "SiteMapPosition"
+			      , a.SortPath AS "SortPath"
+			      , a.HasFolder AS "HasFolder"
+			      , a.IsInherited AS "IsInherited"
+			      , a.IsUse AS "IsUse"
+			      , a.IsDisplay AS "IsDisplay"
+			      , CASE WHEN a.OriginMenuID IS NOT NULL AND a.OriginMenuID>0 THEN b.URL ELSE a.URL END AS "URL"
+			      , CASE WHEN a.OriginMenuID IS NOT NULL AND a.OriginMenuID>0 THEN b.MobileURL ELSE a.MobileURL END AS "MobileURL"
+			      , a.Target AS "Target"
+			      , a.MobileTarget AS "MobileTarget"
+			      , a.Reserved1 AS "Reserved1"
+			      , a.Reserved2 AS "Reserved2"
+			      , a.Reserved3 AS "Reserved3"
+			      , a.Reserved4 AS "Reserved4"
+			      , CASE WHEN a.OriginMenuID IS NOT NULL AND a.OriginMenuID>0 THEN b.Reserved5 ELSE a.Reserved5 END AS "Reserved5"
+				  , case when a.domainid =0 then  a.menuid else a.OriginMenuID  end as "OriginMenuID"
+			FROM SYS_OBJECT_MENU a
+			LEFT JOIN SYS_OBJECT_MENU b ON a.OriginMenuID = b.MenuID AND b.DomainID = 0
+			WHERE a.MenuID IN ]]>
+			<foreach collection="menuIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+			AND a.IsUse = 'Y' AND a.IsDisplay = 'Y'
+			<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+		     	AND 		a.BizSection IN  
+				<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>	
+			AND a.DomainID IN (0, #{domainID})
+			ORDER BY a.DomainID ASC, a.SortKey ASC
+	</select>
+	
+ 	<insert id="insertACL" parameterType="cmap">
+		<![CDATA[
+			INSERT INTO SYS_OBJECT_ACL 
+				(      ObjectID
+                     , ObjectType
+                     , SubjectCode
+                     , SubjectType
+                     , AclList
+                     , Security
+                     , Create_
+                     , Delete_
+                     , Modify_
+                     , Execute
+                     , View_
+                     , Read
+                     , Description
+                     , RegisterCode
+                     , RegistDate
+                     , InheritedObjectID
+                     , IsSubInclude
+				) VALUES  (       
+					   #{objectID}
+	                 , #{objectType}
+	                 , #{subjectCode}
+	                 , #{subjectType}
+	                 , #{aclList}
+	                 , #{security}
+	                 , #{create}
+	                 , #{delete}
+	                 , #{modify}
+	                 , #{execute}
+	                 , #{view}
+	                 , #{read}
+	                 , #{description}
+	                 , #{registerCode}
+	                 , SYSDATE
+	                 , #{inheritedObjectID}
+	                 , #{isSubInclude}
+				)
+		]]>
+	</insert>
+ 	
+ 	<insert id="insertInheritedACL" parameterType="cmap">
+		INSERT INTO SYS_OBJECT_ACL (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, Create_, Delete_, Modify_, Execute, View_, Read, Description, RegisterCode, RegistDate, InheritedObjectID, IsSubInclude)
+		SELECT	  #{objectID}
+				, ObjectType
+				, A.SubjectCode
+				, A.SubjectType
+				, AclList
+				, Security
+				, Create_
+				, Delete_
+				, Modify_
+				, Execute
+				, View_
+				, Read
+				, Description
+				, #{registerCode}
+				, SYSDATE
+				, CASE WHEN ObjectType = 'FD' THEN (SELECT MemberOf FROM SYS_OBJECT_FOLDER WHERE FolderID = #{objectID})
+					   WHEN ObjectType = 'MN' THEN (SELECT MemberOf FROM SYS_OBJECT_MENU WHERE MenuID = #{objectID})
+				  ELSE 0 END AS InheritedObjectID
+				, IsSubInclude
+		FROM SYS_OBJECT_ACL A
+		LEFT OUTER JOIN (
+			SELECT SubjectCode, SubjectType
+			FROM SYS_OBJECT_ACL
+			WHERE ObjectID = #{objectID}
+			AND InheritedObjectID = 0
+		) B ON A.SubjectCode = B.SubjectCode AND A.SubjectType = B.SubjectType
+		WHERE A.ObjectID = #{inheritedObjectID}
+		AND A.ObjectType = #{objectType}
+		AND B.SubjectCode IS NULL
+	</insert>
+ 	
+ 	<insert id="insertACLVO" parameterType="egovframework.coviframework.vo.ObjectAcl">
+            INSERT INTO SYS_OBJECT_ACL(  ObjectID
+		                                            , ObjectType
+		                                            , SubjectCode
+		                                            , SubjectType
+		                                            , AclList
+		                                            , Security
+		                                            , Create_
+		                                            , Delete_
+		                                            , Modify_
+		                                            , Execute
+		                                            , View_
+		                                            , Read
+		                                            , Description
+		                                            , RegisterCode
+		                                            , RegistDate
+                                    			  )
+                            			  VALUES (	#{objectID}
+                            			    	    , #{objectType}
+                            			    	    , #{subjectCode}
+                            			    	    , #{subjectType}
+                            			    	    , #{aclList}
+                            			    	    , #{security}
+                            			    	    , #{create}
+                            			    	    , #{delete}
+                            			    	    , #{modify}
+                            			    	    , #{execute}
+                            			    	    , #{view}
+                            			    	    , #{read}
+                            			    	    , #{description}
+                            			    	    , #{registerCode}
+                            			    	    , SYSDATE
+                            			    	  ) 
+    </insert>
+ 	
+ 	<insert id="insertACLList" parameterType="clist">
+         INSERT ALL
+         <foreach collection="list" item="aclData" index="index" separator=" ">
+	         INTO SYS_OBJECT_ACL(    
+	         	ObjectID
+	            , ObjectType
+	            , SubjectCode
+	            , SubjectType
+	            , AclList
+	            , Security
+	            , Create_
+	            , Delete_
+	            , Modify_
+	            , Execute
+	            , View_
+	            , Read
+	            , Description
+	            , RegisterCode
+	            , RegistDate
+	        )
+			VALUES
+			(
+				#{aclData.objectID}
+				, #{aclData.objectType}
+				, #{aclData.subjectCode}
+				, #{aclData.subjectType}
+				, #{aclData.aclList}
+				, #{aclData.security}
+				, #{aclData.create}
+				, #{aclData.delete}
+				, #{aclData.modify}
+				, #{aclData.execute}
+				, #{aclData.view}
+				, #{aclData.read}
+				, #{aclData.description}
+				, #{aclData.registerCode}
+				, SYSDATE
+	        )
+        </foreach>
+        SELECT * FROM DUAL
+    </insert>
+ 	
+ 	<delete id="deleteACL" parameterType="cmap">
+        DELETE FROM SYS_OBJECT_ACL
+		WHERE ObjectID = #{objectID} 
+		  AND ObjectType = #{objectType} 
+		<if test='subjectCode != null and subjectCode != ""'>		
+		  AND SubjectCode = #{subjectCode}
+		</if>
+	</delete>
+ 	
+ 	<delete id="deleteACLList" parameterType="cmap">
+		<![CDATA[
+		    DELETE FROM SYS_OBJECT_ACL
+			WHERE ObjectType = #{objectType}  
+			  AND ObjectID IN
+		]]>
+		<foreach item="item" index="index" collection="objectIDs" open="(" close=")" separator=",">
+	         		#{item}
+	  	</foreach>
+	</delete>
+	
+	<delete id="deleteInheritedACL" parameterType="cmap">
+		DELETE FROM sys_object_acl
+		WHERE 1=1
+		<if test='inheritedObjectID != null and inheritedObjectID != ""'>
+			<if test='objectType == "FD"'>							  		   	
+			AND ObjectID IN (
+				SELECT DISTINCT FolderID 
+				FROM (
+					SELECT FolderID, ';' || FolderPath AS FolderPath
+					FROM sys_object_folder 
+					WHERE DeleteDate IS NULL
+					<if test='isUpdateChildren != "Y"'>
+						AND IsInherited = 'Y'
+					</if>
+				) A 
+				WHERE FolderPath LIKE '%;'|| #{inheritedObjectID} ||';%'
+			) 
+			</if>			
+			<if test='objectType == "MN"'>							  		   	
+			AND ObjectID IN (
+				SELECT DISTINCT MenuID 
+				FROM (
+					SELECT MenuID, ';' || MenuPath AS MenuPath 
+					FROM sys_object_menu 
+					WHERE DeleteDate IS NULL
+					<if test='isUpdateChildren != "Y"'>
+						AND IsInherited = 'Y'
+					</if>
+				) A 
+				WHERE MenuPath LIKE '%;'|| #{inheritedObjectID} ||';%'
+			)
+			</if>
+		</if>
+		<if test='objectID != null and objectID != ""'>
+			AND ObjectID = #{objectID}
+		</if>
+		<if test='isUpdateChildren != "Y"'>
+			AND NVL(InheritedObjectID, 0) != 0	
+		</if>	
+		AND ObjectType = #{objectType}
+	</delete>
+ 	
+	<select id="selectACL" parameterType="cmap" resultType="cmap">
+		SELECT	  AclID AS "AclID"
+				, ObjectID AS "ObjectID"
+				, ObjectType AS "ObjectType"
+				, SubjectCode AS "SubjectCode"
+				, SubjectType AS "SubjectType"
+				, AclList AS "AclList"
+				, Security AS "Security"
+				, Create_ AS "Create"
+				, Delete_ AS "Delete"
+				, Modify_ AS "Modify"
+				, Execute AS "Execute"
+				, View_ AS "View"
+				, Read AS "Read"
+				, SubjectName AS "SubjectName"
+				, MultiSubjectName AS "MultiSubjectName"
+				, CompanyCode AS "CompanyCode"
+				, GroupType AS "GroupType"
+				, SortKey AS "SortKey"
+				, InheritedObjectID AS "InheritedObjectID"
+				, IsSubInclude AS "IsSubInclude"
+		FROM (
+			SELECT	  A.AclID
+					, A.ObjectID
+					, A.ObjectType
+					, A.SubjectCode
+					, A.SubjectType
+					, A.AclList
+					, A.Security
+					, A.Create_
+					, A.Delete_
+					, A.Modify_
+					, A.Execute
+					, A.View_
+					, A.Read
+					, Fn_BaseGetDictionary_S(#{lang}, U.MultiDisplayName) AS SubjectName
+					, U.MultiDisplayName AS MultiSubjectName
+					, UB.CompanyCode
+					, 'UR' AS GroupType
+					, (SELECT SortKey FROM SYS_OBJECT_GROUP_TYPE WHERE GroupType = 'UR') AS SortKey
+					<choose>
+						<when test='inheritedObjectID != null and inheritedObjectID != ""'>
+						, NVL(#{inheritedObjectID}, 0) AS InheritedObjectID
+						</when>
+						<otherwise>
+						, NVL(A.InheritedObjectID, 0) AS InheritedObjectID	
+						</otherwise>
+					</choose>
+					,IsSubInclude
+			FROM SYS_OBJECT_ACL A
+			INNER JOIN SYS_OBJECT_USER U ON A.SubjectCode = U.UserCode
+			INNER JOIN SYS_OBJECT_USER_BASEGROUP UB ON UB.UserCode = U.UserCode AND UB.JobType = 'Origin'
+			WHERE A.ObjectType = #{objectType}
+			  AND A.ObjectID = #{objectID}
+			  AND A.SubjectType = 'UR'
+			
+			UNION
+			
+			SELECT	  A.AclID
+					, A.ObjectID
+					, A.ObjectType
+					, A.SubjectCode
+					, A.SubjectType
+					, A.AclList
+					, A.Security
+					, A.Create_
+					, A.Delete_
+					, A.Modify_
+					, A.Execute
+					, A.View_
+					, A.Read
+					, Fn_BaseGetDictionary_S(#{lang}, G.MultiDisplayName) AS SubjectName
+					, G.MultiDisplayName AS MultiSubjectName
+					, G.CompanyCode
+					, G.GroupType
+					, GT.SortKey
+					<choose>
+						<when test='inheritedObjectID != null and inheritedObjectID != ""'>
+						, NVL(#{inheritedObjectID}, 0) AS InheritedObjectID
+						</when>
+						<otherwise>
+						, NVL(A.InheritedObjectID, 0) AS InheritedObjectID	
+						</otherwise>
+					</choose>				
+					,IsSubInclude
+			FROM SYS_OBJECT_ACL A
+			INNER JOIN SYS_OBJECT_GROUP G ON A.SubjectCode = G.GroupCode
+			INNER JOIN SYS_OBJECT_GROUP_TYPE GT ON GT.GroupType = G.GroupType
+			WHERE A.ObjectType = #{objectType}
+			  AND A.ObjectID = #{objectID}
+			  AND A.SubjectType != 'UR'
+		) A
+		ORDER BY InheritedObjectID DESC, SortKey, SubjectName
+	</select>
+	
+	<select id="selectCompanyACL" parameterType="cmap" resultType="cmap">	
+		  SELECT
+				 '0' AS "AclID"
+				,'0' AS "ObjectID"
+				,#{objectType} AS "ObjectType"
+				,SOG.GroupCode AS "SubjectCode"
+				,'CM' AS "SubjectType"
+				,'SCDMEVR' AS "AclList"
+				,'S' AS "Security"
+				,'C' AS "Create"
+				,'D' AS "Delete"
+				,'M' AS "Modify"
+				,'E' AS "Execute"
+				,'V' AS "View"
+				,'R' AS "Read"
+				,SOG.DisplayName AS "SubjectName"
+				,SOG.MultiDisplayName AS "MultiSubjectName"
+				,SOG.CompanyCode AS "CompanyCode"
+				,SOG.GroupType AS "GroupType"
+				,0 AS "SortKey"
+				,0 AS "InheritedObjectID"
+				,'Y' AS "IsSubInclude"
+			   FROM SYS_OBJECT_GROUP SOG
+			  WHERE SOG.GroupCode = #{companyCode}
+	</select>
+	
+	<select id="selectInheritedACL" parameterType="cmap" resultType="cmap">
+		<if test='objectType == "FD"'>
+			SELECT *
+			FROM (
+				SELECT  
+					 FolderID AS "ObjectID"
+					,FolderID AS "FolderID"
+					,MemberOf AS "MemberOf"
+					,';' || FolderPath AS "FolderPath"
+				FROM sys_object_folder
+				WHERE DeleteDate IS NULL
+				<if test='isUpdateChildren != "Y"'>
+					AND IsInherited = 'Y'
+				</if>
+			) A
+			WHERE "FolderPath" LIKE '%;'|| #{inheritedObjectID} ||';%'
+		</if>
+		<if test='objectType == "MN"'>
+			SELECT *
+			FROM (
+				SELECT
+					 FolderID AS "ObjectID"
+					,FolderID AS "FolderID"
+					,MemberOf AS "MemberOf"
+					,';' || FolderPath AS "FolderPath"				
+				FROM sys_object_menu
+				WHERE DeleteDate IS NULL
+				<if test='isUpdateChildren != "Y"'>
+					AND IsInherited = 'Y'
+				</if>
+			) A
+			WHERE "MenuPath" LIKE '%;'|| #{inheritedObjectID} ||';%'
+		</if>
+	</select>
+	
+
+	<select id="selectSyncDomain" parameterType="cmap" resultType="cmap">
+		<if test="URAction != null and URAction.length > 0">
+			SELECT DISTINCT DomainID AS "DomainID" FROM SYS_OBJECT_USER_BASEGROUP BG
+			INNER JOIN SYS_OBJECT_DOMAIN DN ON BG.CompanyCode = DN.DomainCode
+			WHERE UserCode IN 
+			<foreach collection="URAction" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		<if test="URAction != null and URAction.length > 0 and GRAction != null and GRAction.length > 0">
+			UNION
+		</if>
+		<if test="GRAction != null and GRAction.length > 0">
+			SELECT DISTINCT DomainID AS "DomainID" FROM SYS_OBJECT_GROUP GR
+			INNER JOIN SYS_OBJECT_DOMAIN DN ON GR.CompanyCode = DN.DomainCode
+			WHERE GroupCode IN 
+			<foreach collection="GRAction" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+	</select>
+
+	<update id="mergeUserAcl"   parameterType="cmap"  >
+		/* framework.authority.mergeUserAcl */
+		BEGIN
+			<foreach collection="aclList" item="lst" open="" close=";" separator=";">
+			MERGE INTO sys_object_user_acl a
+					USING (SELECT  #{UserCode} UserCode, #{JobSeq} JobSeq, #{ServiceType} ServiceType, #{ObjectType} ObjectType, #{lst} ObjectId, #{SyncKey} SyncKey from dual) b
+						ON (a.UserCode = b.UserCode AND a.JobSeq = b.JobSeq AND a.ServiceType= b.ServiceType AND a.ObjectId = b.ObjectId)
+ 			WHEN MATCHED THEN 
+ 				UPDATE SET		SyncKey =b.SyncKey
+			WHEN NOT MATCHED THEN
+				INSERT (UserCode, JobSeq, ServiceType, ObjectType, ObjectId, SyncKey, V)	
+				VALUES (b.UserCode, b.JobSeq, b.ServiceType, b.ObjectType, b.ObjectId, b.SyncKey, 'Y')
+			</foreach>	  
+			
+			DELETE FROM sys_object_user_acl 
+				WHERE UserCode = #{UserCode} and JobSeq = #{JobSeq} AND ServiceType = #{ServiceType} AND SyncKey != #{SyncKey};
+		END; 
+	</update>
+	
+	<select id="getUserAcl"   parameterType="cmap"   resultType="cmap">
+		/* getUserAcl */
+		SELECT ObjectID as "ObjectID"
+		  FROM sys_object_user_acl
+		 WHERE UserCode = #{UserCode} and JobSeq = #{JobSeq} AND ServiceType = #{ServiceType} 
+	</select>
+
+
+	<update id="insertUserAcl"   parameterType="cmap"  >
+		/* framework.authority.insertUserAcl */
+		BEGIN
+			<foreach collection="aclList" item="lst" open="" close=";" separator=";">
+			MERGE INTO sys_object_user_acl a
+					USING (SELECT  #{UserCode} UserCode, #{JobSeq} JobSeq, #{ServiceType} ServiceType, #{ObjectType} ObjectType, #{lst} ObjectId from dual) b
+						ON (a.UserCode = b.UserCode AND a.JobSeq = b.JobSeq AND a.ServiceType= b.ServiceType AND a.ObjectId = b.ObjectId)
+			WHEN NOT MATCHED THEN
+				INSERT (UserCode, JobSeq, ServiceType, ObjectType, ObjectId, V)	
+				VALUES (b.UserCode, b.JobSeq, b.ServiceType, b.ObjectType, b.ObjectId, 'Y')
+			</foreach>	  
+		END; 
+	</update>
+	
+	<delete id="deleteUserAcl"   parameterType="cmap"  >
+		/* framework.authority.deleteUserACL */
+		BEGIN
+			<foreach collection="aclList" item="lst" open="" close=";" separator=";">
+			DELETE FROM sys_object_user_acl 
+				WHERE UserCode = #{UserCode} and JobSeq = #{JobSeq} AND ServiceType = #{ServiceType} AND ObjectId =  #{lst} 
+			</foreach>	  
+		END; 
+	</delete>
+	
+	<!-- 관리자 조회 (isSaaS인 경우 간편관리자까지 포함) -->
+	<select id="selectAdminList" parameterType="cmap" resultType="cmap">
+		/* framework.authority.selectAdminList */
+		SELECT 
+			d.UserCode AS "UserCode"
+		FROM sys_object_user d
+		JOIN sys_object_group_member c ON (c.UserCode = d.UserCode)
+		JOIN sys_object_group a ON (c.GroupCode = a.GroupCode)
+		JOIN sys_object_domain b ON (a.CompanyCode = b.DomainCode AND b.DomainID IN (0, #{domainID}))
+		WHERE ((a.GroupType = 'Authority' AND a.GroupCode IN ('0_Admin', #{domainID}||'_Admin'))
+		<if test='isSaaS == "Y"'>
+			OR (a.GroupType = 'Manage' AND a.GroupCode IN ('0_EasyAdmin', #{domainID}||'_EasyAdmin'))
+		</if>
+		)
+		AND c.LeaveDate IS NULL
+		AND d.IsUse = 'Y'
+		GROUP By d.UserCode
+	</select>
+	
+	<update id="updateObjectIsInherited" parameterType="cmap">
+		<choose>
+			<when test='objectType == "FD"'> 
+				UPDATE sys_object_folder
+				SET IsInherited = #{isInherited}
+				WHERE FolderID = #{objectID}
+			</when>
+			<when test='objectType == "MN"'>
+				UPDATE sys_object_menu
+				SET IsInherited = #{isInherited}
+				WHERE MenuID = #{objectID}
+			</when>
+			<otherwise></otherwise>
+		</choose>
+ 	</update>
+</mapper>

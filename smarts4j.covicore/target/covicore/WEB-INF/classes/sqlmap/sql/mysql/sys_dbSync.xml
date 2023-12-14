@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.dbsync">
+	<!-- Get sync target Tables with Domain -->
+ 	<select id="selectTarget" parameterType="cmap" resultType="cmap">			
+		<![CDATA[
+		SELECT a.TargetSeq
+			, a.SrcTableNm
+			, a.SrcDatabase
+			, a.LastSyncTime
+			, a.LastStatus
+			, a.UseYn
+			, a.DomainID
+			, a.TargetDatabase
+			, a.TargetTableNm
+			, a.SortSeq
+			, a.ConditionSQL			
+			, b.*
+			, c.DomainCode
+		FROM covi_smart4j.sys_dbsync_target a
+		JOIN covi_smart4j.sys_datasource b
+			ON a.datasourceseq = b.datasourceseq
+			AND a.UseYn = 'Y'
+		JOIN covi_smart4j.sys_object_domain c
+			ON c.domainid = a.domainid
+		WHERE a.ScheduleType is null OR a.ScheduleType = ''
+		ORDER BY a.DomainID, a.sortseq
+		]]>
+	</select>
+	
+	<select id="selectTargetOther" parameterType="cmap" resultType="cmap">			
+		<![CDATA[
+		SELECT a.TargetSeq
+			, a.SrcTableNm
+			, a.SrcDatabase
+			, a.LastSyncTime
+			, a.LastStatus
+			, a.UseYn
+			, a.DomainID
+			, a.TargetDatabase
+			, a.TargetTableNm
+			, a.SortSeq
+			, a.ConditionSQL
+			
+			, b.*
+			, c.DomainCode
+		FROM covi_smart4j.sys_dbsync_target a
+		JOIN covi_smart4j.sys_datasource b
+			ON a.datasourceseq = b.datasourceseq
+			AND a.UseYn = 'Y'
+		JOIN covi_smart4j.sys_object_domain c
+			ON c.domainid = a.domainid
+		WHERE a.ScheduleType = #{ScheduleType}
+		ORDER BY a.DomainID, a.sortseq
+		]]>
+	</select>
+
+ 	<select id="selectLog" parameterType="cmap" resultType="cmap">			
+		SELECT LogSeq, TargetSeq, Level
+			, REPLACE(SUBSTR(Message, 1, 200), '\r\n', '') AS Message
+			, LoggingTime
+		FROM covi_smart4j.sys_dbsync_log a
+		WHERE EXISTS (
+			SELECT 'X' FROM covi_smart4j.sys_dbsync_target
+			WHERE TargetSeq = a.TargetSeq
+			AND DomainID = #{DomainID}
+		)
+	 	<trim prefix="AND">
+	    	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">LoggingTime BETWEEN #{startDate} AND #{endDate}</if>
+		</trim>		
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Level")'>Level</when>
+					<when test='sortColumn.equalsIgnoreCase("LoggingTime")'>LoggingTime</when>
+					<otherwise>LogSeq</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>		
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+ 	<select id="selectLogCnt" parameterType="cmap" resultType="java.lang.Long">			
+		SELECT COUNT(*)
+		FROM covi_smart4j.sys_dbsync_log a
+		WHERE EXISTS (
+			SELECT 'X' FROM covi_smart4j.sys_dbsync_target
+			WHERE TargetSeq = a.TargetSeq
+			AND DomainID = #{DomainID}
+		)
+	 	<trim prefix="AND">
+	    	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">LoggingTime BETWEEN #{startDate} AND #{endDate}</if>
+		</trim>
+	</select>	
+ 	<select id="selectLogDetail" parameterType="cmap" resultType="java.lang.String">			
+		SELECT Message
+		FROM covi_smart4j.sys_dbsync_log a
+		WHERE LogSeq = #{LogSeq}
+	</select>
+	
+	
+	<insert id="createTemp" parameterType="cmap">
+		<![CDATA[
+			CREATE TABLE IF NOT EXISTS ${TargetDatabase}.${TargetTableNm}_Sync
+			AS SELECT * FROM ${TargetDatabase}.${TargetTableNm}
+			WHERE 1 != 1
+		]]>
+	</insert>
+	<insert id="dropTemp" parameterType="cmap">
+		<!-- DROP TABLE ${TargetDatabase}.${TargetTableNm}_Sync  -->
+		<![CDATA[
+			TRUNCATE TABLE ${TargetDatabase}.${TargetTableNm}_Sync
+		]]>
+	</insert>
+	<insert id="insertTemp" parameterType="cmap">
+			INSERT INTO ${TargetDatabase}.${TargetTableNm}_Sync
+				(  
+				<foreach item="col" index="index" collection="columnList">
+					<if test="index > 0">,</if>
+					${col}	
+				</foreach>
+				)
+			VALUES 
+			<foreach item="item" index="index" collection="dataList"> 
+				<if test="index > 0">,</if> 
+				(
+					<foreach item="col" index="colindex" collection="columnList">
+						<if test="colindex > 0">,</if> 
+						#{ item.${col} }
+					</foreach>
+				) 
+			</foreach>
+	</insert>
+	<!-- (Merge into) Temp to Real -->
+	<insert id="callProcedure" parameterType="cmap" statementType="CALLABLE">
+		<![CDATA[
+			CALL SP_sys_sync_table_complete(#{TargetSeq,mode=IN,jdbcType=INTEGER}, #{RtnCode,mode=OUT,jdbcType=VARCHAR}, #{RtnMsg,mode=OUT,jdbcType=VARCHAR})
+		]]>
+	</insert>
+	
+	<insert id="insertLog" parameterType="cmap">
+		<![CDATA[
+			INSERT INTO covi_smart4j.sys_dbsync_log ( TargetSeq, Message, Level, LoggingTime )
+			VALUES (#{TargetSeq}, #{Message}, #{Level}, #{LoggingTime})
+		]]>
+	</insert>
+	
+	<delete id="deleteLog" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_dbsync_log
+		WHERE LogSeq = #LogSeq
+	</delete>
+	
+    <select id="selectTargetList" parameterType="cmap" resultType="cmap">
+		SELECT a.TargetSeq
+			, a.TargetName
+			, a.SrcTableNm
+			, a.SrcDatabase
+			, a.LastSyncTime
+			, a.LastStatus
+			, a.UseYn
+			, a.DomainID
+			, a.TargetDatabase
+			, a.TargetTableNm
+			, a.SortSeq
+			, a.ConditionSQL
+			, a.Description
+			, a.DatasourceSeq
+			, a.ModifyDate
+			
+			, b.ConnectionPoolName
+			, c.DomainCode
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS DomainName
+		FROM covi_smart4j.sys_dbsync_target a
+		JOIN covi_smart4j.sys_datasource b
+			ON a.datasourceseq = b.datasourceseq
+		JOIN covi_smart4j.sys_object_domain c
+			ON c.domainid = a.domainid
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="DomainID != null and DomainID != ''">
+	    		a.DomainID = #{DomainID}
+	    	</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DomainName")'>DomainName</when>
+					<when test='sortColumn.equalsIgnoreCase("TargetName")'>TargetName</when>					
+					<when test='sortColumn.equalsIgnoreCase("ConnectionPoolName")'>ConnectionPoolName</when>
+					<when test='sortColumn.equalsIgnoreCase("LastStatus")'>LastStatus</when>
+					<when test='sortColumn.equalsIgnoreCase("LastSyncTime")'>LastSyncTime</when>
+					<when test='sortColumn.equalsIgnoreCase("UseYn")'>UseYn</when>
+					<when test='sortColumn.equalsIgnoreCase("Dummy")'>TargetSeq</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<otherwise>SortSeq</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>	
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+    <select id="selectTargetCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			Count(*)
+		FROM covi_smart4j.sys_dbsync_target a
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="DomainID != null and DomainID != ''">
+	    		a.DomainID = #{DomainID}
+	    	</if>
+		</trim>
+	</select>
+	
+    <select id="selectTargetOne" parameterType="cmap" resultType="cmap">
+		SELECT a.TargetSeq
+			, a.TargetName
+			, a.SrcTableNm
+			, a.SrcDatabase
+			, a.LastSyncTime
+			, a.LastStatus
+			, a.UseYn
+			, a.DomainID
+			, a.TargetDatabase
+			, a.TargetTableNm
+			, a.SortSeq
+			, a.ConditionSQL
+			, a.Description
+			, a.DatasourceSeq
+			, a.ModifyDate
+			, a.ScheduleType
+			, b.ConnectionPoolName
+			, c.DomainCode
+		FROM covi_smart4j.sys_dbsync_target a
+		JOIN covi_smart4j.sys_datasource b
+			ON a.datasourceseq = b.datasourceseq
+		JOIN covi_smart4j.sys_object_domain c
+			ON c.domainid = a.domainid
+	 	WHERE a.TargetSeq = #{TargetSeq}
+	</select>
+	<insert id="insertTarget" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_dbsync_target ( TargetName, SrcTableNm, SrcDatabase, UseYn, DomainID, TargetDatabase, TargetTableNm, SortSeq, DatasourceSeq, ConditionSQL, Description, ModifyDate, ScheduleType )
+		VALUES ( #{TargetName}, #{SrcTableNm}, #{SrcDatabase}, #{UseYn}, #{DomainID}, #{TargetDatabase}, #{TargetTableNm}, #{SortSeq}, #{DatasourceSeq}, #{ConditionSQL}, #{Description}, now(3), #{ScheduleType})
+	</insert>
+	<update id="updateTarget" parameterType="cmap">
+		UPDATE covi_smart4j.sys_dbsync_target
+			SET TargetName = #{TargetName}
+			, SrcTableNm = #{SrcTableNm}
+			, SrcDatabase = #{SrcDatabase}
+			, UseYn = #{UseYn}
+			, DomainID = #{DomainID}
+			, TargetDatabase = #{TargetDatabase}
+			, TargetTableNm = #{TargetTableNm}
+			, DatasourceSeq = #{DatasourceSeq}
+			, Description = #{Description}
+			, ModifyDate = now(3)
+			, SortSeq = #{SortSeq}
+			, ConditionSQL = #{ConditionSQL}
+			, ScheduleType = #{ScheduleType}
+		WHERE TargetSeq = #{TargetSeq}
+	</update>
+	<update id="updateTargetUse" parameterType="cmap">
+		UPDATE covi_smart4j.sys_dbsync_target
+			SET UseYn = #{UseYn}
+		WHERE TargetSeq = #{TargetSeq}
+	</update>
+	<delete id="deleteTarget" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_dbsync_target
+		WHERE TargetSeq IN
+	    <foreach item="TargetSeq" index="index" collection="arrTargetSeq" open="(" close=");" separator=",">
+          #{TargetSeq}
+      	</foreach>
+	</delete>
+	<update id="updateTargetResult" parameterType="cmap"><!-- TODO -->
+		UPDATE covi_smart4j.sys_dbsync_target
+			SET LastSyncTime = now(3)
+			, LastStatus = #{LastStatus}
+		WHERE TargetSeq = #{TargetSeq}
+	</update>
+</mapper>

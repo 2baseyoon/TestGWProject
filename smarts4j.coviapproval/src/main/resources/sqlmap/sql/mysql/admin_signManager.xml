@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.signManager">
+
+	<select id="selectSignList" parameterType="cmap" resultType="cmap">
+		SELECT A.* 
+		FROM (
+			SELECT
+				BOU.UserCode AS UR_Code 
+				,CASE WHEN (select COUNT(*) from covi_approval4j.jwf_signimage JS where JS.usercode = BOU.UserCode AND JS.IsUse = 'Y') > 0 THEN 'Y' ELSE 'N' END AS USER_SIGN
+				,BOU.DisplayName AS UR_Name 
+				,BG.DeptName AS DEPT_Name				
+				,BG.JobLevelName
+				,BG.JobTitleName
+				,BG.JobPositionName	
+				,BG.DeptCode AS DEPT_Code					
+				,BG.CompanyCode AS EntCode
+			 from covi_smart4j.sys_object_user BOU
+			 inner join covi_smart4j.sys_object_user_basegroup BG ON BOU.UserCode = BG.UserCode
+			 WHERE BOU.IsUse = 'Y'
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			   	EntCode=#{EntCode}
+			</if>		    		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			    AND 
+			    <choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+				</choose>
+			    LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+			</if>	
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					UR_Code LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					UR_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					DEPT_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>							
+		</trim>	
+		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<when test='sortColumn.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitleName")'>JobTitleName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevelName")'>JobLevelName</when>
+					<when test='sortColumn.equalsIgnoreCase("USER_SIGN")'>USER_SIGN</when>
+					<otherwise>DEPT_Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    <select id="selectSignListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT
+				BOU.UserCode AS UR_Code 
+				,CASE WHEN (select COUNT(*) from covi_approval4j.jwf_signimage where usercode = BOU.UserCode) > 0 THEN 'Y' ELSE 'N' END AS USER_SIGN
+				,BOU.DisplayName AS UR_Name 
+				,BG.DeptName AS DEPT_Name				
+				,BG.JobLevelName
+				,BG.JobTitleName
+				,BG.JobPositionName	
+				,BG.DeptCode AS DEPT_Code					
+				,BG.CompanyCode AS EntCode
+			 from covi_smart4j.sys_object_user BOU
+			 inner join covi_smart4j.sys_object_user_basegroup BG ON BOU.UserCode = BG.UserCode
+			 WHERE BOU.IsUse = 'Y'
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			   	EntCode=#{EntCode}
+			</if>	
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			    AND 
+			    <choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+				</choose>
+			    LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+			</if>	
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					UR_Code LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					UR_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					DEPT_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>								
+		</trim>
+	</select>
+	
+    
+    <select id="selectSignData" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT
+					UserCode,Seq,FileName,IsUse,SortKey,InsertDate,FilePath,FileID
+				FROM covi_approval4j.jwf_signimage
+					WHERE UserCode = #{UserCode}
+						AND IsUse = #{IsUse}
+					ORDER BY InsertDate desc limit 1
+				) A	
+	</select>
+	
+  
+
+	<insert id="insertSignData" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_signimage 
+		(
+		UserCode		
+		,FileName
+		,IsUse
+		,SortKey
+		,InsertDate
+		,FilePath
+		,FileID
+		)
+		VALUES 
+		(
+		#{UserCode}
+		,#{FileName}
+		,'Y'
+		,(SELECT IFNULL(MAX(SortKey),0) FROM covi_approval4j.jwf_signimage A)
+		,now(3)
+		,#{FilePath}
+		,#{FileID}
+		)
+	]]>
+	</insert>
+	
+	<delete id="deleteSignImage" parameterType="cmap">
+        DELETE 
+    	FROM covi_approval4j.jwf_signimage
+  		WHERE UserCode = #{UserCode} 
+  		AND FileID = #{FileID}
+	</delete>
+	
+	<update id="changeUseSign" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = #{IsUse}
+		WHERE UserCode = #{UserCode} AND FileName = #{FileName} 
+	</update>
+	
+	<update id="releaseUseSign" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = 'N'
+		WHERE UserCode = #{UserCode}
+	</update>
+	
+</mapper>
+

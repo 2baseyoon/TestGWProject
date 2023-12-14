@@ -1,0 +1,3940 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="groupware.bizcard">
+    
+<!--  연락처 정리(중복/유사) =============================================== -->
+
+	<!-- 선택된 '전화번호' 삽입  -->
+    <insert id="insertOrganizationBizCardPhone" parameterType="cmap" >
+	    INSERT INTO BIZCARD_PHONEINFO (BizCardID, TypeCode, PhoneType, PhoneNumber)
+           VALUES
+			<foreach collection="PhoneChkY" item="item" separator=",">
+			 	(#{BizCardY}, 'P', 'C', #{item})
+			 </foreach>
+ 	</insert>
+ 	
+    <!-- 선택된 '이메일' 삽입  -->
+    <insert id="insertOrganizationBizCardEmail" parameterType="cmap" >
+          INSERT INTO BIZCARD_EMAILINFO(BizCardID, TypeCode, Email)
+          VALUES
+			<foreach collection="EmailChkY" item="item" separator=",">
+			 	(#{BizCardY}, 'P', #{item})
+			 </foreach>
+ 	</insert>
+	
+   <!-- 유사 목록 가져오기(개수)  -->
+   <select id="selectBizCardSimilarListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM
+		(
+			SELECT DISTINCT PER.BizCardID
+			, PER.Name
+			, PER.CompanyID
+			, PER.JobTitle
+			, PER.ShareType
+			, PER.RegisterID
+			, PER.RegDeptCode
+			, PER.RegComCode
+			, PER.CompanyName AS ComName
+			, (SELECT GROUP_CONCAT(PhoneNumber ORDER BY PhoneNumber SEPARATOR '|') FROM  BIZCARD_PHONEINFO WHERE BizCardID = PER.BizCardID) AS PhoneNum
+			, (SELECT GROUP_CONCAT(EMAIL ORDER BY EMAIL SEPARATOR '|') FROM  BIZCARD_EMAILINFO WHERE BizCardID = PER.BizCardID) AS EMAIL
+			, CONCAT(GROUP_CONCAT(DUP.Target SEPARATOR '|'), '|') AS Target
+			, PER.ImagePath
+			FROM
+			(
+			    <choose>
+						 <when test="Type == null or Type=='Name'.toString()">
+								SELECT DISTINCT P1.BizCardID, DUP.Name AS Target
+								FROM BIZCARD_PERSON AS P1
+								INNER JOIN(
+									SELECT Name, COUNT(BizCardID) AS CNT
+									FROM BIZCARD_PERSON
+									WHERE (ShareType = 'P' AND RegisterID = #{UR_Code})
+										OR
+										(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+										OR
+										(ShareType = 'U' AND RegComCode = #{DN_Code})
+										GROUP BY Name
+										HAVING COUNT(BizCardID) <![CDATA[ > ]]> 1
+								) AS DUP
+								ON P1.Name = DUP.Name
+								WHERE (P1.ShareType = 'P' AND P1.RegisterID = #{UR_Code})
+									OR
+									(P1.ShareType = 'D' AND P1.RegDeptCode = #{GR_Code})
+									OR
+									(P1.ShareType = 'U' AND P1.RegComCode = #{DN_Code})
+								GROUP BY P1.BizCardID
+						 </when>
+						 <when test="Type =='Phone'.toString()">	
+								SELECT DISTINCT PH.BizCardID, GROUP_CONCAT(DUP.PhoneNumber ORDER BY DUP.PhoneNumber ASC SEPARATOR '|') AS Target
+								FROM BIZCARD_PHONEINFO AS PH
+								INNER JOIN(
+									SELECT PI.PhoneNumber, COUNT(PI.BizCardID) AS CNT
+									FROM BIZCARD_PHONEINFO AS PI
+									INNER JOIN BIZCARD_PERSON PER 
+									ON PI.BizCardID = PER.BizCardID
+									WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+										OR
+										(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+										OR
+										(ShareType = 'U' AND RegComCode = #{DN_Code})
+									GROUP BY PI.PhoneNumber
+									HAVING COUNT(PI.BizCardID) <![CDATA[ > ]]> 1
+								) AS DUP
+								ON PH.PhoneNumber = DUP.PhoneNumber
+								LEFT JOIN BIZCARD_PERSON PER
+								ON PH.BizCardID = PER.BizCardID
+								WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+									OR
+									(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+									OR
+									(ShareType = 'U' AND RegComCode = #{DN_Code})
+								GROUP BY PH.BizCardID
+						 </when>	
+						 <when test="Type =='Email'.toString()">			
+								SELECT DISTINCT EM.BizCardID, GROUP_CONCAT(DUP.Email ORDER BY DUP.Email ASC SEPARATOR '|') AS Target
+									FROM BIZCARD_EMAILINFO AS EM
+									INNER JOIN(
+										SELECT EI.Email, COUNT(EI.BizCardID) AS CNT
+										FROM BIZCARD_EMAILINFO AS EI
+										INNER JOIN BIZCARD_PERSON PER 
+										ON EI.BizCardID = PER.BizCardID
+										WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+											OR
+											(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+											OR
+											(ShareType = 'U' AND RegComCode = #{DN_Code})
+										GROUP BY EI.Email
+										HAVING COUNT(EI.BizCardID) <![CDATA[ > ]]> 1
+									) AS DUP
+									ON EM.Email = DUP.Email
+									LEFT JOIN BIZCARD_PERSON PER
+									ON EM.BizCardID = PER.BizCardID
+									WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+										OR
+										(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+										OR
+										(ShareType = 'U' AND RegComCode = #{DN_Code})
+									GROUP BY EM.BizCardID
+						 </when>		
+					 </choose>			
+			) AS DUP 
+			LEFT OUTER JOIN BIZCARD_PERSON AS PER ON DUP.BizCardID = PER.BizCardID
+			GROUP BY DUP.BizCardID
+		) AS TB
+		ORDER BY TB.Target ASC
+	</select>
+	
+   <!-- 유사 목록 가져오기(리스트)  -->
+   <select id="selectBizCardSimilarList" parameterType="cmap" resultType="cmap">
+ 		SELECT TB.*
+		FROM
+		(
+			SELECT DISTINCT PER.BizCardID
+			, PER.Name
+			, PER.CompanyID
+			, PER.JobTitle
+			, PER.ShareType
+			, PER.RegisterID
+			, PER.RegDeptCode
+			, PER.RegComCode
+			, PER.CompanyName AS ComName			
+			, (SELECT GROUP_CONCAT(PhoneNumber ORDER BY PhoneNumber  SEPARATOR '|') FROM  BIZCARD_PHONEINFO WHERE BizCardID = PER.BizCardID) AS PhoneNum
+			, (SELECT GROUP_CONCAT(EMAIL ORDER BY EMAIL  SEPARATOR '|') FROM  BIZCARD_EMAILINFO WHERE BizCardID = PER.BizCardID) AS EMAIL
+			, CONCAT(GROUP_CONCAT(DUP.Target SEPARATOR '|'), '|') AS Target
+			, PER.ImagePath
+			FROM
+			(
+			    <choose>
+						 <when test="Type == null or Type=='Name'.toString()">
+								 SELECT DISTINCT P1.BizCardID, DUP.Name AS Target
+								FROM BIZCARD_PERSON AS P1
+								INNER JOIN(
+									SELECT Name, COUNT(BizCardID) AS CNT
+									FROM BIZCARD_PERSON
+								WHERE (ShareType = 'P' AND RegisterID = #{UR_Code})
+									OR
+									(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+									OR
+									(ShareType = 'U' AND RegComCode = #{DN_Code})
+									GROUP BY Name
+									HAVING COUNT(BizCardID) <![CDATA[ > ]]> 1
+								) AS DUP
+								ON P1.Name = DUP.Name
+								WHERE (P1.ShareType = 'P' AND P1.RegisterID = #{UR_Code})
+									OR
+									(P1.ShareType = 'D' AND P1.RegDeptCode = #{GR_Code})
+									OR
+									(P1.ShareType = 'U' AND P1.RegComCode = #{DN_Code})
+								GROUP BY P1.BizCardID
+						 </when>
+						 <when test="Type =='Phone'.toString()">	
+								SELECT DISTINCT PH.BizCardID, GROUP_CONCAT(DUP.PhoneNumber ORDER BY DUP.PhoneNumber SEPARATOR '|') AS Target
+								FROM BIZCARD_PHONEINFO AS PH
+								INNER JOIN(
+									SELECT PI.PhoneNumber, COUNT(PI.BizCardID) AS CNT
+									FROM BIZCARD_PHONEINFO AS PI
+									INNER JOIN BIZCARD_PERSON PER 
+									ON PI.BizCardID = PER.BizCardID
+									WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+										OR
+										(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+										OR
+										(ShareType = 'U' AND RegComCode = #{DN_Code})
+									GROUP BY PI.PhoneNumber
+									HAVING COUNT(PI.BizCardID) <![CDATA[ > ]]> 1
+								) AS DUP
+								ON PH.PhoneNumber = DUP.PhoneNumber
+								LEFT JOIN BIZCARD_PERSON PER
+								ON PH.BizCardID = PER.BizCardID
+								WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+									OR
+									(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+									OR
+									(ShareType = 'U' AND RegComCode = #{DN_Code})
+								GROUP BY PH.BizCardID
+						 </when>	
+						 <when test="Type =='Email'.toString()">			
+								SELECT DISTINCT EM.BizCardID, GROUP_CONCAT(DUP.Email ORDER BY DUP.Email SEPARATOR '|') AS Target
+								FROM BIZCARD_EMAILINFO AS EM
+								INNER JOIN(
+									SELECT EI.Email, COUNT(EI.BizCardID) AS CNT
+									FROM BIZCARD_EMAILINFO AS EI
+									INNER JOIN BIZCARD_PERSON PER 
+									ON EI.BizCardID = PER.BizCardID
+									WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+										OR
+										(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+										OR
+										(ShareType = 'U' AND RegComCode = #{DN_Code})
+									GROUP BY EI.Email
+									HAVING COUNT(EI.BizCardID) <![CDATA[ > ]]> 1
+								) AS DUP
+								ON EM.Email = DUP.Email
+								LEFT JOIN BIZCARD_PERSON PER
+								ON EM.BizCardID = PER.BizCardID
+								WHERE (TypeCode = 'P' AND RegisterID = #{UR_Code})
+									OR
+									(ShareType = 'D' AND RegDeptCode = #{GR_Code})
+									OR
+									(ShareType = 'U' AND RegComCode = #{DN_Code})
+								GROUP BY EM.BizCardID
+						 </when>		
+					 </choose>			
+			) AS DUP 
+			LEFT OUTER JOIN BIZCARD_PERSON AS PER ON DUP.BizCardID = PER.BizCardID
+			GROUP BY DUP.BizCardID
+		) AS TB
+		ORDER BY TB.Target ASC
+	</select>						    						    
+					
+   	    	
+<!-- 목록 =============================================== -->
+	
+	<!-- 즐겨찾기 목록 가져오기(개수)  -->
+    <select id="selectBizCardFavoriteListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	/* queryID : groupware.bizcard.selectBizCardFavoriteListCnt */
+		SELECT COUNT(*) 
+		  FROM (
+			SELECT DISTINCT
+						A.BizCardID
+						, A.Name
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum
+						, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, IFNULL(A.CompanyName, '') AS ComName
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+						, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName
+						, A.JobTitle
+						, ShareType
+						, 'Y' AS IsFavorite
+						, IFNULL(A.ModifyDate, A.RegistDate) AS Date
+						, A.ImagePath
+				FROM BIZCARD_PERSON AS A
+						INNER JOIN 
+						BIZCARD_FAVORITEINFO AS B 
+						ON A.BizCardID=B.BizCardID AND B.UR_Code = #{UR_Code} 
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				    	<if test="UR_Code != null and GR_Code !=null and DN_Code !=null">
+							(
+								(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	 	             			OR
+	 	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	 	             			OR
+	 	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+		             		)
+						</if>
+						<if test="startDate != null and startDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'Name'.toString()">
+									 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <when test="searchType == 'PhoneNumber'.toString()">
+								     AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)
+								 </when>
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.Name  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.Name BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+							 </when>
+						 </choose>
+			 	     </trim>
+		 ) AS TB
+ 	</select>
+ 	
+    <!-- 즐겨찾기 목록 가져오기(리스트)  -->
+ 	<select id="selectBizCardFavoriteList" parameterType="cmap" resultType="cmap">
+ 		/* queryID : groupware.bizcard.selectBizCardFavoriteList */
+ 	    SELECT DISTINCT
+ 	    	'BizCard' AS BizCardType
+ 	    	 , TB.BizCardID 
+ 	         , TB.Name
+ 	         , TB.PhoneNum
+ 	         , TB.HomePhoneNum
+ 	         , TB.EMAIL 
+ 	         , TB.ComName
+ 	         , TB.ComPhoneNum
+			 , TB.FaxNum
+			 , TB.EtcNum
+			 , TB.DirectNum	 
+			 , TB.PhoneName	 
+ 	         , TB.JobTitle 
+ 	         , TB.ShareType 
+ 	         , TB.IsFavorite 
+ 	         , TB.ModifyDate AS Date
+ 	         , TB.ImagePath 
+ 	         , TB.DeptName
+ 	         , TB.RegisterID
+		  FROM (
+			SELECT  A.BizCardID
+						, A.Name
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum
+						, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, IFNULL(A.CompanyName, '') AS ComName
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+						, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName
+						, A.JobTitle
+						, ShareType
+						, 'Y' AS IsFavorite
+						, IFNULL(A.ModifyDate, A.RegistDate) AS ModifyDate
+						, A.ImagePath
+						, A.DeptName
+						, A.RegisterID
+				FROM BIZCARD_PERSON AS A
+						INNER JOIN 
+						BIZCARD_FAVORITEINFO AS B 
+						ON A.BizCardID=B.BizCardID AND B.UR_Code = #{UR_Code} 
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				       <if test="UR_Code != null and GR_Code !=null and DN_Code !=null">
+							(
+					           (A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	 	             			OR
+	 	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	 	             			OR
+	 	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+ 	             			)
+						</if>
+						<if test="startDate != null and startDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'Name'.toString()">
+									 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <!-- 21.08.13. 핸드폰 번호 검색 오류 수정.
+								 <when test="searchType == 'PhoneNumber'.toString()">
+								     AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)
+								 </when>
+								 -->
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.Name  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.Name BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+							 </when>
+						 </choose>
+			 	     </trim>
+			 ) AS TB
+			 <!-- 21.08.13. 핸드폰 번호 검색 오류 수정. -->
+			 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			 	<if test="searchWord != null and searchType != null" >
+			 		<if test="searchType == 'PhoneNumber'.toString()">
+				     	AND TB.PhoneNum like CONCAT('%',#{searchWord},'%')
+				 	</if>
+			 	</if>
+			 </trim>
+			 <!-- 21.08.13. 핸드폰 번호 검색 오류 수정. -->
+			 <trim prefix="ORDER BY">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					TB.Name ASC
+			    </if> 
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("PhoneNum")'>PhoneNum</when>
+						<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+						<when test='sortColumn.equalsIgnoreCase("ComName")'>ComName</when>
+						<when test='sortColumn.equalsIgnoreCase("ComPhoneNum")'>ComPhoneNum</when>
+						<when test='sortColumn.equalsIgnoreCase("JobTitle")'>JobTitle</when>
+						<when test='sortColumn.equalsIgnoreCase("ShareType")'>ShareType</when>
+						<otherwise>Name</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+			<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   		</if>
+ 	</select>
+ 	<!-- 전체/개인/부서/회사 목록 가져오기(개수)  -->
+    <select id="selectBizCardPersonListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	/* queryID : groupware.bizcard.selectBizCardPersonListCnt */
+		SELECT COUNT(*) 
+		  FROM (
+			SELECT A.BizCardID
+					, A.Name
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum
+					, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+					, IFNULL(A.CompanyName, '') AS ComName					
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+					, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName
+					, A.JobTitle
+					, COALESCE(IsFavorite, 'N') AS IsFavorite
+					, IFNULL(A.ModifyDate, A.RegistDate) AS Date
+					, A.ShareType
+					, A.ImagePath
+			FROM BIZCARD_PERSON AS A
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, 'Y' AS IsFavorite FROM BIZCARD_FAVORITEINFO WHERE UR_CODE=#{UR_Code}) AS B 
+					ON B.BizCardID=A.BizCardID
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+							A.ShareType = #{shareType}
+						</if>
+				 	    <choose>
+				 	         <when test="shareType == 'P'.toString()">
+				 	             AND A.RegisterID = #{UR_Code}
+				 	         </when>
+				 	         <when test="shareType == 'D'.toString()">
+				 	             AND A.RegDeptCode = #{GR_Code}
+				 	         </when>
+				 	         <when test="shareType == 'U'.toString()">
+				 	             AND A.RegComCode = #{DN_Code}
+				 	         </when>
+				 	         <otherwise>
+				 	             AND (
+				 	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+				 	             			OR
+				 	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+				 	             			OR
+				 	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+			 	             			)
+				 	         </otherwise>
+				 	     </choose>
+						<if test="startDate != null and startDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'Name'.toString()">
+									 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <when test="searchType == 'PhoneNumber'.toString()">
+								     AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1) 
+								 </when>
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.Name  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.Name BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+							 </when>
+						 </choose>
+						 <if test="groupID != null and groupID != ''">
+				    			AND A.GroupID IN
+								<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+								    #{item}
+								</foreach>
+						 </if>
+			 	     </trim>
+		 ) AS TB
+ 	</select>
+ 	
+    <!-- 전체/개인/부서/회사 목록 가져오기(리스트)  -->
+ 	<select id="selectBizCardPersonList" parameterType="cmap" resultType="cmap">
+ 		/* queryID : groupware.bizcard.selectBizCardPersonList */
+ 	    SELECT 'BizCard' AS BizCardType
+ 	         , TB.BizCardID AS "BizCardID"
+ 	         , TB.Name AS "Name"
+ 	         , TB.PhoneNum AS "PhoneNum"
+ 	         , TB.HomePhoneNum AS "HomePhoneNum"
+ 	         , TB.EMAIL AS "EMAIL"
+ 	         , TB.ComName AS "ComName"
+ 	         , TB.ComPhoneNum AS "ComPhoneNum"
+			 , TB.FaxNum AS "FaxNum"
+			 , TB.EtcNum AS "EtcNum"
+			 , TB.DirectNum AS "DirectNum"	 
+			 , TB.PhoneName AS "PhoneName"	 
+ 	         , TB.JobTitle AS "JobTitle"
+ 	         , TB.IsFavorite AS "IsFavorite"
+ 	         , TB.ModifyDate AS "Date"
+ 	         , TB.ShareType AS "ShareType" 
+ 	         , TB.ImagePath  AS "ImagePath"  
+ 	         , TB.DeptName AS "DeptName"
+		  FROM (
+			SELECT A.BizCardID
+					, A.Name
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum
+					, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+					, IFNULL(A.CompanyName, '') AS ComName
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+					, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+					, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName
+					, A.JobTitle
+					, COALESCE(IsFavorite, 'N') AS IsFavorite
+					, IFNULL(A.ModifyDate, A.RegistDate) AS ModifyDate
+					, A.ShareType
+					, A.ImagePath
+					, A.DeptName
+			FROM BIZCARD_PERSON AS A
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, 'Y' AS IsFavorite FROM BIZCARD_FAVORITEINFO WHERE UR_CODE=#{UR_Code}) AS B 
+					ON B.BizCardID=A.BizCardID
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				    	<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+							A.ShareType = #{shareType}
+						</if>
+				 	    <choose>
+				 	         <when test="shareType == 'P'.toString()">
+				 	             AND A.RegisterID = #{UR_Code}
+				 	         </when>
+				 	         <when test="shareType == 'D'.toString()">
+				 	             AND A.RegDeptCode = #{GR_Code}
+				 	         </when>
+				 	         <when test="shareType == 'U'.toString()">
+				 	             AND A.RegComCode = #{DN_Code}
+				 	         </when>
+				 	         <otherwise>
+				 	             AND (
+				 	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+				 	             			OR
+				 	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+				 	             			OR
+				 	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+			 	             			)
+				 	         </otherwise>
+				 	     </choose>
+						<if test="startDate != null and startDate != ''">
+			 	            AND DATE_FORMAT(IFNULL(A.ModifyDate, A.RegistDate), '%Y-%m-%d') <![CDATA[ >= ]]> DATE_FORMAT(#{startDate}, '%Y-%m-%d')
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            AND DATE_FORMAT(IFNULL(A.ModifyDate, A.RegistDate), '%Y-%m-%d') <![CDATA[ <= ]]> DATE_FORMAT(#{endDate}, '%Y-%m-%d')
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'Name'.toString()">
+									 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <when test="searchType == 'PhoneNumber'.toString()">
+								     AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)
+								 </when>
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.Name  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.Name BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+							 </when>
+						 </choose>
+						 <if test="groupID != null and groupID != ''">
+				    			AND A.GroupID IN
+								<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+								    #{item}
+								</foreach>
+						 </if>
+			 	     </trim>
+			 ) AS TB
+			 <trim prefix="ORDER BY">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					TB.Name ASC
+			    </if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("PhoneNum")'>PhoneNum</when>
+						<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+						<when test='sortColumn.equalsIgnoreCase("ComName")'>ComName</when>
+						<when test='sortColumn.equalsIgnoreCase("ComPhoneNum")'>ComPhoneNum</when>
+						<when test='sortColumn.equalsIgnoreCase("JobTitle")'>JobTitle</when>
+						<when test='sortColumn.equalsIgnoreCase("ShareType")'>ShareType</when>
+						<otherwise>Name</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+			<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   		</if>
+ 	</select>
+ 	
+ 	<!-- 그룹 목록 가져오기(개수)  -->
+    <select id="selectBizCardGroupListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	/* queryID : groupware.bizcard.selectBizCardGroupListCnt */
+		SELECT COUNT(*) 
+		FROM ( 	    
+			SELECT GR.GroupID, GR.Groupname, GR.OrderNo, COALESCE(CNT, 0) as MemberCnt, IFNULL(GR.ModifyDate, GR.RegistDate) AS Date
+			FROM BIZCARD_GROUP GR
+			LEFT OUTER JOIN 
+			(
+				SELECT GroupID, COUNT(1) AS CNT 
+				FROM 
+				<if test="shareType != null and shareType != ''">
+					<choose>
+						<when test="shareType == 'C'.toString()">
+							BIZCARD_COMPANY
+						</when>
+						<otherwise>
+							BIZCARD_PERSON
+						</otherwise>
+					</choose>
+				</if> 
+				GROUP BY GroupID
+			) UR
+			ON GR.GroupID = UR.GroupID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					GR.ShareType = #{shareType}
+				</if>
+		 	    <choose>
+		 	         <when test="shareType == 'P'.toString()">
+		 	             AND GR.RegisterID = #{UR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'D'.toString()">
+		 	             AND GR.RegDeptCode = #{GR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'U'.toString()">
+		 	             AND GR.RegComCode = #{DN_Code}
+		 	         </when>
+		 	         <when test="shareType == 'A'.toString()">
+		 	             AND (
+		 	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+		 	             			OR
+		 	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+		 	             			OR
+		 	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+	 	             			)
+		 	         </when>
+		 	    </choose>
+				<if test="searchWord != null and searchType != null" >
+				    <choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND GR.Groupname  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+					 </choose>
+			 	</if>
+			</trim>
+			ORDER BY OrderNo ASC, RegistDate ASC
+		 ) AS TB
+	</select>
+
+    <!-- 그룹 목록 가져오기(리스트)  -->
+	<select id="selectBizCardGroupList" parameterType="cmap" resultType="cmap">
+		/* queryID : groupware.bizcard.selectBizCardGroupList */
+		SELECT 'Group' AS BizCardType
+		     , TB.ShareType AS "ShareType"
+		     , TB.GroupID AS "GroupID"
+		     , TB.Groupname AS "Groupname"
+		     , TB.OrderNo AS "OrderNo"
+		     , TB.MemberCnt AS "MemberCnt"
+		     , TB.ModifyDate  AS "Date"
+		FROM ( 	    
+			SELECT GR.ShareType, GR.GroupID, GR.Groupname, GR.OrderNo, COALESCE(CNT, 0) as MemberCnt, IFNULL(GR.ModifyDate, GR.RegistDate) AS ModifyDate
+			FROM BIZCARD_GROUP GR
+			LEFT OUTER JOIN 
+			(
+				SELECT GroupID , SUM(CNT) AS CNT FROM 
+				(	
+					SELECT GroupID, COUNT(1) AS CNT FROM BIZCARD_GROUPPERSON GROUP BY GroupID
+					UNION all
+					SELECT GroupID, COUNT(1) AS CNT 
+					FROM 
+					<if test="shareType != null and shareType != ''">
+						<choose>
+							<when test="shareType == 'C'.toString()">
+								BIZCARD_COMPANY
+							</when>
+							<otherwise>
+								BIZCARD_PERSON
+							</otherwise>
+						</choose>
+					</if> 
+					GROUP BY GroupID
+				) A GROUP BY A.GroupID
+			) UR
+			ON GR.GroupID = UR.GroupID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    <if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					GR.ShareType = #{shareType}
+				</if>
+		 	    <choose>
+		 	         <when test="shareType == 'P'.toString()">
+		 	             AND GR.RegisterID = #{UR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'D'.toString()">
+		 	             AND GR.RegDeptCode = #{GR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'U'.toString()">
+		 	             AND GR.RegComCode = #{DN_Code}
+		 	         </when>
+		 	         <when test="shareType == 'A'.toString()">
+		 	             AND (
+		 	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+		 	             			OR
+		 	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+		 	             			OR
+		 	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+	 	             			)
+		 	         </when>
+		 	    </choose>
+				<if test="searchWord != null and searchType != null" >
+				    <choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND GR.Groupname  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+					 </choose>
+			 	</if>
+			</trim>
+		) AS TB
+		<trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				TB.Groupname ASC
+		    </if>  
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("MemberCnt")'>MemberCnt</when>
+					<otherwise>Groupname</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+   			LIMIT #{pageSize} OFFSET #{pageOffset}
+   		</if>
+	</select>
+	
+    <!-- 그룹 목록 가져오기(개수)  -->
+    <select id="selectBizCardGroupListALLCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		  FROM ( 	    
+			SELECT GR.GroupID, GR.Groupname, GR.OrderNo, COALESCE(CNT, 0) as MemberCnt, IFNULL(GR.ModifyDate, GR.RegistDate) AS Date
+			FROM BIZCARD_GROUP GR
+				 LEFT OUTER JOIN 
+				 (
+					SELECT GroupID, COUNT(1) AS CNT 
+					FROM 
+					<if test="shareType != null">
+						<choose>
+							<when test="shareType == 'C'.toString()">
+								BIZCARD_COMPANY
+							</when>
+							<otherwise>
+								BIZCARD_PERSON
+							</otherwise>
+						</choose>
+					</if> 
+					GROUP BY GroupID
+				 ) UR
+				ON GR.GroupID = UR.GroupID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    <if test="shareType != null and shareType != 'A'.toString()">
+					GR.ShareType = #{shareType}
+				</if>
+		 	    <choose>
+		 	         <when test="shareType == 'P'.toString()">
+		 	             AND GR.RegisterID = #{UR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'D'.toString()">
+		 	             AND GR.RegDeptCode = #{GR_Code}
+		 	         </when>
+		 	         <when test="shareType == 'U'.toString()">
+		 	             AND GR.RegComCode = #{DN_Code}
+		 	         </when>
+		 	         <when test="shareType == 'A'.toString()">
+		 	             AND (
+		 	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+		 	             			OR
+		 	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+		 	             			OR
+		 	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+	 	             			)
+		 	         </when>
+		 	     </choose>
+		 	     <if test="searchWord != null and searchType != null" >
+					<choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND GR.Groupname  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+					</choose>
+				</if>
+				<choose>
+					 <when test="tabFilter == 'ENG'.toString()">
+						 AND SUBSTRING(GR.Groupname,1,1) BETWEEN 'A' AND 'Z'
+					 </when>
+					 <when test="tabFilter == 'NUM'.toString()">
+						 AND GR.Groupname BETWEEN '0' AND '9'
+					 </when>
+					 <when test="tabFilter == 'ㄱ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄱ|ㄲ)' OR ( GR.Groupname <![CDATA[ >= ]]>  '가' AND GR.Groupname <![CDATA[ < ]]>  '나' ))
+					 </when>
+					 <when test="tabFilter == 'ㄴ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄴ' OR ( GR.Groupname <![CDATA[ >= ]]> '나' AND GR.Groupname <![CDATA[ < ]]> '다' ))
+					 </when>
+					 <when test="tabFilter == 'ㄷ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄷ|ㄸ)' OR ( GR.Groupname <![CDATA[ >= ]]> '다' AND GR.Groupname <![CDATA[ < ]]> '라' ))
+					 </when>
+					 <when test="tabFilter == 'ㄹ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄹ' OR ( GR.Groupname <![CDATA[ >= ]]> '라' AND GR.Groupname <![CDATA[ < ]]> '마' ))
+					 </when>
+					 <when test="tabFilter == 'ㅁ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅁ' OR ( GR.Groupname <![CDATA[ >= ]]> '마' AND GR.Groupname <![CDATA[ < ]]> '바' ))
+					 </when>
+					 <when test="tabFilter == 'ㅂ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅂ' OR ( GR.Groupname <![CDATA[ >= ]]> '바' AND GR.Groupname <![CDATA[ < ]]> '사' ))
+					 </when>
+					 <when test="tabFilter == 'ㅅ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅅ|ㅆ)' OR ( GR.Groupname <![CDATA[ >= ]]> '사' AND GR.Groupname <![CDATA[ < ]]> '아' ))
+					 </when>
+					 <when test="tabFilter == 'ㅇ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅇ' OR ( GR.Groupname <![CDATA[ >= ]]> '아' AND GR.Groupname <![CDATA[ < ]]> '자' ))
+					 </when>
+					 <when test="tabFilter == 'ㅈ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅈ|ㅉ)' OR ( GR.Groupname <![CDATA[ >= ]]> '자' AND GR.Groupname <![CDATA[ < ]]> '차' ))
+					 </when>
+					 <when test="tabFilter == 'ㅊ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅊ' OR ( GR.Groupname <![CDATA[ >= ]]> '차' AND GR.Groupname <![CDATA[ < ]]> '카' ))
+					 </when>
+					 <when test="tabFilter == 'ㅋ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅋ' OR ( GR.Groupname <![CDATA[ >= ]]> '카' AND GR.Groupname <![CDATA[ < ]]> '타' ))
+					 </when>
+					 <when test="tabFilter == 'ㅌ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅌ' OR ( GR.Groupname <![CDATA[ >= ]]> '타' AND GR.Groupname <![CDATA[ < ]]> '파' ))
+					 </when>
+					 <when test="tabFilter == 'ㅍ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅍ' OR ( GR.Groupname <![CDATA[ >= ]]> '파' AND GR.Groupname <![CDATA[ < ]]> '하' ))
+					 </when>
+					 <when test="tabFilter == 'ㅎ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅎ' OR ( GR.Groupname <![CDATA[ >= ]]> '하' AND GR.Groupname <![CDATA[ <= ]]> '힣' ))
+					 </when>
+					 <when test="tabFilter == 'ETC'.toString()">
+						 AND <![CDATA[  (GR.Groupname NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+					 </when>
+				 </choose>
+			</trim>
+			ORDER BY OrderNo ASC, RegistDate ASC
+		 ) AS TB
+	</select>
+	
+    <!-- 연락처 + 연락처 그룹 목록 가져오기(개수) -->
+	<select id="selectBizCardAllListCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : groupware.bizcard.selectBizCardAllListCnt */
+		SELECT COUNT(*) 
+		  FROM (
+			SELECT 
+				'Group' AS BizCardType
+				, GR.GroupID AS BizCardID
+				, GR.Groupname AS Name
+				, GR.OrderNo
+				, '' AS PhoneNum
+				, '' AS HomePhoneNum
+				, '' AS EMAIL
+				, '' AS ComName
+				, '' AS ComPhoneNum				
+				, '' AS FaxNum
+				, '' AS EtcNum
+				, '' AS DirectNum
+				, '' AS PhoneName			
+				, '' AS JobTitle
+				, '' AS IsFavorite
+				<!-- , COALESCE(CNT, 0) as MemberCnt -->
+				, IFNULL(GR.ModifyDate, GR.RegistDate) AS ModifyDate
+				, GR.ShareType AS ShareType
+				, '' AS ImagePath
+				, '' AS DeptName 
+			FROM BIZCARD_GROUP GR 
+			<!-- 
+			 LEFT OUTER JOIN 
+			 (
+				SELECT BP.GroupID, COUNT(1) AS CNT 
+				FROM 
+				<if test="shareType != null and shareType != ''">
+					<choose>
+						<when test="shareType == 'C'.toString()">
+							BIZCARD_COMPANY AS BP
+						</when>
+						<otherwise>
+							BIZCARD_PERSON AS BP
+						</otherwise>
+					</choose>
+				</if> 
+				LEFT OUTER JOIN bizcard_groupperson AS GP 
+				ON BP.GroupID = GP.GroupID
+				GROUP BY BP.GroupID
+			 ) UR
+			ON GR.GroupID = UR.GroupID
+			 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					GR.ShareType = #{shareType}
+				</if>
+				<choose>
+					 <when test="shareType == 'P'.toString()">
+						 AND GR.RegisterID = #{UR_Code}
+					 </when>
+					 <when test="shareType == 'D'.toString()">
+						 AND GR.RegDeptCode = #{GR_Code}
+					 </when>
+					 <when test="shareType == 'U'.toString()">
+						 AND GR.RegComCode = #{DN_Code}
+					 </when>
+					 <when test="shareType == 'A'.toString()">
+						 AND (
+									(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+									OR
+									(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+									OR
+									(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+								)
+					 </when>
+				 </choose>
+				 <if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+					<choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND GR.Groupname  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+					</choose>
+				</if>
+				<choose>
+					 <when test="tabFilter == 'ENG'.toString()">
+						 AND SUBSTRING(GR.Groupname,1,1) BETWEEN 'A' AND 'Z'
+					 </when>
+					 <when test="tabFilter == 'NUM'.toString()">
+						 AND GR.Groupname BETWEEN '0' AND '9'
+					 </when>
+					 <when test="tabFilter == 'ㄱ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄱ|ㄲ)' OR ( GR.Groupname <![CDATA[ >= ]]>  '가' AND GR.Groupname <![CDATA[ < ]]>  '나' ))
+					 </when>
+					 <when test="tabFilter == 'ㄴ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄴ' OR ( GR.Groupname <![CDATA[ >= ]]> '나' AND GR.Groupname <![CDATA[ < ]]> '다' ))
+					 </when>
+					 <when test="tabFilter == 'ㄷ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄷ|ㄸ)' OR ( GR.Groupname <![CDATA[ >= ]]> '다' AND GR.Groupname <![CDATA[ < ]]> '라' ))
+					 </when>
+					 <when test="tabFilter == 'ㄹ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄹ' OR ( GR.Groupname <![CDATA[ >= ]]> '라' AND GR.Groupname <![CDATA[ < ]]> '마' ))
+					 </when>
+					 <when test="tabFilter == 'ㅁ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅁ' OR ( GR.Groupname <![CDATA[ >= ]]> '마' AND GR.Groupname <![CDATA[ < ]]> '바' ))
+					 </when>
+					 <when test="tabFilter == 'ㅂ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅂ' OR ( GR.Groupname <![CDATA[ >= ]]> '바' AND GR.Groupname <![CDATA[ < ]]> '사' ))
+					 </when>
+					 <when test="tabFilter == 'ㅅ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅅ|ㅆ)' OR ( GR.Groupname <![CDATA[ >= ]]> '사' AND GR.Groupname <![CDATA[ < ]]> '아' ))
+					 </when>
+					 <when test="tabFilter == 'ㅇ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅇ' OR ( GR.Groupname <![CDATA[ >= ]]> '아' AND GR.Groupname <![CDATA[ < ]]> '자' ))
+					 </when>
+					 <when test="tabFilter == 'ㅈ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅈ|ㅉ)' OR ( GR.Groupname <![CDATA[ >= ]]> '자' AND GR.Groupname <![CDATA[ < ]]> '차' ))
+					 </when>
+					 <when test="tabFilter == 'ㅊ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅊ' OR ( GR.Groupname <![CDATA[ >= ]]> '차' AND GR.Groupname <![CDATA[ < ]]> '카' ))
+					 </when>
+					 <when test="tabFilter == 'ㅋ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅋ' OR ( GR.Groupname <![CDATA[ >= ]]> '카' AND GR.Groupname <![CDATA[ < ]]> '타' ))
+					 </when>
+					 <when test="tabFilter == 'ㅌ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅌ' OR ( GR.Groupname <![CDATA[ >= ]]> '타' AND GR.Groupname <![CDATA[ < ]]> '파' ))
+					 </when>
+					 <when test="tabFilter == 'ㅍ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅍ' OR ( GR.Groupname <![CDATA[ >= ]]> '파' AND GR.Groupname <![CDATA[ < ]]> '하' ))
+					 </when>
+					 <when test="tabFilter == 'ㅎ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅎ' OR ( GR.Groupname <![CDATA[ >= ]]> '하' AND GR.Groupname <![CDATA[ <= ]]> '힣' ))
+					 </when>
+					 <when test="tabFilter == 'ETC'.toString()">
+						 AND <![CDATA[  (GR.Groupname NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+					 </when>
+				 </choose>
+			</trim>
+			UNION
+			SELECT 
+				'BizCard' AS BizCardType
+				, A.BizCardID
+				, A.Name
+				, 0 AS OrderNo
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum				
+				, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+				, IFNULL(A.CompanyName, '') AS ComName
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+				, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName				
+				, A.JobTitle
+				, COALESCE(IsFavorite, 'N') AS IsFavorite
+				<!-- , 0 AS MemberCnt -->
+				, IFNULL(A.ModifyDate, A.RegistDate) AS ModifyDate
+				, A.ShareType
+				, A.ImagePath
+				, A.DeptName
+			FROM BIZCARD_PERSON AS A
+				LEFT OUTER JOIN 
+				(SELECT BizCardID, 'Y' AS IsFavorite FROM BIZCARD_FAVORITEINFO WHERE UR_CODE=#{UR_Code}) AS B 
+				ON B.BizCardID=A.BizCardID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					A.ShareType = #{shareType}
+				</if>
+				<choose>
+					 <when test="shareType == 'P'.toString()">
+						 AND A.RegisterID = #{UR_Code}
+					 </when>
+					 <when test="shareType == 'D'.toString()">
+						 AND A.RegDeptCode = #{GR_Code}
+					 </when>
+					 <when test="shareType == 'U'.toString()">
+						 AND A.RegComCode = #{DN_Code}
+					 </when>
+					 <otherwise>
+						 AND (
+									(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+									OR
+									(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+									OR
+									(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+								)
+					 </otherwise>
+				 </choose>
+				<if test="startDate != null and startDate != ''">
+					AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+				</if>
+				<if test="endDate != null and endDate != ''">
+					AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+				</if>
+				<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+					<choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+						 <when test="searchType == 'EMAIL'.toString()">
+							 AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+						 </when>
+						 <!-- 21.08.13, 휴대폰 번호 검색 오류.
+						 <when test="searchType == 'PhoneNumber'.toString()">
+							 AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)
+						 </when>
+						 21.08.13, 휴대폰 번호 검색 오류. -->
+						 <when test="searchType == 'Multi'.toString()">
+							 AND  (
+								(A.Name  like CONCAT('%',#{searchWord},'%') )
+								OR
+								(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								OR
+								(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+							 )
+						 </when>
+					 </choose>
+				</if>
+				<choose>
+					 <when test="tabFilter == 'ENG'.toString()">
+						 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+					 </when>
+					 <when test="tabFilter == 'NUM'.toString()">
+						 AND A.Name BETWEEN '0' AND '9'
+					 </when>
+					 <when test="tabFilter == 'ㄱ'.toString()">
+						 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+					 </when>
+					 <when test="tabFilter == 'ㄴ'.toString()">
+						 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+					 </when>
+					 <when test="tabFilter == 'ㄷ'.toString()">
+						 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+					 </when>
+					 <when test="tabFilter == 'ㄹ'.toString()">
+						 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+					 </when>
+					 <when test="tabFilter == 'ㅁ'.toString()">
+						 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+					 </when>
+					 <when test="tabFilter == 'ㅂ'.toString()">
+						 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+					 </when>
+					 <when test="tabFilter == 'ㅅ'.toString()">
+						 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+					 </when>
+					 <when test="tabFilter == 'ㅇ'.toString()">
+						 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+					 </when>
+					 <when test="tabFilter == 'ㅈ'.toString()">
+						 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+					 </when>
+					 <when test="tabFilter == 'ㅊ'.toString()">
+						 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+					 </when>
+					 <when test="tabFilter == 'ㅋ'.toString()">
+						 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+					 </when>
+					 <when test="tabFilter == 'ㅌ'.toString()">
+						 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+					 </when>
+					 <when test="tabFilter == 'ㅍ'.toString()">
+						 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+					 </when>
+					 <when test="tabFilter == 'ㅎ'.toString()">
+						 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+					 </when>
+					 <when test="tabFilter == 'ETC'.toString()">
+						 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+					 </when>
+				 </choose>
+				 <if test="groupID != null and groupID != ''">
+						AND A.GroupID IN
+						<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+							#{item}
+						</foreach>
+				 </if>
+			 </trim>
+		 ) AS TB 
+		 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			 <if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+				<choose>
+					 <when test="searchType == 'Name'.toString()">
+						 AND TB.Name like CONCAT('%',#{searchWord},'%') 
+					 </when>
+					 <when test="searchType == 'EMAIL'.toString()">
+						 AND TB.EMAIL like CONCAT('%',#{searchWord},'%')
+						 AND TB.BizCardType = 'BizCard'
+					 </when>
+					 <when test="searchType == 'PhoneNumber'.toString()">
+						AND TB.PhoneNum like CONCAT('%',#{searchWord},'%')
+					 	AND TB.BizCardType = 'BizCard'
+					 </when>
+					 <when test="searchType == 'Multi'.toString()">
+						 AND  (
+							(TB.Name like CONCAT('%',#{searchWord},'%') )
+							OR
+							(TB.EMAIL like CONCAT('%',#{searchWord},'%') AND TB.BizCardType = 'BizCard')
+							OR
+							(TB.PhoneNum like CONCAT('%',#{searchWord},'%') AND TB.BizCardType = 'BizCard')	
+						 )
+					 </when>
+				 </choose>
+			</if>
+		</trim>
+	</select>
+    
+	<!-- 연락처 + 연락처 그룹 목록 가져오기(리스트)  -->
+	<select id="selectBizCardAllList" parameterType="cmap" resultType="cmap">
+		/* queryID : groupware.bizcard.selectBizCardAllList */
+		SELECT 
+			TB.BizCardType AS "BizCardType"
+		     , TB.BizCardID AS "BizCardID"
+		     , TB.Name AS "Name"
+		     , TB.OrderNo AS "OrderNo"
+			 , TB.PhoneNum AS "PhoneNum"
+			 , TB.HomePhoneNum AS "HomePhoneNum"
+			 , TB.EMAIL AS "EMAIL"
+			 , TB.ComName AS "ComName"
+			 , TB.ComPhoneNum AS "ComPhoneNum"
+			 , TB.FaxNum AS "FaxNum"
+			 , TB.EtcNum AS "EtcNum"
+			 , TB.DirectNum AS "DirectNum"	 
+			 , TB.PhoneName AS "PhoneName"	 
+			 , TB.JobTitle AS "JobTitle"
+			 , TB.IsFavorite AS "IsFavorite"
+		     , TB.MemberCnt AS "MemberCnt"
+		     , TB.ModifyDate  AS "Date"
+			 , TB.ShareType AS "ShareType"
+			 , TB.ImagePath AS "ImagePath"
+			 , TB.DeptName AS "DeptName"
+			 , TB.RegisterID AS "RegisterID"
+			 , fn_basegetdictionary_s(#{lang}, U.MultiDisplayName) AS "RegisterName"
+			 , DATE_FORMAT(TB.RegistDate, '%Y-%m-%d') AS "RegistDate"
+		  FROM ( 	    
+			SELECT 
+				'Group' AS BizCardType
+				, GR.GroupID AS BizCardID
+				, GR.Groupname AS Name
+				, GR.OrderNo
+				, '' AS PhoneNum
+				, '' AS HomePhoneNum
+				, '' AS EMAIL
+				, '' AS ComName
+				, '' AS ComPhoneNum				
+				, '' AS FaxNum
+				, '' AS EtcNum
+				, '' AS DirectNum
+				, '' AS PhoneName			
+				, '' AS JobTitle
+				, '' AS IsFavorite
+				, COALESCE(CNT, 0) as MemberCnt
+				, IFNULL(GR.ModifyDate, GR.RegistDate) AS ModifyDate
+				, GR.ShareType AS ShareType
+				, '' AS ImagePath
+				, '' AS DeptName
+				, GR.RegisterID AS RegisterID
+				, GR.RegistDate AS RegistDate
+			FROM BIZCARD_GROUP GR
+			LEFT OUTER JOIN 
+			(
+				SELECT GroupID , SUM(CNT) AS CNT FROM 
+				(
+					SELECT GroupID, COUNT(1) AS CNT FROM BIZCARD_GROUPPERSON GROUP BY GroupID
+					UNION all
+					SELECT GroupID, COUNT(1) AS CNT 
+					FROM 
+					<if test="shareType != null and shareType != ''">
+						<choose>
+							<when test="shareType == 'C'.toString()">
+								BIZCARD_COMPANY
+							</when>
+							<otherwise>
+								BIZCARD_PERSON
+							</otherwise>
+						</choose>
+					</if> 
+					GROUP BY GroupID
+				) A GROUP BY A.GroupID
+			) UR
+			ON GR.GroupID = UR.GroupID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					GR.ShareType = #{shareType}
+				</if>
+				<choose>
+					 <when test="shareType == 'P'.toString()">
+						 AND GR.RegisterID = #{UR_Code}
+					 </when>
+					 <when test="shareType == 'D'.toString()">
+						 AND GR.RegDeptCode = #{GR_Code}
+					 </when>
+					 <when test="shareType == 'U'.toString()">
+						 AND GR.RegComCode = #{DN_Code}
+					 </when>
+					 <when test="shareType == 'A'.toString()">
+						 AND (
+									(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+									OR
+									(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+									OR
+									(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+								)
+					 </when>
+				 </choose>
+				 <if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+					<choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND GR.Groupname  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+					</choose>
+				</if>
+				<choose>
+					 <when test="tabFilter == 'ENG'.toString()">
+						 AND SUBSTRING(GR.Groupname,1,1) BETWEEN 'A' AND 'Z'
+					 </when>
+					 <when test="tabFilter == 'NUM'.toString()">
+						 AND GR.Groupname BETWEEN '0' AND '9'
+					 </when>
+					 <when test="tabFilter == 'ㄱ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄱ|ㄲ)' OR ( GR.Groupname <![CDATA[ >= ]]>  '가' AND GR.Groupname <![CDATA[ < ]]>  '나' ))
+					 </when>
+					 <when test="tabFilter == 'ㄴ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄴ' OR ( GR.Groupname <![CDATA[ >= ]]> '나' AND GR.Groupname <![CDATA[ < ]]> '다' ))
+					 </when>
+					 <when test="tabFilter == 'ㄷ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㄷ|ㄸ)' OR ( GR.Groupname <![CDATA[ >= ]]> '다' AND GR.Groupname <![CDATA[ < ]]> '라' ))
+					 </when>
+					 <when test="tabFilter == 'ㄹ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㄹ' OR ( GR.Groupname <![CDATA[ >= ]]> '라' AND GR.Groupname <![CDATA[ < ]]> '마' ))
+					 </when>
+					 <when test="tabFilter == 'ㅁ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅁ' OR ( GR.Groupname <![CDATA[ >= ]]> '마' AND GR.Groupname <![CDATA[ < ]]> '바' ))
+					 </when>
+					 <when test="tabFilter == 'ㅂ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅂ' OR ( GR.Groupname <![CDATA[ >= ]]> '바' AND GR.Groupname <![CDATA[ < ]]> '사' ))
+					 </when>
+					 <when test="tabFilter == 'ㅅ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅅ|ㅆ)' OR ( GR.Groupname <![CDATA[ >= ]]> '사' AND GR.Groupname <![CDATA[ < ]]> '아' ))
+					 </when>
+					 <when test="tabFilter == 'ㅇ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅇ' OR ( GR.Groupname <![CDATA[ >= ]]> '아' AND GR.Groupname <![CDATA[ < ]]> '자' ))
+					 </when>
+					 <when test="tabFilter == 'ㅈ'.toString()">
+						 AND (GR.Groupname RLIKE '^(ㅈ|ㅉ)' OR ( GR.Groupname <![CDATA[ >= ]]> '자' AND GR.Groupname <![CDATA[ < ]]> '차' ))
+					 </when>
+					 <when test="tabFilter == 'ㅊ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅊ' OR ( GR.Groupname <![CDATA[ >= ]]> '차' AND GR.Groupname <![CDATA[ < ]]> '카' ))
+					 </when>
+					 <when test="tabFilter == 'ㅋ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅋ' OR ( GR.Groupname <![CDATA[ >= ]]> '카' AND GR.Groupname <![CDATA[ < ]]> '타' ))
+					 </when>
+					 <when test="tabFilter == 'ㅌ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅌ' OR ( GR.Groupname <![CDATA[ >= ]]> '타' AND GR.Groupname <![CDATA[ < ]]> '파' ))
+					 </when>
+					 <when test="tabFilter == 'ㅍ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅍ' OR ( GR.Groupname <![CDATA[ >= ]]> '파' AND GR.Groupname <![CDATA[ < ]]> '하' ))
+					 </when>
+					 <when test="tabFilter == 'ㅎ'.toString()">
+						 AND (GR.Groupname RLIKE '^ㅎ' OR ( GR.Groupname <![CDATA[ >= ]]> '하' AND GR.Groupname <![CDATA[ <= ]]> '힣' ))
+					 </when>
+					 <when test="tabFilter == 'ETC'.toString()">
+						 AND <![CDATA[  (GR.Groupname NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+					 </when>
+				 </choose>
+			</trim>
+			UNION
+			SELECT 
+				'BizCard' AS BizCardType
+				, A.BizCardID
+				, A.Name
+				, 0 AS OrderNo
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'H' ORDER BY SeqID LIMIT 1), '') AS HomePhoneNum
+				, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+				, IFNULL(A.CompanyName, '') AS ComName
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS ComPhoneNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'F' ORDER BY SeqID LIMIT 1), '') AS FaxNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'E' ORDER BY SeqID LIMIT 1), '') AS EtcNum
+				, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS DirectNum
+				, IFNULL((SELECT PhoneName FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'D' ORDER BY SeqID LIMIT 1), '') AS PhoneName
+				, A.JobTitle
+				, COALESCE(IsFavorite, 'N') AS IsFavorite
+				, 0 AS MemberCnt
+				, IFNULL(A.ModifyDate, A.RegistDate) AS ModifyDate
+				, A.ShareType
+				, A.ImagePath
+				, A.DeptName
+				, A.RegisterID
+				, A.RegistDate
+			FROM BIZCARD_PERSON AS A
+				LEFT OUTER JOIN 
+				(SELECT BizCardID, 'Y' AS IsFavorite FROM BIZCARD_FAVORITEINFO WHERE UR_CODE=#{UR_Code}) AS B 
+				ON B.BizCardID=A.BizCardID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="shareType != null and shareType != '' and shareType != 'A'.toString()">
+					A.ShareType = #{shareType}
+				</if>
+				<choose>
+					 <when test="shareType == 'P'.toString()">
+						 AND A.RegisterID = #{UR_Code}
+					 </when>
+					 <when test="shareType == 'D'.toString()">
+						 AND A.RegDeptCode = #{GR_Code}
+					 </when>
+					 <when test="shareType == 'U'.toString()">
+						 AND A.RegComCode = #{DN_Code}
+					 </when>
+					 <otherwise>
+						 AND (
+									(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+									OR
+									(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+									OR
+									(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+								)
+					 </otherwise>
+				 </choose>
+				<if test="startDate != null and startDate != ''">
+					AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+				</if>
+				<if test="endDate != null and endDate != ''">
+					AND IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+				</if>
+				<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+					<choose>
+						 <when test="searchType == 'Name'.toString()">
+							 AND A.Name  like CONCAT('%',#{searchWord},'%') 
+						 </when>
+						 <when test="searchType == 'EMAIL'.toString()">
+							 AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+						 </when>
+						 <!-- 21.08.13. 핸드폰 번호 검색 오류 수정.  
+						 <when test="searchType == 'PhoneNumber'.toString()">
+							 AND  (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)
+						 </when>
+						 -->
+						 <when test="searchType == 'Multi'.toString()">
+							 AND  (
+								(A.Name  like CONCAT('%',#{searchWord},'%') )
+								OR
+								(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								OR
+								(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='P' AND PhoneType = 'C' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+							 )
+						 </when>
+					 </choose>
+				</if>
+				<choose>
+					 <when test="tabFilter == 'ENG'.toString()">
+						 AND SUBSTRING(A.Name,1,1) BETWEEN 'A' AND 'Z'
+					 </when>
+					 <when test="tabFilter == 'NUM'.toString()">
+						 AND A.Name BETWEEN '0' AND '9'
+					 </when>
+					 <when test="tabFilter == 'ㄱ'.toString()">
+						 AND (A.Name RLIKE '^(ㄱ|ㄲ)' OR ( A.Name <![CDATA[ >= ]]>  '가' AND A.Name <![CDATA[ < ]]>  '나' ))
+					 </when>
+					 <when test="tabFilter == 'ㄴ'.toString()">
+						 AND (A.Name RLIKE '^ㄴ' OR ( A.Name <![CDATA[ >= ]]> '나' AND A.Name <![CDATA[ < ]]> '다' ))
+					 </when>
+					 <when test="tabFilter == 'ㄷ'.toString()">
+						 AND (A.Name RLIKE '^(ㄷ|ㄸ)' OR ( A.Name <![CDATA[ >= ]]> '다' AND A.Name <![CDATA[ < ]]> '라' ))
+					 </when>
+					 <when test="tabFilter == 'ㄹ'.toString()">
+						 AND (A.Name RLIKE '^ㄹ' OR ( A.Name <![CDATA[ >= ]]> '라' AND A.Name <![CDATA[ < ]]> '마' ))
+					 </when>
+					 <when test="tabFilter == 'ㅁ'.toString()">
+						 AND (A.Name RLIKE '^ㅁ' OR ( A.Name <![CDATA[ >= ]]> '마' AND A.Name <![CDATA[ < ]]> '바' ))
+					 </when>
+					 <when test="tabFilter == 'ㅂ'.toString()">
+						 AND (A.Name RLIKE '^ㅂ' OR ( A.Name <![CDATA[ >= ]]> '바' AND A.Name <![CDATA[ < ]]> '사' ))
+					 </when>
+					 <when test="tabFilter == 'ㅅ'.toString()">
+						 AND (A.Name RLIKE '^(ㅅ|ㅆ)' OR ( A.Name <![CDATA[ >= ]]> '사' AND A.Name <![CDATA[ < ]]> '아' ))
+					 </when>
+					 <when test="tabFilter == 'ㅇ'.toString()">
+						 AND (A.Name RLIKE '^ㅇ' OR ( A.Name <![CDATA[ >= ]]> '아' AND A.Name <![CDATA[ < ]]> '자' ))
+					 </when>
+					 <when test="tabFilter == 'ㅈ'.toString()">
+						 AND (A.Name RLIKE '^(ㅈ|ㅉ)' OR ( A.Name <![CDATA[ >= ]]> '자' AND A.Name <![CDATA[ < ]]> '차' ))
+					 </when>
+					 <when test="tabFilter == 'ㅊ'.toString()">
+						 AND (A.Name RLIKE '^ㅊ' OR ( A.Name <![CDATA[ >= ]]> '차' AND A.Name <![CDATA[ < ]]> '카' ))
+					 </when>
+					 <when test="tabFilter == 'ㅋ'.toString()">
+						 AND (A.Name RLIKE '^ㅋ' OR ( A.Name <![CDATA[ >= ]]> '카' AND A.Name <![CDATA[ < ]]> '타' ))
+					 </when>
+					 <when test="tabFilter == 'ㅌ'.toString()">
+						 AND (A.Name RLIKE '^ㅌ' OR ( A.Name <![CDATA[ >= ]]> '타' AND A.Name <![CDATA[ < ]]> '파' ))
+					 </when>
+					 <when test="tabFilter == 'ㅍ'.toString()">
+						 AND (A.Name RLIKE '^ㅍ' OR ( A.Name <![CDATA[ >= ]]> '파' AND A.Name <![CDATA[ < ]]> '하' ))
+					 </when>
+					 <when test="tabFilter == 'ㅎ'.toString()">
+						 AND (A.Name RLIKE '^ㅎ' OR ( A.Name <![CDATA[ >= ]]> '하' AND A.Name <![CDATA[ <= ]]> '힣' ))
+					 </when>
+					 <when test="tabFilter == 'ETC'.toString()">
+						 AND <![CDATA[  (A.Name NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]') ]]>
+					 </when>
+				 </choose>
+				 <if test="groupID != null and groupID != ''">
+						AND A.GroupID IN
+						<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+							#{item}
+						</foreach>
+				 </if>
+			 </trim>
+		 ) AS TB 
+		 LEFT JOIN SYS_OBJECT_USER U ON TB.RegisterID = U.UserCode
+		 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			 <if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+				<choose>
+					 <when test="searchType == 'Name'.toString()">
+						 AND TB.Name like CONCAT('%',#{searchWord},'%') 
+					 </when>
+					 <when test="searchType == 'EMAIL'.toString()">
+						 AND TB.EMAIL like CONCAT('%',#{searchWord},'%')
+						 AND TB.BizCardType = 'BizCard'
+					 </when>
+					 <when test="searchType == 'PhoneNumber'.toString()">
+						AND TB.PhoneNum like CONCAT('%',#{searchWord},'%')
+					 	AND TB.BizCardType = 'BizCard'
+					 </when>
+					 <when test="searchType == 'Multi'.toString()">
+						 AND  (
+							(TB.Name like CONCAT('%',#{searchWord},'%') )
+							OR
+							(TB.EMAIL like CONCAT('%',#{searchWord},'%') AND TB.BizCardType = 'BizCard')
+							OR
+							(TB.PhoneNum like CONCAT('%',#{searchWord},'%') AND TB.BizCardType = 'BizCard')	
+						 )
+					 </when>
+				 </choose>
+			</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				TB.Name ASC
+		    </if>  
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PhoneNum")'>PhoneNum</when>
+					<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+					<when test='sortColumn.equalsIgnoreCase("ComName")'>ComName</when>
+					<when test='sortColumn.equalsIgnoreCase("ComPhoneNum")'>ComPhoneNum</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitle")'>JobTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("ShareType")'>ShareType</when>
+					<otherwise>Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+   			LIMIT #{pageSize} OFFSET #{pageOffset}
+   		</if>
+	</select>
+	<!-- 업체 목록 가져오기(개수)  -->
+	<select id="selectBizCardCompanyListCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : groupware.bizcard.selectBizCardCompanyListCnt */
+		SELECT COUNT(*) 
+		  FROM (
+			SELECT BizCardID
+						, GroupID
+						, ComName
+						, ComRepName
+						, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+						, IFNULL(ComAddress, '') AS ComAddress
+						, IFNULL(A.ModifyDate, A.RegistDate) AS Date
+						, ImagePath
+						FROM BIZCARD_COMPANY AS A
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="startDate != null and startDate != ''">
+			 	            IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'ComName'.toString()">
+									 AND A.ComName  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <when test="searchType == 'PhoneNum'.toString()">
+								     AND (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1)
+								 </when>
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.ComName  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.ComName,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.ComName BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.ComName RLIKE '^(ㄱ|ㄲ)' OR ( A.ComName <![CDATA[ >= ]]>  '가' AND A.ComName <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.ComName RLIKE '^ㄴ' OR ( A.ComName <![CDATA[ >= ]]> '나' AND A.ComName <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.ComName RLIKE '^(ㄷ|ㄸ)' OR ( A.ComName <![CDATA[ >= ]]> '다' AND A.ComName <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.ComName RLIKE '^ㄹ' OR ( A.ComName <![CDATA[ >= ]]> '라' AND A.ComName <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.ComName RLIKE '^ㅁ' OR ( A.ComName <![CDATA[ >= ]]> '마' AND A.ComName <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.ComName RLIKE '^ㅂ' OR ( A.ComName <![CDATA[ >= ]]> '바' AND A.ComName <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.ComName RLIKE '^(ㅅ|ㅆ)' OR ( A.ComName <![CDATA[ >= ]]> '사' AND A.ComName <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.ComName RLIKE '^ㅇ' OR ( A.ComName <![CDATA[ >= ]]> '아' AND A.ComName <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.ComName RLIKE '^(ㅈ|ㅉ)' OR ( A.ComName <![CDATA[ >= ]]> '자' AND A.ComName <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.ComName RLIKE '^ㅊ' OR ( A.ComName <![CDATA[ >= ]]> '차' AND A.ComName <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.ComName RLIKE '^ㅋ' OR ( A.ComName <![CDATA[ >= ]]> '카' AND A.ComName <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.ComName RLIKE '^ㅌ' OR ( A.ComName <![CDATA[ >= ]]> '타' AND A.ComName <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.ComName RLIKE '^ㅍ' OR ( A.ComName <![CDATA[ >= ]]> '파' AND A.ComName <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.ComName RLIKE '^ㅎ' OR ( A.ComName <![CDATA[ >= ]]> '하' AND A.ComName <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.ComName NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]' ]]>
+							 </when>
+						 </choose>
+						 <if test="groupID != null">
+				    			AND GroupID IN
+								<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+								    #{item}
+								</foreach>
+						 </if>
+			 	     </trim>
+			 ) AS TB
+ 	</select>
+ 	
+	<!-- 업체 목록 가져오기(리스트)  -->
+ 	<select id="selectBizCardCompanyList" parameterType="cmap" resultType="cmap">
+ 		/* queryID : groupware.bizcard.selectBizCardCompanyList */
+ 	    SELECT TB.BizCardID AS "BizCardID"
+ 	         , TB.GroupID AS "GroupID"
+ 	         , TB.ComName AS "ComName"
+ 	         , TB.ComRepName AS "ComRepName"
+ 	         , TB.EMAIL AS "EMAIL"
+ 	         , TB.PhoneNum AS "PhoneNum"
+ 	         , TB.ComAddress AS "ComAddress"
+ 	         , TB.ModifyDate AS "Date"
+ 	         , TB.ImagePath  AS "ImagePath" 
+		  FROM (
+			SELECT BizCardID
+						, GroupID
+						, ComName
+						, ComRepName
+						, IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' ORDER BY SeqID LIMIT 1), '') AS PhoneNum
+						, IFNULL(ComAddress, '') AS ComAddress
+						, IFNULL(A.ModifyDate, A.RegistDate) AS ModifyDate
+						, ImagePath
+						FROM BIZCARD_COMPANY AS A
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="startDate != null and startDate != ''">
+			 	            IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ >= ]]> #{startDate}
+			 	        </if>
+			 	        <if test="endDate != null and endDate != ''">
+			 	            IFNULL(A.ModifyDate, A.RegistDate) <![CDATA[ <= ]]> #{endDate}
+			 	        </if>
+						<if test="searchWord != null and searchWord != '' and searchType != null and searchType != ''" >
+						    <choose>
+								 <when test="searchType == 'ComName'.toString()">
+									 AND A.ComName  like CONCAT('%',#{searchWord},'%') 
+								 </when>
+								 <when test="searchType == 'EMAIL'.toString()">
+								     AND IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> ''
+								 </when>
+								 <when test="searchType == 'PhoneNum'.toString()">
+								     AND (SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1) 
+								 </when>
+								 <when test="searchType == 'Multi'.toString()">
+								     AND  (
+								     	(A.ComName  like CONCAT('%',#{searchWord},'%') )
+								     	OR
+								     	(IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND EMAIL like CONCAT('%',#{searchWord},'%')  ORDER BY SeqID LIMIT 1), '') <![CDATA[ != ]]> '')
+								     	OR
+								     	(SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=A.BizCardID AND TypeCode='C' AND PhoneType = 'T' AND PhoneNumber like CONCAT('%',#{searchWord},'%')  LIMIT 1)	
+								     )
+								 </when>
+							 </choose>
+					 	</if>
+				 	    <choose>
+							 <when test="tabFilter == 'ENG'.toString()">
+								 AND SUBSTRING(A.ComName,1,1) BETWEEN 'A' AND 'Z'
+							 </when>
+							 <when test="tabFilter == 'NUM'.toString()">
+								 AND A.ComName BETWEEN '0' AND '9'
+							 </when>
+							 <when test="tabFilter == 'ㄱ'.toString()">
+								 AND (A.ComName RLIKE '^(ㄱ|ㄲ)' OR ( A.ComName <![CDATA[ >= ]]>  '가' AND A.ComName <![CDATA[ < ]]>  '나' ))
+							 </when>
+							 <when test="tabFilter == 'ㄴ'.toString()">
+								 AND (A.ComName RLIKE '^ㄴ' OR ( A.ComName <![CDATA[ >= ]]> '나' AND A.ComName <![CDATA[ < ]]> '다' ))
+							 </when>
+							 <when test="tabFilter == 'ㄷ'.toString()">
+								 AND (A.ComName RLIKE '^(ㄷ|ㄸ)' OR ( A.ComName <![CDATA[ >= ]]> '다' AND A.ComName <![CDATA[ < ]]> '라' ))
+							 </when>
+							 <when test="tabFilter == 'ㄹ'.toString()">
+								 AND (A.ComName RLIKE '^ㄹ' OR ( A.ComName <![CDATA[ >= ]]> '라' AND A.ComName <![CDATA[ < ]]> '마' ))
+							 </when>
+							 <when test="tabFilter == 'ㅁ'.toString()">
+								 AND (A.ComName RLIKE '^ㅁ' OR ( A.ComName <![CDATA[ >= ]]> '마' AND A.ComName <![CDATA[ < ]]> '바' ))
+							 </when>
+							 <when test="tabFilter == 'ㅂ'.toString()">
+								 AND (A.ComName RLIKE '^ㅂ' OR ( A.ComName <![CDATA[ >= ]]> '바' AND A.ComName <![CDATA[ < ]]> '사' ))
+							 </when>
+							 <when test="tabFilter == 'ㅅ'.toString()">
+								 AND (A.ComName RLIKE '^(ㅅ|ㅆ)' OR ( A.ComName <![CDATA[ >= ]]> '사' AND A.ComName <![CDATA[ < ]]> '아' ))
+							 </when>
+							 <when test="tabFilter == 'ㅇ'.toString()">
+								 AND (A.ComName RLIKE '^ㅇ' OR ( A.ComName <![CDATA[ >= ]]> '아' AND A.ComName <![CDATA[ < ]]> '자' ))
+							 </when>
+							 <when test="tabFilter == 'ㅈ'.toString()">
+								 AND (A.ComName RLIKE '^(ㅈ|ㅉ)' OR ( A.ComName <![CDATA[ >= ]]> '자' AND A.ComName <![CDATA[ < ]]> '차' ))
+							 </when>
+							 <when test="tabFilter == 'ㅊ'.toString()">
+								 AND (A.ComName RLIKE '^ㅊ' OR ( A.ComName <![CDATA[ >= ]]> '차' AND A.ComName <![CDATA[ < ]]> '카' ))
+							 </when>
+							 <when test="tabFilter == 'ㅋ'.toString()">
+								 AND (A.ComName RLIKE '^ㅋ' OR ( A.ComName <![CDATA[ >= ]]> '카' AND A.ComName <![CDATA[ < ]]> '타' ))
+							 </when>
+							 <when test="tabFilter == 'ㅌ'.toString()">
+								 AND (A.ComName RLIKE '^ㅌ' OR ( A.ComName <![CDATA[ >= ]]> '타' AND A.ComName <![CDATA[ < ]]> '파' ))
+							 </when>
+							 <when test="tabFilter == 'ㅍ'.toString()">
+								 AND (A.ComName RLIKE '^ㅍ' OR ( A.ComName <![CDATA[ >= ]]> '파' AND A.ComName <![CDATA[ < ]]> '하' ))
+							 </when>
+							 <when test="tabFilter == 'ㅎ'.toString()">
+								 AND (A.ComName RLIKE '^ㅎ' OR ( A.ComName <![CDATA[ >= ]]> '하' AND A.ComName <![CDATA[ <= ]]> '힣' ))
+							 </when>
+							 <when test="tabFilter == 'ETC'.toString()">
+								 AND <![CDATA[  (A.ComName NOT REGEXP '^[0-9a-zA-Z가-힣ㄱ-ㅎ]' ]]>
+							 </when>
+						 </choose>
+						 <if test="groupID != null">
+				    			AND GroupID IN
+								<foreach collection="groupID" item="item"  separator="," open="(" close=")">
+								    #{item}
+								</foreach>
+						 </if>
+			 	     </trim>
+			 ) AS TB
+			 <trim prefix="ORDER BY">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					TB.ComName ASC
+			    </if>  
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("ComRepName")'>ComRepName</when>
+						<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+						<when test='sortColumn.equalsIgnoreCase("PhoneNum")'>PhoneNum</when>
+						<when test='sortColumn.equalsIgnoreCase("ComAddress")'>ComAddress</when>
+						<otherwise>ComName</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+			<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   		</if>
+ 	</select>
+        
+    <!-- 즐겨찾기 목록에 삽입  -->
+ 	<insert id="insertIntoFavoriteList" parameterType="cmap" >
+          INSERT INTO BIZCARD_FAVORITEINFO (BizCardID, UR_Code)
+ 		  VALUES (#{BizCardID}, #{UR_Code})
+ 	</insert>
+ 	
+ 	<!-- 즐겨찾기 목록에서 제거(1개)  -->
+ 	<delete id="deleteFromFavoriteList" parameterType="cmap" >
+          DELETE FROM BIZCARD_FAVORITEINFO
+          WHERE BizCardID = #{BizCardID}  AND UR_Code = #{UR_Code}
+ 	</delete>
+ 	
+ 	<!-- 즐겨찾기 목록에서 제거(n개)  -->
+	<delete id="deleteBizCardFav" parameterType="cmap">
+		DELETE FROM  BIZCARD_FAVORITEINFO
+		WHERE	BizCardID IN
+			<foreach collection="BizCardID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</delete>
+	
+	<!-- 연락처(전화) 목록 개수  -->
+	<select id="selectBizCardPhoneCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(SeqID) AS Count 
+ 	      FROM BIZCARD_PHONEINFO
+ 	     WHERE	BizCardID = #{BizCardID}	
+ 	</select>
+ 	
+	<!-- 연락처(전화) 목록에 삽입  -->
+ 	<insert id="insertBizCardPhoneList" parameterType="cmap">
+ 	    INSERT INTO BIZCARD_PHONEINFO (
+ 	    	BizCardID,
+			TypeCode,
+			PhoneType,
+			PhoneNumber
+		)
+		SELECT 
+			#{LastBizCardID},
+			TypeCode,
+			PhoneType,
+			PhoneNumber
+		FROM BIZCARD_PHONEINFO
+		WHERE	BizCardID = #{BizCardID}	
+ 	</insert>
+  	
+	<!-- 연락처(이메일) 목록 개수  -->
+	<select id="selectBizCardEmailCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(SeqID) AS Count 
+ 	      FROM BIZCARD_EMAILINFO
+ 	     WHERE	BizCardID = #{BizCardID}	
+ 	</select>
+ 		
+ 	<!-- 연락처(이메일) 목록에 삽입  -->
+ 	<insert id="insertBizCardEmailList" parameterType="cmap">
+ 	    INSERT INTO BIZCARD_EMAILINFO (
+ 	    	BizCardID,
+			TypeCode,
+			Email
+		)
+		SELECT 
+			#{LastBizCardID},
+			TypeCode,
+			Email
+		FROM BIZCARD_EMAILINFO
+		WHERE	BizCardID = #{BizCardID}	
+ 	</insert>
+ 	
+ 	<!-- 연락처(기념일) 목록 개수  -->
+	<select id="selectBizCardAnniverCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(SeqID) AS Count 
+ 	      FROM BIZCARD_ANNIVERSARYINFO
+ 	     WHERE	BizCardID = #{BizCardID}		
+ 	</select>
+ 	
+ 	<!-- 연락처(기념일) 목록에 삽입  -->
+ 	<insert id="insertBizCardAnniverList" parameterType="cmap" useGeneratedKeys="true" keyProperty="TBizCardID" keyColumn="BizCardID">
+ 	    INSERT INTO BIZCARD_ANNIVERSARYINFO (
+ 	    	BizCardID,
+			TypeCode,
+			AnniversaryID,
+			AnniversaryText
+		)
+		SELECT 
+			#{LastBizCardID},
+			TypeCode,
+			AnniversaryID,
+			AnniversaryText
+		FROM BIZCARD_ANNIVERSARYINFO
+		WHERE	BizCardID = #{BizCardID}		
+ 	</insert>
+	
+	<!-- 연락처(즐겨찾기) 목록 개수  -->
+	<select id="selectBizCardFavoriteCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(SeqID) AS Count 
+		  FROM BIZCARD_FAVORITEINFO
+		 WHERE	BizCardID = #{BizCardID}		
+	</select>
+	
+	<!-- 연락처(즐겨찾기) 목록에 삽입  -->
+	<insert id="insertBizCardFavoriteList" parameterType="cmap" useGeneratedKeys="true" keyProperty="TBizCardID" keyColumn="BizCardID">
+		INSERT INTO BIZCARD_FAVORITEINFO (
+			BizCardID,
+			UR_Code
+		)
+		SELECT 
+			#{LastBizCardID},
+			UR_Code
+		FROM BIZCARD_FAVORITEINFO
+		WHERE	BizCardID = #{BizCardID}		
+	</insert>
+	
+ 	<!-- 연락처(개인/부서/회사) 목록에 삽입  -->
+ 	<insert id="insertBizCardList" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+ 	    INSERT INTO BIZCARD_PERSON (
+			ShareType,
+			GroupID,
+			Name,
+			MessengerID,
+			CompanyID,
+			CompanyName,
+			JobTitle,
+			DeptName,
+			Memo,
+			ImagePath,
+			RegComCode,
+			RegDeptCode,
+			RegisterID,
+			RegisterName,
+			RegistDate
+		)
+		SELECT #{TypeCode} AS ShareType,
+			#{GroupID} AS GroupID,
+			Name,
+			MessengerID,
+			CompanyID,
+			CompanyName,
+			JobTitle,
+			DeptName,
+			Memo,
+			ImagePath,
+			#{DN_Code},
+			#{GR_Code},
+			#{UR_Code},
+			#{UR_Name},
+			now(3)
+		FROM BIZCARD_PERSON
+		WHERE	BizCardID = #{BizCardID}
+		<selectKey keyProperty="LastBizCardID" resultType="int" order="AFTER">
+        	SELECT LAST_INSERT_ID() AS LastBizCardID;
+       	</selectKey>
+ 	</insert>
+ 	
+ 	<!-- 연락처(개인/부서/회사) 목록에서 제거  -->
+	<delete id="deleteBizCardList" parameterType="cmap">
+		DELETE FROM
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString()">
+ 	          BIZCARD_PERSON
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          BIZCARD_COMPANY
+ 	    </if>
+ 	    <if test="TypeCode == null">
+ 	          BIZCARD_PERSON
+ 	    </if>
+		WHERE	BizCardID IN
+			<foreach collection="BizCardID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</delete>
+	
+	<!-- 전화번호 목록에서 제거  -->
+	<delete id="deleteBizCardPhoneList" parameterType="cmap">
+		DELETE FROM  BIZCARD_PHONEINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+   	    AND (
+   	    	BizCardID IN
+			<foreach collection="BizCardID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+			<if test="BizCardY != null">
+				OR
+				BizCardID = #{BizCardY}
+			</if>
+		)
+	</delete>
+	
+	<!-- 이메일 목록에서 제거  -->
+	<delete id="deleteBizCardEmailList" parameterType="cmap">
+		DELETE FROM  BIZCARD_EMAILINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+ 	    AND (
+ 	     	BizCardID IN
+			<foreach collection="BizCardID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+			<if test="BizCardY != null">
+				OR
+				BizCardID = #{BizCardY}
+			</if>
+		)
+	</delete>
+	
+	<!-- 기념일 목록에서 제거(n개)  -->
+	<delete id="deleteBizCardAnniversaryList" parameterType="cmap">
+		DELETE FROM  BIZCARD_ANNIVERSARYINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+ 	    AND (
+ 	     	BizCardID IN
+			<foreach collection="BizCardID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+			<if test="BizCardY != null">
+				OR
+				BizCardID = #{BizCardY}
+			</if>
+		)
+	</delete>
+	
+	<!-- 그룹 목록에서 제거(1개)  -->
+	<delete id="deleteBizCardGroupOne" parameterType="cmap">
+		DELETE FROM  BIZCARD_GROUP
+		WHERE GroupID = #{GroupID}
+	</delete>
+	
+	<!-- 그룹 목록에서 제거(n개)  -->
+	<delete id="deleteBizCardGroup" parameterType="cmap">
+		DELETE FROM  BIZCARD_GROUP
+		WHERE	ShareType = #{TypeCode} AND GroupID IN
+			<foreach collection="GroupID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</delete>
+
+	<select id="selectCallFuncDivList" parameterType="cmap" resultType="cmap">
+ 	   SELECT DivisionCode AS code, displayName AS name, 0 AS refcnt
+ 	      FROM WORKREPORT_JOB_CATE_DIVISION
+ 	     ORDER BY displayName ASC
+ 	    <if test="pageSize != null and pageOffset != null">
+		    LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+ 	</select>
+ 	
+ 	<select id="selectCallFuncDivCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	   SELECT COUNT(*)
+ 	      FROM WORKREPORT_JOB_CATE_DIVISION
+ 	</select>
+    
+ 	<!-- 연락처 내보내기 -->
+ 	
+ 	<select id="selectBizCardExportListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		  FROM (
+			SELECT A.BizCardID
+					, A.GroupID
+					, A.Name
+					, IFNULL(AVS.AnniversaryText, '') 	AS AnniversaryText
+					, IFNULL(E.EMAIL, '') 				AS EMAIL
+					, IFNULL(A.MessengerID, '') 		AS MessengerID					
+					, IFNULL(CELL.PhoneNumber, '') 		AS CellPhone
+					, IFNULL(HOME.PhoneNumber, '') 		AS HomePhone					
+					, IFNULL(A.CompanyName, '') 		AS ComName					
+					, IFNULL(TEL.PhoneNumber, '') 		AS ComPhone
+					, IFNULL(FAX.PhoneNumber, '') 		AS FAX
+					, IFNULL(ETC.PhoneNumber, '') 		AS EtcPhone
+					, IFNULL(DIRECT.PhoneNumber, '') 	AS DirectPhone
+					, IFNULL(A.DeptName, '') 			AS DeptName
+					, IFNULL(A.JobTitle, '') 			AS JobTitle					
+					, IFNULL(A.Memo, '') 				AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, A.RegisterID
+					, A.RegDeptCode
+					, A.RegComCode
+					, A.ShareType
+			FROM BIZCARD_PERSON AS A
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'C' GROUP BY BizCardID ORDER BY SeqID) AS CELL
+					ON A.BizCardID=CELL.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'H' GROUP BY BizCardID ORDER BY SeqID) AS HOME
+					ON A.BizCardID=HOME.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'T' GROUP BY BizCardID ORDER BY SeqID) AS TEL
+					ON A.BizCardID=TEL.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'F' GROUP BY BizCardID ORDER BY SeqID) AS FAX
+					ON A.BizCardID=FAX.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'E' GROUP BY BizCardID ORDER BY SeqID) AS ETC
+					ON A.BizCardID=ETC.BizCardID					
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(CONCAT('(', PhoneName, ') ', PhoneNumber) SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'D' GROUP BY BizCardID ORDER BY SeqID) AS DIRECT
+					ON A.BizCardID=DIRECT.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(Email SEPARATOR ':') AS Email FROM BIZCARD_EMAILINFO WHERE TypeCode = 'P' GROUP BY BizCardID ORDER BY SeqID) AS E
+					ON A.BizCardID=E.BizCardID
+					LEFT OUTER JOIN 
+					BIZCARD_ANNIVERSARYINFO AS AVS
+					ON A.CompanyID=AVS.BizCardID AND TypeCode = 'P'
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<!-- 분류 -->
+		    	<if test="targetType == 'ShareType'.toString()">
+					<if test='ShareTypeArr != null and ShareTypeArr.length != 0'>
+						AND A.ShareType IN
+						<foreach collection="ShareTypeArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND (CASE WHEN A.ShareType = 'P' then IFNULL(A.GroupID, 'P_noGroup')
+					       		  WHEN A.ShareType = 'D' then IFNULL(A.GroupID, 'D_noGroup')
+					       		  WHEN A.ShareType = 'U' then IFNULL(A.GroupID, 'U_noGroup') 
+					       		  ELSE A.GroupID END) IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+		    	</if>
+		    	 
+				<!-- 분류 -->
+		    	<if test="targetType == 'ShareType'.toString()">
+		    		AND (
+	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	             			OR
+	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	             			OR
+	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+             			)
+		    	</if>
+		    	
+		    	<!-- 개별 -->
+				<if test="targetType == 'Each'.toString()">
+					<if test='BizCardIDArr != null and BizCardIDArr.length != 0 and (BizGroupIDArr == null or BizGroupIDArr.length == 0)'>
+						AND A.BizCardID IN
+						<foreach collection="BizCardIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					
+					<if test='(BizCardIDArr == null or BizCardIDArr.length == 0) and BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND A.GroupID IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					
+					<if test='BizCardIDArr != null and BizCardIDArr.length != 0 and BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND (A.BizCardID IN
+						<foreach collection="BizCardIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+						
+						OR A.GroupID IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+						)
+					</if>
+		    	</if>
+		    	
+		    	<!-- 전체 -->
+		    	<if test="targetType == 'ALL'.toString()">
+ 	             	AND (
+	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	             			OR
+	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	             			OR
+	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+             			)
+	 	        </if>
+ 	     	</trim>
+ 	     	
+ 	     	<!-- 분류 -->
+			<if test="targetType == 'ShareType'.toString()">
+				UNION
+				
+				SELECT 0 AS BizCardID
+					, A.GroupID
+					, A.Name
+					, '' AS AnniversaryText
+					, IFNULL(A.EMAIL, '') AS EMAIL
+					, '' AS MessengerID
+					, '' AS CellPhone
+					, '' AS HomePhone
+					, '' AS ComName
+					, '' AS ComPhone
+					, '' AS FAX
+					, '' AS EtcPhone
+					, '' AS DirectPhone
+					, '' AS DeptName
+					, '' AS JobTitle
+					, '' AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, '' AS RegisterID
+					, '' AS RegDeptCode
+					, '' AS RegComCode
+					, '' AS ShareType
+				FROM (
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.MailAddress, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_USER AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.UserCode = BGP.Code AND BGP.ItemType = 'user'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION		
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.PrimaryMail, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_GROUP AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.GroupCode = BGP.Code AND BGP.ItemType = 'group'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION
+					SELECT    BGP.GroupID
+						, BP.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = BP.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.BIZCARD_PERSON AS BP
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON BP.BizCardID = BGP.Code AND BGP.ItemType = 'bizcard'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+				) A
+			</if>
+			
+			<!-- 개별연락처 내보내기에서 그룹 선택 시 -->
+			<if test="targetType == 'Each'.toString() and BizGroupIDArr != null and BizGroupIDArr.length != 0">
+				UNION
+				
+				SELECT 0 AS BizCardID
+					, A.GroupID
+					, A.Name
+					, '' AS AnniversaryText
+					, IFNULL(A.EMAIL, '') AS EMAIL
+					, '' AS MessengerID
+					, '' AS CellPhone
+					, '' AS HomePhone
+					, '' AS ComName
+					, '' AS ComPhone
+					, '' AS FAX
+					, '' AS EtcPhone
+					, '' AS DirectPhone
+					, '' AS DeptName
+					, '' AS JobTitle
+					, '' AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, '' AS RegisterID
+					, '' AS RegDeptCode
+					, '' AS RegComCode
+					, '' AS ShareType
+				FROM (
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.MailAddress, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_USER AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.UserCode = BGP.Code AND BGP.ItemType = 'user'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION		
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.PrimaryMail, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_GROUP AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.GroupCode = BGP.Code AND BGP.ItemType = 'group'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION
+					SELECT    BGP.GroupID
+						, BP.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = BP.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.BIZCARD_PERSON AS BP
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON BP.BizCardID = BGP.Code AND BGP.ItemType = 'bizcard'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+				) A
+			</if>
+		 ) AS TB
+ 	</select>
+ 	
+ 	<select id="selectBizCardExportList" parameterType="cmap" resultType="cmap">
+ 	    SELECT * 
+		  FROM (
+			SELECT A.BizCardID
+					, A.GroupID
+					, A.Name
+					, IFNULL(AVS.AnniversaryText, '') 	AS AnniversaryText
+					, IFNULL(E.EMAIL, '') 				AS EMAIL
+					, IFNULL(A.MessengerID, '') 		AS MessengerID					
+					, IFNULL(CELL.PhoneNumber, '') 		AS CellPhone
+					, IFNULL(HOME.PhoneNumber, '') 		AS HomePhone					
+					, IFNULL(A.CompanyName, '') 		AS ComName					
+					, IFNULL(TEL.PhoneNumber, '') 		AS ComPhone
+					, IFNULL(FAX.PhoneNumber, '') 		AS FAX
+					, IFNULL(ETC.PhoneNumber, '') 		AS EtcPhone
+					, IFNULL(DIRECT.PhoneNumber, '') 	AS DirectPhone
+					, IFNULL(A.DeptName, '') 			AS DeptName
+					, IFNULL(A.JobTitle, '') 			AS JobTitle					
+					, IFNULL(A.Memo, '') 				AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, A.RegisterID
+					, A.RegDeptCode
+					, A.RegComCode
+					, A.ShareType
+			FROM BIZCARD_PERSON AS A
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'C' GROUP BY BizCardID ORDER BY SeqID) AS CELL
+					ON A.BizCardID=CELL.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'H' GROUP BY BizCardID ORDER BY SeqID) AS HOME
+					ON A.BizCardID=HOME.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'T' GROUP BY BizCardID ORDER BY SeqID) AS TEL
+					ON A.BizCardID=TEL.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'F' GROUP BY BizCardID ORDER BY SeqID) AS FAX
+					ON A.BizCardID=FAX.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'E' GROUP BY BizCardID ORDER BY SeqID) AS ETC
+					ON A.BizCardID=ETC.BizCardID					
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(CONCAT('(', PhoneName, ') ', PhoneNumber) SEPARATOR ':') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'D' GROUP BY BizCardID ORDER BY SeqID) AS DIRECT
+					ON A.BizCardID=DIRECT.BizCardID
+					LEFT OUTER JOIN 
+					(SELECT BizCardID, GROUP_CONCAT(Email SEPARATOR ':') AS Email FROM BIZCARD_EMAILINFO WHERE TypeCode = 'P' GROUP BY BizCardID ORDER BY SeqID) AS E
+					ON A.BizCardID=E.BizCardID
+					LEFT OUTER JOIN 
+					BIZCARD_ANNIVERSARYINFO AS AVS
+					ON A.CompanyID=AVS.BizCardID AND TypeCode = 'P'
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<!-- 분류 -->
+		    	<if test="targetType == 'ShareType'.toString()">
+					<if test='ShareTypeArr != null and ShareTypeArr.length != 0'>
+						AND A.ShareType IN
+						<foreach collection="ShareTypeArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND (CASE WHEN A.ShareType = 'P' then IFNULL(A.GroupID, 'P_noGroup')
+					       		  WHEN A.ShareType = 'D' then IFNULL(A.GroupID, 'D_noGroup')
+					       		  WHEN A.ShareType = 'U' then IFNULL(A.GroupID, 'U_noGroup') 
+					       		  ELSE A.GroupID END) IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+		    	</if>
+		    	 
+				<!-- 분류 -->
+		    	<if test="targetType == 'ShareType'.toString()">
+		    		AND (
+	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	             			OR
+	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	             			OR
+	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+             			)
+		    	</if>
+		    	
+		    	<!-- 개별 -->
+				<if test="targetType == 'Each'.toString()">
+					<if test='BizCardIDArr != null and BizCardIDArr.length != 0 and (BizGroupIDArr == null or BizGroupIDArr.length == 0)'>
+						AND A.BizCardID IN
+						<foreach collection="BizCardIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					
+					<if test='(BizCardIDArr == null or BizCardIDArr.length == 0) and BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND A.GroupID IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					
+					<if test='BizCardIDArr != null and BizCardIDArr.length != 0 and BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND (A.BizCardID IN
+						<foreach collection="BizCardIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+						
+						OR A.GroupID IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+						)
+					</if>
+		    	</if>
+		    	
+		    	<!-- 전체 -->
+		    	<if test="targetType == 'ALL'.toString()">
+ 	             	AND (
+	             			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+	             			OR
+	             			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+	             			OR
+	             			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+             			)
+	 	        </if>
+ 	     	</trim>
+ 	     	
+ 	     	<!-- 분류 -->
+			<if test="targetType == 'ShareType'.toString()">
+				UNION
+				
+				SELECT 0 AS BizCardID
+					, A.GroupID
+					, A.Name
+					, '' AS AnniversaryText
+					, IFNULL(A.EMAIL, '') AS EMAIL
+					, '' AS MessengerID
+					, '' AS CellPhone
+					, '' AS HomePhone
+					, '' AS ComName
+					, '' AS ComPhone
+					, '' AS FAX
+					, '' AS EtcPhone
+					, '' AS DirectPhone
+					, '' AS DeptName
+					, '' AS JobTitle
+					, '' AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, '' AS RegisterID
+					, '' AS RegDeptCode
+					, '' AS RegComCode
+					, '' AS ShareType
+				FROM (
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.MailAddress, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_USER AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.UserCode = BGP.Code AND BGP.ItemType = 'user'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION		
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.PrimaryMail, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_GROUP AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.GroupCode = BGP.Code AND BGP.ItemType = 'group'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION
+					SELECT    BGP.GroupID
+						, BP.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = BP.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.BIZCARD_PERSON AS BP
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON BP.BizCardID = BGP.Code AND BGP.ItemType = 'bizcard'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='GroupIDArr != null and GroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="GroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+				) A
+			</if>
+			
+			<!-- 개별연락처 내보내기에서 그룹 선택 시 -->
+			<if test="targetType == 'Each'.toString() and BizGroupIDArr != null and BizGroupIDArr.length != 0">
+				UNION
+				
+				SELECT 0 AS BizCardID
+					, A.GroupID
+					, A.Name
+					, '' AS AnniversaryText
+					, IFNULL(A.EMAIL, '') AS EMAIL
+					, '' AS MessengerID
+					, '' AS CellPhone
+					, '' AS HomePhone
+					, '' AS ComName
+					, '' AS ComPhone
+					, '' AS FAX
+					, '' AS EtcPhone
+					, '' AS DirectPhone
+					, '' AS DeptName
+					, '' AS JobTitle
+					, '' AS Memo
+					, '' AS ComZipcode
+					, '' AS ComAddress
+					, '' AS ComWebSite
+					, A.RegistDate
+					, '' AS RegisterID
+					, '' AS RegDeptCode
+					, '' AS RegComCode
+					, '' AS ShareType
+				FROM (
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.MailAddress, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_USER AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.UserCode = BGP.Code AND BGP.ItemType = 'user'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION		
+					SELECT    BGP.GroupID
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS Name
+						, IFNULL(SOU.PrimaryMail, '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.SYS_OBJECT_GROUP AS SOU
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON SOU.GroupCode = BGP.Code AND BGP.ItemType = 'group'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+					UNION
+					SELECT    BGP.GroupID
+						, BP.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = BP.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						, BGP.RegistDate
+					FROM covi_smart4j.BIZCARD_PERSON AS BP
+					INNER JOIN covi_smart4j.BIZCARD_GROUPPERSON AS BGP ON BP.BizCardID = BGP.Code AND BGP.ItemType = 'bizcard'
+					INNER JOIN covi_smart4j.BIZCARD_GROUP AS GR ON GR.GroupID = BGP.GroupID
+					WHERE 1=1
+					<if test='BizGroupIDArr != null and BizGroupIDArr.length != 0'>
+						AND IFNULL(BGP.GroupID, '') IN
+						<foreach collection="BizGroupIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND (
+	             			(GR.RegisterID = #{UR_Code} AND GR.ShareType = 'P') 
+	             			OR
+	             			(GR.RegDeptCode = #{GR_Code} AND GR.ShareType = 'D') 
+	             			OR
+	             			(GR.RegComCode = #{DN_Code} AND GR.ShareType = 'U') 
+             			)
+				) A
+			</if>
+		 ) AS TB
+		 <trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				TB.Name ASC
+		    </if>  
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PhoneNum")'>PhoneNum</when>
+					<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+					<when test='sortColumn.equalsIgnoreCase("ComName")'>ComName</when>
+					<when test='sortColumn.equalsIgnoreCase("ComPhoneNum")'>ComPhoneNum</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitle")'>JobTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("ShareType")'>ShareType</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+ 	</select>
+ 	
+<!-- 그룹 =============================================== -->
+ 	<select id="cntBizCardGroup" parameterType="cmap" resultType="cmap">
+ 	    SELECT COUNT(GroupID) AS Count 
+ 	      FROM BIZCARD_GROUP
+ 	     WHERE GroupName = #{GroupName} AND ShareType = #{ShareType}
+ 	     AND (  (ShareType = 'P' AND RegisterID = #{UR_Code})
+				  OR
+			    (ShareType = 'D' AND RegDeptCode = #{GR_Code})
+				  OR
+			    (ShareType = 'U' AND RegComCode = #{DN_Code})  )
+ 	</select>
+ 	
+ 	<select id="selectBizCardGroup" parameterType="cmap" resultType="cmap">
+ 	    SELECT ShareType, GroupID, GroupName, OrderNO, RegisterID
+ 	      FROM BIZCARD_GROUP
+ 	     WHERE GroupID = #{GroupID}
+ 	</select>
+ 	
+ 	<select id="selectBizCardGroupPerson" parameterType="cmap" resultType="cmap">
+ 	    SELECT Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS Name, '' AS BizCardID, IFNULL(B.MailAddress, '') AS Email, A.Code, A.ItemType 
+		from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_USER B ON A.Code = B.UserCode 
+		WHERE A.GroupID = #{GroupID} AND A.ItemType = 'user'
+		UNION
+		SELECT Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS Name, '' AS BizCardID, IFNULL(B.PrimaryMail, '') AS Email, A.Code, A.ItemType 
+		from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_GROUP B ON A.Code = B.GroupCode 
+		WHERE A.GroupID = #{GroupID} AND A.ItemType = 'group' AND B.GroupType = 'Dept'
+		UNION
+		SELECT A.Name AS Name
+		, B.Code AS BizCardID
+		, IFNULL((SELECT Email FROM bizcard_emailinfo WHERE BizCardID = A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS Email
+		, '' AS Code
+		, B.ItemType
+		FROM covi_smart4j.BIZCARD_PERSON A 
+		LEFT OUTER JOIN covi_smart4j.BIZCARD_GROUPPERSON B ON A.BizCardID = B.Code
+		WHERE B.GroupID = #{GroupID} AND B.ItemType = 'bizcard'
+		UNION
+		SELECT A.NAME AS Name
+		, A.BizCardID
+		, IFNULL((SELECT Email FROM bizcard_emailinfo WHERE BizCardID = A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS Email
+		, '' AS Code, 'bizcard' AS ItemType 
+		from covi_smart4j.bizcard_person A
+		WHERE A.GroupID = #{GroupID}
+ 	</select>
+ 	 	
+ 	<select id="selectBizCardGroupMember" parameterType="cmap" resultType="cmap">
+ 	    SELECT B.GroupID, B.BizCardID, B.Name
+ 	           , IFNULL((SELECT PhoneNumber FROM BIZCARD_PHONEINFO WHERE BizCardID=B.BizCardID AND TypeCode='P' AND PhoneType = 'C' ORDER BY SeqID LIMIT 1), '') AS PhoneNum 
+			   , IFNULL((SELECT EMAIL FROM BIZCARD_EMAILINFO WHERE BizCardID=B.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+ 		FROM COVI_SMART4J.BIZCARD_GROUP A INNER JOIN COVI_SMART4J.BIZCARD_PERSON B ON A.GROUPID = B.GROUPID
+		WHERE A.GROUPID = #{GroupID}
+ 	</select>
+	<insert id="insertBizCardGroupId" parameterType="cmap" useGeneratedKeys="true" keyProperty="GroupID" >
+ 	    INSERT INTO BIZCARD_GROUP (
+			ShareType,
+			GroupName,
+			OrderNO,
+			RegComCode,				
+			RegDeptCode,
+			RegisterID,
+			RegistDate
+		)
+ 		VALUES (
+ 			#{ShareType},
+			#{GroupName},
+			#{GroupPriorityOrder},
+			#{DN_Code},
+			#{GR_Code}, 
+			#{UR_Code}, 
+			now(3)
+ 		)
+ 	</insert>
+
+ 	<delete id="deleteBizCardGroupId" parameterType="cmap" >
+          DELETE FROM BIZCARD_GROUP
+          WHERE GroupID = #{GroupID}
+ 	</delete>
+ 	
+	<update id="updateBizCardGroupId" parameterType="cmap" >
+ 		UPDATE BIZCARD_GROUP
+ 		SET GroupName = #{GroupName}
+ 			, OrderNO = #{GroupPriorityOrder}
+ 			, ShareType = #{ShareType}
+ 		WHERE GroupID = #{GroupID}
+ 	</update>
+ 	
+ 	
+ 	<insert id="insertBizCardGroup" parameterType="cmap" useGeneratedKeys="true" keyProperty="GroupID">
+ 		INSERT INTO BIZCARD_GROUP (ShareType, GroupName, OrderNO, RegComCode, RegDeptCode, RegisterID, RegistDate)
+ 		VALUES (#{ShareType}, #{GroupName}, #{GroupPriorityOrder}, #{DN_Code}, #{GR_Code}, #{UR_Code}, now(3))
+ 	</insert>
+ 	
+ 	<update id="updateBizCardGroup" parameterType="cmap" >
+ 		UPDATE BIZCARD_GROUP
+ 		SET GroupName = #{GroupName}
+ 			, OrderNO = #{GroupPriorityOrder}
+ 		WHERE GroupID = #{GroupID}
+ 	</update>
+ 	
+ 	<delete id="deleteBizCard_GroupPerson" parameterType="cmap">
+	    DELETE FROM BIZCARD_GROUPPERSON
+	    WHERE GroupID = #{GroupID}
+ 	</delete>
+ 	
+ 	<select id="selectGroupList" parameterType="cmap" resultType="cmap">
+ 	    SELECT GroupID, GroupName
+ 	    FROM BIZCARD_GROUP
+ 	    WHERE ShareType = #{ShareType} 
+ 	    <choose>
+ 	         <when test="ShareType == 'P'.toString()">
+ 	             AND RegisterID = #{UR_Code}
+ 	         </when>
+ 	         <when test="ShareType == 'D'.toString()">
+ 	             AND RegDeptCode = #{GR_Code}
+ 	         </when>
+ 	         <when test="ShareType == 'U'.toString()">
+ 	             AND RegComCode = #{DN_Code}
+ 	         </when>
+ 	     </choose>
+ 	     ORDER BY OrderNo ASC, RegistDate ASC
+    </select>
+    
+ 	
+<!-- 명함 =============================================== -->
+ 	
+ 	<select id="selectBizCardPersonView" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+	 	    A.ImagePath, A.Name, A.DeptName, A.JobTitle, A.Memo, A.MessengerID,
+	 	    IFNULL(A.CompanyName, '') AS CompanyName,
+	 	    IFNULL(C.AnniversaryText, '') AS AnniversaryText,
+	 	    IFNULL(DC.PhoneNumber, '') AS CellPhone, 
+	 	    IFNULL(DT.PhoneNumber, '') AS TelPhone, 
+	 	    IFNULL(E.Email, '') AS Email
+	 	FROM BIZCARD_PERSON AS A
+	 	LEFT JOIN BIZCARD_ANNIVERSARYINFO AS C ON A.BizCardID = C.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ';') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'C' AND TypeCode = 'P' GROUP BY BizCardID ORDER BY SeqID) AS DC ON A.BizCardID = DC.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ';') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'T' AND TypeCode = 'C' GROUP BY BizCardID ORDER BY SeqID) AS DT ON A.CompanyID = DT.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(Email SEPARATOR ';') AS Email FROM BIZCARD_EMAILINFO WHERE TypeCode = 'P' GROUP BY BizCardID ORDER BY SeqID) AS E ON A.BizCardID = E.BizCardID
+		WHERE
+	 		A.BizCardID = #{BizCardID}
+	 		<choose>
+ 	         <when test="ShareType == 'P'.toString()">
+ 	             AND A.RegisterID = #{UR_Code}
+ 	         </when>
+ 	         <when test="ShareType == 'D'.toString()">
+ 	             AND A.RegDeptCode = #{GR_Code}
+ 	         </when>
+ 	         <when test="ShareType == 'U'.toString()">
+ 	             AND A.RegComCode = #{DN_Code}
+ 	         </when>
+ 	         <otherwise>
+ 	             AND (
+            			(A.RegisterID = #{UR_Code} AND A.ShareType = 'P') 
+            			OR
+            			(A.RegDeptCode = #{GR_Code} AND A.ShareType = 'D') 
+            			OR
+            			(A.RegComCode = #{DN_Code} AND A.ShareType = 'U') 
+           			 )
+ 	         </otherwise>
+ 	    	</choose>
+ 	</select>
+ 	
+ 	<select id="selectBizCardPerson" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+	 	    A.ImagePath, A.Name, A.ShareType, A.GroupID, A.MessengerID, A.CompanyId, A.DeptName, A.JobTitle, A.Memo, 
+	 	    IFNULL(A.CompanyName, '') AS CompanyName,
+	 	    IFNULL(C.AnniversaryText, '') AS AnniversaryText, A.RegisterID
+	 	FROM BIZCARD_PERSON AS A
+	 	LEFT JOIN BIZCARD_ANNIVERSARYINFO AS C ON A.BizCardID = C.BizCardID
+	 	WHERE A.BizCardID = #{BizCardID}
+ 	</select>
+ 	<insert id="insertBizCard_GroupPerson" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+	        INSERT INTO BIZCARD_GROUPPERSON (
+			GroupID,
+			ItemType,
+			Code,
+			RegistDate
+		)
+ 		VALUES (
+ 			#{GroupID},
+ 			#{ItemType},
+ 			#{Code},
+ 			now(3)
+ 		)
+ 	</insert>
+ 	
+ 	<update id="updateBizCard_Person" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+	    UPDATE BIZCARD_PERSON 
+	    SET ShareType = #{ShareType}, GroupID = #{GroupID}
+ 		WHERE BizCardID = #{BizCardID}
+ 	</update>	
+ 	<insert id="insertBizCard_Person" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+	    INSERT INTO BIZCARD_PERSON (
+			ShareType,
+			GroupID,
+			Name,
+			RegComCode,				
+			RegDeptCode,
+			RegisterID,
+			RegisterName,
+			RegistDate
+		)
+ 		VALUES (
+ 			#{ShareType},
+			#{GroupID},
+			#{Name},
+			#{DN_Code},
+			#{GR_Code}, 
+			#{UR_Code}, 
+			#{UR_Name}, 
+ 			now(3)
+ 		)
+ 	</insert>		
+ 	<update id="deleteBizCard_Person" parameterType="cmap">
+	    UPDATE BIZCARD_PERSON SET GroupID = null WHERE GroupID = #{GroupID}
+ 	</update>	
+ 	<delete id="deleteBizCardGroupMail" parameterType="cmap">
+	    DELETE BIZCARD_EMAILINFO WHERE GroupID = #{GroupID}
+ 	</delete>
+ 	<insert id="insertBizCardGroupMail" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID"> 	
+		INSERT INTO BIZCARD_EMAILINFO (
+			BizCardID,
+			TypeCode,
+			Email
+		)
+ 		VALUES (
+ 			#{BizCardID},
+			'P',
+			#{Email}
+ 		)
+ 	</insert>
+ 	<insert id="insertBizCardPerson" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+ 		INSERT INTO BIZCARD_PERSON (
+			ShareType,
+			GroupID,
+			Name,
+			MessengerID,
+			CompanyID,
+			JobTitle,
+			DeptName,
+			Memo,
+			ImagePath,
+			RegComCode,
+			RegDeptCode,
+			RegisterID,
+			RegisterName,
+			RegistDate,
+			CompanyName
+		)
+ 		VALUES (
+ 			#{ShareType},
+ 			#{GroupID},
+ 			#{Name},
+ 			#{MessengerID},
+ 			#{CompanyID},
+ 			#{JobTitle},
+ 			#{DeptName},
+ 			#{Memo},
+ 			#{ImagePath}, 
+ 			#{DN_Code},
+ 			#{GR_Code}, 
+ 			#{UR_Code}, 
+ 			#{UR_Name}, 
+ 			now(3),
+ 			#{CompanyName}
+ 		)
+ 	</insert>
+ 	
+ 	<update id="updateBizCardPerson" parameterType="cmap">
+ 		UPDATE BIZCARD_PERSON 
+ 		SET
+			ShareType = #{ShareType},
+			GroupID = #{GroupID},
+			Name = #{Name},
+			MessengerID = #{MessengerID},
+			CompanyID = #{CompanyID},
+			JobTitle = #{JobTitle},
+			DeptName = #{DeptName},
+			Memo = #{Memo},
+			ModifierID = #{UR_Code},
+			ModifyDate = now(3),
+ 			CompanyName = #{CompanyName}
+		WHERE
+			BizCardID = #{BizCardID}
+ 	</update>
+
+ 		
+<!-- 업체 =============================================== -->
+ 	
+ 	<select id="selectBizCardCompanyView" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+	 	    A.ImagePath, A.ComName, A.ComZipCode, A.ComAddress, A.Memo, A.ComWebSite,
+	 	    IFNULL(C.AnniversaryText, '') AS AnniversaryText,
+	 	    IFNULL(DT.PhoneNumber, '') AS TelPhone,
+	 	    IFNULL(DF.PhoneNumber, '') AS FAX, 
+	 	    IFNULL(E.Email, '') AS Email
+	 	FROM BIZCARD_COMPANY AS A
+	 	LEFT JOIN BIZCARD_ANNIVERSARYINFO AS C ON A.BizCardID = C.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ';') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'T' AND TypeCode = 'C' GROUP BY BizCardID ORDER BY SeqID) AS DT ON A.BizCardID = DT.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(PhoneNumber SEPARATOR ';') AS PhoneNumber FROM BIZCARD_PHONEINFO WHERE PhoneType = 'F' AND TypeCode = 'C' GROUP BY BizCardID ORDER BY SeqID) AS DF ON A.BizCardID = DF.BizCardID
+	 	LEFT JOIN (SELECT BizCardID, GROUP_CONCAT(Email SEPARATOR ';') AS Email FROM BIZCARD_EMAILINFO WHERE TypeCode = 'C' GROUP BY BizCardID ORDER BY SeqID) AS E ON A.BizCardID = E.BizCardID
+		WHERE
+	 		A.BizCardID = #{BizCardID} 
+ 	</select>
+ 	
+ 	<select id="selectBizCardCompany" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+	 	    A.ImagePath, A.GroupID, A.ComName, A.ComRepName, A.ComZipCode, A.ComAddress, A.ComWebSite, A.Memo, 
+	 	    C.AnniversaryText
+	 	FROM BIZCARD_COMPANY AS A
+	 	LEFT JOIN BIZCARD_ANNIVERSARYINFO AS C ON A.BizCardID = C.BizCardID
+	 	WHERE A.BizCardID = #{BizCardID}
+ 	</select>
+ 	
+ 	<select id="selectBizCardCompanyCnt" parameterType="cmap" resultType='cmap'>
+ 	    SELECT COUNT(BizCardID) AS Cnt, IFNULL(BizCardID, '') AS BizCardID
+	 	FROM BIZCARD_COMPANY
+	 	WHERE ComName = #{ComName}
+ 	</select>
+ 	
+ 	<insert id="insertBizCardCompany" parameterType="cmap" useGeneratedKeys="true" keyProperty="BizCardID">
+ 		INSERT INTO BIZCARD_COMPANY (
+			<if test="GroupID != null">
+	          GroupID,
+ 	    	</if>
+			ComName,
+			ComRepName,
+			ComWebsite,
+			ComZipcode,
+			ComAddress,
+			Memo,
+			ImagePath,
+			RegComCode,
+			RegDeptCode,
+			RegisterID,
+			RegisterName,
+			RegistDate
+		)
+ 		VALUES (
+ 			<if test="GroupID != null">
+	          #{GroupID},
+ 	    	</if>
+ 			#{ComName},
+ 			#{ComRepName},
+ 			#{ComWebsite},
+ 			#{ComZipcode},
+ 			#{ComAddress},
+ 			#{Memo},
+ 			#{ImagePath}, 
+ 			#{DN_Code},
+ 			#{GR_Code}, 
+ 			#{UR_Code}, 
+ 			#{UR_Name}, 
+ 			now(3)
+ 		)
+ 	</insert>
+ 	
+ 	<update id="updateBizCardCompany" parameterType="cmap">
+ 		UPDATE BIZCARD_COMPANY 
+ 		SET
+			GroupID = #{GroupID},
+			ComName = #{ComName},
+			ComRepName = #{ComRepName},
+			ComWebsite = #{ComWebsite},
+			ComZipcode = #{ComZipcode},
+			ComAddress = #{ComAddress},
+			Memo = #{Memo},
+			ModifierID = #{UR_Code},
+			ModifyDate = now(3)
+		WHERE
+			BizCardID = #{BizCardID}
+ 	</update>
+ 	
+<!-- 공통(명함, 업체) =============================================== -->
+ 	
+ 	<update id="updateBizCardImagePath" parameterType="cmap" >
+ 	    <if test="TypeCode == 'P'.toString()">
+	          UPDATE BIZCARD_PERSON
+	          SET ImagePath = #{ImagePath}
+	          WHERE BizCardID = #{BizCardID}  
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          UPDATE BIZCARD_COMPANY 
+ 	          SET ImagePath = #{ImagePath}
+ 	          WHERE BizCardID = #{BizCardID}
+ 	    </if>
+ 	</update>
+ 	
+ 	<delete id="deleteBizCard" parameterType="cmap">
+ 	    <if test="TypeCode == 'P'.toString()">
+	          DELETE FROM BIZCARD_PERSON
+	          WHERE BizCardID = #{BizCardID}  
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          DELETE FROM BIZCARD_COMPANY 
+ 	          WHERE BizCardID = #{BizCardID}
+ 	    </if>
+ 	</delete>
+ 	
+<!-- 전화, 이메일, 기념일 =============================================== -->
+ 	
+ 	<select id="selectBizCardPhone" parameterType="cmap" resultType="cmap">
+ 	    SELECT SeqID, PhoneType, CASE WHEN PhoneType = 'D' AND IFNULL(PhoneName, '') != '' THEN CONCAT('(', PhoneName, ') ', PhoneNumber) ELSE PhoneNumber END AS PhoneNumber, PhoneName
+	 	FROM BIZCARD_PHONEINFO
+	 	WHERE BizCardID = #{BizCardID}
+	 		AND TypeCode = #{TypeCode}
+	 		<if test="TypeCode == 'P'.toString()">
+	          AND (PhoneType = 'C' OR PhoneType = 'H' OR PhoneType = 'T' OR PhoneType = 'F' OR PhoneType = 'E' OR PhoneType = 'D')
+	 	    </if>
+	 	    <if test="TypeCode == 'C'.toString()">
+	 	      AND (PhoneType = 'T' OR PhoneType = 'F')
+	 	    </if>
+	 		
+ 	</select>
+ 	
+ 	<select id="selectBizCardEmail" parameterType="cmap" resultType="cmap">
+ 	    SELECT SeqID, Email
+	 	FROM BIZCARD_EMAILINFO
+	 	WHERE BizCardID = #{BizCardID} AND TypeCode = #{TypeCode}
+ 	</select>
+ 	
+ 	<insert id="insertBizCardPhone" parameterType="java.util.ArrayList" >
+ 		INSERT INTO BIZCARD_PHONEINFO (
+			BizCardID, 
+			TypeCode,
+			PhoneType,
+			PhoneNumber,
+			PhoneName
+		)
+ 		VALUES 
+		<foreach collection="list" item="phone" separator=" , ">
+            (#{phone.BizCardID}, #{phone.TypeCode}, #{phone.PhoneType}, #{phone.PhoneNumber}, #{phone.PhoneName})
+        </foreach>
+ 	</insert>
+ 	
+ 	<insert id="insertBizCardEmail" parameterType="java.util.ArrayList" >
+ 		INSERT INTO BIZCARD_EMAILINFO (
+			BizCardID, 
+			TypeCode,
+			Email
+		)
+ 		VALUES 
+		<foreach collection="list" item="email" separator=" , ">
+            (#{email.BizCardID}, #{email.TypeCode}, #{email.Email})
+        </foreach>
+ 	</insert>
+ 	
+ 	<insert id="insertBizCardAnniversary" parameterType="cmap" >
+ 		INSERT INTO BIZCARD_ANNIVERSARYINFO (
+			BizCardID, 
+			TypeCode,
+			AnniversaryText
+		)
+ 		VALUES (
+ 			#{BizCardID}, 
+ 			#{TypeCode}, 
+ 			#{AnniversaryText}
+ 		)
+ 	</insert>
+ 	
+ 	<delete id="deleteBizCardPhone" parameterType="cmap">
+	    DELETE FROM BIZCARD_PHONEINFO
+		WHERE BizCardID = #{BizCardID} AND TypeCode = #{TypeCode}
+ 	</delete>
+ 	
+ 	<delete id="deleteBizCardEmail" parameterType="cmap">
+	    DELETE FROM BIZCARD_EMAILINFO
+	 	WHERE BizCardID = #{BizCardID} AND TypeCode = #{TypeCode} 
+ 	</delete>
+ 	
+ 	<delete id="deleteBizCardAnniversary" parameterType="cmap">
+	    DELETE FROM BIZCARD_ANNIVERSARYINFO
+	 	WHERE BizCardID = #{BizCardID} AND TypeCode = #{TypeCode}
+ 	</delete>
+ 	
+ 	
+ 	<delete id="deleteBizCardOne" parameterType="cmap">
+ 	    <if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+	          DELETE FROM BIZCARD_PERSON
+	          WHERE BizCardID = #{BizCardID}  
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          DELETE FROM BIZCARD_COMPANY 
+ 	          WHERE BizCardID = #{BizCardID}
+ 	    </if>
+ 	</delete> 	
+ 	
+ 	 	<!-- 즐겨찾기 목록에서 제거(n개)  -->
+	<delete id="deleteBizCardFavOne" parameterType="cmap">
+		DELETE FROM  BIZCARD_FAVORITEINFO
+		WHERE	BizCardID = #{BizCardID} 
+	</delete>
+<!-- 전화번호 목록에서 제거  -->
+	<delete id="deleteBizCardPhoneOne" parameterType="cmap">
+		DELETE FROM  BIZCARD_PHONEINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+   	    AND (
+   	    	BizCardID = #{BizCardID} 
+		)
+	</delete>
+	
+	<!-- 이메일 목록에서 제거  -->
+	<delete id="deleteBizCardEmailOne" parameterType="cmap">
+		DELETE FROM  BIZCARD_EMAILINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+ 	    AND (
+ 	     	BizCardID = #{BizCardID} 
+		)
+	</delete>
+	
+	<!-- 기념일 목록에서 제거(n개)  -->
+	<delete id="deleteBizCardAnniversaryOne" parameterType="cmap">
+		DELETE FROM  BIZCARD_ANNIVERSARYINFO
+		WHERE	
+		<if test="TypeCode == 'P'.toString() or TypeCode == 'D'.toString() or TypeCode == 'U'.toString() or TypeCode == 'A'.toString() or TypeCode == null">
+ 	          TypeCode  <![CDATA[ <> ]]> 'C'
+ 	    </if>
+ 	    <if test="TypeCode == 'C'.toString()">
+ 	          TypeCode  = 'C'
+ 	    </if>
+ 	    AND (
+ 	     	BizCardID = #{BizCardID} 
+		)
+	</delete>
+
+
+ 	<!-- 조직도용 인명관리 목록 가져오기(개수)  -->
+    <select id="selectBizCardOrgMapListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	/* queryID : groupware.bizcard.selectBizCardOrgMapListCnt */
+        <choose>
+			<when test="itemType != null and itemType == 'GR'.toString() and hasEmail == 'Y'.toString()">
+			    SELECT		COUNT(*)
+				FROM (
+					SELECT		GroupID
+					FROM		covi_smart4j.BIZCARD_GROUP
+					WHERE		ShareType = #{shareType}
+				    <choose>
+						<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+						    AND RegComCode = #{DN_Code}	
+						</when>
+						<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+						    AND RegDeptCode = #{GR_Code}
+						</when>	
+						<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+						    AND RegisterID = #{UR_Code}
+						</when>					
+						<otherwise>
+							AND RegisterID = ''
+						</otherwise>
+					</choose>	
+					<if test="searchText != null and searchText != ''.toString()">
+		 				AND GroupName LIKE CONCAT('%', #{searchText}, '%')
+		   			</if>
+		   			AND (
+		   				GroupID IN (
+				   			SELECT TT1.GroupID
+					   		FROM covi_smart4j.BIZCARD_PERSON AS TT1
+					   		INNER JOIN covi_smart4j.BIZCARD_EMAILINFO AS TT2 ON TT1.BizCardID = TT2.BizCardID
+					   		WHERE TT2.Email IS NOT NULL AND TT2.Email != '')
+				   		OR (
+				   			GroupID IN (SELECT TT1.GroupID FROM covi_smart4j.BIZCARD_GROUPPERSON TT1)
+			   			)
+			   		)
+		   		) AS T1
+			</when>	
+			<when test="itemType != null and itemType == 'GR'.toString()">
+				SELECT		COUNT(*)
+				FROM		covi_smart4j.BIZCARD_GROUP
+				WHERE		ShareType = #{shareType}
+			    <choose>
+					<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+					    AND RegComCode = #{DN_Code}	
+					</when>
+					<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+					    AND RegDeptCode = #{GR_Code}
+					</when>	
+					<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+					    AND RegisterID = #{UR_Code}
+					</when>					
+					<otherwise>
+						AND RegisterID = ''
+					</otherwise>
+				</choose>	
+				<if test="searchText != null and searchText != ''.toString()">
+		 				AND GroupName LIKE CONCAT('%', #{searchText}, '%')
+	   			</if>	
+			</when>		
+			<otherwise>
+			    SELECT	COUNT(*)
+			    FROM (
+					SELECT		IFNULL((SELECT T2.Email FROM covi_smart4j.BIZCARD_EMAILINFO AS T2 WHERE T2.BizCardID = T1.BizCardID LIMIT 1), '') AS Email
+					FROM		covi_smart4j.BIZCARD_PERSON AS T1
+					WHERE		T1.ShareType = #{shareType}
+				    <choose>
+						<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+						    AND T1.RegComCode = #{DN_Code}	
+						</when>
+						<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+						    AND T1.RegDeptCode = #{GR_Code}
+						</when>	
+						<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+						    AND T1.RegisterID = #{UR_Code}
+						</when>			
+						<otherwise>
+							AND T1.RegisterID = ''
+						</otherwise>
+					</choose>
+					<if test="searchText != null and searchText != ''.toString()">
+			 				AND T1.Name LIKE CONCAT('%', #{searchText}, '%')
+		   			</if>
+	   			) AS TT
+				<if test="hasEmail != null and hasEmail != '' and hasEmail == 'Y'.toString()">
+			 	WHERE TT.Email IS NOT NULL AND TT.Email != ''
+	   			</if>
+			</otherwise>
+		</choose>
+ 	</select>
+ 	
+    <!-- 조직도용 인명관리 목록 가져오기(리스트)  -->
+ 	<select id="selectBizCardOrgMapList" parameterType="cmap" resultType="cmap">
+ 		/* queryID : groupware.bizcard.selectBizCardOrgMapList */
+        <choose>
+			<when test="itemType != null and itemType == 'GR'.toString() and hasEmail == 'Y'.toString()">
+			    SELECT		'GR' AS BizCardType
+							,T1.ShareType
+							,T1.GroupID AS ID
+							,T1.GroupName AS Name
+							,'' AS JobTitle
+							,'' AS DeptName
+							,'' AS Email
+				FROM (
+					SELECT		ShareType
+								,GroupID
+								,GroupName
+					FROM		covi_smart4j.BIZCARD_GROUP
+					WHERE		ShareType = #{shareType}
+				    <choose>
+						<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+						    AND RegComCode = #{DN_Code}	
+						</when>
+						<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+						    AND RegDeptCode = #{GR_Code}
+						</when>	
+						<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+						    AND RegisterID = #{UR_Code}
+						</when>			
+						<otherwise>
+							AND RegisterID = ''
+						</otherwise>
+					</choose>	
+					
+					<if test="searchText != null and searchText != ''.toString()">
+		 				AND GroupName LIKE CONCAT('%', #{searchText}, '%')
+		   			</if>
+		   			
+		   			AND (
+		   				GroupID IN (
+				   			SELECT TT1.GroupID
+					   		FROM covi_smart4j.BIZCARD_PERSON AS TT1
+					   		INNER JOIN covi_smart4j.BIZCARD_EMAILINFO AS TT2 ON TT1.BizCardID = TT2.BizCardID
+					   		WHERE TT2.Email IS NOT NULL AND TT2.Email != '')
+				   		OR (
+				   			GroupID IN (SELECT TT1.GroupID FROM covi_smart4j.BIZCARD_GROUPPERSON TT1)
+			   			)
+			   		)
+		   		) AS T1
+				ORDER BY T1.GroupName
+				<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   			</if>
+			</when>	
+			<when test="itemType != null and itemType == 'GR'.toString()">
+				SELECT		'GR' AS BizCardType
+							,ShareType AS ShareType
+							,GroupID AS ID
+							,GroupName AS Name
+							,'' AS JobTitle
+							,'' AS DeptName
+							,'' AS Email
+				FROM		covi_smart4j.BIZCARD_GROUP
+				WHERE		ShareType = #{shareType}
+			    <choose>
+					<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+					    AND RegComCode = #{DN_Code}	
+					</when>
+					<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+					    AND RegDeptCode = #{GR_Code}
+					</when>	
+					<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+					    AND RegisterID = #{UR_Code}
+					</when>			
+					<otherwise>
+						AND RegisterID = ''
+					</otherwise>
+				</choose>	
+				
+				<if test="searchText != null and searchText != ''.toString()">
+	 				AND GroupName LIKE CONCAT('%', #{searchText}, '%')
+	   			</if>
+				ORDER BY GroupName
+				<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   			</if>
+			</when>		
+			<otherwise>
+			    SELECT	BizCardType
+			    		,ShareType
+			    		,ID
+			    		,Name
+			    		,JobTitle
+			    		,DeptName
+			    		,Email
+			    FROM (
+					SELECT		'UR' AS BizCardType
+								,T1.ShareType AS ShareType
+								,T1.BizCardID AS ID
+								,T1.Name
+								,T1.JobTitle
+								,T1.DeptName
+								,IFNULL((SELECT T2.Email FROM covi_smart4j.BIZCARD_EMAILINFO AS T2 WHERE T2.BizCardID = T1.BizCardID LIMIT 1), '') AS Email
+					FROM		covi_smart4j.BIZCARD_PERSON AS T1
+					WHERE		T1.ShareType = #{shareType}
+				    <choose>
+						<when test="shareType != null and shareType != '' and shareType == 'U'.toString()">
+						    AND T1.RegComCode = #{DN_Code}	
+						</when>
+						<when test="shareType != null and shareType != '' and shareType == 'D'.toString()">
+						    AND T1.RegDeptCode = #{GR_Code}
+						</when>	
+						<when test="shareType != null and shareType != '' and shareType == 'P'.toString()">
+						    AND T1.RegisterID = #{UR_Code}
+						</when>			
+						<otherwise>
+							AND T1.RegisterID = ''
+						</otherwise>
+					</choose>
+					<if test="searchText != null and searchText != ''.toString()">
+			 				AND T1.Name LIKE CONCAT('%', #{searchText}, '%')
+		   			</if>
+	   			) AS TT
+				<if test="hasEmail != null and hasEmail != '' and hasEmail == 'Y'.toString()">
+			 	WHERE TT.Email IS NOT NULL AND TT.Email != ''
+	   			</if>
+				ORDER BY TT.Name
+				<if test="pageSize != null and pageOffset != null">
+	   			LIMIT #{pageSize} OFFSET #{pageOffset}
+		   		</if>
+			</otherwise>
+		</choose>
+ 	</select>
+ 	<!-- 메일작성용 인명관리의 그룹 멤버 가져오기  -->
+ 	<select id="selectBizCardGroupMemberListCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT	 COUNT(*)
+ 	    FROM (
+		 	    SELECT	T1.Name
+						,IFNULL(T2.Email, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.BIZCARD_PERSON T1
+				<choose>
+					<when test='hasEmail == "F"'>
+						LEFT JOIN covi_smart4j.BIZCARD_EMAILINFO T2 ON T1.BizCardID = T2.BizCardID
+					</when>
+					<otherwise>
+						JOIN covi_smart4j.BIZCARD_EMAILINFO T2 ON T1.BizCardID = T2.BizCardID
+					</otherwise>
+				</choose>
+				WHERE	T1.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>		
+				UNION 		
+				SELECT	Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+						,IFNULL(T1.MailAddress, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.SYS_OBJECT_USER T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.UserCode = T2.Code AND T2.ItemType = 'user'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>		
+				UNION 		
+				SELECT	Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+						,IFNULL(T1.PrimaryMail, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.SYS_OBJECT_GROUP T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.GroupCode = T2.Code AND T2.ItemType = 'group'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+				UNION
+				SELECT	T1.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = T1.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.BIZCARD_PERSON T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.BizCardID = T2.Code AND T2.ItemType = 'bizcard'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+			) AA
+ 	</select>
+ 	<select id="selectBizCardGroupMemberList" parameterType="cmap" resultType="cmap">
+	 	SELECT	 *
+	 	FROM (
+		 	    SELECT	T1.Name
+						,IFNULL(T2.Email, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.BIZCARD_PERSON T1
+				<choose>
+					<when test='hasEmail == "F"'>
+						LEFT JOIN covi_smart4j.BIZCARD_EMAILINFO T2 ON T1.BizCardID = T2.BizCardID
+					</when>
+					<otherwise>
+						JOIN covi_smart4j.BIZCARD_EMAILINFO T2 ON T1.BizCardID = T2.BizCardID
+					</otherwise>
+				</choose>
+				WHERE	T1.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>		
+				UNION		
+				SELECT	Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+						,IFNULL(T1.MailAddress, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.SYS_OBJECT_USER T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.UserCode = T2.Code AND T2.ItemType = 'user'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>		
+				UNION		
+				SELECT	Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+						,IFNULL(T1.PrimaryMail, '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.SYS_OBJECT_GROUP T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.GroupCode = T2.Code AND T2.ItemType = 'group'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+				UNION
+				SELECT	T1.Name
+						, IFNULL((SELECT Email FROM covi_smart4j.BIZCARD_EMAILINFO WHERE BizCardID = T1.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS EMAIL
+						,'BizCard' AS BizCardType
+				FROM		covi_smart4j.BIZCARD_PERSON T1
+				INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.BizCardID = T2.Code AND T2.ItemType = 'bizcard'
+				WHERE	T2.GroupID IN 
+					<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+			) AA
+		WHERE 1=1
+		<trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				AA.Name ASC
+		    </if> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("BizCardType")'>BizCardType</when>
+					<when test='sortColumn.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+					<otherwise>Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+ 	</select>
+    <!-- 조직도용 인명관리의 그룹 멤버 가져오기  -->
+ 	<select id="selectBizCardOrgMapListGroupMember" parameterType="cmap" resultType="cmap">
+ 		/* queryID : groupware.bizcard.selectBizCardOrgMapListGroupMember */
+		SELECT	T1.GroupID
+					,T1.Name
+					,IFNULL(T2.Email, '') AS Email
+					,'bizcard' AS Type
+					,T1.BizCardID AS UserID
+		FROM		covi_smart4j.BIZCARD_PERSON T1
+		INNER JOIN	covi_smart4j.BIZCARD_EMAILINFO T2 ON T1.BizCardID = T2.BizCardID
+		WHERE	T1.GroupID IN 
+			<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+		<if test="hasEmail == 'Y'.toString()">
+		    AND	IFNULL(T2.Email, '') != ''
+		</if>
+		
+		UNION ALL
+		
+		SELECT	T2.GroupID
+				,Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+				,IFNULL(T1.MailAddress, '') AS Email
+				,'user' AS Type
+				,'' AS UserID
+		FROM		covi_smart4j.SYS_OBJECT_USER T1
+		INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.UserCode = T2.Code AND T2.ItemType = 'user'
+		WHERE	T2.GroupID IN 
+			<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+		<if test="hasEmail == 'Y'.toString()">
+		    AND	IFNULL(T1.MailAddress, '') != ''
+		</if>
+		
+		UNION ALL
+		
+		SELECT	T2.GroupID
+				,Fn_BaseGetDictionary_S(#{lang}, T1.MultiDisplayName) AS Name
+				,IFNULL(T1.PrimaryMail, '') AS Email
+				,'group' AS Type
+				,'' AS UserID
+		FROM		covi_smart4j.SYS_OBJECT_GROUP T1
+		INNER JOIN	covi_smart4j.BIZCARD_GROUPPERSON T2 ON T1.GroupCode = T2.Code AND T2.ItemType = 'group'
+		WHERE	T2.GroupID IN 
+			<foreach collection="groupIDs" item="item" index="index" separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+		<if test="hasEmail == 'Y'.toString()">
+		    AND	IFNULL(T1.PrimaryMail, '') != ''
+		</if>
+ 	</select>
+ 	
+ 	<!-- 그룹 내 연락처 조회 카운트 -->
+ 	<select id="selectBizCardGroupPersonListCnt" parameterType="cmap" resultType="java.lang.Long">
+ 		SELECT COUNT(*)
+ 		FROM (
+	 	    SELECT B.DisplayName AS Name, '' AS BizCardID, IFNULL(B.MailAddress, '') AS Email, A.Code, A.ItemType
+			from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_USER B ON A.Code = B.UserCode 
+			WHERE A.GroupID = #{GroupID} AND A.ItemType = 'user'
+			UNION
+			SELECT B.DisplayName AS Name, '' AS BizCardID, IFNULL(B.PrimaryMail, '') AS Email, A.Code, A.ItemType 
+			from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_GROUP B ON A.Code = B.GroupCode 
+			WHERE A.GroupID = #{GroupID} AND A.ItemType = 'group' AND B.GroupType = 'Dept'
+			UNION 
+			SELECT A.NAME AS Name
+			, A.BizCardID
+			, IFNULL((SELECT Email FROM bizcard_emailinfo WHERE BizCardID = A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS Email
+			, '' AS Code, 'bizcard' AS ItemType 
+			from covi_smart4j.bizcard_person A
+			WHERE A.GroupID = #{GroupID}
+		) AS RESULT
+		WHERE 1=1
+ 	</select>
+ 	
+ 	<!-- 그룹 내 연락처 조회 리스트(페이징) -->
+ 	<select id="selectBizCardGroupPersonList" parameterType="cmap" resultType="cmap">
+ 		SELECT *
+ 		FROM (
+	 	    SELECT B.DisplayName AS Name, '' AS BizCardID, IFNULL(B.MailAddress, '') AS Email, A.Code, A.ItemType
+			from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_USER B ON A.Code = B.UserCode 
+			WHERE A.GroupID = #{GroupID} AND A.ItemType = 'user'
+			UNION
+			SELECT B.DisplayName AS Name, '' AS BizCardID, IFNULL(B.PrimaryMail, '') AS Email, A.Code, A.ItemType 
+			from covi_smart4j.bizcard_groupperson A LEFT OUTER JOIN covi_smart4j.SYS_OBJECT_GROUP B ON A.Code = B.GroupCode 
+			WHERE A.GroupID = #{GroupID} AND A.ItemType = 'group' AND B.GroupType = 'Dept'
+			UNION 
+			SELECT A.NAME AS Name
+			, A.BizCardID
+			, IFNULL((SELECT Email FROM bizcard_emailinfo WHERE BizCardID = A.BizCardID AND TypeCode='P' ORDER BY SeqID LIMIT 1), '') AS Email
+			, '' AS Code, 'bizcard' AS ItemType 
+			from covi_smart4j.bizcard_person A
+			WHERE A.GroupID = #{GroupID}
+		) AS RESULT
+		WHERE 1=1
+		<trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				Name ASC
+			</if> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("BizCardID")'>BizCardID</when>
+					<when test='sortColumn.equalsIgnoreCase("Email")'>Email</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>Code</when>
+					<when test='sortColumn.equalsIgnoreCase("ItemType")'>ItemType</when>
+					<otherwise>Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+ 	</select>
+</mapper>

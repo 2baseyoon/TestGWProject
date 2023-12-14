@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.stampManage">
+    <select id="selectStempList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+				SELECT 
+					StampID
+					,EntCode
+					,EntName
+					,StampName
+					,FileInfo
+					,FileID
+					,OrderNo
+					,UseYn
+					,DelYn
+					,RegDate
+					,RegID
+					,ModDate
+					,ModID
+				FROM 
+					covi_approval4j.jwf_stamp
+				WHERE 					
+					DelYn = 'N'
+					<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					   	AND EntCode=#{EntCode}
+					</if>		    		
+					<if test="search != null and search != '' and search.length() gt 0">
+						AND StampName LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+					</if>						
+				ORDER BY OrderNo ASC, RegDate DESC					
+				) A			    		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("UseYn")'>UseYn</when>
+					<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+					<when test='sortColumn.equalsIgnoreCase("StampName")'>StampName</when>
+					<when test='sortColumn.equalsIgnoreCase("FileInfo")'>FileInfo</when>
+					<when test='sortColumn.equalsIgnoreCase("OrderNo")'>OrderNo</when>
+					<otherwise>RegDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectStempListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+					StampID
+					,EntCode
+					,EntName
+					,StampName
+					,FileInfo
+					,FileID
+					,OrderNo
+					,UseYn
+					,DelYn
+					,RegDate
+					,RegID
+					,ModDate
+					,ModID
+				FROM 
+					covi_approval4j.jwf_stamp
+				WHERE 					
+					DelYn = 'N'
+					<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					   	AND EntCode=#{EntCode}
+					</if>		    		
+					<if test="search != null and search != '' and search.length() gt 0">
+						AND StampName LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+					</if>						
+				ORDER BY OrderNo ASC, RegDate DESC		
+		) A
+	</select>
+	
+    
+    <select id="selectStempData" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+					StampID
+					,EntCode
+					,EntName
+					,StampName
+					,FileInfo
+					,FileID
+					,OrderNo
+					,UseYn
+					,DelYn
+					,RegDate
+					,RegID
+					,ModDate
+					,ModID
+				FROM 
+					covi_approval4j.jwf_stamp
+				WHERE 					
+					StampID = #{StampID}
+				) A	
+	</select>
+	
+  
+    
+    <update id="PreprocessingStempData" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_stamp 
+		SET UseYn = 'N'
+		WHERE EntCode = #{EntCode}
+    </update>
+
+	<insert id="insertStempData" parameterType="cmap">	    
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_stamp 
+		(
+			EntCode
+			,EntName
+			,StampName
+			,FileInfo
+			,OrderNo
+			,UseYn
+			,DelYn
+			,RegDate
+			,RegID
+			,ModDate
+			,ModID
+			,FileID
+		)
+		VALUES 
+		(
+			#{EntCode}
+			,#{EntName}
+			,#{StampName}
+			,''
+			,#{OrderNo}
+			,#{UseYn}
+			,'N'
+			,now(3)
+			,#{RegID}
+			,now(3)
+			,#{ModID}	
+			,#{FileID}
+		)
+	]]>
+	</insert>
+	
+	<update id="deleteStempData" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_stamp
+        SET   DelYn = 'Y'
+         	 ,ModDate = now(3)
+         	 ,ModID = #{ModID}    	
+  		WHERE StampID = #{StampID}
+	</update>
+	
+	<update id="updateStampData" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_stamp
+	    SET
+			<if test="FileID != null and FileID != ''">
+				FileID = #{FileID},
+			</if>
+			EntCode = #{EntCode},
+			EntName = #{EntName},
+			StampName = #{StampName},
+			OrderNo = #{OrderNo},
+			UseYn = #{UseYn},
+			ModDate = now(3),
+			ModID = #{ModID}
+		WHERE 
+			StampID = #{StampID}
+	</update>
+	
+	<update id="setUseStampUse" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_stamp
+		   SET UseYn = 'N'
+		 WHERE EntCode = #{EntCode}
+		   AND StampID != #{StampID}
+		   AND #{UseYn} = 'Y';
+			
+		UPDATE covi_approval4j.jwf_stamp
+		   SET UseYn = (CASE WHEN #{UseYn} = 'Y' THEN 'Y' ELSE 'N' END)
+		 WHERE EntCode = #{EntCode}
+		   AND StampID = #{StampID};
+	</update>
+</mapper>
+

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.tempSaveDoc">
+    <select id="selectgrid" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+				ft.FormTempInstBoxID
+				,ft.FormInstID
+				,ft.FormID
+				,ft.SchemaID
+				,f.FormPrefix
+				,f.FormName
+				,f.Revision
+				,f.FileName
+				,ft.FormInstTableName
+				,ft.UserCode
+				,ft.CreatedDate AS CREATED
+				,ft.Subject				 
+				,ft.CreatedDate AS WORKDT
+				,(CASE ft.Kind
+					WHEN 'T' THEN '임시'
+					WHEN 'W' THEN '회수'
+					ELSE ft.Kind 
+				  END) AS Kind
+				,u.DisplayName AS UR_Name
+				,d.DeptName AS DEPT_Name
+			FROM covi_approval4j.jwf_formstempinstbox ft
+				INNER JOIN covi_approval4j.jwf_forms f ON ft.FormID = f.FormID
+				INNER JOIN covi_smart4j.sys_object_user u ON ft.UserCode = u.UserCode
+				INNER JOIN covi_smart4j.sys_object_user_basegroup d ON u.UserCode  = d.UserCode and d.JobType = 'Origin'
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+			 	Kind = #{sel_State}
+			</if>		
+			<if test="startDate != '' or endDate != ''">
+				AND ft.CreatedDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+			</if>
+			<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+			    AND Exists (
+			    	select 'x' from covi_approval4j.jwf_forminstance fi
+			    	where fi.forminstid = ft.forminstid
+			    	and fi.EntCode = #{selectEntinfoListData}
+			    )
+			</if>
+		</trim>
+		) A		
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+	    		<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>Subject</otherwise>
+				</choose>				
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					Subject LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					DEPT_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					UR_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>
+		</trim>
+		
+		
+		
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+					<when test='sortColumn.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sortColumn.equalsIgnoreCase("WORKDT")'>WORKDT</when>
+					<when test='sortColumn.equalsIgnoreCase("Kind")'>Kind</when>
+					<otherwise>FormName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+				ft.FormTempInstBoxID
+				,ft.FormInstID
+				,ft.FormID
+				,ft.SchemaID
+				,f.FormPrefix
+				,f.FormName
+				,f.Revision
+				,f.FileName
+				,ft.FormInstTableName
+				,ft.UserCode
+				,ft.CreatedDate AS CREATED
+				,ft.Subject				 
+				,DATE_FORMAT(ft.CreatedDate,'%Y-%m-%d %H:%i') AS WORKDT
+				,(CASE ft.Kind
+					WHEN 'T' THEN '임시'
+					WHEN 'W' THEN '회수'
+					ELSE ft.Kind 
+				  END) AS Kind
+				,u.DisplayName AS UR_Name
+				,d.DeptName AS DEPT_Name
+			FROM covi_approval4j.jwf_formstempinstbox ft
+				INNER JOIN covi_approval4j.jwf_forms f ON ft.FormID = f.FormID
+				INNER JOIN covi_smart4j.sys_object_user u ON ft.UserCode = u.UserCode
+				INNER JOIN covi_smart4j.sys_object_user_basegroup d ON u.UserCode  = d.UserCode and d.JobType = 'Origin'
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+			 	Kind = #{sel_State}
+			</if>		
+			<if test="startDate != '' or endDate != ''">
+				AND ft.CreatedDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+			</if>
+			<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+			    AND Exists (
+			    	select 'x' from covi_approval4j.jwf_forminstance fi
+			    	where fi.forminstid = ft.forminstid
+			    	and fi.EntCode = #{selectEntinfoListData}
+			    )
+			</if>
+		</trim>
+		) A		
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+	    		<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>Subject</otherwise>
+				</choose>				
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					Subject LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					DEPT_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					UR_Name LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>			
+		</trim>
+			
+	</select>
+	
+</mapper>
+

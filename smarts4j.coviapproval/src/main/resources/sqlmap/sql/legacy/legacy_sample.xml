@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.sample">
+	<!-- oracle -->
+    <update id= "update_gw" parameterType="cmap" >
+        UPDATE GWUSER.jwf_legacy
+		SET eventtime = to_char(sysdate,'yyyy-MM-dd HH24:MI:SS')
+		WHERE legacyid = 15380
+    </update>
+    <update id= "update_legacy" parameterType="cmap" >
+        UPDATE GWUSER.jwf_legacy
+		SET eventtime = to_char(sysdate,'yyyy-MM-dd HH24:MI:SS')
+		WHERE legacyid = 15347
+    </update>
+    
+    <update id= "update_gw_err" parameterType="cmap" >
+        UPDATE GWUSER.jwf_legacy
+		SET eventtimea = to_char(sysdate,'yyyy-MM-dd HH24:MI:SS')
+		WHERE legacyid = 15380
+    </update>
+    <update id= "update_legacy_err" parameterType="cmap" >
+        UPDATE GWUSER.jwf_legacy
+		SET eventtimea = to_char(sysdate,'yyyy-MM-dd HH24:MI:SS')
+		WHERE legacyid = 15347
+    </update>
+    
+    <!-- maria -->
+    <update id= "updateMaria_gw" parameterType="cmap" >
+    	UPDATE covi_approval4j.jwf_legacy
+		SET eventtime = DATE_FORMAT(now(), '%Y-%m-%d %H:%i:%s')
+		WHERE legacyid = 18301
+    </update>
+    <update id= "updateMaria_legacy" parameterType="cmap" >
+        UPDATE covi_approval4j.jwf_legacy
+		SET eventtime = DATE_FORMAT(now(), '%Y-%m-%d %H:%i:%s')
+		WHERE legacyid = 18302
+    </update>
+    
+    <update id= "updateMaria_gw_err" parameterType="cmap" >
+        UPDATE covi_approval4j.jwf_legacy
+		SET eventtimea = DATE_FORMAT(now(), '%Y-%m-%d %H:%i:%s')
+		WHERE legacyid = 18301
+    </update>
+    <update id= "updateMaria_legacy_err" parameterType="cmap" >
+        UPDATE covi_approval4j.jwf_legacy
+		SET eventtimea = DATE_FORMAT(now(), '%Y-%m-%d %H:%i:%s')
+		WHERE legacyid = 18302
+    </update>
+    
+    <update id= "updateMaria_gw_sp" parameterType="cmap" statementType="CALLABLE">
+    	call covi_approval4j.sp_test_text(#{test_text,mode=IN,jdbcType=VARCHAR},#{RESULT,mode=OUT,jdbcType=VARCHAR})
+    </update>
+    <update id= "updateMaria_gw_sp2" parameterType="cmap">
+    	call covi_approval4j.sp_test_text(#{test_text,mode=IN,jdbcType=VARCHAR},#{RESULT,mode=OUT,jdbcType=VARCHAR})
+    </update>
+    
+</mapper>

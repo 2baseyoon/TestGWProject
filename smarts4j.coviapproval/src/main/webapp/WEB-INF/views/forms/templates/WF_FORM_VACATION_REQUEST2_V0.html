@@ -1,0 +1,179 @@
+<style>
+table#tblVacInfo td {
+    border-left: 0px;
+    border-right: 0px;
+    border-top: 0px;
+}
+
+table#tblVacInfo tr:nth-last-child(2) td {border-bottom: 0px;}
+
+table.table_10 caption{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: polygon(0 0, 0 0, 0 0);
+}
+
+table#tblVacInfo span[name='VACATION_TYPE']
+, table#tblVacInfo span[name='VACATION_OFF_TYPE'] {
+	font-weight:bold;
+}
+
+#vacationForm .endtimeWrapper {
+	display:inline-block;
+}
+
+#vacationForm .timeWrapper {
+	display:inline-block;
+}
+
+#vacationForm .hidden {
+	display:none;
+}
+
+#vacationForm .pd0 {
+	padding:0;
+}
+
+#vacationForm .borderTop th, 
+#vacationForm .borderTop td{
+	border-top: 1px solid #c3d7df;
+}
+</style>
+<!-- HIDDEN FIELD -->
+<input type="hidden" data-type="mField" id="HID_CANCLE_FIID" />
+<input type="hidden" data-type="mField" id="VACATION_DAY"/>
+
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 tableStyle linePlus mt10" id="vacationForm">
+	<caption>휴가 신청</caption>
+    <colgroup>
+        <col style="width:12%;">
+        <col style="width:38%;">
+        <col style="width:12%;">
+        <col style="width:38%;">
+    </colgroup>
+    <tbody>
+        <tr data-mode="writeOnly">
+            <th scope="row"><spring:message code="Cache.lbl_Vaction_Name"></spring:message></th>
+            <td colspan="3">
+                <span data-mode="writeOnly">{{ doc.AppInfo.usnm}} - <spring:message code="Cache.lbl_requestVacation"></spring:message></span>
+            </td>
+        </tr>
+        <tr class="borderTop">
+            <th id="trVacRange" scope="row" rowspan="2"><spring:message code="Cache.lbl_TotalVacation"></spring:message></th><!-- 잔여연차 -->
+            <td>
+                <input type="text" data-type="mField" id="Sel_Year"  name="Sel_Year" value="{{ doc.BodyContext.Sel_Year }}" style="width:54px;" readonly="readonly" /><span id="spanSelYear">&nbsp;&nbsp;&nbsp;</span>
+                <span data-type="mField" id="VAC_DAYS" data-binding="pre">{{ doc.BodyContext.VAC_DAYS }}</span>
+            </td>
+            <th scope="row"><spring:message code='Cache.lbl_RemainVacation'/></th>
+            <td>
+            	<span data-type="mField" id="USE_DAYS" data-binding="pre">{{ doc.BodyContext.USE_DAYS }}</span>
+            	<span data-type="mField" id="PRC_DAYS" data-binding="pre" style="display:none;">{{ doc.BodyContext.PRC_DAYS }}</span>
+            </td>
+        </tr>
+        <tr id="trExtraTable">
+            <td colspan="4">
+                <table id="extraTable" class="" style="width: 100%;border: 1px solid #c3d7df;">
+                    <colgroup>
+                        <col width="107">
+                        <col width="80">
+                        <col width="80">
+                        <col width="140">
+                        <col width="140">
+                    </colgroup>
+                    <thead style="border: 1px solid #c3d7df;">
+                        <th style="background-color: #f1f6f9;">휴가구분</th>
+                        <th style="background-color: #f1f6f9;">휴가수</th>
+                        <th style="background-color: #f1f6f9;">잔여수</th>
+                        <th style="background-color: #f1f6f9;">사용기한</th>
+                        <th style="background-color: #f1f6f9;">사유</th>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        <!-- multi row table이 들어 올 곳-->
+        <tr>
+            <th scope="row"><spring:message code='Cache.lbl_Period'/></th> <!-- 기간 -->
+            <td colspan="3" class="pd0">
+            	<table class="table_10 multi-row-table RowSumTable tableStyle" id="tblVacInfo">
+            		<caption>휴가 기간</caption>
+                    <tbody>
+                    	<tr class="multi-row-control">
+	                        <td style="text-align:right;">
+	                            <input type="button" value="+<spring:message code='Cache.lbl_Add'/>" class="usa multi-row-add" data-mode="writeOnly">
+	                            <input type="button" value="-<spring:message code='Cache.lbl_apv_delete'/>" class="usa multi-row-del" data-mode="writeOnly">
+	                            &nbsp;<strong style="display:none">(<spring:message code='Cache.lbl_apv_total2'/> <span data-type="mField" id="_MULTI_TOTAL_DAYS" class="watch-value" data-watch="[name=TOT_MULTI_TOTAL_DAYS]" style="font-weight:bold;">{{ doc.BodyContext._MULTI_TOTAL_DAYS }}</span> <spring:message code='Cache.lbl_apv_day'/>)</strong>
+	                        </td>
+	                    </tr>
+	                    <tr class="multi-row-template multi-period">
+	                        <td>
+	                            <input type="checkbox" class="multi-row-selector">
+	                          	<select data-type="rField" name="VACATION_TYPE" data-element-type="sel_d_t" style="width:auto;" onchange="initRowforVacationTypeChanged(this);">
+	                            </select>
+	                            
+	                            <select class="hidden" data-type="rField" name="REWARD_TYPE" data-element-type="sel_d_t" style="width:52px;" onchange="setRowFieldsForRewardVacationType(this)" title="보상휴가유형">
+	    						</select>
+	                            
+	                            <select class="hidden" data-type="rField" name="VACATION_OFF_TYPE" data-element-type="sel_d_t" style="width:52px;" required title="반차유형">
+	                            	<option value="0" selected></option>
+	                            	<option value="AM"><spring:message code='Cache.lbl_AM'/></option><!-- 오전 --></option>
+	    							<option value="PM"><spring:message code='Cache.lbl_PM'/></option><!-- 오후 --></option>
+	    						</select>
+	                            
+	                            <input type="text" name="_MULTI_VACATION_SDT" data-type="rField" readonly="" data-pattern="date" title="시작일" onchange="calSDATEEDATE(this);" required="" style="width:84px; text-align:center;">
+	                            <div class="endtimeWrapper">
+	                            ~
+	                            <input type="text" name="_MULTI_VACATION_EDT" data-type="rField" readonly="" data-pattern="date" title="종료일" onchange="calSDATEEDATE(this);" required="" style="width:84px; text-align:center;">
+	                            </div>
+	                            <div class="timeWrapper hidden">
+		                            <input type="text" name="_MULTI_VACATION_STIME" data-type="rField" readonly="" data-pattern="time" data-time-format="H:i" data-time-step="60" title="시작시간" onchange="calculateEndTimeAndSetOffType(this);" style="width:60px; text-align:center;">
+		                            ~
+		                            <input type="text" name="_MULTI_VACATION_ETIME" data-type="rField" readonly="" data-pattern="time" data-time-format="H:i" data-time-step="60" title="종료시간" style="width:60px; text-align:center;" disabled>
+	                            </div> 
+	                            <strong>(</strong><span name="_MULTI_DAYS" title="신청일수"  data-type="rField" class="sum-table-cell" style="font-weight:bold;">0</span><strong><spring:message code='Cache.lbl_apv_day'/>)</strong>
+	                            /<spring:message code="Cache.lbl_RemainVacation"/>:<span name="_MULTI_TOTAL_DAYS" title=""  data-type="rField" class="sum-table-cell"  data-pattern="numeral" data-numeral-format="0.[000]">0</span>
+	                            <spring:message code='Cache.lbl_apv_day'/>
+	                            <span name="_MULTI_VAC_INDEX" title="" style="color:white"></span>
+	                        </td>
+	                    </tr>
+	                    <tr style="display: none;">
+	                        <td>
+	                            <input type="text" name="TOT_MULTI_TOTAL_DAYS" data-type="rField" class="sum-table-colsum keep-zero-format">
+	                        </td>
+	                    </tr>
+                	</tbody>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">비고</th> <!-- 사유 -->
+            <td colspan="3">
+                <textarea data-type="mField" id="VAC_REASON" data-binding="pre" rows="5" title="사유" style="width:100%; overflow:auto; resize: none;">{{ doc.BodyContext.VAC_REASON }}</textarea>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><spring:message code='Cache.lbl_apv_EmergencyCall'/></th>	<!-- 비상연락 -->
+            <td colspan="3"><input type="text" data-type="mField" id="NUMBER" value="{{ doc.BodyContext.NUMBER }}" data-binding="pre" style="width:107px;" required="" ></td>
+        </tr>
+        <tr>
+            <th scope="row"><spring:message code='Cache.lbl_apv_ActDirector'/></th> <!-- 직무대행자 -->
+            <td style="border-right:0px;">
+                <input type="text" data-type="mField" id="DEPUTY_NAME" value="{{ doc.BodyContext.DEPUTY_NAME }}" data-binding="pre" title="직무대행자" required="" readonly="readonly" style="width:98%;border:0px solid;">
+                <input type="hidden" data-type="mField" id="DEPUTY_CODE" value="{{ doc.BodyContext.DEPUTY_CODE }}" style="width: 98%;">
+            </td>
+            <td colspan="2" style="text-align:left; padding-left: 10px;">
+                <span data-mode="writeOnly">
+                    <a onclick="OpenWinEmployee('DEPUTY_NAME')">
+                        <img alt="search" style="vertical-align: middle; cursor:pointer;" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/btn_org.gif" width="25" height="21">
+                    </a>
+                </span>
+            </td>
+        </tr>
+    </tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

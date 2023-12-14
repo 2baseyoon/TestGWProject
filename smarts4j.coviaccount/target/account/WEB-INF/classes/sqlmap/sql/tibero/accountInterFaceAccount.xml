@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountInterFace.Account">
+	<select id="getInterFaceListExpenceApplication" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account.getInterFaceListExpenceApplication
+	    */
+		SELECT	EV.FORM_INST_ID
+			,	EV.EVIDENCE_INDEX
+			,	EV.EVIDENCE_TITLE
+			,	EV.POST_DATE
+			,	EV.EMPLOYEE_CODE
+			,	EV.EVIDENCE_DATE
+			,	EV.EVIDENCE_TYPE
+			,	EV.CARD_APPROVAL_NO
+			,	EV.TAX_CODE_TYPE
+			,	EV.TAX_CODE
+			,	EV.PAY_ADJUST_METHOD
+			,	EV.PAY_METHOD
+			,	EV.VENDOR_CODE
+			,	EV.TOTAL_AMOUNT
+			,	EV.POSTING_PAY_OUT_NUMBER
+			,	EVD.DIVISION_INDEX
+			,	EVD.DIVISION_GL_ACCOUNT_CODE
+			,	EVD.DIVISION_COSTCENTER_CODE
+			,	EVD.DIVISION_USE_MONEY
+			,	EVD.DIVISION_COMMENT
+		FROM	COVI_ACCOUNT.CS_EVIDENCE EV
+		JOIN	COVI_ACCOUNT.CS_EVIDENCE_DIVISION EVD
+			ON	EV.FORM_INST_ID		= EVD.FORM_INST_ID
+			AND	EV.EVIDENCE_INDEX	= EVD.EVIDENCE_INDEX
+	</select>
+	
+	<select id="cntKeyInterFaceEVIDENCE" resultType="java.lang.Long">
+	    /*
+		    accountInterFace.Account.cntKeyInterFaceEVIDENCE
+	    */
+	    SELECT	COUNT(*)
+	    FROM	COVI_ACCOUNT.CS_EVIDENCE
+	    WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+	</select>
+	
+	<insert id="insertInterFaceEVIDENCE" parameterType="cmap" >
+	     /*
+		    accountInterFace.Account.insertInterFaceEVIDENCE
+	    */
+	    INSERT INTO COVI_ACCOUNT.CS_EVIDENCE(
+		    	FORM_INST_ID
+			,	EVIDENCE_TITLE
+			,	POST_DATE
+			,	EMPLOYEE_CODE
+			,	EVIDENCE_INDEX
+			,	EVIDENCE_DATE
+			,	EVIDENCE_TYPE
+			,	CARD_APPROVAL_NO
+			,	TAX_CODE_TYPE
+			,	TAX_CODE
+			,	PAY_ADJUST_METHOD
+			,	PAY_METHOD
+			,	VENDOR_CODE
+			,	TOTAL_AMOUNT
+			,	POSTING_PAY_OUT_NUMBER
+		) VALUES (
+				#{form_inst_id}
+			,	#{evidence_title}
+			,	#{post_date}
+			,	#{employee_code}
+			,	#{evidence_index}
+			,	#{evidence_date}
+			,	#{evidence_type}
+			,	#{card_approval_no}
+			,	#{tax_code_type}
+			,	#{tax_code}
+			,	#{pay_adjust_method}
+			,	#{pay_method}
+			,	#{vendor_code}
+			,	#{total_amount}
+			,	#{posting_pay_out_number}
+		)
+	</insert>
+	
+    <update id="updateInterFaceEVIDENCE" parameterType="cmap" >
+        /*
+		    accountInterFace.Account.updateInterFaceEVIDENCE
+	    */
+        UPDATE COVI_ACCOUNT.CS_EVIDENCE
+        	SET
+        		EVIDENCE_TITLE			= #{evidence_title}
+			,	POST_DATE				= #{post_date}
+			,	EMPLOYEE_CODE			= #{employee_code}
+			,	EVIDENCE_DATE			= #{evidence_date}
+			,	EVIDENCE_TYPE			= #{evidence_type}
+			,	CARD_APPROVAL_NO		= #{card_approval_no}
+			,	TAX_CODE_TYPE			= #{tax_code_type}
+			,	TAX_CODE				= #{tax_code}
+			,	PAY_ADJUST_METHOD		= #{pay_adjust_method}
+			,	PAY_METHOD				= #{pay_method}
+			,	VENDOR_CODE				= #{vendor_code}
+			,	TOTAL_AMOUNT			= #{total_amount}
+			,	POSTING_PAY_OUT_NUMBER	= #{posting_pay_out_number}
+		WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+    </update>
+    
+    <delete id="deleteInterFaceEVIDENCE">
+        /*
+		    accountInterFace.Account.deleteInterFaceEVIDENCE
+	    */
+        DELETE
+        FROM	COVI_ACCOUNT.CS_EVIDENCE
+        WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+    </delete>
+    
+    <select id="cntKeyInterFaceEVIDENCEDIVISION" resultType="java.lang.Long">
+        /*
+		    accountInterFace.Account.cntKeyInterFaceEVIDENCEDIVISION
+	    */
+	    SELECT	COUNT(*)
+	    FROM	COVI_ACCOUNT.CS_EVIDENCE_DIVISION
+	    WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+	    AND		DIVISION_INDEX	= #{division_index}
+	</select>
+	
+    <insert id="insertInterFaceEVIDENCEDIVISION" parameterType="cmap" >
+        /*
+		    accountInterFace.Account.insertInterFaceEVIDENCEDIVISION
+	    */
+		INSERT INTO COVI_ACCOUNT.CS_EVIDENCE_DIVISION(
+				FORM_INST_ID
+			,	EVIDENCE_INDEX
+		    ,	DIVISION_INDEX
+			,	DIVISION_GL_ACCOUNT_CODE
+			,	DIVISION_COSTCENTER_CODE
+			,	DIVISION_USE_MONEY
+			,	DIVISION_COMMENT
+		) VALUES (
+				#{form_inst_id}
+			,	#{evidence_index}
+			,	#{division_index}
+			,	#{division_gl_account_code}
+			,	#{division_costcenter_code}
+			,	#{division_use_money}
+			,	#{division_comment}
+		)
+	</insert>
+	
+    <update id="updateInterFaceEVIDENCEDIVISION" parameterType="cmap" >
+        /*
+		    accountInterFace.Account.updateInterFaceEVIDENCEDIVISION
+	    */
+        UPDATE COVI_ACCOUNT.CS_EVIDENCE_DIVISION
+        	SET
+        		DIVISION_INDEX				= #{division_index}
+			,	DIVISION_GL_ACCOUNT_CODE	= #{division_gl_account_code}
+			,	DIVISION_COSTCENTER_CODE	= #{division_costcenter_code}
+			,	DIVISION_USE_MONEY			= #{division_use_money}
+			,	DIVISION_COMMENT			= #{division_comment}
+		WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+	    AND		DIVISION_INDEX	= #{division_index}
+    </update>
+    
+    <delete id="deleteInterFaceEVIDENCEDIVISION">
+        /*
+		    accountInterFace.Account.deleteInterFaceEVIDENCEDIVISION
+	    */
+        DELETE
+        FROM	COVI_ACCOUNT.CS_EVIDENCE_DIVISION
+        WHERE	FORM_INST_ID	= #{form_inst_id}
+	    AND		EVIDENCE_INDEX	= #{evidence_index}
+	    AND		DIVISION_INDEX	= #{division_index}
+    </delete>
+</mapper>

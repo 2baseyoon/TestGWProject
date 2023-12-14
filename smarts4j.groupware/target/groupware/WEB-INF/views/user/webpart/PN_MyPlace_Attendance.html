@@ -1,0 +1,66 @@
+<div class="PN_myContents_box PN_myContents_sizeW">
+	<div class="PN_portlet">
+		<div class="PN_portlet_head PN_portlet_handler">
+			<div class="PN_portlet_title">
+				<strong class="PN_portlet_link"><spring:message code="Cache.lbl_MyAttendanceStatus"/></strong> <!-- 내 근태현황 -->
+			</div>
+			<div class="PN_portlet_function">
+				<a href="#" class="PN_portlet_btn">
+					<span class=""></span>
+					<span class=""></span>
+					<span class=""></span>
+				</a>
+				<div class="PN_portlet_menu">
+					<ul>
+						<li mode="hide"><a href="#"><spring:message code="Cache.lbl_HideContent"/></a></li> <!-- 컨텐츠 숨기기 -->
+						<li><a href="#" class="PN_portlet_close"><spring:message code="Cache.lbl_ClosingWindow"/></a></li> <!-- 창닫기 -->
+					</ul>
+				</div>
+			</div>
+			<a href="/groupware/attend/attendHome.do?CLSYS=attend&CLMD=user&CLBIZ=Attend&AuthMode=U" class="PN_More">more</a>
+		</div>
+		<div class="PN_portlet_contents">
+			<div class="PN_attendance">
+				<div class="PN_attendBox">
+					<div class="PN_attend_l">
+						<div class="PN_attendDg">
+							<span class="aDate"></span>
+							<div class="PN_dgBox">
+								<div class="cycleBox">
+									<canvas id="attendGraph"></canvas>
+								</div>
+							</div>
+							<div class="PN_dgTxt">
+								<strong class="TotalNum"></strong>
+								<ul class="TotalList">
+									<li id="PN_workTime"><span class="txt"><spring:message code="Cache.lbl_n_att_normalWork"/></span><strong class="num"></strong></li> <!-- 정상근무 -->
+									<li id="PN_exTime"><span class="txt"><spring:message code="Cache.lbl_att_overtime_work"/></span><strong class="num"></strong></li> <!-- 연장근무 -->
+									<li id="PN_holiTime"><span class="txt"><spring:message code="Cache.lbl_att_holiday_work"/></span><strong class="num"></strong></li> <!-- 휴일근무 -->
+									<li id="PN_remainTime"><span class="txt"><spring:message code="Cache.lbl_n_att_remainWork"/></span><strong class="num"></strong></li> <!-- 잔여근무 -->
+								</ul>
+							</div>
+						</div>
+					</div>
+					<div class="PN_attend_r">
+						<ul>
+							<li mode="attSTime"><span class="aTitle"><spring:message code="Cache.lbl_att_goWork"/></span><span class="aTxt"></span></li> <!-- 출근 -->
+							<li mode="attETime"><span class="aTitle"><spring:message code="Cache.lbl_att_offWork"/></span><span class="aTxt"></span></li> <!-- 퇴근 -->
+							<li mode=""><span class="aTitle"><spring:message code="Cache.lbl_att_workingDay"/></span><span class="aTxt">40h</span></li> <!-- 소정근로 -->
+							<li mode="reward"><span class="aTitle"><spring:message code="Cache.lbl_n_att_rewardVac"/></span><span class="aTxt"></span></li> <!-- 보상휴가 -->
+						</ul>
+					</div>
+				</div>
+				<div class="PN_attendBtn">
+					<ul>
+						<li mode="exten"><a href="#"><spring:message code="Cache.lbl_app_approval_extention"/></a></li> <!-- 연장근무신청 -->
+						<li mode="holi"><a href="#"><spring:message code="Cache.lbl_app_approval_holiday"/></a></li> <!-- 휴일근무신청 -->
+						<li mode="call"><a href="#" class="PN_calling"><spring:message code="Cache.lbl_app_approval_call"/> <span class="atNum"></span></a></li> <!-- 소명신청 -->
+						<li mode="workType">
+							<select class="selectType02"></select>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.deptDocTransfer">
+    <select id="selectcount" parameterType="cmap" resultType="java.lang.Long">
+	<![CDATA[
+		SELECT 
+		(
+		SELECT COUNT(distinct WI.WorkItemID)
+		FROM covi_approval4j.jwf_process PR
+		INNER JOIN covi_approval4j.jwf_workitem WI
+		ON PR.ProcessID = WI.ProcessID
+		AND WI.UserCode = #{SOURCE_DEPT_CODE}
+		) + 
+		(
+		SELECT COUNT(distinct c.CirculationBoxID) FROM covi_approval4j.jwf_circulationbox c 
+		WHERE ReceiptType = 'U'
+		AND ReceiptID = #{SOURCE_DEPT_CODE}
+		) AS docCount
+		FROM DUAL
+    ]]>  
+	</select>
+	
+	<insert id="insert" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_movehistory (	
+		EditDate
+		, WorkItemID
+		, ProcessID
+		, EditorID
+		, EditorName
+		, PerformerIDOld
+		, PerformerNameOld
+		, PerformerIDNew
+		, PerformerNameNew  
+	)
+	SELECT
+		NOW(3)
+		, WI.WorkItemID
+		, WI.ProcessID
+		, #{USERID}
+		, ''
+		, WI.UserCode		 #OLD VALUE
+		, WI.UserName
+		, #{DEST_DEPT_CODE}	 #NEW VALUE
+		, #{DEST_DEPT_NAME}
+	FROM covi_approval4j.jwf_process PR
+	INNER JOIN covi_approval4j.jwf_workitem WI
+	ON PR.ProcessID = WI.ProcessID
+	AND WI.UserCode =#{SOURCE_DEPT_CODE};
+	]]>
+	</insert>
+	
+	<update id="update" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_process PR 
+		INNER JOIN covi_approval4j.jwf_workitem WI 
+		ON PR.ProcessID = WI.ProcessID 
+		AND WI.UserCode = #{SOURCE_DEPT_CODE}
+		SET WI.UserCode =#{DEST_DEPT_CODE}
+		   ,WI.UserName = #{DEST_DEPT_NAME};
+	]]>
+	</update>
+	
+	<update id="updateCirculation" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_circulationbox
+		SET
+			ReceiptID = #{DEST_DEPT_CODE},
+			ReceiptName = #{DEST_DEPT_NAME}
+		WHERE ReceiptType = 'U'
+		AND ReceiptID = #{SOURCE_DEPT_CODE};
+	]]>
+	</update>
+</mapper>
+

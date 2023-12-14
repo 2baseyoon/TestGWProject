@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+
+    <!-- mapper별 저장 경로는 별도로 뽑는 것이 맞을 거 같다
+    	 /sqlmap/sql/mapperone/*.xml
+    	 /sqlmap/sql/mappertwo/*.xml
+     -->
+	<!-- SqlSession setup for MyBatis Database Layer -->
+	
+	<!-- JTA(Transaction) 사용시 아래 설정 -->
+	<!-- 쿼리xml은 sql/legacy 위치에 생성 -->
+	<!-- 
+ 	<bean id="sqlSessionLegacyFramework" class="egovframework.coviframework.base.RefreshableSqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLegacyFramework" />
+		<property name="configLocation" value="classpath:/sqlmap/config/mapper-one-config.xml" />
+		<property name="mapperLocations" value="classpath*:/sqlmap/sql/legacy/*.xml" />
+	</bean>
+
+  	<bean id="sqlSessionLegacy" class="egovframework.coviframework.base.RefreshableSqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLegacy" />
+		<property name="configLocation" value="classpath:/sqlmap/config/mapper-legacy-config.xml" />
+		<property name="mapperLocations" value="classpath*:/sqlmap/sql/legacy/*.xml" />
+	</bean>
+	 -->
+	 
+</beans>

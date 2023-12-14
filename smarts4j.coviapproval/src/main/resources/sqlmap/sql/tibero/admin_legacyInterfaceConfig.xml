@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="legacy.interface.config">
+    <select id="selectConfig" parameterType="cmap" resultType="cmap">
+    	SELECT  LegacyConfigID AS "LegacyConfigID"
+    		,SchemaID AS "SchemaID"
+			,ApvMode AS "ApvMode"
+			,Seq AS "Seq"
+			,ProgramName AS "ProgramName"
+			,IfType AS "IfType"
+			,HttpUrl AS "HttpUrl"
+			,SqlClause AS "SqlClause"
+			,InvokeJavaClassName AS "InvokeJavaClassName"
+			,ExtInfo AS "ExtInfo"
+			,HttpBody AS "HttpBody"
+			,HttpParams AS "HttpParams"
+			,WSRequestXML AS "WSRequestXML"
+			,WSRequestObjectInfo AS "WSRequestObjectInfo"
+			,ErrorOnFail AS "ErrorOnFail"
+			,IsUse AS "IsUse"
+    	FROM gwuser.jwf_legacy_if_config 
+    	WHERE 1=1
+    	<if test="LegacyConfigID != null and LegacyConfigID != ''">
+    	AND LegacyConfigID = #{LegacyConfigID}
+    	</if>
+    	<if test="LegacyConfigID == null or LegacyConfigID == ''">
+	    	AND SchemaID = #{SchemaID}
+	    	<if test="ApvMode != null and ApvMode != ''">
+	    	AND ApvMode = #{ApvMode}
+	    	</if>
+	    	<if test="IsUse != null and IsUse != ''">
+	    	AND IsUse = #{IsUse}
+	    	</if>
+    	</if>
+    	ORDER BY ApvMode, Seq
+	</select>
+	<insert id="insertConfig" parameterType="cmap">
+		INSERT INTO gwuser.jwf_legacy_if_config (
+			SchemaID
+			,ApvMode
+			,Seq
+			,ProgramName
+			,IfType
+			,HttpUrl
+			,SqlClause
+			,InvokeJavaClassName
+			,ExtInfo
+			,HttpBody
+			,HttpParams
+			,WSRequestXML
+			,WSRequestObjectInfo
+			,ErrorOnFail
+			,RegisterCode
+			,RegistDate
+		)
+		VALUES (
+			#{SchemaID}
+			,#{ApvMode}
+			,#{Seq}
+			,#{ProgramName}
+			,#{IfType}
+			,#{HttpUrl}
+			,#{SqlClause}
+			,#{InvokeJavaClassName}
+			,#{ExtInfo}
+			,#{HttpBody}
+			,#{HttpParams}
+			,#{WSRequestXML}
+			,#{WSRequestObjectInfo}
+			,#{ErrorOnFail}
+			,#{RegisterCode}
+			,#{RegistDate} )
+	</insert>
+	<update id="updateConfig" parameterType="cmap">
+		UPDATE gwuser.jwf_legacy_if_config 
+		SET ProgramName = #{ProgramName}
+			,IfType = #{IfType}
+			,HttpUrl = #{HttpUrl}
+			,SqlClause = #{SqlClause}
+			,InvokeJavaClassName = #{InvokeJavaClassName}
+			,ExtInfo = #{ExtInfo}
+			,HttpBody = #{HttpBody}
+			,HttpParams = #{HttpParams}
+			,WSRequestXML = #{WSRequestXML}
+			,WSRequestObjectInfo = #{WSRequestObjectInfo}
+			,ErrorOnFail = #{ErrorOnFail}
+			,ModifyerCode = #{ModifyerCode}
+			,ModifyDate = #{ModifyDate}
+		WHERE LegacyConfigID = #{LegacyConfigID}
+	</update>
+	<delete id="deleteConfig" parameterType="cmap">
+		DELETE FROM gwuser.jwf_legacy_if_config WHERE LegacyConfigID = #{LegacyConfigID}
+	</delete>
+	<update id="updateConfigUse" parameterType="cmap">
+		UPDATE gwuser.jwf_legacy_if_config
+		SET IsUse = #{IsUse} 
+		WHERE LegacyConfigID = #{LegacyConfigID}
+	</update>
+</mapper>
+

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.ApvProcess">
+    <select id="selectAutoDeputyList" parameterType="cmap" resultType="cmap">
+		SELECT a.TaskID AS "TaskID", p.FormInstID AS "FormInstID", NVL(s.FilePath, '') AS "FilePath", NVL(jf2.FormPrefix, '') AS "FormPrefix"
+		FROM jwf_process p
+		    INNER JOIN jwf_workitem a
+		        ON p.processid = a.processid
+		    INNER JOIN jwf_performer b
+		        ON (a.workitemid = b.workitemid AND b.subkind = 'T000')
+		    INNER JOIN sys_object_user_approval c
+		        ON b.UserCode = c.UserCode
+			INNER JOIN sys_object_user_basegroup d
+				ON b.UserCode = d.UserCode AND d.JobType='Origin'
+			INNER JOIN jwf_forminstance jf
+				ON p.FormInstID = jf.FormInstID  
+			INNER JOIN jwf_forms jf2 
+				ON jf.FormID = jf2.FormID	
+		    LEFT OUTER JOIN jwf_signimage s
+		        ON (b.usercode = s.usercode AND s.IsUse = 'Y')
+		WHERE p.ProcessState = '288'
+		AND a.State = '288'
+		AND LNNVL(a.BusinessData4 != 'FAIL')
+		AND c.UseDeputy = 'Y'
+		AND c.DeputyOption = 'P'
+		AND (#{CompanyCode} = 'ORGROOT' OR d.CompanyCode = #{CompanyCode})
+		AND a.Created BETWEEN TO_DATE(DeputyFromDate, 'YYYY-MM-DD HH24:MI:SS') AND (TO_DATE(DeputyToDate, 'YYYY-MM-DD HH24:MI:SS') + 1)
+		AND SYSDATE BETWEEN TO_DATE(DeputyFromDate, 'YYYY-MM-DD HH24:MI:SS') AND (TO_DATE(DeputyToDate, 'YYYY-MM-DD HH24:MI:SS') + 1)
+	</select>
+	
+	<update id="updateBusinessDataAuto" parameterType="cmap">
+		update jwf_workitem
+		set BusinessData4 = #{BusinessData4}
+		where taskid = #{taskID}
+	</update>
+	
+	<select id="selectReservedDraftList" parameterType="cmap" resultType="cmap">
+		SELECT a.TaskID AS "TaskID"
+		FROM jwf_workitem a
+		WHERE a.State = '528'
+		AND ( a.BusinessData4 != 'FAIL' OR a.BusinessData4 is null )
+		AND a.UserCode = '_RESERVE_'
+		AND a.Limit IS NOT NULL
+		AND a.Limit <![CDATA[<=]]> SYSDATE
+	</select>
+	
+	
+	<!-- FIDO 인증 상태 조회  -->
+	<select id="selectFidoStatus" parameterType="cmap" resultType="String">
+		SELECT authStatus
+		FROM sys_base_fido
+		WHERE 1=1
+		AND AuthKey = #{authKey}
+		AND AuthType = #{authType}
+		AND LogonID = #{logonID}
+		<!-- AND AuthToken = #{authToken}  -->
+	</select>
+	
+	<select id="selectFormSchema" parameterType="cmap" resultType="java.lang.String">
+		SELECT SchemaContext FROM jwf_forms jf
+		INNER JOIN jwf_formsschema jfs ON jf.SchemaID = jfs.SchemaID
+		WHERE formID = #{formID}
+	</select>
+	
+	<select id="selectDraftTaskID" parameterType="cmap" resultType="java.lang.String">
+		SELECT W.TASKID AS "TaskID" 
+		FROM JWF_PROCESS P
+		INNER JOIN JWF_WORKITEM W ON P.PROCESSID = W.PROCESSID 
+		WHERE P.PROCESSID = #{draftProcessID}
+		AND P.FORMINSTID = #{draftFrominstID}
+		AND W.WORKITEMID = #{draftWorkitemID}
+	</select>
+	
+	<select id="selectWorkItemAuthByTaskID" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(1) AS "CNT"
+		FROM JWF_PROCESS P
+		INNER JOIN JWF_WORKITEM W 
+			ON P.PROCESSID = W.PROCESSID 
+        INNER JOIN JWF_PERFORMER PF
+            ON PF.PERFORMERID = W.PERFORMERID
+        AND W.TASKID IS NOT NULL
+		AND W.TASKID = #{taskID}
+        AND EXISTS (
+            SELECT 'X' FROM DUAL WHERE W.DEPUTYID = #{userCode}
+            
+            UNION ALL
+            
+            SELECT  'X' FROM DUAL WHERE PF.USERCODE = #{userCode} AND PF.ACTUALKIND = 0
+            
+            UNION ALL
+            
+            SELECT  'X' FROM DUAL WHERE PF.USERCODE = #{unitCode} AND PF.ACTUALKIND = 1
+            
+            UNION ALL
+            
+            SELECT  'X' FROM JWF_JOBFUNCTION JF 
+            JOIN JWF_JOBFUNCTIONMEMBER JFM
+                ON JFM.JOBFUNCTIONID = JF.JOBFUNCTIONID
+            WHERE JFM.USERCODE = #{userCode}
+            AND PF.ACTUALKIND = 2
+            AND JF.JOBFUNCTIONCODE = PF.USERCODE
+        )
+	</select>
+	
+		
+	<!-- 문서 정보 조회 -->
+	<select id="SelectFormInfo" parameterType="cmap" resultType="cmap">
+	    SELECT
+			B.FormInstID AS "FormInstID"
+			, B.ProcessID AS "ProcessID"
+			, A.InitiatorID AS "InitiatorID"
+			, B.FormID AS "FormID"
+			, C.FormPrefix AS "FormPrefix"
+			, C.FormName AS "FormName"
+			, C.FormSubject AS "FormSubject"
+			, C.IsSecureDoc AS "IsSecureDoc"
+			, C.IsFile AS "IsFile"
+			, B.DocNo AS "DocNo"
+			, C.Reserved2 AS "Reserved2"
+		FROM jwf_process A 
+		INNER JOIN jwf_forminstance B ON A.ProcessID = B.ProcessID
+		INNER JOIN jwf_processdescription C ON B.FormInstID = C.FormInstID
+		WHERE B.FormInstID = #{fiid}
+		group by B.FormInstID, B.ProcessID, A.InitiatorID, B.FormID, C.FormPrefix, C.FormName, C.FormSubject, C.IsSecureDoc, C.IsFile, B.DocNo, C.Reserved2
+	</select>
+	
+</mapper>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.admin">
+	
+	<!-- 연동설정 저장 (기초설정)-->
+	<update id="setSyncSetting" parameterType="cmap">
+	/* collab.admin.setSyncSetting */
+		MERGE INTO SYS_BASE_CONFIG
+		USING DUAL
+		ON (CONFIGID = (SELECT CONFIGID FROM SYS_BASE_CONFIG WHERE BIZSECTION = 'Collab' AND SETTINGKEY = #{SettingKey} AND DOMAINID = #{DN_ID}))
+		WHEN MATCHED THEN
+		UPDATE SET
+			SETTINGVALUE = #{SettingValue}
+			, MODIFIERCODE = #{UserCode}
+			, MODIFYDATE= SYSDATE
+		WHEN NOT MATCHED THEN
+		INSERT
+		(
+			CONFIGID
+			, BIZSECTION
+			, DOMAINID
+			, SETTINGKEY
+			, SETTINGVALUE
+			, ISCHECK
+			, ISUSE
+			, DESCRIPTION
+			, REGISTERCODE
+			, REGISTDATE
+			, MODIFIERCODE
+			, MODIFYDATE
+		) VALUES (
+			SYS_BASE_CONFIG_SEQ.NEXTVAL
+			, 'Collab'
+			, #{DN_ID}
+			, #{SettingKey}
+			, #{SettingValue}
+			, 'Y'
+			, 'Y'
+			, ' '
+			, #{UserCode}
+			, SYSDATE
+			, #{UserCode}
+			, SYSDATE
+		)
+	</update>
+	
+	<!--  개인설정 조회-->
+	<select id="getCollabUserConf"   parameterType="cmap" resultType="cmap">
+	/* collab.admin.getUserConf */
+		SELECT UserCode as "UserCode"
+				, NVL(DashThema,' ') as "DashThema"
+				, NVL(TaskShowCode,' ') as "TaskShowCode"
+				, NVL(DeadlineAlarm,' ') as "DeadlineAlarm"
+				, NVL(DeadlineAlarmUse,' ') as "DeadlineAlarmUse"
+				, NVL(RepeatAlarm,' ') as "RepeatAlarm"
+				, NVL(RepeatAlarmUse,' ') as "RepeatAlarmUse"
+		FROM COLLAB_USER_CONF
+		WHERE 
+			UserCode =  #{USERID}
+	</select>
+	
+	<!-- 개인설정 저장 -->
+	<update id="saveCollabUserConf" parameterType="cmap">
+	/* collab.admin.saveCollabUserConf */
+		MERGE INTO COLLAB_USER_CONF 
+		USING DUAL
+			ON (UserCode = #{UserCode})
+		WHEN MATCHED THEN
+		UPDATE SET
+			DashThema = #{dashThema}
+			, TaskShowCode = #{taskShowCode}
+			, ModifyDate = SYSDATE
+		WHEN NOT MATCHED THEN
+			INSERT ( UserCode, DashThema, TaskShowCode, RegisteDate, ModifyDate )
+			VALUES ( #{UserCode}, #{dashThema}, #{taskShowCode}, SYSDATE, SYSDATE ) 
+	</update>
+	
+	<!-- 프로젝트 마감 알림설정 저장 -->
+	<update id="saveClosingAlarm" parameterType="cmap">
+	/* collab.admin.saveClosingAlarm */
+		MERGE INTO COLLAB_USER_CONF 
+		USING DUAL
+			ON (UserCode = #{UserCode})
+		WHEN MATCHED THEN
+		UPDATE SET
+			DeadlineAlarm = #{deadlineAlarm}
+			, DeadlineAlarmUse = #{deadlineAlarmUse}
+			, RepeatAlarm = #{repeatAlarm}
+			, RepeatAlarmUse = #{repeatAlarmUse}
+			, ModifyDate = SYSDATE
+		WHEN NOT MATCHED THEN
+			INSERT (  UserCode, DeadlineAlarm, DeadlineAlarmUse, RepeatAlarm, RepeatAlarmUse, RegisteDate, ModifyDate )
+			VALUES ( #{UserCode}, #{deadlineAlarm}, #{deadlineAlarmUse}, #{repeatAlarm}, #{repeatAlarmUse}, SYSDATE, SYSDATE )
+	</update>
+	
+</mapper>
+

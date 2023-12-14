@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.approval">
+    <!-- 미결함 목록 데이터 -->
+    <select id="selectApprovalList" parameterType="cmap" resultType="cmap">
+			SELECT ApprovalList.* FROM (
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, D.ProcessDescriptionID
+				, A.InitiatorID
+				, A.InitiatorName
+				, C.UserCode
+				, C.SubKind
+				, D.FormPrefix
+				, D.FormSubject
+				, D.FormName
+				, DATE_FORMAT(B.Created,'%Y/%m/%d %H:%i:%s') AS `Created`
+				, D.Priority
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288	
+
+				UNION ALL
+
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, D.ProcessDescriptionID
+				, A.InitiatorID
+				, A.InitiatorName
+				, C.UserCode
+				, C.SubKind
+				, D.FormPrefix
+				, D.FormSubject
+				, D.FormName
+				, DATE_FORMAT(B.Created,'%Y/%m/%d %H:%i:%s') AS `Created`
+				, D.Priority
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID	
+				WHERE B.DeputyID = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288
+			) AS ApprovalList
+			ORDER BY Priority DESC , Created Desc 
+			LIMIT #{pageSize}
+	</select>
+	
+   <!-- 진행함 목록 데이터 -->
+	<select id="selectProcessList" parameterType="cmap" resultType="cmap">
+		SELECT ProcessList.* FROM (
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, D.ProcessDescriptionID
+				, A.InitiatorID
+				, A.InitiatorName
+				, C.UserCode
+				, C.SubKind
+				, D.FormPrefix
+				, D.FormSubject
+				, D.FormName
+				, IFNULL(DATE_FORMAT(B.Finished,'%Y/%m/%d %H:%i:%s'), '') AS Finished
+				, D.Priority
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019','T020')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+
+				UNION ALL
+				
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, D.ProcessDescriptionID
+				, A.InitiatorID
+				, A.InitiatorName
+				, C.UserCode
+				, C.SubKind
+				, D.FormPrefix
+				, D.FormSubject
+				, D.FormName
+				, IFNULL(DATE_FORMAT(B.Finished,'%Y/%m/%d %H:%i:%s'), '') AS Finished
+				, D.Priority
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE B.DeputyID = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+			) AS ProcessList
+	 		ORDER BY Priority DESC , Finished Desc 
+	 		Limit #{pageSize}
+	</select>
+
+	<!-- 미결함 개수 조회 -->
+    <select id="selectApprovalListCnt" resultType="java.lang.Long">
+        SELECT COUNT(0) AS CNT FROM (
+				SELECT A.ProcessID
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019','T023')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288
+				AND A.DeleteDate IS NULL
+				
+				<if test="userID != null and userID != '' ">
+					UNION ALL
+					
+					SELECT A.ProcessID
+					FROM COVI_APPROVAL4J.JWF_Process AS A
+					INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+					INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+					INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+					WHERE B.DeputyID = #{userID}
+					AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017')
+					AND C.State = 1
+					AND B.State = 288
+					AND A.ProcessState = 288
+					AND A.DeleteDate IS NULL
+				</if>
+			) AS ApprovalList
+    </select>
+    
+    <!-- 진행함 개수 조회 -->
+	<select id="selectProcessListCnt" resultType="java.lang.Long">
+		SELECT COUNT(0) AS CNT FROM (
+				SELECT A.ProcessID
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019','T020','T023')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+				AND A.DeleteDate IS NULL
+				<if test="userID != null and userID != '' ">
+				UNION ALL
+				
+				SELECT A.ProcessID
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE B.DeputyID = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+				AND A.DeleteDate IS NULL
+				</if>
+			) AS ProcessList
+	</select>
+	
+	 <!-- 예고함 목록 개수 데이터 -->
+	<select id="selectPreApprovalListCnt" resultType="java.lang.Long">
+			SELECT COUNT(0) AS CNT FROM (
+				SELECT A.ProcessID
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.State = 1
+				AND C.SubKind = 'T010'
+				AND B.State = 528
+				AND A.ProcessState = 288
+				AND A.DeleteDate IS NULL
+			) AS PreApprovalList
+	</select>
+
+	 <!-- 참조회람함 목록 개수 데이터 -->
+	<select id="selectTCInfoListCnt" resultType="java.lang.Long">
+		SELECT count(*)
+		FROM (
+			SELECT A.CirculationBoxID
+			FROM COVI_APPROVAL4J.JWF_CirculationBox AS A
+			INNER JOIN COVI_APPROVAL4J.JWF_FormInstance AS B ON A.FormInstID = B.FormInstID
+			INNER JOIN COVI_APPROVAL4J.JWF_CirculationBoxDescription AS C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+			INNER JOIN COVI_APPROVAL4J.jwf_processdescription AS D ON B.FormInstID = D.FormInstID
+			INNER JOIN COVI_APPROVAL4J.jwf_process AS P ON D.ProcessDescriptionID = P.ProcessDescriptionID AND P.ParentProcessID = 0
+			WHERE A.State = 'C'
+			AND B.DeletedDate IS NULL
+			AND A.ReceiptType = 'P'
+			AND A.ReceiptID = #{userID}
+			AND A.DataState != 'D'
+			AND (A.ReadDate IS NULL OR A.ReadDate = '0000-00-00 00:00:00')
+		) AA
+	</select>
+
+
+</mapper>
+

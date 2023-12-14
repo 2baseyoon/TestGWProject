@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="engineSvc.requestTaskManagement">
+    <select id="select" parameterType="cmap" resultType="int">
+        SELECT COUNT(*)
+        FROM jwf_requesttaskmanagement
+        WHERE RequestedTaskID = #{taskId}
+    </select>
+    
+    <insert id="insert" parameterType="cmap">
+        INSERT INTO jwf_requesttaskmanagement
+        VALUES (
+        	#{taskId},
+        	TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+        )
+	</insert>
+	
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM jwf_requesttaskmanagement
+	    WHERE RequestedTaskID = #{taskId}
+	</delete>
+</mapper>

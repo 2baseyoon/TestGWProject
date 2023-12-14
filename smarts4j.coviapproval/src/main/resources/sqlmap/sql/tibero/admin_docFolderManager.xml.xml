@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.docFolderManager">
+   
+    <select id="selectdocclass" parameterType="cmap" resultType="cmap">
+		SELECT TRIM(DocClassID) AS "no"
+				, ClassName AS "nodeName"
+				, DECODE((SELECT COUNT(*) 
+							    FROM jwf_docclass B 
+								WHERE B.ParentDocClassID  = A.DocClassID
+								AND B.EntCode = A.EntCode ), 0,'6','0') AS "type"
+				, ParentDocClassID AS "pno"
+				, KeepYear
+				, ParentDocClassID || ' ' || SortKey AS "SortKey"
+				--, ParentDocClassID || ' ', DocClassID || ' ' || SortKey AS "SortKey"
+	     		-- ,'#' AS url
+				, 'N' AS "chk"
+				, DECODE((SELECT COUNT(*) 
+								FROM jwf_docclass B 
+								WHERE B.ParentDocClassID  = A.DocClassID
+								AND B.EntCode = A.EntCode ), 0,'Y','N')  AS "rdo"
+		FROM jwf_docclass A
+		WHERE EntCode = #{EntCode}
+		ORDER BY ParentDocClassID || ' ' || SortKey
+	</select>
+	
+    <select id="selectDocClassPopup" parameterType="cmap" resultType="cmap">
+		SELECT TRIM(DocClassID) AS "no"
+				, ClassName AS "nodeName"
+				, DECODE((SELECT COUNT(*) 
+							    FROM jwf_docclass B 
+								WHERE B.ParentDocClassID  = A.DocClassID
+								AND B.EntCode = A.EntCode ), 0,'6','0') AS "type"
+				, ParentDocClassID AS "pno"
+				, KeepYear
+				, ParentDocClassID || ' ' || SortKey AS "SortKey"
+				--, ParentDocClassID || ' ', DocClassID || ' ' || SortKey AS "SortKey"
+	     		-- ,'#' AS url
+				, 'N' AS "chk"
+				, DECODE((SELECT COUNT(*) 
+								FROM jwf_docclass B 
+								WHERE B.ParentDocClassID  = A.DocClassID
+								AND B.EntCode = A.EntCode ), 0,'Y','N')  AS "rdo"
+		FROM jwf_docclass A
+		<trim prefix="WHERE" prefixOverrides="AND | OR ">
+	 		<if test="EntCode !=null and EntCode != '' and (EntCode eq 'ORGROOT'.toString()) ">
+	 		    EntCode = #{EntCode}
+	 		</if>
+	 		<if test="EntCode !=null and EntCode != '' and (EntCode neq 'ORGROOT'.toString()) ">
+	 		    EntCode IN (#{EntCode}, 'ORGROOT')
+	 		</if>
+	 	</trim>
+		ORDER BY ParentDocClassID || ' ' || SortKey
+	</select>
+	
+	<select id="selectdocclassRetrieveFolder" parameterType="cmap" resultType="java.lang.Long">
+		SELECT 	COUNT(*) AS "cnt"
+		FROM jwf_docclass A
+		WHERE EntCode = #{EntCode}		
+		AND ParentDocClassID = #{DocClassID}
+	</select>
+    
+	<select id="selectdocclassOne" parameterType="cmap" resultType="cmap">
+		SELECT 	TRIM(DocClassID) AS "no"
+					, ClassName AS "nodeName"
+					, DECODE((SELECT COUNT(*) 
+								    FROM jwf_docclass B 
+									WHERE B.ParentDocClassID  = A.DocClassID
+									AND B.EntCode = A.EntCode ), 0,'6','0') AS "type"
+					, ParentDocClassID AS "pno"	
+					, KeepYear AS "KeepYear"
+					, SortKey AS "SortKey"
+					, '#' AS "url"
+					, 'N' AS "chk"
+					, 'N' AS "rdo"
+		FROM jwf_docclass A
+		WHERE EntCode = #{EntCode}		
+		AND DocClassID = #{DocClassID}
+	</select>
+    
+	<insert id="insert" parameterType="cmap">
+		INSERT INTO jwf_docclass (	
+			DocClassID
+			,ParentDocClassID
+			,EntCode
+			,ClassName
+			,CreateDate			
+			,SortKey			
+			,KeepYear			
+		)
+		VALUES
+		(
+			#{DocClassID}
+			,#{ParentDocClassID}
+			,#{EntCode}
+			,#{ClassName}
+			,SYSDATE
+			,#{SortKey}			
+			,#{KeepYear}			
+		)	
+	</insert>
+	
+	<update id="update" parameterType="cmap">
+		UPDATE jwf_docclass
+		SET ClassName =#{ClassName}
+			 , KeepYear = #{KeepYear}
+			 , SortKey = #{SortKey}
+			 , UpdateDate = SYSDATE
+		WHERE DocClassID = #{DocClassID}
+		AND EntCode =#{EntCode}
+	</update>
+	
+	<select id="selectDdlCompany" resultType="cmap" >
+		SELECT DomainCode AS "optionValue"
+				 , Displayname as "optionText "
+		FROM sys_object_domain
+		WHERE DeleteDate IS NULL AND IsUse = 'Y'
+	</select>
+	
+	<delete id="delete" parameterType="cmap">
+		DELETE FROM jwf_docclass		
+		WHERE DocClassID = #{DocClassID}
+		AND EntCode =#{EntCode}
+	</delete>
+	
+	<select id="selectDocFavoritesList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.DocClassID AS "DocClassID",
+			B.ClassName AS "ClassName", 
+			A.ParentDocClassID AS "ParentDocClassID",
+			(SELECT ClassName FROM jwf_docclass C WHERE C.DocClassID = A.ParentDocClassID) AS "ParentDocClassName"
+		FROM jwf_docclass A
+		INNER JOIN jwf_user_docclass B ON A.DocClassID = B.DocClassID
+		WHERE A.EntCode IN ('ORGROOT', #{EntCode})
+		AND B.UserCode = #{UserCode}
+	</select>
+	
+	<insert id="insertDocFavorites" parameterType="cmap">
+		INSERT INTO jwf_user_docclass
+			(UserCode, DocClassID, ClassName)
+		SELECT 
+			#{UserCode}, #{DocClassID}, #{DocClassName}
+		FROM DUAL WHERE NOT EXISTS (
+			SELECT 1 FROM jwf_user_docclass WHERE UserCode = #{UserCode} AND DocClassID = #{DocClassID}
+		)
+	</insert>
+	
+	<delete id="deleteDocFavorites" parameterType="cmap">
+		DELETE FROM jwf_user_docclass
+		WHERE UserCode = #{UserCode}
+		AND DocClassID = #{DocClassID}
+	</delete>
+</mapper>
+

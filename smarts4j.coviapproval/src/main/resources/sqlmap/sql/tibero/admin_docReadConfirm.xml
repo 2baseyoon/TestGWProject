@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.docReadConfirm">
+    <select id="selectDocReadConfirmList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+		  SELECT 	
+		  		R.DocReadID   AS  "DocReadID"
+		   		,R.UserID  AS  "UserID"
+				,R.UserName  AS  "UserName"
+		   		,TO_CHAR(R.ReadDate,'YYYY-MM-DD HH24:MI:SS') AS  "ReadDate"
+				,R.AdminYN  AS  "AdminYN"
+		   		,R.ProcessID AS  "ProcessID"
+		   		,R.FormInstID AS  "FormInstID"
+		   		,FI.FormID AS  "FormID"
+				,F.FormName AS  "FormName"
+				,F.FormPrefix AS  "FormPrefix"
+		   		,FI.Subject AS  "Subject"
+		   		,F.Revision AS  "Revision"
+		   		,FI.InitiatorID AS  "InitiatorID"
+				,FI.InitiatorName AS  "InitiatorName"
+		   		,FI.InitiatorUnitID AS  "InitiatorUnitID"
+				,FI.InitiatorUnitName AS  "InitiatorUnitName"
+		   		,TO_CHAR(FI.InitiatedDate,'YYYY-MM-DD HH24:MI:SS') AS  "InitiatedDate"
+		   		,TO_CHAR(FI.CompletedDate,'YYYY-MM-DD HH24:MI:SS') AS  "CompletedDate"
+			FROM JWF_DocReadHistory R 
+		   	INNER JOIN JWF_FormInstance FI ON R.FormInstID = FI.FormInstID
+		   	INNER JOIN JWF_Forms F ON FI.FormID = F.FormID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			    	FI.EntCode = #{EntCode}
+			    </if>
+				<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+					AND R.AdminYN = #{sel_State}		
+				</if>					
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				    AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("Subject")'>FI.Subject</when>
+						<when test='sel_Search.equalsIgnoreCase("InitiatorName")'>FI.InitiatorName</when>
+						<when test='sel_Search.equalsIgnoreCase("FormName")'>F.FormName</when>
+						<otherwise>R.UserName</otherwise>
+					</choose> 
+				    LIKE '%'||#{search}||'%' 
+				</if>
+				<if test="sel_Date != null and sel_Date != '' and sel_Date.length() gt 0">
+				    <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">			
+				   		AND  
+						<choose>
+							<when test='sel_Date.equalsIgnoreCase("InitiatedDate")'>FI.InitiatedDate</when>
+							<otherwise>R.ReadDate</otherwise>
+						</choose> 
+				   		BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),'0')+1	
+					</if>		
+				</if>	
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						FI.Subject LIKE '%'||#{icoSearch}||'%' 			OR 
+						FI.InitiatorName LIKE '%'||#{icoSearch}||'%' 	OR
+						F.FormName LIKE '%'||#{icoSearch}||'%' 	OR 
+						R.UserName LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>					
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>F.FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>FI.Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>FI.InitiatorName</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatedDate")'>FI.InitiatedDate</when>
+						<when test='sortColumn.equalsIgnoreCase("UserName")'>R.UserName</when>
+						<when test='sortColumn.equalsIgnoreCase("ReadDate")'>R.ReadDate</when>
+						<when test='sortColumn.equalsIgnoreCase("AdminYN")'>R.AdminYN</when>
+						<otherwise>R.DocReadID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+				<if test="sortColumn == null or sortDirection == null">
+					R.DocReadID DESC
+			   	</if>
+			</trim>
+        <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    <select id="selectDocReadConfirmListCnt" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+		FROM JWF_DocReadHistory R 
+	   	INNER JOIN JWF_FormInstance FI ON R.FormInstID = FI.FormInstID
+	   	INNER JOIN JWF_Forms F ON FI.FormID = F.FormID
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+		    	FI.EntCode = #{EntCode}
+		    </if>
+			<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+				AND R.AdminYN = #{sel_State}		
+			</if>					
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			    AND  
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>FI.Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("InitiatorName")'>FI.InitiatorName</when>
+					<when test='sel_Search.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<otherwise>R.UserName</otherwise>
+				</choose>  
+				LIKE '%'||#{search}||'%' 
+			</if>
+			<if test="sel_Date != null and sel_Date != '' and sel_Date.length() gt 0">
+			    <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">			
+			   		AND 
+					<choose>
+						<when test='sel_Date.equalsIgnoreCase("InitiatedDate")'>FI.InitiatedDate</when>
+						<otherwise>R.ReadDate</otherwise>
+					</choose> 
+			   		BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),'0')+1	
+				</if>		
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					FI.Subject LIKE '%'||#{icoSearch}||'%' 			OR 
+					FI.InitiatorName LIKE '%'||#{icoSearch}||'%' 	OR
+					F.FormName LIKE '%'||#{icoSearch}||'%' 	OR 
+					R.UserName LIKE '%'||#{icoSearch}||'%'		   
+				)
+			</if>								
+		</trim>
+	</select>
+</mapper>
+

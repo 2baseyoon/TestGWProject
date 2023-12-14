@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="admin.adminDocumentInfo">
+
+	<update id="updateJwf_forminstanceData" parameterType="cmap">
+		UPDATE jwf_forminstance
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+		        Subject = #{SubjecNm}
+		    </if>
+		    <if test="DocNo != null and DocNo != '' ">
+	            DocNO = #{DocNo}
+	        </if>
+	        <if test="BodyContext != null and BodyContext != '' ">
+	            BodyContext = #{BodyContext}
+	        </if>
+	        <if test="DocLinks != null and DocLinks != '' ">
+	            DocLinks = #{DocLinks}
+	        </if>
+	        <if test="AttachFileInfo != null and AttachFileInfo != '' ">
+	            AttachFileInfo = #{AttachFileInfo}
+	        </if>
+	    </set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+
+	<update id="updateJwf_processData" parameterType="cmap">
+		UPDATE jwf_process
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				DocSubject = #{SubjecNm}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<update id="updateJwf_processdescriptionData" parameterType="cmap">
+		UPDATE jwf_processdescription
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				FormSubject = #{SubjecNm}
+			</if>
+			<if test="DocYn != null and DocYn != '' ">
+			    IsSecureDoc = #{DocYn}
+			</if>
+			<if test="IsFile != null and IsFile != '' ">
+			    IsFile = #{IsFile}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+
+	<update id="updateJwf_processArchiveData" parameterType="cmap">
+		UPDATE jwf_process
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				DocSubject = #{SubjecNm}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<update id="updateJwf_processdescriptionArchiveData" parameterType="cmap">
+		UPDATE jwf_processdescription
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				FormSubject = #{SubjecNm}
+			</if>
+			<if test="DocYn != null and DocYn != '' ">
+			    IsSecureDoc = #{DocYn}
+			</if>
+			 <if test="DocNo != null and DocNo != '' ">
+	            DocNo = #{DocNo}
+	        </if>
+	        <if test="IsFile != null and IsFile != '' ">
+			    IsFile = #{IsFile}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<update id="updateJwf_circulationboxData" parameterType="cmap">
+		UPDATE jwf_circulationbox
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				Subject = #{SubjecNm}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<update id="updateJwf_circulationboxdescriptionData" parameterType="cmap">
+		UPDATE jwf_circulationboxdescription
+		<set>
+		    <if test="SubjecNm != null and SubjecNm != '' ">
+				FormSubject = #{SubjecNm}
+			</if>
+			 <if test="DocYn != null and DocYn != '' ">
+				IsSecureDoc = #{DocYn}
+			</if>
+			<if test="IsFile != null and IsFile != '' ">
+			    IsFile = #{IsFile}
+			</if>
+		</set>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+
+	<delete id="deleteJwf_circulationbox" parameterType="cmap">
+	    DELETE FROM jwf_circulationbox
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_circulationread" parameterType="cmap">
+	    DELETE FROM jwf_circulationread
+	    WHERE CirculationBoxID  IN (
+			SELECT
+				CirculationBoxDescriptionID
+			FROM jwf_circulationboxdescription
+			WHERE FormInstId = #{FormInstID}
+	    )
+	</delete>
+
+	<delete id="deleteJwf_circulationboxdescription" parameterType="cmap">
+	    DELETE FROM jwf_circulationboxdescription
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_comment" parameterType="cmap">
+	    DELETE FROM jwf_comment
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_docreadhistory" parameterType="cmap">
+	    DELETE FROM jwf_docreadhistory
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_formhistory" parameterType="cmap">
+	    DELETE FROM jwf_formhistory
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_workitemdescription" parameterType="cmap">
+	    DELETE FROM jwf_workitemdescription
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_workitem" parameterType="cmap">
+	    DELETE FROM jwf_workitem
+	    WHERE ProcessID IN (
+			SELECT ProcessID
+			FROM jwf_process
+			WHERE FormInstID = #{FormInstID}
+		 )
+	</delete>
+
+	<delete id="deleteJwf_performer" parameterType="cmap">
+	    DELETE FROM jwf_performer
+	    WHERE WorkItemID IN (
+			SELECT B.WorkItemID
+			FROM jwf_process A
+			INNER JOIN jwf_workitem B ON B.ProcessID = A.ProcessID
+			WHERE A.FormInstID = #{FormInstID}
+        )
+	</delete>
+
+	<delete id="deleteJwf_userfolerlistdescription" parameterType="cmap">
+	    DELETE FROM jwf_userfolerlistdescription
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_userfolderlist" parameterType="cmap">
+	    DELETE FROM jwf_userfolderlist
+	    WHERE UserFolderListDescriptionID IN (
+												 	SELECT
+															UserFolderListDescriptionID
+													FROM
+														  jwf_userfolerlistdescription
+													WHERE
+															FormInstID = #{FormInstID}
+												)
+	</delete>
+
+	<delete id="deleteJwf_formlistinfo" parameterType="cmap">
+	    DELETE FROM jwf_formlistinfo
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+
+	<delete id="deleteJwf_forminstance" parameterType="cmap">
+	    DELETE FROM jwf_forminstance
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_process" parameterType="cmap">
+	    DELETE FROM jwf_process
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_processdescription" parameterType="cmap">
+	    DELETE FROM jwf_processdescription
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_workitemarchive" parameterType="cmap">
+	    DELETE FROM jwf_workitem
+	    WHERE ProcessID  IN (
+													SELECT
+															ProcessID
+													FROM
+															jwf_process
+													WHERE
+															FormInstID = #{FormInstID}
+												 )
+	</delete>
+	
+	<delete id="deleteJwf_workitemdescriptionarchive" parameterType="cmap">
+	    DELETE FROM jwf_workitemdescription
+	    WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_processarchive" parameterType="cmap">
+	    DELETE FROM jwf_process
+	     WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_processdescriptionarchive" parameterType="cmap">
+	    DELETE FROM jwf_processdescription
+	     WHERE FormInstId = #{FormInstID}
+	</delete>
+	
+	<delete id="deleteJwf_timelinemessaging" parameterType="cmap">
+	    DELETE FROM jwf_timelinemessaging
+	     WHERE ObjectID = #{FormInstID}
+	</delete>
+
+	<update id="updateClearDelJwf_forminstance" parameterType="cmap">
+		UPDATE jwf_forminstance
+		<choose>
+	        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+	        	SET DeletedDate = SYSDATE
+	        </when>
+	        <otherwise>
+	          	SET DeletedDate = NULL
+	        </otherwise>
+		</choose>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+
+	<update id="updateClearDelJwf_process" parameterType="cmap">
+		UPDATE jwf_process
+		<choose>
+	        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+	        	SET DeleteDate = SYSDATE
+	        </when>
+	        <otherwise>
+	          	SET DeleteDate = NULL
+	        </otherwise>
+		</choose>
+		WHERE FormInstID = #{FormInstID}
+	</update>
+
+	<update id="updateClearDelJwf_workitem" parameterType="cmap">
+		UPDATE jwf_workitem
+		<choose>
+	        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+	        	SET Deleted = SYSDATE
+	        </when>
+	        <otherwise>
+	          	SET Deleted = NULL
+	        </otherwise>
+		</choose>
+		<![CDATA[
+			WHERE ProcessID IN (
+											SELECT
+													ProcessID
+											FROM
+													jwf_process
+											WHERE
+													FormInstID = #{FormInstID}
+										 )
+
+ 	   	]]>
+	</update>
+
+	<update id="updateClearDelJwf_processarchive" parameterType="cmap">
+			UPDATE jwf_process
+			<choose>
+		        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+		        	SET DeleteDate = SYSDATE
+		        </when>
+		        <otherwise>
+		          	SET DeleteDate = NULL
+		        </otherwise>
+			</choose>
+			<![CDATA[
+				WHERE FormInstID = #{FormInstID}
+		    ]]>
+	</update>
+
+	<update id="updateClearDelJwf_workitemarchive" parameterType="cmap">
+			UPDATE jwf_workitem
+			<choose>
+		        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+		        	SET Deleted = SYSDATE
+		        </when>
+		        <otherwise>
+		          	SET Deleted = NULL
+		        </otherwise>
+			</choose>
+		<![CDATA[
+			WHERE ProcessID  IN (
+													SELECT
+															ProcessID
+													FROM
+															jwf_process
+													WHERE
+															FormInstID = #{FormInstID}
+												 )
+	    ]]>
+	</update>
+
+	<update id="updateClearDelJwf_timelinemessaging" parameterType="cmap">
+		UPDATE jwf_timelinemessaging
+		<choose>
+	        <when test="isDeleted!=null and isDeleted.equalsIgnoreCase('Y')">
+	        	SET DeleteDate = SYSDATE
+	        </when>
+	        <otherwise>
+	          	SET DeleteDate = NULL
+	        </otherwise>
+		</choose>
+		WHERE ObjectID = #{FormInstID}
+	</update>
+
+</mapper>
+

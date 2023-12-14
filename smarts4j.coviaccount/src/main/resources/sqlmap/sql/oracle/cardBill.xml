@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.cardBill">
+
+    <select id="getCardBillmmSumAmountWon" parameterType="cmap" resultType="cmap">
+        SELECT	TO_CHAR(NVL(NULLIF(TO_CHAR(SUM(ACB.AmountWon)),''),'0'),'999,999,999,999,999,999,999,999')	AS "AmountWon"
+        FROM	act_card_bill	ACB
+        WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+        <if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="UR_Code != null and UR_Code !=''">
+		AND		ACB.CardUserCode = #{UR_Code}
+		</if>
+    </select>
+    
+	<select id="getCardBillList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACB.CardBillID AS "CardBillID"
+			,	ACB.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACB.CompanyCode, #{companyCode}) AS "CompanyName"
+			,	('**********'||SUBSTR(ACB.CardNo,11))		AS "CardNo"
+			,	ACB.ApproveNo AS "ApproveNo"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(ACB.ApproveDate),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACB.ApproveDate),'YYYY.MM.DD')
+				END	AS "ApproveDate"
+			,	ACB.StoreName AS "StoreName"
+			,	ACB.ForeignCurrency AS "ForeignCurrency"
+			,	TO_CHAR(ACB.AmountWon, '999,999,999,999,999,999,999,999') AS "AmountWon"
+			,	ACB.AmountWon AS "SortAmountWon"
+			,	NVL(NULLIF(FN_GETACTBASECODENAME('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS "CountryIndexName"
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%' 
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACB.CardBillID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>"SortAmountWon"</when>
+					<when test='sortColumn.equalsIgnoreCase("CountryIndexName")'>"CountryIndexName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardBillExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	('**********'||SUBSTR(ACB.CardNo,11))		AS "CardNo"
+			,	ACB.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACB.CompanyCode, #{companyCode}) AS "CompanyName"
+			,	ACB.ApproveNo AS "ApproveNo"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(ACB.ApproveDate),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACB.ApproveDate),'YYYY.MM.DD')
+				END	AS "ApproveDate"
+			,	ACB.StoreName AS "StoreName"
+			,	ACB.ForeignCurrency AS "ForeignCurrency"
+			,	TO_CHAR(ACB.AmountWon, '999,999,999,999,999,999,999,999') AS "AmountWon"
+			,	NVL(NULLIF(FN_GETACTBASECODENAME('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS "CountryIndexName"
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		ORDER BY ACB.CardBillID DESC
+	</select>
+	
+	<select id="getCardBillListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+	</select>
+	
+	<select id="getCardBillUserList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACB.CardBillID AS "CardBillID"
+			,	ACB.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACB.CompanyCode, #{companyCode}) AS "CompanyName"
+			,	('**********' || SUBSTR(ACB.CardNo,11))	AS "CardNo"
+			,	ACB.ApproveNo AS "ApproveNo"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(ACB.ApproveDate),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACB.ApproveDate),'YYYY.MM.DD')
+				END	AS "ApproveDate"
+			,	ACB.StoreName AS "StoreName"
+			,	ACB.ForeignCurrency AS "ForeignCurrency"
+			,	TO_CHAR(ACB.AmountWon, '999,999,999,999,999,999,999,999') AS "AmountWon"
+			,	NVL(NULLIF(FN_GETACTBASECODENAME('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS "CountryIndexName"
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACB.CardBillID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("CountryIndexName")'>"CountryIndexName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardBillUserExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	('**********'||SUBSTR(ACB.CardNo,11))		AS "CardNo"
+			,	ACB.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACB.CompanyCode, #{companyCode}) AS "CompanyName"
+			,	ACB.ApproveNo AS "ApproveNo"
+			,	CASE	WHEN NVL(NULLIF(ACB.ApproveDate,''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACB.ApproveDate,'YYYY.MM.DD'),'YYYY.MM.DD')
+				END	AS "ApproveDate"
+			,	ACB.StoreName AS "StoreName"
+			,	ACB.ForeignCurrency AS "ForeignCurrency"
+			,	TO_CHAR(ACB.AmountWon, '999,999,999,999,999,999,999,999') AS "AmountWon"
+			,	NVL(NULLIF(FN_GETACTBASECODENAME('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS "CountryIndexName"
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		ORDER BY ACB.CardBillID DESC
+	</select>
+	
+	<select id="getCardBillUserListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTR(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+	</select>
+	
+	<select id="getCardBillInterfaceSaveCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_card_bill	ACB
+	    WHERE	ACB.ApproveNo	= #{approveNo}
+	</select>
+	
+	<insert id="cardBillInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO act_card_bill (
+		    	SendDate,			ItemNo,					CardNo,			InfoIndex
+			,	InfoType,			CardCompIndex,			CardRegType,	CardType
+			,	BizPlaceNo,			Dept,					CardUserCode,	UseDate
+			,	ApproveDate,		ApproveTime,			ApproveNo,		WithdrawDate
+			,	CountryIndex,		AmountSign,				AmountCharge,	AmountWon
+			,	ForeignCurrency,	AmountForeign,			StoreRegNo,		StoreName
+			,	StoreNo,			StoreRepresentative,	StoreCondition,	StoreCategory
+			,	StoreZipCode,		StoreAddress1,			StoreAddress2,	StoreTel
+			,	RepAmount,			TaxAmount,				ServiceAmount,	PaymentFlag
+			,	PaymentDate,		CollNo,					ClassCode,		CompanyCode
+	    ) VALUES (
+	    		#{sendDate},		#{itemNo},				#{cardNo},			#{infoIndex}
+			,	#{infoType},		#{cardCompIndex},		#{cardRegType},		#{cardType}
+			,	#{bizPlaceNo},		#{dept},				#{cardUserCode},	#{useDate}
+			,	#{approveDate},		#{approveTime},			#{approveNo},		#{withdrawDate}
+			,	#{countryIndex},	#{amountSign},			#{amountCharge},	#{amountWon}
+			,	#{foreignCurrency},	#{amountForeign},		#{storeRegNo},		#{storeName}
+			,	#{storeNo},			#{storeRepresentative},	#{storeCondition},	#{storeCategory}
+			,	#{storeZipCode},	#{storeAddress1},		#{storeAddress2},	#{storeTel}
+			,	#{repAmount},		#{taxAmount},			#{serviceAmount},	#{paymentFlag}
+			,	#{paymentDate},		#{collNo},				#{classCode},		#{companyCode}
+	    )
+ 	</insert>
+ 	
+	<update id="cardBillInterfaceUpdate" parameterType="cmap" >
+	    UPDATE act_card_bill
+	    	SET
+				SendDate			= #{sendDate},				ItemNo			= #{itemNo}
+			,	CardNo				= #{cardNo},				InfoIndex		= #{infoIndex}
+			,	InfoType			= #{infoType},				CardCompIndex	= #{cardCompIndex}
+			,	CardRegType			= #{cardRegType},			CardType		= #{cardType}
+			,	BizPlaceNo			= #{bizPlaceNo},			Dept			= #{dept}
+			,	CardUserCode		= #{cardUserCode},			UseDate			= #{useDate}
+			,	ApproveDate			= #{approveDate},			ApproveTime		= #{approveTime}
+			,	WithdrawDate		= #{withdrawDate},			CountryIndex	= #{countryIndex}
+			,	AmountSign			= #{amountSign},			AmountCharge	= #{amountCharge}
+			,	AmountWon			= #{amountWon},				ForeignCurrency	= #{foreignCurrency}
+			,	AmountForeign		= #{amountForeign},			StoreRegNo		= #{storeRegNo}
+			,	StoreName			= #{storeName},				StoreNo			= #{storeNo}
+			,	StoreRepresentative	= #{storeRepresentative},	StoreCondition	= #{storeCondition}
+			,	StoreCategory		= #{storeCategory},			StoreZipCode	= #{storeZipCode}
+			,	StoreAddress1		= #{storeAddress1},			StoreAddress2	= #{storeAddress2}
+			,	StoreTel			= #{storeTel},				RepAmount		= #{repAmount}
+			,	TaxAmount			= #{taxAmount},				ServiceAmount	= #{serviceAmount}
+			,	PaymentFlag			= #{paymentFlag},			PaymentDate		= #{paymentDate}
+			,	CollNo				= #{collNo},				ClassCode		= #{classCode}
+			,	CompanyCode			= #{companyCode}
+		WHERE ApproveNo	= #{approveNo}
+	</update>
+</mapper>

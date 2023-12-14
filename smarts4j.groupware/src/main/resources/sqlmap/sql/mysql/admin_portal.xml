@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.portal">
+    <!--포탈 관리 시작 -->
+    <!--포탈 목록 조회  -->
+    <select id="selectPortalList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		   SELECT a.PortalID
+				, a.PortalType
+				, h.CodeName  AS PortalTypeName
+				, a.BizSection
+				, i.CodeName  AS BizSectionName
+				, a.SortKey
+				, a.DisplayName
+				, a.IsUse
+				, a.CompanyCode
+				, DATE_FORMAT(a.RegistDate, '%Y-%m-%d %H:%i:%s') as RegistDate
+				, b.DisplayName as LayoutName 
+				, c.DisplayName as RegisterName
+				, IFNULL(( SELECT CASE d.SubjectType WHEN 'CM' THEN e.MultiDisplayName WHEN 'GR' THEN e.MultiDisplayName WHEN 'UR' THEN f.MultiDisplayName END
+					FROM sys_object_acl AS d
+					LEFT JOIN sys_object_group AS e ON (d.SubjectType = 'GR' OR d.SubjectType = 'CM') AND d.SubjectCode = e.GroupCode
+					LEFT JOIN sys_object_user AS f ON d.SubjectType = 'UR' AND d.SubjectCode = f.UserCode
+					WHERE ObjectID = a.PortalID AND ObjectType = 'PT'
+					GROUP BY d.SubjectType, e.DisplayName, f.DisplayName
+					LIMIT 1 ), '') as aclDisplayName
+				, IFNULL((SELECT IFNULL(COUNT(*), 1) - 1
+					FROM sys_object_acl as g
+					WHERE ObjectID = a.PortalID AND ObjectType = 'PT'
+					GROUP BY g.ObjectID), 0) as aclDisplayCount
+				FROM portal AS a 
+				LEFT JOIN portal_layout AS b ON a.LayoutID = b.LayoutID
+				LEFT JOIN sys_object_user AS c ON a.RegisterCode = c.UserCode
+				LEFT JOIN sys_object_domain AS d ON d.DomainCode = a.CompanyCode
+				LEFT JOIN sys_base_code AS h ON h.CodeGroup = 'PortalType' AND a.PortalType = h.Code
+				LEFT JOIN sys_base_code AS i ON i.CodeGroup = 'bizSection' AND a.BizSection = i.Code
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    AND a.BizSection != 'Community'
+		    AND h.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = h.Code AND CodeGroup = 'PortalType' ORDER BY IF(DomainID = d.DomainID, 0, 1) LIMIT 1 )
+		    AND i.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = i.Code AND CodeGroup = 'bizSection' ORDER BY IF(DomainID = d.DomainID, 0, 1) LIMIT 1 )
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'DisplayName'">
+				      AND a.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'LayoutName'">
+				      AND b.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'RegisterName'">
+				      AND c.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+			<if test="companyCode != null and companyCode !=''">
+				AND CompanyCode = #{companyCode} 
+			</if>
+			<if test="portalType != null and portalType !='' and portalType != 'PortalType' ">
+				AND PortalType =  #{portalType}
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PortalTypeName")'>PortalTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("BizSectionName")'>BizSectionName</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("LayoutName")'>LayoutName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>PortalID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    <select id="selectPortalListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+		   SELECT COUNT(*)
+		   FROM portal AS a 
+		   LEFT JOIN portal_layout AS b ON a.LayoutID = b.LayoutID
+		   LEFT JOIN sys_object_user AS c ON a.RegisterCode = c.UserCode
+		   LEFT JOIN sys_object_domain AS d ON d.DomainCode = a.CompanyCode
+		   LEFT JOIN sys_base_code AS h ON h.CodeGroup = 'PortalType' AND a.PortalType = h.Code
+		   LEFT JOIN sys_base_code AS i ON i.CodeGroup = 'bizSection' AND a.BizSection = i.Code
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    AND a.BizSection != 'Community'
+		    AND h.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = h.Code AND CodeGroup = 'PortalType' ORDER BY IF(DomainID = d.DomainID, 0, 1) LIMIT 1 )
+		    AND i.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = i.Code AND CodeGroup = 'bizSection' ORDER BY IF(DomainID = d.DomainID, 0, 1) LIMIT 1 )
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'DisplayName'">
+				      AND a.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'LayoutName'">
+				      AND b.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'RegisterName'">
+				      AND c.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+			<if test="companyCode != null and companyCode !=''">
+				AND CompanyCode = #{companyCode}
+			</if>
+			<if test="portalType != null and portalType !='' and portalType != 'PortalType' " >
+				AND PortalType = #{portalType}
+			</if>
+		</trim>
+	</select>
+	
+    <!--추가/수정 팝업창 : 소유회사 컨트롤러에 바인딩될 회사 목록조회 -->
+    <select id="selectCompanyList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT GroupCode as optionValue, MultiDisplayName as optionText
+			FROM sys_object_group where GroupType = 'Company' 
+			ORDER BY SortKey
+		]]>
+	</select>
+
+    <!--추가/수정 팝업창 : 레이아웃 컨트롤러에 바인딩될 레이아웃 목록조회 -->
+    <select id="selectPortalLayoutList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT LayoutID AS optionValue
+				, DisplayName AS optionText 
+			FROM covi_smart4j.portal_layout
+			WHERE IsCommunity != 'Y'
+			ORDER BY SortKey ASC
+		]]>
+	</select>
+
+    <!--추가/수정 팝업창 : 테마 컨트롤러에 바인딩될 테마 목록조회 -->
+    <select id="selectPortalThemeList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT Theme AS optionValue
+				, ThemeName AS optionText 
+			FROM covi_smart4j.sys_theme
+			WHERE IsUse = 'Y'
+			ORDER BY SortKey ASC
+		]]>
+	</select>
+	
+    <!--수정 팝업창 : 포탈 기본 정보조회 -->
+	<select id="selectPortalData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT PortalID, LayoutID, CompanyCode, DisplayName, MultiDisplayName, PortalType, ThemeCode, SortKey, PortalCode, URL, Description, BizSection, PortalTag, LayoutSizeTag
+			FROM covi_smart4j.portal
+			WHERE PortalID = #{objectID}
+		]]>
+	</select>
+	
+	<!--포탈 수정시 포탈 기본 정보 수정 -->
+	<update id="updatePortalData" parameterType="cmap">
+		<![CDATA[
+			UPDATE covi_smart4j.portal
+			SET LayoutID = #{layoutID},
+				CompanyCode = #{companyCode}, 
+				DisplayName = #{portalName},
+				MultiDisplayName = #{dicPortalName},
+				PortalType = #{portalType},
+				ThemeCode = #{themeCode},
+				SortKey = #{sortKey},
+				PortalCode = #{portalCode},
+				URL =  #{url},
+				Description = #{description},
+				BizSection=  #{bizSection}
+			WHERE PortalID = #{portalID}
+		]]>
+	</update>
+	
+	<!--수정 팝업창 : 포탈, 웹파트 권한 정보조회 -->
+	<select id="selectAclData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+	    	SELECT	  a.SubjectType
+	    			, a.SubjectCode
+	    			, a.`View`
+	    			, IFNULL((CASE a.SubjectType WHEN 'CM' THEN b.MultiDisplayName
+												 WHEN 'GR' THEN b.MultiDisplayName
+												 WHEN 'UR' THEN c.MultiDisplayName END), '') AS MultiDisplayName
+					, IFNULL((CASE a.SubjectType WHEN 'CM' THEN b.CompanyCode
+												 WHEN 'GR' THEN b.CompanyCode
+												 WHEN 'UR' THEN d.CompanyCode END),'') AS CompanyCode
+			FROM covi_smart4j.sys_object_acl AS a
+			LEFT JOIN covi_smart4j.sys_object_group AS b ON a.SubjectCode = b.GroupCode
+			LEFT JOIN covi_smart4j.sys_object_user AS c ON a.SubjectCode = c.UserCode
+			LEFT JOIN covi_smart4j.sys_object_user_basegroup AS d ON c.UserCode = d.UserCode AND d.JobType = 'Origin'
+			WHERE ObjectID = #{objectID}
+			AND ObjectType = #{objectType}
+	    ]]>
+	</select>   
+    
+	<!--포탈 기본 정보 추가 -->
+    <insert id="insertPortalData" parameterType="cmap" useGeneratedKeys="true" keyProperty="portalID"  keyColumn="portalID">
+        INSERT INTO covi_smart4j.portal(LayoutID, CompanyCode,DisplayName, MultiDisplayName, PortalType, ThemeCode, SortKey, PortalCode, URL, IsUse, Description, RegisterCode, RegistDate, PortalTag, BizSection)
+		VALUES (#{layoutID}
+		, #{companyCode}
+		, #{portalName}
+		, #{dicPortalName}
+		, #{portalType}
+		, #{themeCode}
+		, #{sortKey}
+		, #{portalCode}
+		, #{url}
+		, 'Y'
+		, #{description}
+		, #{userCode}
+		, now(3)
+		, (SELECT LayoutTag FROM covi_smart4j.portal_layout where layoutID = #{layoutID}) 
+		, #{bizSection});
+		<selectKey keyProperty="portalID" resultType="long" order="AFTER">
+            SELECT LAST_INSERT_ID();
+        </selectKey>
+    </insert>
+    
+    <!--추가 및 수정 시 기존 권한 데이터 삭제 -->
+    <delete id="deleteOldAcl"  parameterType="egovframework.coviframework.vo.ObjectAcl">
+        DELETE FROM covi_smart4j.sys_object_acl 
+		WHERE ObjectID = #{objectID} AND ObjectType = #{objectType} AND SubjectType = #{subjectType} AND SubjectCode = #{subjectCode}
+    </delete>
+    
+    <!--포탈에 대한 권한 데이터 추가 -->
+    <insert id="insertNewAcl" parameterType="egovframework.coviframework.vo.ObjectAcl">
+        INSERT INTO covi_smart4j.sys_object_acl(ObjectID,ObjectType,SubjectCode,SubjectType,AclList,`Security`, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		VALUES (#{objectID},#{objectType}, #{subjectCode}, #{subjectType}, #{aclList}, #{security}, #{create}, #{delete}, #{modify}, #{execute}, #{view}, #{read}, #{description}, #{registerCode},now(3)); 
+    </insert>
+    
+    <!--수정 시 기존 권한 부여 내용모두 삭제 (후에 다시 삽입)-->
+    <delete id="deleteAllAcl" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_object_acl 
+		WHERE ObjectType = #{objectType}
+		<if test="objectID !=null and objectID !='' ">
+			AND ObjectID = #{objectID};
+		</if>
+		 <if test="arrObjectID !=null and arrObjectID !='' ">
+		     AND ObjectID  IN
+		   	 <foreach item="item" index="index" collection="arrObjectID" open="(" close=");" separator=",">
+          		  #{item}
+      		 </foreach>
+		 </if>
+    </delete>
+    
+    <!--포탈 삭제: 사용자 기본 포탈과 포탈 배치 정보와 함께 삭제 -->
+    <delete id="deletePortalData" parameterType="cmap">
+        UPDATE covi_smart4j.sys_object_user
+		SET InitPortal = NULL
+		WHERE InitPortal IN  
+		<foreach item="item" index="index" collection="arrPortalID" open="(" close=");" separator=",">
+          	#{item}
+      	 </foreach>
+		
+		DELETE FROM covi_smart4j.portal_layout_webpart
+		WHERE PortalID  IN  
+		<foreach item="item" index="index" collection="arrPortalID" open="(" close=");" separator=",">
+          	#{item}
+      	 </foreach>
+      	 
+		DELETE FROM covi_smart4j.portal
+		WHERE PortalID  IN  
+		<foreach item="item" index="index" collection="arrPortalID" open="(" close=");" separator=",">
+          	#{item}
+      	 </foreach>
+    </delete>
+	
+    <!--포탈 사용여부 변경-->
+    <update id="updatePortalIsUse"  parameterType="cmap">
+        UPDATE covi_smart4j.portal AS b
+		SET b.IsUse = (SELECT * FROM (SELECT (CASE a.IsUse WHEN 'Y' THEN 'N'
+								WHEN 'N' THEN 'Y' END)
+								FROM Portal AS a
+								WHERE a.PortalID =  #{portalID}) AS temp )
+		WHERE b.PortalID = #{portalID}
+    </update>
+	
+    <select id="selectPortalIsUse" parameterType="cmap" resultType="java.lang.String">
+    	SELECT IsUse FROM covi_smart4j.portal
+		WHERE PortalID = #{portalID}
+    </select>
+    
+    <update id="updateUserInitPortal"  parameterType="cmap" >
+        UPDATE covi_smart4j.sys_object_user
+		SET InitPortal = NULL
+		WHERE InitPortal = #{portalID};
+    </update>
+    
+    <!--포탈 웹파트 배치 정보 복사-->
+    <insert id="copyPortalLayoutWebpart" parameterType="cmap">
+		INSERT INTO covi_smart4j.portal_layout_webpart(PortalID,WebpartID,LayoutDivNumber,LayoutDivsort,WebpartOrder,RegistDate)
+		SELECT #{portalID}, WebpartID,LayoutDivNumber,LayoutDivsort,WebpartOrder, now(3) FROM covi_smart4j.portal_layout_webpart WHERE PortalID = #{copyPortalID};
+		
+		UPDATE covi_smart4j.portal 
+		SET LayoutSizeTag = (
+      			SELECT LayoutSizeTag FROM (
+        				 SELECT * FROM covi_smart4j.portal
+      			) as temp
+     			WHERE PortalID = #{copyPortalID})
+  		WHERE PortalID = #{portalID};
+    </insert>
+    <!--포탈 관리 끝 -->
+    
+    <!--웹파트 관리 시작  -->
+    <!-- 웹 파트 목록 조회  -->
+    <select id="selectWebpartList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	       SELECT a.WebpartID
+				, Fn_BaseGetDictionary_S(#{lang}, b.DisplayName) AS CompanyName
+				, Fn_BaseGetDictionary_S(#{lang}, d.MultiCodeName) AS BizSectionName
+				, Fn_BaseGetDictionary_S(#{lang}, a.DisplayName)  AS DisplayName
+				, a.Description
+				, a.Range
+				, Fn_BaseGetDictionary_S(#{lang},c.MultiDisplayName) AS RegisterName
+				, a.IsUse
+				, DATE_FORMAT(a.RegistDate, '%Y-%m-%d %H:%i:%s') AS RegistDate
+			FROM covi_smart4j.portal_webpart as a
+			LEFT JOIN covi_smart4j.sys_object_group as b ON b.GroupType = 'Company' AND a.CompanyCode = b.GroupCode
+			LEFT JOIN covi_smart4j.sys_object_user as c ON a.RegisterCode = c.UserCode
+			LEFT JOIN sys_base_code AS d ON d.CodeGroup = 'bizSection' AND a.BizSection = d.Code
+			LEFT JOIN sys_object_domain AS e ON e.DomainCode = a.CompanyCode
+		]]>
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  		    AND a.Range != 'Community'
+  		    AND d.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = d.Code AND CodeGroup = 'bizSection' ORDER BY IF(DomainID = e.DomainID, 0, 1) LIMIT 1 )
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'WebpartName'">
+				      AND  Fn_BaseGetDictionary_S(#{lang}, a.DisplayName) LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'RegisterName'">
+				      AND Fn_BaseGetDictionary_S(#{lang},c.MultiDisplayName) LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'Description'">
+				      AND a.Description LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+			<if test="range != null and range !=''">
+				AND a.Range = #{range}
+			</if>
+			<if test='reserved1 != null and reserved1 != "ALL"'>
+				AND a.Reserved1 = #{reserved1}
+			</if>
+			<if test='reserved2 != null and reserved2 != ""'>
+				AND a.Reserved2 = #{reserved2}
+			</if>
+			<if test="companyCode != null and companyCode !=''">
+				AND a.CompanyCode = #{companyCode}
+			</if>
+			<if test="bizSection != null and bizSection !='' and bizSection !='BizSection' ">
+				AND  a.BizSection = #{bizSection}
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+	    <trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("BizSectionName")'>BizSectionName</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>WebpartID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+    
+    <select id="selectWebpartListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+	       SELECT COUNT(*)
+		   FROM covi_smart4j.portal_webpart as a
+		   LEFT JOIN covi_smart4j.sys_object_group as b ON b.GroupType = 'Company' AND a.CompanyCode = b.GroupCode
+		   LEFT JOIN covi_smart4j.sys_object_user as c ON a.RegisterCode = c.UserCode
+		   LEFT JOIN sys_base_code AS d ON d.CodeGroup = 'bizSection' AND a.BizSection = d.Code
+		   LEFT JOIN sys_object_domain AS e ON e.DomainCode = a.CompanyCode
+		]]>
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  		    AND a.Range != 'Community'
+  		    AND d.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = d.Code AND CodeGroup = 'bizSection' ORDER BY IF(DomainID = e.DomainID, 0, 1) LIMIT 1 )
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'WebpartName'">
+				      AND Fn_BaseGetDictionary_S(#{lang}, a.DisplayName) LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'RegisterName'">
+				      AND Fn_BaseGetDictionary_S(#{lang},c.MultiDisplayName) LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+				    <when test="searchType == 'Description'">
+				      AND a.Description LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+			<if test="range != null and range !=''">
+				AND a.Range = #{range}
+			</if>
+			<if test='reserved1 != null and reserved1 != "ALL"'>
+				AND a.Reserved1 = #{reserved1}
+			</if>
+			<if test='reserved2 != null and reserved2 != ""'>
+				AND a.Reserved2 = #{reserved2}
+			</if>
+			<if test="companyCode != null and companyCode !=''">
+				AND a.CompanyCode = #{companyCode}
+			</if>
+			<if test="bizSection != null and bizSection !='' and bizSection !='BizSection' ">
+				AND  a.BizSection =  #{bizSection}
+			</if>
+		</trim>
+    </select>
+    
+	
+    <!--수정/복사창: 특정 웹파트 데이터 조회 -->
+    <select id="selectWebpartData" parameterType="cmap" resultType="cmap">
+        SELECT 
+        	 WebpartID
+			,CompanyCode
+			,BizSection
+			,`Range`
+			,DisplayName
+			,MultiDisplayName
+			,HtmlFilePath
+			,JsFilePath
+			,JsModuleName
+			,Preview
+			,`Resource`
+			,ScriptMethod
+			,MinHeight
+			,DataJSON
+			,ExtentionJSON
+			,IsUse
+			,Description 
+			,Reserved AS "Thumbnail"
+			,IFNULL(Reserved1, '') AS "Reserved1"
+			,IFNULL(Reserved2, 'A') AS "Reserved2"
+			,IFNULL(Reserved3, '') AS "Reserved3"
+			,IFNULL(Reserved4, '') AS "Reserved4"
+			,IFNULL(Reserved5, '') AS "Reserved5"
+			,IFNULL(SortKey, '') AS "SortKey"
+        FROM covi_smart4j.portal_webpart
+        WHERE WebpartID = #{objectID};
+    </select>
+    
+     <!-- 웹파트 데이터 추가 -->
+    <insert id="insertWebpartData" parameterType="cmap" useGeneratedKeys="true" keyProperty="webpartID"  keyColumn="webpartID">
+		INSERT INTO covi_smart4j.portal_webpart (
+			CompanyCode,BizSection,`Range`,DisplayName,MultiDisplayName,HtmlFilePath,JsFilePath,JsModuleName,Preview,`Resource`,ScriptMethod,MinHeight,DataJSON,ExtentionJSON,IsUse,Description,RegisterCode,RegistDate
+			<if test="webpartThumnail != null and webpartThumnail != ''">
+			    ,Reserved
+			</if>
+			<if test="reserved1 != null and reserved1 != ''">
+			    ,Reserved1
+			</if>
+			<if test="reserved2 != null and reserved2 != ''">
+			    ,Reserved2
+			</if>
+			<if test="reserved3 != null and reserved3 != ''">
+			    ,Reserved3
+			</if>
+			<if test="reserved4 != null and reserved4 != ''">
+			    ,Reserved4
+			</if>
+			<if test="reserved5 != null and reserved5 != ''">
+			    ,Reserved5
+			</if>
+			,SortKey
+		)
+		VALUES (
+			#{companyCode},#{bizSection},#{range},#{displayName},#{dicWebpartName},#{htmlFilePath},#{jsFilePath},#{jsModuleName},#{preview},#{resource},#{scriptMethod},#{minHeight},#{dataJSON},#{extentionJSON},#{isUse},#{description},#{registerCode},now(3)
+			<if test="webpartThumnail != null and webpartThumnail != ''">
+			    ,#{webpartThumnail}
+			</if>
+			<if test="reserved1 != null and reserved1 != ''">
+			    ,#{reserved1}
+			</if>
+			<if test="reserved2 != null and reserved2 != ''">
+			    ,#{reserved2}
+			</if>
+			<if test="reserved3 != null and reserved3 != ''">
+			    ,#{reserved3}
+			</if>
+			<if test="reserved4 != null and reserved4 != ''">
+			    ,#{reserved4}
+			</if>
+			<if test="reserved5 != null and reserved5 != ''">
+			    ,#{reserved5}
+			</if>
+			,#{sortKey}
+		)
+		<selectKey keyProperty="webpartID" resultType="long" order="AFTER">
+            SELECT LAST_INSERT_ID();
+        </selectKey>
+	</insert>
+	
+     <!-- 웹파트 데이터 수정 -->
+    <update id="updateWebpartData" parameterType="cmap">
+		UPDATE covi_smart4j.portal_webpart
+		SET CompanyCode =#{companyCode}  
+			,BizSection = #{bizSection}
+			,`Range` = #{range}
+			,DisplayName = #{displayName}
+			,MultiDisplayName = #{dicWebpartName}
+			,HtmlFilePath = #{htmlFilePath}
+			,JsFilePath = #{jsFilePath}
+			,JsModuleName = #{jsModuleName}
+			,Preview = #{preview}
+			,`Resource` = #{resource}
+			,ScriptMethod = #{scriptMethod}
+			,MinHeight = #{minHeight}
+			,DataJSON = #{dataJSON}
+			,ExtentionJSON = #{extentionJSON}
+			,IsUse = #{isUse}
+			<if test="webpartThumnail != null">
+			    ,Reserved = #{webpartThumnail}
+			</if>
+			<if test="reserved1 != null">
+			    ,Reserved1 = #{reserved1}
+			</if>
+			<if test="reserved2 != null">
+			    ,Reserved2 = #{reserved2}
+			</if>
+			<if test="reserved3 != null">
+			    ,Reserved3 = #{reserved3}
+			</if>
+			<if test="reserved4 != null">
+			    ,Reserved4 = #{reserved4}
+			</if>
+			<if test="reserved5 != null">
+			    ,Reserved5 = #{reserved5}
+			</if>
+			,SortKey = #{sortKey}
+			,Description = #{description}
+			,ModifyDate = now(3)
+		WHERE WebpartID = #{webpartID}
+	</update>
+    
+    <!--웹파트 사용여부 변경  -->
+    <update id="updateWebpartIsUse"  parameterType="cmap">
+        <![CDATA[
+	       	UPDATE covi_smart4j.portal_webpart AS b
+			SET b.IsUse = (SELECT * FROM (SELECT (CASE a.IsUse WHEN 'Y' THEN 'N'
+									WHEN 'N' THEN 'Y' END)
+									FROM covi_smart4j.portal_webpart AS a
+									WHERE a.WebpartID =  #{webpartID}) AS temp )
+			WHERE b.WebpartID = #{webpartID}
+        ]]>
+    </update>
+    
+     <!--웹파트 삭제: 포탈에 배치된 데이터도 함께 삭제  -->
+     <delete id="deleteWebpartData" parameterType="cmap">
+        DELETE FROM covi_smart4j.portal_layout_webpart
+		WHERE WebpartID IN 
+		<foreach item="item" index="index" collection="arrWebpartID" open="(" close=");" separator=",">
+            #{item}
+       </foreach>
+		
+		DELETE FROM covi_smart4j.portal_webpart
+		WHERE WebpartID IN
+		<foreach item="item" index="index" collection="arrWebpartID" open="(" close=");" separator=",">
+            #{item}
+       </foreach>
+    </delete>
+	
+    <select id="selectDuplJsModuleName" parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM covi_smart4j.portal_webpart
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    AND JsModuleName = #{moduleName} 
+			<if test="webpartID != null and webpartID !='' and webpartID !='0' ">
+				AND webpartID != #{webpartID}
+			</if>
+		</trim>
+    </select>
+    <!--웹파트 관리 끝  -->
+	
+	<!--레이아웃 관리 시작 -->    
+	  <!--레이아웃 목록 조회-->
+    <select id="selectLayoutList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	        SELECT LayoutID, a.DisplayName, IsDefault,  a.IsCommunity, a.SortKey, IFNULL(LayoutThumbnail,'') as LayoutThumbnail, DATE_FORMAT(a.RegistDate, '%Y-%m-%d %H:%i:%s') AS RegistDate , b.MultiDisplayName
+			FROM covi_smart4j.portal_layout AS a 
+			LEFT JOIN sys_object_user AS b ON a.RegisterCode = b.UserCode
+		]]>
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  		    a.IsCommunity != 'Y'
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'DisplayName'">
+				      AND a.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			
+				    <when test="searchType == 'RegisterName'">
+				      AND b.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("LayoutThumbnail")'>LayoutThumbnail</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiDisplayName")'>MultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("IsDefault")'>IsDefault</when>
+					<when test='sortColumn.equalsIgnoreCase("IsCommunity")'>IsCommunity</when>
+					<otherwise>LayoutID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>  
+    </select>
+    
+    <select id="selectLayoutListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+	        SELECT COUNT(*)
+			FROM covi_smart4j.portal_layout AS a 
+			LEFT JOIN sys_object_user AS b ON a.RegisterCode = b.UserCode
+		]]>
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  		        a.IsCommunity != 'Y'
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'DisplayName'">
+				      AND a.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			
+				    <when test="searchType == 'RegisterName'">
+				      AND b.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+				    </when>			  
+			    </choose>
+			</if>
+		</trim>
+    </select>
+    
+     <!--레이아웃 기본 사용여부 변경-->
+    <update id="updateLayoutIsDefault">
+        UPDATE covi_smart4j.portal_layout AS b
+		SET b.IsDefault = (SELECT * FROM (SELECT (CASE a.IsDefault WHEN 'Y' THEN 'N'
+								WHEN 'N' THEN 'Y' END)
+								FROM covi_smart4j.portal_layout AS a
+								WHERE a.LayoutID =  #{layoutID}) AS temp )
+		WHERE b.LayoutID = #{layoutID}
+    </update>
+    
+    <!-- 수정: 특정 레이아웃 데이터 조회  -->
+    <select id="selectLayoutData" parameterType="cmap" resultType="cmap">
+        SELECT DisplayName
+			,IsDefault
+			,SortKey
+			,IFNULL(LayoutThumbnail,'') as LayoutThumbnail
+			,LayoutTag 
+			,SettingLayoutTag 
+		FROM covi_smart4j.portal_layout AS a
+		WHERE a.LayoutID = #{layoutID}
+    </select>
+    
+    <!-- 레이아웃 추가  -->
+    <insert id="insertLayoutData" parameterType="cmap">
+        INSERT INTO covi_smart4j.portal_layout(DisplayName,IsDefault,IsCommunity,SortKey,LayoutThumbnail,LayoutTag,SettingLayoutTag,RegisterCode,RegistDate)
+		VALUES(#{layoutName},#{isDefault},#{isCommunity},#{sortKey},#{layoutThumbnail},#{layoutHTML},#{settingLayoutHTML},#{userID},now(3));
+    </insert>
+
+    <!-- 레이아웃 수정  -->
+    <update id="updateLayoutData" parameterType="cmap">
+        UPDATE covi_smart4j.portal_layout
+		SET DisplayName = #{layoutName},
+			IsDefault = #{isDefault},
+			IsCommunity = #{isCommunity},
+			SortKey = #{sortKey},
+			<if test="layoutThumbnail != null">
+				LayoutThumbnail = #{layoutThumbnail},
+			</if>
+			LayoutTag = #{layoutHTML},
+			SettingLayoutTag = #{settingLayoutHTML}
+		WHERE LayoutID = #{layoutID}
+    </update>
+
+    <!--삭제 시 포탈에서 사용되는 레이아웃은 지울 수 없기 때문에 포탈 사용여부 체크-->
+    <select id="checkUsing" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM covi_smart4j.portal
+		WHERE LayoutID = #{layoutID}
+    </select>
+    
+    <!--레이아웃 삭제 -->
+    <delete id="deleteLayoutData" parameterType="cmap">
+        DELETE FROM covi_smart4j.portal_layout
+		WHERE LayoutID = #{layoutID}
+    </delete>
+    
+	<!--레이아웃 관리 끝-->    
+    
+    <!-- 웹파트 셋팅 시작  -->
+    <!--레이아웃 목록 조회 -->
+    <select id="selectSettingLayoutList" parameterType="cmap" resultType="cmap">
+        SELECT  LayoutID
+        	  , DisplayName
+        	  , LayoutTag
+        	  , LayoutThumbNail
+        	  , IsDefault
+        	  , LayoutType 
+        	  , SettingLayoutTag
+        FROM portal_layout
+		WHERE LayoutTag != '' AND LayoutTag IS NOT NULL
+		<if test="isCommunity!=null and isCommunity.equalsIgnoreCase('Y')">
+		 	AND IsCommunity = 'Y'  
+	    </if>
+		<if test="isCommunity!=null and isCommunity.equalsIgnoreCase('N')">
+		 	AND IsCommunity = 'N'
+	    </if>
+		ORDER BY IsDefault DESC, SortKey ASC
+		
+    </select>
+
+    <select id="selectSettingWebpartList" parameterType="cmap" resultType="cmap">
+       	SELECT a.WebpartID
+       	     , a.DisplayName as WebpartName
+       	     , b.MultiDisplayName as CompanyName
+       	     , a.MinHeight
+       	     , a.BizSection
+       	     , a.Description
+		FROM portal_webpart AS a
+		LEFT JOIN sys_object_group AS b ON a.CompanyCode = b.GroupCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		     a.IsUse = 'Y' AND b.IsUse = 'Y' AND a.`Range` !='Mobile'  AND a.`Range` !='MyContents'
+			<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND a.DisplayName LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="isCommunity!=null and isCommunity.equalsIgnoreCase('Y')">
+			 	AND a.Range = 'Community' AND a.CompanyCode = (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})
+		    </if> 
+			<if test="isCommunity!=null and isCommunity.equalsIgnoreCase('N')">
+			 	AND a.Range != 'Community'
+		    </if>
+		</trim>
+    </select>
+    
+    <select id="selectPortalLayoutData" parameterType="cmap" resultType="cmap">
+		SELECT LayoutID
+		     , DisplayName
+		     , IsDefault
+		     , LayoutType
+		FROM covi_smart4j.portal_layout
+		WHERE LayoutID = (SELECT LayoutID FROM covi_smart4j.portal WHERE PortalID = #{objectID});
+    </select>
+    
+	<select id="selectPortalWebpartData" parameterType="cmap" resultType="cmap">
+    	SELECT WebpartID
+    	     , LayoutDivNumber
+    	     , LayoutDivSort
+    	     , WebpartOrder
+		FROM covi_smart4j.portal_layout_webpart
+		WHERE PortalID = #{objectID}
+		ORDER BY LayoutDIvSort ASC
+	</select>
+	
+	<delete id="deletePortalWebpartData" parameterType="cmap">
+	    DELETE FROM covi_smart4j.portal_layout_webpart
+		WHERE PortalID = #{portalID}
+	</delete>
+	
+	<insert id="insertPortalWebpartData"  parameterType="cmap">
+		INSERT INTO covi_smart4j.portal_layout_webpart
+		VALUES(#{portalID},#{webpartID},#{layoutDivNumber},#{layoutDivSort},#{webpartOrder},now(3))
+	</insert>
+	
+	<update id="updateSettingPortalData" parameterType="cmap">
+			UPDATE covi_smart4j.portal
+			SET PortalTag = #{portalTag}
+			, LayoutID = #{layoutID}
+			, LayoutSizeTag = #{layoutSizeTag}
+			WHERE PortalID = #{portalID}
+	</update>
+	
+	<select id="selectLayoutTag" parameterType="cmap" resultType="cmap">
+	    SELECT LayoutTag FROM covi_smart4j.portal_layout 
+		WHERE LayoutType = #{portalTag}
+	</select>
+	
+	<select id="selectPreviewWebpart" parameterType="cmap" resultType="cmap">
+		   SELECT WebpartID
+			-- , a.LayoutDivNumber
+			-- , a.WebpartOrder
+				, DisplayName
+				, HtmlFilePath
+				, JsFilePath
+				, JsModuleName
+				, Preview
+				, `Resource`
+				, ScriptMethod
+				, MinHeight
+				, DataJSON
+				, ExtentionJSON  
+			FROM covi_smart4j.portal_webpart AS a
+			WHERE IsUse = 'Y'
+		    <if test="webpartList.size != 0">
+	                AND WebpartID IN
+	               <foreach collection="webpartList" item="item" index="index" separator="," open="(" close=")">
+	                   #{item}
+	               </foreach>
+	        </if>
+	</select>
+    <!-- 웹파트 셋팅 끝  -->
+</mapper>

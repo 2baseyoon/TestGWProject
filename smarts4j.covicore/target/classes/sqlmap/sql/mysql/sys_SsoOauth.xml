@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.SsoOauth">
+   <select id="loginCheck" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM sys_object_user
+			WHERE UserCode = #{ur_code} AND LogonPW =  md5(#{logonpw})
+		]]>
+   </select>
+    <select id="getClientOne"  parameterType="cmap"  resultType="cmap">
+        SELECT   client_id
+               , client_secret
+               , userCode 
+               , client_name
+               , description
+               , client_url
+               , client_type
+               , scope
+               , redirect_uri
+               , regdate
+        FROM oauth_client
+		WHERE client_id = #{client_id}
+    </select>
+    <select id="getUserInfo"  parameterType="cmap"  resultType="cmap">
+        <![CDATA[
+		SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,SOU.PhotoPath AS PhotoPath
+				,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = SOUBG.CompanyCode) AS DN_ID
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobTitleCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,'' AS UR_ManagerName
+				,'False' AS UR_IsManager
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IF((SELECT COUNT(0) from sys_object_group_member  WHERE UserCode = SOU.UserCode AND GroupCode IN ('SysAdmin','Admin','Developer') > 0), 'Y', 'N') AS IsAdmin
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			WHERE SOU.LogonID = #{id}
+			LIMIT 1
+		]]>
+    </select>
+    <select id="getUserInfoLogin"  parameterType="cmap"  resultType="cmap">
+        <![CDATA[
+		  SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,SOU.PhotoPath AS PhotoPath
+				,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = SOUBG.CompanyCode) AS DN_ID
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobTitleCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,'' AS UR_ManagerName
+				,'False' AS UR_IsManager
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IF((SELECT COUNT(0) from sys_object_group_member  WHERE UserCode = SOU.UserCode AND GroupCode IN ('SysAdmin','Admin','Developer') > 0), 'Y', 'N') AS IsAdmin
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			WHERE SOU.LogonID = #{id}
+			AND SOU.LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{password},512))) 
+			LIMIT 1
+		]]>
+		<!-- AND SOU.LogonPassword = MD5(#{password}) -->
+    </select>
+    <insert id="createToken"  parameterType="cmap" >
+		INSERT INTO oauth_token 
+			(  client_id
+			 , userCode
+			 , access_token
+			 , refresh_token
+			 , token_type
+			 , scope
+			 , code
+			 , client_type
+			 , created_access_token
+			 , created_refresh_token
+			 , expires_in)
+		VALUES
+		   (  #{client_id}
+			, #{userid}
+			, #{access_token}
+			, #{refresh_token}
+			, #{token_type}
+			, #{scope}
+			, #{code}
+			, #{client_type}
+			, #{created_at}
+			, #{created_rt}
+			, #{expires_in})
+	</insert>
+    <select id="selectTokenByCode" parameterType="cmap" resultType="cmap">
+		SELECT  client_id
+		      , userCode
+		      , access_token
+		      , refresh_token
+		      , token_type
+		      , scope
+		      , code
+		      , state
+		      , client_type
+		      , created_access_token
+		      , created_refresh_token
+		      , expires_in
+		FROM oauth_token
+		WHERE code = #{code}
+	</select>
+	<delete id="deleteToken" parameterType="cmap">
+		DELETE FROM oauth_token
+		WHERE access_token = #{access_token}
+	</delete>
+	<select id="selectRefreshToken" parameterType="cmap" resultType="cmap">
+		SELECT  client_id
+		      , userCode
+		      , access_token
+		      , refresh_token
+		      , token_type
+		      , scope
+		      , code
+		      , state
+		      , client_type
+		      , created_access_token
+		      , created_refresh_token
+		      , expires_in 
+		FROM oauth_token
+		WHERE refresh_token = #{refresh_token}
+	</select>
+	<select id="selectToken" parameterType="cmap" resultType="cmap">
+	    SELECT  client_id
+		      , userCode
+		      , access_token
+		      , refresh_token
+		      , token_type
+		      , scope
+		      , code
+		      , state
+		      , client_type
+		      , created_access_token
+		      , created_refresh_token
+		      , expires_in 
+		FROM oauth_token
+		WHERE access_token = #{access_token}
+	</select>
+    <delete id="deleteExpiredToken" parameterType="cmap">
+       <![CDATA[
+       	DELETE oauth_token
+		WHERE created_access_token &lt; GET_TIMESTAMP() - #{long_time}
+		]]>
+        
+    </delete>
+    <select id="getMyInfo"  parameterType="cmap"  resultType="cmap">
+        <![CDATA[
+			SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,SOU.PhotoPath AS PhotoPath
+				,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = SOUBG.CompanyCode) AS DN_ID
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobTitleCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,'' AS UR_ManagerName
+				,'False' AS UR_IsManager
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IF((SELECT COUNT(0) from sys_object_group_member  WHERE UserCode = SOU.UserCode AND GroupCode IN ('SysAdmin','Admin','Developer') > 0), 'Y', 'N') AS IsAdmin
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			WHERE SOU.UserCode = #{id}
+			
+		]]>
+    </select>
+    <select id="getValue" parameterType="cmap" resultType="String">
+        <![CDATA[
+		    SELECT SettingValue 
+		    FROM sso_config sso
+		    WHERE 1=1
+		    AND Code = #{code}
+		    AND DomainID = (SELECT DomainID FROM covi_smart4j.sso_config WHERE Code = sso.Code ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+	    ]]>
+    </select>
+    <select id="selectTokenCnt" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(*) 
+        FROM sys_object_user_google 
+        WHERE 1=1
+		AND UserCode = #{UserCode}
+    </select>
+    <insert id="insertRefreshToken" parameterType="cmap">
+        INSERT INTO sys_object_user_google(   UserCode
+        									, RefreshToken
+        									, AccessToken
+        									, Expiresin
+        									, Mail
+        								   )VALUES(
+        								      #{UserCode}
+        								    , #{RefreshToken}
+        								    , #{AccessToken}
+        								    , #{Expiresin}
+        								    , #{Mail}
+        								   )
+    </insert>
+    <update id="updateRefreshToken"  parameterType="cmap" >
+        UPDATE sys_object_user_google SET 
+							       	  	   RefreshToken = #{RefreshToken}
+							       		 , AccessToken = #{AccessToken}
+							       		 , Expiresin = #{Expiresin}
+							       		 , ModifyDate = now(3)
+		WHERE 1=1 
+		AND UserCode = #{UserCode}
+    </update>
+    <update id="updateUserTokenInfo"  parameterType="cmap">
+        UPDATE sys_object_user_google SET 
+        								  Mail = #{Mail}
+		WHERE 1=1 
+		AND UserCode = #{UserCode}
+    </update>
+    <insert id="insertUserTokenInfo" parameterType="cmap">
+        INSERT INTO sys_object_user_google(   UserCode
+        									, Mail
+        								  )VALUES(
+        								      #{UserCode}
+        								    , #{Mail}
+        								  )
+    </insert>
+    
+    <select id="selectGoogleTokenByUserCode" parameterType="cmap" resultType="java.lang.String">
+        SELECT AccessToken
+        FROM sys_object_user_google
+        WHERE
+        	UserCode = #{userCode}
+    </select>
+    
+    <select id="selectGoogleTokenByExpires" parameterType="cmap" resultType="java.lang.Long">
+        SELECT  TIMESTAMPDIFF(second, sysdate(),DATE_ADD(ModifyDate , INTERVAL (ExpiresIn-900) SECOND))
+        FROM sys_object_user_google
+		WHERE UserCode =  #{userCode}
+    </select>
+    
+     <select id="selectGoogleRefreshTokenByUserCode" parameterType="cmap" resultType="java.lang.String">
+        SELECT RefreshToken
+        FROM sys_object_user_google
+        WHERE
+        	UserCode = #{userCode}
+    </select>
+    
+    <select id="selectGoogleTokenNotToUseCount" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(*) 
+        FROM sys_object_user_google
+        WHERE UserCode = #{userCode}
+        AND RefreshToken is not null 
+        AND AccessToken is not null
+    </select>
+    
+</mapper>

@@ -1,0 +1,50 @@
+<!-- 첨부파일 시작 작성페이지의 경우 첨부파일Uload UX 조회페이지 다운로드UX표시 -->
+<h3 class="apptit_h3"><span><spring:message code="Cache.lbl_AttachList"/></span></h3><!-- 첨부목록 -->
+<table class="tableStyle linePlus">
+	<colgroup>
+		<col style="width:100px;">
+		<col style="width:*">
+	</colgroup>
+	<tbody>
+		<tr>
+			<th><spring:message code="Cache.lbl_AttachList"/></th><!-- 첨부목록 -->
+      		<td>
+	      		<!-- 첨부파일 컨트롤 시작 -->
+	            <!-- 파일 컨트롤 타입 설정 : 0.None, 1.DEXTUploadX, 2.CoviFileTrans, 3.CoviSilverlightTrans, 4.CoviUploadNSlvTrans, 5.HTML 5 -->
+	            <div id="divFileControlContainer"></div>
+	            <div id="divFileSelect" style="width:0px; height:0px; float:right; overflow-x:hidden;">
+	            	<input type="file" multiple name="FileSelect1" id="FileSelect1" onchange="javascript:FileSelect_onchangeMulti();" style="opacity:0;"/>
+	            	<input type="submit" id="btnsubmit" style="display:none;"/>
+	            	<input type="hidden" id="hidsaveFileName" />
+	            	<input type="hidden" id="hidDeletFiles" />
+	            </div>
+	            </form>
+	            <div class="addDataBtn">
+	            	<input type="button" class="smButton" onclick="AddFileMulti();" value="<spring:message code='Cache.btn_addfile'/>">
+	            	<input type="button" class="smButton" onclick="DeleteFileMulti();clearDeleteFrontMulti();" value="<spring:message code='Cache.lbl_apv_file_delete'/>">
+	            </div>
+	            <div ondragenter="onDragEnterMulti(event)" ondragover="onDragOverMulti(event)" ondrop="onDropMulti(event)" style="min-height:125px;">
+	            	<div class="file_controls"  class="addData">
+		             	<table id="tblFileList" class="fileHover">
+			               	<colgroup>
+			               		<col style="width:20px">
+			               		<col style="width:20px">
+			               		<col style="width:*">
+			               		<col style="width:120px">
+			               	</colgroup>
+			                <tbody id = "fileInfo1" style="background-color:white;">
+			                 	<tr id="trFileInfoBox1" style="height:99%">
+			                 		<td colspan="4">
+			                 			<div class="dragFileBox"><span class="dragFile">icn</span><spring:message code="Cache.lbl_DragFile"/></div>
+			                 		</td>
+			                 	</tr>
+			                </tbody>
+		                </table>
+	            	</div>
+	            </div>
+        	</td>
+    	</tr>
+    </tbody>
+</table>
+<!-- 첨부파일 컨트롤 끝 -->
+<div class="form_footer"></div>

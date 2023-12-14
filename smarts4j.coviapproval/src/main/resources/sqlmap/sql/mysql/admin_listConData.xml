@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.listConData">
+    <select id="selectConDataLogLegacyList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (	SELECT
+				 A.IDX
+				, A.DocID
+				, A.InterfaceID
+				, A.InitiatorID
+				, CASE WHEN IFNULL(A.ErrMsg, '') = '' THEN '' ELSE 'Y' END AS exsistErr
+				, A.RegDate AS  RegDate
+				FROM covi_approval4j.jwf_tbconndata A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Date.equalsIgnoreCase("DocID")'>DocID</when>
+					<when test='sel_Date.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+					<otherwise>ErrMsg</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{search},'%') 	
+			</if>			
+			<if test="startDate != '' or endDate != ''">
+				AND A.RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+			</if>			
+		</trim>
+		) A		
+		
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("IDX")'>IDX</when>
+					<when test='sortColumn.equalsIgnoreCase("DocID")'>DocID</when>
+					<when test='sortColumn.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+					<when test='sortColumn.equalsIgnoreCase("RegDate")'>RegDate</when>
+					<otherwise>exsistErr</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				exsistErr DESC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectConDataLogLegacyListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT
+				 A.IDX
+				, A.DocID
+				, A.InterfaceID
+				, A.InitiatorID
+				, CASE WHEN IFNULL(A.ErrMsg, '') = '' THEN '' ELSE 'Y' END AS exsistErr
+				, A.RegDate
+				FROM covi_approval4j.jwf_tbconndata A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Date.equalsIgnoreCase("DocID")'>DocID</when>
+					<when test='sel_Date.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+					<otherwise>ErrMsg</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{search},'%') 
+			</if>			
+			<if test="startDate != '' or endDate != ''">
+				AND A.RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+			</if>			
+		</trim>
+		) A			
+	</select>
+	
+</mapper>
+

@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.settingList">
+    <select id="selectSettingList" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM (
+			SELECT 0 AS SettingID
+				, A.DomainID
+				, A.SettingType
+				, A.SettingKey
+				, A.SettingName
+				, '' AS SettingValue
+				, A.Description
+				, 'Y' AS IsUse
+			FROM covi_approval4j.jwf_setting A
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			
+			UNION ALL
+			
+			SELECT A.CodeID 	
+				, A.DomainID
+				, CASE WHEN A.CodeGroup = 'ApprovalProperties' 
+					THEN 'PropetiesFile'
+					ELSE 'BaseCode'
+				END
+				, A.Code
+				, A.CodeName
+				, ''
+				, A.Description
+				, A.IsUse
+			FROM covi_smart4j.sys_base_code A
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			WHERE A.BizSection = 'Approval'
+			AND A.CodeGroup IN ('CodeGroup', 'ApprovalProperties')
+			<if test="domainID != null and domainID != ''">
+				AND (
+					A.DomainID = #{domainID}
+					OR (
+						A.DomainID = 0
+						AND A.Code NOT IN (
+							SELECT Code 
+							FROM covi_smart4j.sys_base_code
+							where BizSection = 'Approval'
+							AND CodeGroup IN ('CodeGroup', 'ApprovalProperties')
+							AND DomainID = #{domainID}
+						)
+					)
+				)
+			</if>
+			
+			UNION ALL
+				
+			SELECT A.ConfigID 
+				, A.DomainID
+				, 'BaseConfig'
+				, A.SettingKey
+				, A.ConfigName
+				, A.SettingValue
+				, A.Description
+				, A.IsUse
+			FROM covi_smart4j.sys_base_config A 
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			WHERE A.BizSection = 'Approval'
+			<if test="domainID != null and domainID != ''">
+				AND (
+					A.DomainID = #{domainID}
+					OR (
+						A.DomainID = 0
+						AND A.SettingKey NOT IN (
+							SELECT SettingKey 
+							FROM covi_smart4j.sys_base_config
+							where BizSection = 'Approval'
+							AND DomainID = #{domainID}
+						)
+					)
+				)
+			</if>
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		 		
+			<if test="settingType != null and settingType != '' and settingType.length() gt 0">
+				AND A.SettingType = #{settingType}
+			</if>
+			<if test="isUse != null and isUse != '' and isUse.length() gt 0">
+				AND A.IsUse = #{isUse}
+			</if>
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("SettingKey")'>SettingKey</when>
+					<when test='sel_Search.equalsIgnoreCase("SettingName")'>SettingName</when>
+					<when test='sel_Search.equalsIgnoreCase("SettingValue")'>SettingValue</when>
+					<otherwise>Description</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					SettingKey LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					SettingName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					SettingValue LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					Description LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 
+				)
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("SettingKey")'>SettingKey</when>
+					<when test='sortColumn.equalsIgnoreCase("SettingName")'>SettingName</when>
+					<when test='sortColumn.equalsIgnoreCase("SettingValue")'>SettingValue</when>
+					<otherwise>IsUse</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				IsUse DESC
+		   </if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    <select id="selectSettingListCnt" resultType="java.lang.Long" parameterType="cmap">
+		SELECT COUNT(*) FROM
+		(
+			SELECT 0 AS SettingID
+				, A.DomainID
+				, A.SettingType
+				, A.SettingKey
+				, A.SettingName
+				, '' AS SettingValue
+				, A.Description
+				, 'Y' AS IsUse
+			FROM covi_approval4j.jwf_setting A
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			
+			UNION ALL
+			
+			SELECT A.CodeID 	
+				, A.DomainID
+				, CASE WHEN A.CodeGroup = 'ApprovalProperties' 
+					THEN 'PropetiesFile'
+					ELSE 'BaseCode'
+				END
+				, A.Code
+				, A.CodeName
+				, ''
+				, A.Description
+				, A.IsUse
+			FROM covi_smart4j.sys_base_code A
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			WHERE A.BizSection = 'Approval'
+			AND A.CodeGroup IN ('CodeGroup', 'ApprovalProperties')
+			<if test="domainID != null and domainID != ''">
+				AND (
+					A.DomainID = #{domainID}
+					OR (
+						A.DomainID = 0
+						AND A.Code NOT IN (
+							SELECT Code 
+							FROM covi_smart4j.sys_base_code
+							where BizSection = 'Approval'
+							AND CodeGroup IN ('CodeGroup', 'ApprovalProperties')
+							AND DomainID = #{domainID}
+						)
+					)
+				)
+			</if>
+			
+			UNION ALL
+				
+			SELECT A.ConfigID 
+				, A.DomainID
+				, 'BaseConfig'
+				, A.SettingKey
+				, A.ConfigName
+				, A.SettingValue
+				, A.Description
+				, A.IsUse
+			FROM covi_smart4j.sys_base_config A 
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+			WHERE A.BizSection = 'Approval'
+			<if test="domainID != null and domainID != ''">
+				AND (
+					A.DomainID = #{domainID}
+					OR (
+						A.DomainID = 0
+						AND A.SettingKey NOT IN (
+							SELECT SettingKey 
+							FROM covi_smart4j.sys_base_config
+							where BizSection = 'Approval'
+							AND DomainID = #{domainID}
+						)
+					)
+				)
+			</if>
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="settingType != null and settingType != '' and settingType.length() gt 0">
+				AND A.SettingType = #{settingType}
+			</if>
+			<if test="isUse != null and isUse != '' and isUse.length() gt 0">
+				AND A.IsUse = #{isUse}
+			</if>
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("SettingKey")'>SettingKey</when>
+					<when test='sel_Search.equalsIgnoreCase("SettingName")'>SettingName</when>
+					<when test='sel_Search.equalsIgnoreCase("SettingValue")'>SettingValue</when>
+					<otherwise>Description</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					SettingKey LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					SettingName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					SettingValue LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') OR 
+					Description LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 
+				)
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectApprovalSetting" parameterType="cmap" resultType="cmap">
+		SELECT S.SchemaContext
+			, F.ExtInfo
+		FROM covi_approval4j.jwf_forms F
+		INNER JOIN covi_approval4j.jwf_formsschema S ON F.SchemaID = S.SchemaID 
+		ORDER BY F.RegDate DESC
+		LIMIT 1
+	</select>
+	
+	<delete id="deleteApprovalSetting" parameterType="cmap">
+        DELETE FROM covi_approval4j.jwf_setting
+	</delete>
+	
+	<insert id="insertApprovalSettingList" parameterType="clist">
+        INSERT INTO covi_approval4j.jwf_setting(SettingID,DomainID,SettingType,SettingKey,SettingName,Description)
+		VALUES
+		<foreach collection="list" item="settingInfo" index="index" separator=",">
+            (
+				#{settingInfo.SettingID}
+	        	, 0
+				, #{settingInfo.SettingType}
+				, #{settingInfo.SettingKey}
+				, #{settingInfo.SettingName}
+				, #{settingInfo.Description}
+	        )
+        </foreach>
+        ;
+    </insert>
+</mapper>
+

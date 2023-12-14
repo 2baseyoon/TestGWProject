@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.common">
+    
+    <insert id="insertLegacy" parameterType="hashmap">
+    <![CDATA[
+        INSERT INTO jwf_legacy
+        (
+        	Parameters,
+        	Mode_,
+        	State,
+        	EventTime,
+        	ErrorMessage,
+        	ErrorStackTrace,
+        	ErrorClass,
+        	DeleteTime
+        )
+        VALUES
+        (
+        	#{parameters},
+        	#{mode},
+        	#{state},
+        	TO_CHAR(SYSTIMESTAMP, 'yyyy-mm-dd hh24:mi:ss.FF3'),
+        	#{errorMessage},
+        	#{errorStackTrace},
+        	#{errorClass},
+        	#{deleteTime}
+        )
+    ]]>
+	</insert>
+	
+	<insert id="insertLegacy_param" parameterType="hashmap">
+    <![CDATA[
+        INSERT INTO jwf_legacy
+        (
+        	Parameters,
+        	Mode_,
+        	State,
+        	EventTime,
+        	ErrorMessage,
+        	ErrorStackTrace,
+        	ErrorClass,
+        	DeleteTime,
+        	FormInstID,
+        	ProcessID,
+			FormPrefix,
+			DocNumber,
+			ApproverId,
+			ApvMode,
+			FormInfoExt,
+			ApprovalContext
+        )
+        VALUES
+        (
+        	#{parameters},
+        	#{mode},
+        	#{state},
+        	TO_CHAR(SYSTIMESTAMP, 'yyyy-mm-dd hh24:mi:ss.FF3'),
+        	#{errorMessage},
+        	#{errorStackTrace},
+        	#{errorClass},
+        	#{deleteTime},
+        	#{FormInstID},
+        	#{ProcessID},
+			#{FormPrefix},
+			#{DocNumber},
+			#{ApproverId},
+			#{ApvMode},
+			#{FormInfoExt},
+			#{ApprovalContext}
+        )
+    ]]>
+	</insert>
+    
+    <select id="selectGrid" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+			SELECT LegacyID AS "LegacyID",
+				FormInstID AS "FormInstID",
+				Parameters AS "Parameters",
+				Mode_ AS "Mode",
+				State AS "State",
+				EventTime AS "EventTime",
+				ErrorMessage AS "ErrorMessage",
+				ErrorStackTrace AS "ErrorStackTrace",
+				ErrorClass AS "ErrorClass",
+				DeleteTime AS "DeleteTime",
+				ProcessID AS "ProcessID",
+				ApvMode AS "ApvMode",
+				ApproverId AS "ApproverId",
+				DocNumber AS "DocNumber",
+				Subject AS "Subject", 
+				InitiatorName AS "InitiatorName", 
+				FormName AS "FormName",
+				ProcessState AS "ProcessState",
+				BusinessData1 AS "BusinessData1",
+				BusinessData1 AS "BusinessData2",
+				LastRetryTime AS "LastRetryTime"
+        	FROM (
+				SELECT a.LegacyID,
+					a.FormInstID,
+					a.Parameters,
+					a.Mode_,
+					a.State,
+					a.EventTime,
+					a.ErrorMessage,
+					a.ErrorStackTrace,
+					a.ErrorClass,
+					a.DeleteTime,
+					NVL(a.ProcessID,(SELECT f.ProcessID FROM jwf_forminstance f WHERE a.FormInstID = f.FormInstID AND f.FormInstID IS NOT null)) ProcessID,
+					a.ApvMode,
+					a.ApproverId,
+					a.DocNumber,
+					b.Subject, 
+					b.InitiatorName, 
+					c.FormName,
+					(SELECT p.ProcessState FROM jwf_process p WHERE p.FormInstID = a.FormInstID AND p.ProcessID = b.ProcessID) ProcessState,
+					(SELECT BusinessData1 FROM jwf_processdescription WHERE FormInstID = a.FormInstID AND ROWNUM = 1) BusinessData1,
+					(SELECT BusinessData2 FROM jwf_processdescription WHERE FormInstID = a.FormInstID AND ROWNUM = 1) BusinessData2,
+					a.LastRetryTime
+				FROM jwf_legacy a
+				LEFT OUTER JOIN jwf_forminstance b ON a.FormInstID = b.FormInstID
+				LEFT OUTER JOIN jwf_forms c ON b.FormID = c.FormID
+				WHERE 1=1
+				AND a.DeleteTime IS NULL
+			  	AND a.Mode_ = #{searchMode}
+			<if test="searchState != null and searchState != ''">
+				AND a.State = #{searchState}	
+			</if>			
+			<if test="startDate != '' and endDate != ''">
+			   	 AND a.EventTime BETWEEN #{startDate} AND TO_CHAR(ADD_MONTHS(to_Date(#{endDate}, 'yyyy-mm-dd hh24:mi:ss'),'0')+1,'YYYY-MM-DD')
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("Subject")'>b.Subject</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+					<when test='searchType.equalsIgnoreCase("DocNumber")'>a.DocNumber</when>
+					<otherwise>a.FormInstID</otherwise>
+				</choose> 
+				like '%' || #{searchWord}  ||'%'
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					a.FormInstID = #{icoSearch} OR 
+					b.Subject LIKE '%' || #{icoSearch} || '%' OR 
+					b.InitiatorName LIKE '%' || #{icoSearch} || '%' OR
+					c.FormName LIKE '%' || #{icoSearch} || '%' OR 
+					a.DocNumber LIKE '%' || #{icoSearch} || '%'		   
+				)
+			</if>
+			<if test="EntCode != null and EntCode != ''">
+				AND EXISTS (
+					select 'x' from jwf_forminstance fi
+					where fi.forminstid = A.forminstid
+					and fi.entcode = #{EntCode}
+				)
+			</if>
+			) LegacyErrorList
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("LegacyID")'>LegacyID</when>
+						<when test='sortColumn.equalsIgnoreCase("FormInstID")'>FormInstID</when>
+						<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+						<when test='sortColumn.equalsIgnoreCase("ApvMode")'>ApvMode</when>
+						<when test='sortColumn.equalsIgnoreCase("DocNumber")'>DocNumber</when>
+						<when test='sortColumn.equalsIgnoreCase("EventTime")'>EventTime</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<otherwise>LegacyID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    
+    <select id="selectGridCount" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM jwf_legacy a
+		LEFT OUTER JOIN jwf_forminstance b ON a.FormInstID = b.FormInstID
+		LEFT OUTER JOIN jwf_forms c ON b.FormID = c.FormID
+		WHERE 1=1
+		AND DeleteTime IS NULL
+		AND a.Mode_ = #{searchMode}
+	  	<if test="searchState != null and searchState != ''">
+			AND a.State = #{searchState}	
+		</if>			
+		<if test="startDate != '' and endDate != ''">
+		   	 AND a.EventTime BETWEEN #{startDate} AND TO_CHAR(ADD_MONTHS(to_Date(#{endDate}, 'yyyy-mm-dd hh24:mi:ss'),'0')+1,'YYYY-MM-DD')
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("Subject")'>b.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("DocNumber")'>a.DocNumber</when>
+				<otherwise>a.FormInstID</otherwise>
+			</choose> 
+			like '%' || #{searchWord}  ||'%'
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				a.FormInstID = #{icoSearch} OR 
+				b.Subject LIKE '%' || #{icoSearch} || '%' OR 
+				b.InitiatorName LIKE '%' || #{icoSearch} || '%' OR
+				c.FormName LIKE '%' || #{icoSearch} || '%' OR 
+				a.DocNumber LIKE '%' || #{icoSearch} || '%'		   
+			)
+		</if>		
+	</select>
+	
+    <select id="selectReceiptPersonInfo" parameterType="cmap" resultType="cmap">
+        SELECT BG.DeptCode AS "DeptID"
+        , BG.DeptName AS "DeptName"
+        , BG.JobLevelCode || ';' || BG.JobLevelName AS "JobLevel"
+        , BG.JobTitleCode || ';' || BG.JobTitleName AS "JobTitle"
+        , BG.JobPositionCode || ';' || BG.JobPositionName AS "JobPosition"
+		FROM sys_object_user U 
+		JOIN sys_object_user_basegroup BG on U.UserCode = BG.UserCode
+		WHERE U.UserCode = #{urCode}
+   		<choose>
+			<when test="oucode != null and oucode != '' and oucode.length() gt 0">
+				AND BG.DeptCode = #{oucode}
+			</when>
+			<otherwise>AND JobType = 'Origin'</otherwise>
+		</choose>
+    </select>
+    
+    <update id="deleteLegacyErrorLog" parameterType="cmap">
+		UPDATE jwf_legacy
+		SET DeleteTime = TO_CHAR(SYSTIMESTAMP, 'yyyy-mm-dd hh24:mi:ss.FF3')
+		WHERE Legacyid = #{legacyID}
+	</update>
+    <update id="updateLegacyRetryFlag" parameterType="cmap">
+		UPDATE jwf_legacy
+		SET LastRetryTime =  SYSDATE
+		WHERE Legacyid = #{LegacyID}
+	</update>
+	
+	<insert id="docInfoselectInsert" parameterType="cmap">
+		INSERT INTO GOV_RECORD_DOC_TEMP
+		(
+			FormInstID,
+			ProcessID,
+			DeptCode,
+			RegistCheck,
+			RecordClassNum,
+			RecordSubject,
+			Address,
+			SpecialRecord,
+			ReleaseCheck,
+			ReleaseRestriction,
+			KeepPeriod,
+			SecureLevel
+		)
+		SELECT MS.MULTI_FORM_INST_ID, JP.PROCESSID , JW.USERCODE,
+			MULTI_REGIST_CHECK,
+			MULTI_RECORD_CLASS_NUM,
+			MULTI_RECORD_SUBJECT,
+			MULTI_ADDRESS,
+			MULTI_SPECIAL_RECORD,
+			MULTI_RELEASE_CHECK,
+			MULTI_RELEASE_RESTRICTION,
+			MULTI_KEEP_PERIOD,
+			MULTI_SECURE_LEVEL
+		FROM HWP_MULTI_GOV_SUB MS
+		LEFT JOIN JWF_PROCESS JP ON JP.FORMINSTID  = MS.MULTI_FORM_INST_ID 
+		LEFT JOIN JWF_WORKITEM JW ON JP.PROCESSID = JW.PROCESSID 
+		WHERE MS.MULTI_FORM_INST_ID = #{FormInstID}
+	</insert>	
+	
+	<insert id="insertLegacyIfHistory" parameterType="cmap">
+		INSERT INTO gwuser.jwf_legacy_if_history (
+		  ApvMode
+		  ,IfType
+		  ,LegacyInfo
+		  ,Parameters
+		  ,ActionValue
+		  ,LegacyKey
+		  ,State
+		  ,ErrorStackTrace
+		  ,RawResponse
+		  ,ResultCode
+		  ,ResultMessage
+		  ,FormPrefix
+		  ,FormInstID
+		  ,ProcessID
+		  ,UserCode
+		  ,Subject
+		  ,EventStartTime
+		  ,EventEndTime
+		  ,ElapsedTime
+		  ,LegacyConfigID
+		  ,RegistDate )
+		VALUES (
+		  #{ApvMode}
+		  ,#{IfType}
+		  ,#{LegacyInfo}
+		  ,#{Parameters}
+		  ,#{ActionValue}
+		  ,#{LegacyKey}
+		  ,#{State}
+		  ,#{ErrorStackTrace}
+		  ,#{RawResponse}
+		  ,#{ResultCode}
+		  ,#{ResultMessage}
+		  ,#{FormPrefix}
+		  ,#{FormInstID}
+		  ,#{ProcessID}
+		  ,#{UserCode}
+		  ,#{Subject}
+		  ,#{EventStartTime}
+		  ,#{EventEndTime}
+		  ,#{ElapsedTime}
+		  ,#{LegacyConfigID}
+		  ,SYSDATE
+		)
+	</insert>
+	
+	<select id="selectLegacyIfHistory" parameterType="cmap" resultType="cmap">
+        select 
+        	LegacyHistoryID AS "LegacyHistoryID"
+			,ApvMode AS "ApvMode"
+			,IfType AS "IfType"
+			,LegacyInfo AS "LegacyInfo"
+			,Parameters AS "Parameters"
+			,ActionValue AS "ActionValue"
+			,LegacyKey AS "LegacyKey"
+			,State AS "State"
+			,ErrorStackTrace AS "ErrorStackTrace"
+			,RawResponse AS "RawResponse"
+			,ResultCode AS "ResultCode"
+			,ResultMessage AS "ResultMessage"
+			,FormPrefix AS "FormPrefix"
+			,FormInstID AS "FormInstID"
+			,ProcessID AS "ProcessID"
+			,UserCode AS "UserCode"
+			,Subject AS "Subject"
+			,EventStartTime AS "EventStartTime"
+			,EventEndTime AS "EventEndTime"
+			,ElapsedTime AS "ElapsedTime"
+			,LegacyConfigID AS "LegacyConfigID"
+			,RegistDate AS "RegistDate"
+		from gwuser.jwf_legacy_if_history
+		where LegacyHistoryID = #{LegacyHistoryID}
+    </select>
+    
+    <select id="selectEachGrid" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT LegacyHistoryID AS "LegacyHistoryID",
+				ApvMode AS "ApvMode",
+				IfType AS "IfType",
+				LegacyInfo AS "LegacyInfo",
+				Parameters AS "Parameters",
+				ActionValue AS "ActionValue",
+				LegacyKey AS "LegacyKey",
+				State AS "State",
+				ErrorStackTrace AS "ErrorStackTrace",
+				RawResponse AS "RawResponse",
+				ResultCode AS "ResultCode",
+				ResultMessage AS "ResultMessage",
+				FormPrefix AS "FormPrefix",
+				FormInstID AS "FormInstID",
+				ProcessID AS "ProcessID",
+				UserCode AS "UserCode",
+				Subject AS "Subject",
+				EventStartTime AS "EventStartTime",
+				EventEndTime AS "EventEndTime",
+				ElapsedTime AS "ElapsedTime",
+				LegacyConfigID AS "LegacyConfigID",
+				RegistDate AS "RegistDate",
+				DeleteDate AS "DeleteDate",
+				LastRetryTime AS "LastRetryTime",
+				Seq AS "Seq",
+				ProgramName AS "ProgramName",
+				DocNo AS "DocNo",
+				InitiatorName AS "InitiatorName", 
+				FormName AS "FormName",
+				ProcessState AS "ProcessState",
+				BusinessData1 AS "BusinessData1",
+				BusinessData2 AS "BusinessData2" 
+		FROM (
+			SELECT ih.LegacyHistoryID,
+				ih.ApvMode,
+				ih.IfType,
+				ih.LegacyInfo,
+				ih.Parameters,
+				ih.ActionValue,
+				ih.LegacyKey,
+				ih.State,
+				ih.ErrorStackTrace,
+				ih.RawResponse,
+				ih.ResultCode,
+				ih.ResultMessage,
+				ih.FormPrefix,
+				ih.FormInstID,
+				NVL(ih.ProcessID,b.ProcessID) ProcessID,
+				ih.UserCode,
+				ih.Subject,
+				ih.EventStartTime,
+				ih.EventEndTime,
+				ih.ElapsedTime,
+				ih.LegacyConfigID,
+				ih.RegistDate,
+				ih.DeleteDate,
+				ih.LastRetryTime,
+				ic.Seq,
+				ic.ProgramName,
+				b.DocNo,
+				b.InitiatorName, 
+				c.FormName,
+				p.ProcessState,
+				pd.BusinessData1,
+				pd.BusinessData2
+			FROM gwuser.jwf_legacy_if_history ih
+			LEFT OUTER join gwuser.jwf_legacy_if_config ic on ih.LegacyConfigID = ic.LegacyConfigID 
+			JOIN gwuser.jwf_forminstance b ON ih.FormInstID = b.FormInstID
+			<if test="EntCode != null and EntCode != ''">
+				AND b.EntCode = #{EntCode}
+			</if>
+			LEFT OUTER JOIN gwuser.jwf_forms c ON b.FormID = c.FormID
+			LEFT OUTER JOIN gwuser.jwf_process p ON p.ProcessID = b.ProcessID
+			LEFT OUTER join gwuser.jwf_processdescription pd on pd.ProcessDescriptionID = p.ProcessDescriptionID 
+			WHERE 1=1
+			AND ih.DeleteDate IS NULL
+		<if test="searchState != null and searchState != ''">
+			AND ih.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND ih.RegistDate BETWEEN to_Date(#{startDate},'YYYY-MM-DD HH24:MI:SS') AND to_Date(#{endDate},'YYYY-MM-DD HH24:MI:SS')+1
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("ApvMode")'>ih.ApvMode</when>
+				<when test='searchType.equalsIgnoreCase("ProgramName")'>ic.ProgramName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("Subject")'>ih.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("DocNo")'>b.DocNo</when>
+				<otherwise>ih.forminstid</otherwise>
+			</choose> 
+			LIKE '%' || #{searchWord} || '%'
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				ic.ProgramName = #{icoSearch} OR 
+				c.FormName LIKE '%' || #{icoSearch} || '%' OR 
+				ih.Subject LIKE '%' || #{icoSearch} || '%' OR
+				b.InitiatorName LIKE '%' || #{icoSearch} || '%' OR 
+				b.DocNo LIKE '%' || #{icoSearch} || '%' OR
+				ih.forminstid LIKE '%' || #{icoSearch} || '%'
+			)
+		</if>
+		) LegacyErrorList
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("ApvMode")'>ApvMode</when>
+					<when test='sortColumn.equalsIgnoreCase("Seq")'>Seq</when>
+					<when test='sortColumn.equalsIgnoreCase("IfType")'>IfType</when>
+					<when test='sortColumn.equalsIgnoreCase("ProgramName")'>ProgramName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormInstID")'>FormInstID</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("State")'>State</when>
+					<otherwise>LegacyHistoryID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    
+    <select id="selectEachGridCount" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM gwuser.jwf_legacy_if_history ih
+		LEFT OUTER join gwuser.jwf_legacy_if_config ic on ih.LegacyConfigID = ic.LegacyConfigID 
+		JOIN gwuser.jwf_forminstance b ON ih.FormInstID = b.FormInstID
+		<if test="EntCode != null and EntCode != ''">
+			AND b.EntCode = #{EntCode}
+		</if>
+		LEFT OUTER JOIN gwuser.jwf_forms c ON b.FormID = c.FormID
+		LEFT OUTER JOIN gwuser.jwf_process p ON p.ProcessID = b.ProcessID
+		LEFT OUTER join gwuser.jwf_processdescription pd on pd.ProcessDescriptionID = p.ProcessDescriptionID 
+		WHERE 1=1
+		AND ih.DeleteDate IS NULL
+		<if test="searchState != null and searchState != ''">
+			AND ih.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND ih.RegistDate BETWEEN to_Date(#{startDate},'YYYY-MM-DD HH24:MI:SS') AND to_Date(#{endDate},'YYYY-MM-DD HH24:MI:SS')+1		
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("ApvMode")'>ih.ApvMode</when>
+				<when test='searchType.equalsIgnoreCase("IfType")'>ih.IfType</when>
+				<when test='searchType.equalsIgnoreCase("ProgramName")'>ic.ProgramName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("Subject")'>ih.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("DocNo")'>b.DocNo</when>
+				<otherwise>ih.forminstid</otherwise>
+			</choose> 
+			LIKE '%' || #{searchWord} || '%'
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				ic.ProgramName = #{icoSearch} OR 
+				c.FormName LIKE '%' || #{icoSearch} || '%' OR 
+				ih.Subject LIKE '%' || #{icoSearch} || '%' OR
+				b.InitiatorName LIKE '%' || #{icoSearch} || '%' OR 
+				b.DocNo LIKE '%' || #{icoSearch} || '%' OR
+				ih.forminstid LIKE '%' || #{icoSearch} || '%'
+			)
+		</if>
+	</select>
+	
+	<update id="deleteEachLegacyErrorLog" parameterType="cmap">
+		update gwuser.jwf_legacy_if_history
+		set DeleteDate = SYSDATE
+		where LegacyHistoryID = #{legacyHistoryID}
+	</update>
+	
+</mapper>
+
+

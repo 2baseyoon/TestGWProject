@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="common.entInfo">
+    <select id="selectEntInfoList" resultType="cmap" >
+	    <![CDATA[		
+	    SELECT DomainCode AS "optionValue" ,Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as "optionText", DomainCode as "defaultVal"
+	    FROM sys_object_group gr
+		INNER JOIN sys_object_domain dn on gr.CompanyCode = dn.DomainCode
+		]]>
+		WHERE gr.GroupType = 'Company' 
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND TO_CHAR(dn.ServiceStart,'yyyymmdd') <![CDATA[<=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+		AND TO_CHAR(dn.ServiceEnd,'yyyymmdd') <![CDATA[>=]]>   TO_CHAR(SYSDATE,'yyyymmdd')
+		ORDER BY gr.SortKey ASC
+	</select>
+
+	<!-- domainid as option value -->
+    <select id="selectEntInfoListId" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainID AS "optionValue" ,Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as "optionText", DomainCode as "defaultVal"
+			FROM sys_object_group gr
+			INNER JOIN sys_object_domain dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+			AND dn.IsUse = 'Y' 
+			AND TO_CHAR(dn.ServiceStart,'yyyymmdd') <![CDATA[<=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+			AND TO_CHAR(dn.ServiceEnd,'yyyymmdd') <![CDATA[>=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+		ORDER BY gr.SortKey ASC
+	</select>
+</mapper>

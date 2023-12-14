@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.task">
+    <!-- 업무이관 - 업무 이동  -->
+    <update id="updateTaskOwner" parameterType="cmap">
+        UPDATE TASK 
+		SET OwnerCode = #{targetUserID}
+		WHERE OwnerCode = #{sourceUserID}
+    </update>
+    
+    <!-- 업무이관 - 폴더 이동  -->
+    <update id="updateFolderOwner" parameterType="cmap">
+        UPDATE TASK_FOLDER
+		SET OwnerCode = #{targetUserID}
+		WHERE OwnerCode = #{sourceUserID}
+    </update>
+    
+    <!-- 부서별 통계 - 개인  -->
+  	<select id="selectGroupChartPersonData" parameterType="cmap" resultType="cmap">
+  	    SELECT State AS "State"
+  	        	 , COUNT(*) AS "StateCnt"
+  	    FROM TASK_FOLDER a
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP b ON a.OwnerCode = b.UserCode
+		WHERE b.DeptCode = #{groupCode}
+		GROUP BY State 
+  	</select>
+    
+    <!-- 부서별 통계 - 공유  -->
+  	<select id="selectGroupChartShareData" parameterType="cmap" resultType="cmap">
+  	    SELECT State AS "State"
+  	         	 , COUNT(*) AS "StateCnt"
+		FROM TASK_FOLDER a
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP b ON a.OwnerCode = b.UserCode
+		WHERE a.DeleteDate IS NULL
+		AND a.IsShare = 'Y'
+		AND b.DeptCode = #{groupCode}
+		GROUP BY State 
+  	</select>
+    
+	<!-- 특정 폴더의 하위 폴더 항목 조회-->
+	<select id="selectFolderOfFolderList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT DISTINCT
+				  FolderID AS "FolderID"
+				, DisplayName AS "DisplayName"
+				, FolderState AS "FolderState"
+				, FolderStateCode AS "FolderStateCode"
+				, IsShare AS "IsShare"
+				, OwnerCode AS "OwnerCode"
+				, RegisterCode AS "RegisterCode"
+				, ParentFolderID AS "ParentFolderID"
+				, RegisterName AS "RegisterName"
+				, ROWNUM
+				, RegistDate AS "RegistDate"
+			FROM (
+				SELECT	  a.FolderID
+						, a.DisplayName
+						, a.State AS FolderState
+						, a.State AS FolderStateCode
+						, a.IsShare
+						, a.OwnerCode
+						, a.RegisterCode
+						, NVL(a.ParentFolderID, 0) AS ParentFolderID
+						, FN_BASEGETDICTIONARY_S(#{lang}, c.MultiDisplayName) AS RegisterName
+						, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+				FROM TASK_FOLDER a
+				LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+				WHERE NVL(a.ParentFolderID, 0)  = #{FolderID}
+				AND a.DeleteDate IS NULL
+				AND a.OwnerCode = #{userID}
+				<if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+					AND a.State = #{stateCode} 
+				</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+						<when test="searchType == 'Subject'">
+							AND a.DisplayName LIKE '%'||#{searchWord}||'%'
+						</when>
+						<when test="searchType == 'RegisterName'">
+							AND  c.DisplayName LIKE '%'||#{searchWord}||'%'
+						</when>
+					</choose>
+				</if>
+	        ) temp
+			<trim prefix="ORDER BY">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("FolderState")'>FolderState</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("FolderID")'>FolderID</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/> 
+	</select>
+    
+    <!-- 특정 폴더의 하위 폴더 항목 개수 조회-->
+    <select id="selectFolderOfFolderListCnt" parameterType="cmap" resultType="java.lang.Long">
+       <![CDATA[
+      		SELECT DISTINCT COUNT(*) 
+			FROM TASK_FOLDER a
+			LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+			WHERE NVL(a.ParentFolderID, 0)  = #{FolderID}
+			AND a.DeleteDate IS NULL
+        	AND a.OwnerCode = #{userID}
+       ]]>
+        <if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+			 	AND a.State = #{stateCode} 
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			<choose>
+			    <when test="searchType == 'Subject'">
+			      AND a.DisplayName LIKE '%'||#{searchWord}||'%'
+			    </when>
+			    <when test="searchType == 'RegisterName'">
+			     AND  c.DisplayName LIKE '%'||#{searchWord}||'%'
+			    </when>
+		    </choose>
+		</if>
+    </select>
+    
+	<!-- 특정 폴더의 하위 업무 항목 조회-->
+	<select id="selectTaskOfFolderList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	  TaskID AS "TaskID"
+				, FolderID AS "FolderID"
+				, Subject AS "Subject"
+				, StartDate AS "StartDate"
+				, EndDate AS "EndDate"
+				, TaskState AS "TaskState"
+				, TaskStateCode AS "TaskStateCode"
+				, IsDelay AS "IsDelay"
+				, RegisterCode AS "RegisterCode"
+				, OwnerCode AS "OwnerCode"
+				, RegisterName AS "RegisterName"
+				, RegistDate AS "RegistDate"
+				, ROWNUM
+		FROM (
+			SELECT	  a.TaskID
+					, a.FolderID
+					, a.Subject
+					, NVL(a.StartDate, '') AS StartDate
+					, NVL(a.EndDate, '') AS EndDate
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, CASE	WHEN (a.State = 'Waiting' AND (a.StartDate <![CDATA[ < ]]> SYSDATE OR a.EndDate <![CDATA[ < ]]> SYSDATE))
+									OR (a.State = 'Process' AND a.EndDate <![CDATA[ < ]]> SYSDATE)
+							THEN 'Y' ELSE 'N'
+							END AS IsDelay
+					, a.RegisterCode
+					, a.OwnerCode
+					, FN_BASEGETDICTIONARY_S(#{lang}, c.MultiDisplayName) AS RegisterName
+					, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+			FROM TASK a
+			LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+			WHERE a.FolderID = #{FolderID}
+			AND a.OwnerCode = #{userID}
+			AND a.DeleteDate IS NULL
+			<if test="FolderID!=null and FolderID.equalsIgnoreCase('0')"> 
+				AND a.OwnerCode =  #{userID} 
+			</if>
+			<if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND a.State = #{stateCode} 
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+					<when test="searchType == 'Subject'"> 
+						AND a.Subject LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test="searchType == 'RegisterName'">
+						AND c.DisplayName LIKE '%'||#{searchWord}||'%'
+					</when>
+				</choose>
+			</if>
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+    		<choose>
+				<when test='sortColumn.equalsIgnoreCase("TaskID")'>TaskID</when>
+				<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+				<when test='sortColumn.equalsIgnoreCase("TaskState")'>TaskState</when>
+				<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+				<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+				<when test='sortColumn.equalsIgnoreCase("IsDelay")'>IsDelay</when>
+				<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+				<otherwise>RegistDate</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+			<include refid="oracle.include.listOrderBy"/>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+    <!-- 특정 폴더의 하위 업무 항목 조회-->
+    <select id="selectTaskOfFolderListCnt" parameterType="cmap" resultType="java.lang.Long">
+       <![CDATA[
+      		SELECT  COUNT(*)
+			FROM TASK a
+			LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+       ]]>
+			WHERE a.FolderID = #{FolderID}
+			AND a.DeleteDate IS NULL
+		    AND a.OwnerCode =  #{userID}
+	        <if test="stateCode != null and stateCode != ''   and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+			 	AND a.State = #{stateCode} 
+		    </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'Subject'"> 
+				      AND a.Subject LIKE '%'||#{searchWord}||'%'
+				    </when>
+				    <when test="searchType == 'RegisterName'">
+				     AND  c.DisplayName LIKE '%'||#{searchWord}||'%'
+				    </when>
+			    </choose>
+			</if>
+    </select>
+</mapper>

@@ -1,0 +1,228 @@
+<div class="PN_myInfo" style="display: none;">
+	<div class="pr_img">
+<!-- 		<img id="imgPrImg" src="/HtmlSite/smarts4j_n/covicore/resources/images/common/img.jpg" onerror="coviCmn.imgError(this, true);" alt="wpProfilePhoto"> -->
+	</div>
+	<strong class="pr_name">────── <span>────</span></strong>
+	<span class="pr_team">───────</span>
+	<span class="pr_time">──────────────</span>
+</div>
+<div class="PN_infoTab">
+	<ul class="PN_tabList">
+		<li class="PN_tab1_1" data-tab="PN_tab1_1" data-config="useRollingBanner" style="display: none;"><a href="#" onclick="javascript:LeftTabSummary.clickTab(this);"><spring:message code="Cache.lbl_MainNews"/></a></li> <!-- 주요소식 -->
+		<li class="PN_tab1_2" data-tab="PN_tab1_2" data-config="useMail" style="display: none;"><a href="#" onclick="javascript:LeftTabSummary.clickTab(this);"><spring:message code="Cache.lbl_Mail"/><span class="countStyle">0</span></a></li> <!-- 메일 -->
+		<li class="PN_tab1_3" data-tab="PN_tab1_3" data-config="useAccount" style="display: none;"><a href="#" onclick="javascript:LeftTabSummary.clickTab(this);"><spring:message code="Cache.lbl_apv_status"/><span class="countStyle">0</span></a></li> <!-- 결재현황 -->
+		<li class="PN_tab1_4" data-tab="PN_tab1_4" data-config="useSchedule" style="display: none;"><a href="#" onclick="javascript:LeftTabSummary.clickTab(this);"><spring:message code="Cache.lbl_schStatus"/></a></li> <!-- 일정현황 -->
+		<li class="PN_tab1_5" data-tab="PN_tab1_5" data-config="useBiztask" style="display: none;"><a href="#" onclick="javascript:LeftTabSummary.clickTab(this);"><spring:message code="Cache.lbl_MyWork"/><span class="countStyle">0</span></a></li><!--  내업무 -->
+	</ul>
+</div>
+<div class="PN_infoCont">
+	<div id="PN_tab1_1" class="PN_tabContent active">
+		<div class="PN_mSliderArea">
+			<div id="rollingBannerList" class="PN_mSlider"></div>
+		</div>
+	</div>
+	<div id="PN_tab1_2" class="PN_tabContent">
+		<div class="PN_tabCont_inner">
+			<div class="PN_mailArea">
+				<div class="PN_linkBox">
+					<ul>
+						<li class="l_link1_1"><a href="/mail/layout/mail_Mail.do?CLSYS=mail&CLMD=user&CLBIZ=Mail"><span class="l_Txt"><spring:message code="Cache.btn_Mail_whole"/></span><strong class="l_Num">0</strong></a></li> <!-- 전체메일 -->
+						<li class="l_link1_2"><a href="/mail/layout/mail_Mail.do?CLSYS=mail&CLMD=user&CLBIZ=Mail"><span class="l_Txt"><spring:message code="Cache.lbl_ReceivedMail"/></span><strong class="l_Num">0</strong></a></li> <!-- 받은메일 -->
+					</ul>
+					<a href="/mail/layout/mail_Mail.do?CLSYS=mail&CLMD=user&CLBIZ=Mail" class="PN_More">more</a>
+				</div>
+				<div class="PN_mailCont">
+					<div class="PN_mailListBox scrollVType01">
+						<div class="PN_mailInner contentBox">
+						</div>
+					</div>
+					
+				</div>
+			</div>
+			<div class="PN_capacityWrap"> 
+				<div class="PN_capacityTit"><strong>-</strong> <span class="PN_capacityAll"></span> <span class="PN_capacityRest"></span></div>
+				<div class="PN_capacityBox"><div id="PN_capacityBar" class="PN_capacityBar" style="width:0%;"></div></div>
+			</div>
+		</div>
+	</div>
+	<div id="PN_tab1_3" class="PN_tabContent">
+		<div class="PN_tabCont_inner">
+			<div class="PN_aprArea">
+				<div class="PN_linkBox PN_linkBox2">
+					<ul>
+						<li class="l_link2_1"><a href="/approval/layout/approval_ApprovalList.do?CLSYS=approval&CLMD=user&CLBIZ=Approval&mode=Approval"><span class="l_Txt"><spring:message code="Cache.lbl_apv_appDocWait"/></span><strong class="l_Num">0</strong></a></li> <!-- 미결 -->
+						<li class="l_link2_2"><a href="/approval/layout/approval_ApprovalList.do?CLSYS=approval&CLMD=user&CLBIZ=Approval&mode=Process"><span class="l_Txt"><spring:message code="Cache.lbl_apv_Processing"/></span><strong class="l_Num">0</strong></a></li> <!-- 진행 -->
+					</ul>
+					<a href="/approval/layout/approval_Home.do?CLSYS=approval&CLMD=user&CLBIZ=Approval" class="PN_More">more</a>
+				</div>
+				<div class="PN_aprCont">
+					<div class="PN_aprListArea mScrollV scrollVType01">
+						<div class="PN_aprInner">
+							<div class="PN_aprBox PN_aprBox1">
+								<div class="PN_TitleBox">
+									<h2><spring:message code="Cache.lbl_apv_doc_approve2"/></h2> <!-- 미결함 -->
+									<a href="#" class="PN_btnSlide_close" onclick="javascript:LeftTabSummary.approval.toggleBox(this);"></a> <!-- 닫기 <spring:message code="Cache.btn_Close"/> -->
+									<a href="/approval/layout/approval_ApprovalList.do?CLSYS=approval&CLMD=user&CLBIZ=Approval&mode=Approval" class="PN_More">more</a>
+								</div>
+								<div class="PN_aprListBox contentBox"></div>
+							</div>
+							<div class="PN_aprBox PN_aprBox2">
+								<div class="PN_TitleBox">
+									<h2><spring:message code="Cache.lbl_apv_doc_process2"/></h2> <!-- 진행함 -->
+									<a href="#" class="PN_btnSlide_close" onclick="javascript:LeftTabSummary.approval.toggleBox(this);"></a> <!-- 닫기 <spring:message code="Cache.btn_Close"/> -->
+									<a href="/approval/layout/approval_ApprovalList.do?CLSYS=approval&CLMD=user&CLBIZ=Approval&mode=Process" class="PN_More">more</a>
+								</div>
+								<div class="PN_aprListBox contentBox"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="PN_tab1_4" class="PN_tabContent">
+		<div class="PN_tabCont_inner">
+			<div class="PN_scheduleArea">
+				<div class="PN_linkBox PN_linkBox3">
+					<div class="PN_scDate">
+						<strong><span id="schStartDate"></span> ~ <span id="schEndDate"></span></strong>
+						<a href="#" class="PN_btnPrev" onclick="javascript:LeftTabSummary.schedule.setDate('PREV');"></a>
+						<a href="#" class="PN_btnNext" onclick="javascript:LeftTabSummary.schedule.setDate('NEXT');"></a>
+					</div>
+					<a href="/groupware/layout/schedule_View.do?CLSYS=schedule&CLMD=user&CLBIZ=Schedule&viewType=M" class="PN_More">more</a>
+				</div>
+				<div class="PN_scheduleCont scrollVType01">
+					<div class="PN_scheduleInner contentBox"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="PN_tab1_5" class="PN_tabContent">
+		<div class="PN_tabCont_inner">
+			<div class="PN_taskArea">
+				<div class="PN_taskCont scrollVType01">
+					<div class="PN_taskInner">
+						<div class="PN_taskBox PN_taskBox1">
+							<div class="PN_TitleBox">
+								<h2><spring:message code="Cache.lbl_MyWorkStatus"/></h2> <!-- 내 업무현황 -->
+								<select id="selTaskType" class="selectType02">
+									<option value="ALL"><spring:message code="Cache.lbl_allwork"/></option> <!-- 전체업무 -->
+									<option value="TF"><spring:message code="Cache.lbl_Project"/></option> <!-- 프로젝트 -->
+									<option value="TASK"><spring:message code="Cache.lbl_TaskManage"/></option> <!-- 업무관리 -->
+								</select>
+							</div>
+							<!-- 목록이 있을 경우 -->
+							<div class="PN_cycleArea">
+								<div class="PN_cycleCont">
+									<div class="cycleBg">
+										<div class="pie"></div>
+										<div class="cycleTxt">
+											<div class="inner">
+												<strong class="cNum"></strong>
+											</div>
+										</div>
+									</div>
+									<div class="slice">
+										<div class="pie"></div>
+										<div class="pie fill"></div>
+									</div>
+									<div class="slice">
+										<div class="pie"></div>
+										<div class="pie fill"></div>
+									</div>
+									<div class="slice">
+										<div class="pie"></div>
+										<div class="pie fill"></div>
+									</div>
+								</div>
+								<div class="PN_cycleList">
+									<ul>
+										<li><a href="#">
+											<strong class="cyNum cyNum1"></strong>
+											<span class="cyTxt"><spring:message code="Cache.lbl_Progress"/></span> <!-- 진행 -->
+										</a></li>
+										<li><a href="#">
+											<strong class="cyNum cyNum2"></strong>
+											<span class="cyTxt"><spring:message code="Cache.lbl_Completed"/></span> <!-- 완료 -->
+										</a></li>
+										<li><a href="#">
+											<strong class="cyNum cyNum3"></strong>
+											<span class="cyTxt"><spring:message code="Cache.lbl_Ready"/></span> <!-- 대기 -->
+										</a></li>
+										<li><a href="#">
+											<strong class="cyNum cyNum4"></strong>
+											<span class="cyTxt"><spring:message code="Cache.lbl_Delay"/></span> <!-- 지연 -->
+										</a></li>
+									</ul>
+								</div>
+							</div>
+						</div>
+						<!-- 목록이 없을 경우 -->
+						<div class="PN_nolist PN_nolist_bd" style="display:none;">
+							<p class="list_none"><spring:message code="Cache.msg_NoDataList"/></p> <!-- 조회할 목록이 없습니다. -->
+						</div>
+						<div class="PN_taskBox PN_taskBox2">
+							<div class="PN_TitleBox">
+								<h2><spring:message code="Cache.lbl_DailyReport"/></h2> <!-- 일일 업무보고 -->
+								<a href="/groupware/layout/bizreport_DailyReport.do?CLSYS=biztask&CLMD=user&CLBIZ=BizTask" class="PN_More">more</a>
+							</div>
+							<div class="PN_reportBox" id="pn_reSliderParent">
+							</div>
+							<!-- 목록이 없을 경우 -->
+							<div class="PN_nolist PN_nolist_bd" style="display:none;">
+								<p class="list_none"><spring:message code="Cache.msg_NoDataList"/></p> <!-- 조회할 목록이 없습니다. -->
+							</div>
+						</div>
+						<div class="PN_taskBox PN_taskBox3">
+							<div class="PN_TitleBox">
+								<h2><spring:message code="Cache.lbl_MyWork2"/></h2> <!-- 내 업무 -->
+								<a href="/groupware/layout/biztask_MyTask.do?CLSYS=biztask&CLMD=user&CLBIZ=BizTask#" class="PN_More">more</a>
+							</div>
+							<ul class="PN_taskList"></ul>
+							<!-- 목록이 없을 경우 -->
+							<ul class="PN_nolist PN_nolist_bd" style="display:none;">
+								<li class="">
+									<p class="list_none"><spring:message code="Cache.msg_NoDataList"/></p> <!-- 조회할 목록이 없습니다. -->
+								</li>
+							</ul>
+						</div>
+						<div class="PN_taskBox PN_taskBox4">
+							<div class="PN_TitleBox">
+								<h2>Today <strong>Works</strong></h2>
+							</div>
+							<ul class="PN_TodayList"></ul>
+							<!-- 목록이 없을 경우 -->
+							<ul class="PN_nolist PN_nolist_bd" style="display:none;">
+								<li class="">
+									<p class="list_none"><spring:message code="Cache.msg_NoDataList"/></p> <!-- 조회할 목록이 없습니다. -->
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- 메일 세션 -->
+	<input type="hidden" id="inputUserId" value="" />
+	<!-- 전자결재 승인/반려 의견 -->
+	<input type="hidden" data-type="field" id="ACTIONCOMMENT" value="" />
+	<input type="hidden" data-type="field" id="ACTIONCOMMENT_ATTACH" value="" />
+	<input type="hidden" data-type="field" id="SIGNIMAGETYPE" value="" />
+</div>
+		
+<style type="text/css">
+	DIV.listViewLoading {
+		background-color: rgba(0,0,0,0.6);
+		z-index: 1000;
+		position: absolute;
+		right: 30px;
+		bottom: 20px;
+		padding: 10px 30px;
+		border-radius: 3px;
+		color: #fff;
+		-webkit-box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.54);
+		-moz-box-shadow: 0px 0px 5px 0px rgba(0,0,0,0.54);
+		box-shadow: 0px 0px 2px 0px rgba(0,0,0,0.54);
+	}
+</style>	

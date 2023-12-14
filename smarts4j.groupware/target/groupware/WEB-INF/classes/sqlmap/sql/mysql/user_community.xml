@@ -1,0 +1,3586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.community">
+ 	
+	<select id="communityFavoritesSetting" parameterType="cmap" resultType="cmap">
+		SELECT  
+				IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName) AS CommunityName
+			  , c.CU_ID
+		FROM community_favorite cf
+		INNER JOIN community c ON c.CU_ID = cf.CU_ID
+		WHERE c.RegStatus = 'R' 
+		AND cf.UR_CODE = #{UR_CODE}
+		AND c.DN_ID IN (0,#{DN_ID})
+		ORDER BY SortKey ASC
+	</select>
+	
+	<delete id="communityFavoritesDelete" parameterType="cmap">
+		DELETE FROM community_favorite
+		WHERE UR_CODE = #{UR_CODE}
+		AND CU_ID = #{CU_ID}
+	</delete>
+	
+	<select id="selectUserJoinCommunity" parameterType="cmap" resultType="cmap">
+		SELECT  DISTINCT c.CU_ID AS optionValue
+				, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName) AS optionText
+				, IFNULL(ci.FileID, '') AS FileID
+				, IFNULL(ci.FilePath, '') AS FilePath
+		FROM community_member cm
+		INNER JOIN community c ON c.CU_ID = cm.CU_ID
+		LEFT OUTER JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE cm.UR_Code = #{UR_CODE}
+		AND c.DN_ID IN (0,#{DN_ID})
+		AND cm.MemberStatus = 'R' 
+		AND c.RegStatus IN ('R' ,'X')
+		AND ( c.Gubun = 'C' OR c.Gubun is null )
+		ORDER BY c.RegRequestDate ASC
+		<if test="LIMIT != null and LIMIT != ''">
+		LIMIT #{LIMIT}
+		</if>
+	</select>
+	
+	<select id="selectCommunityHotStory"  parameterType="cmap" resultType="cmap">
+		SELECT	c.CU_ID
+				, c.OperatorCode
+				, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+				, Fn_BaseGetDictionary_S(#{lang}, IFNULL(c.OperatorName,'')) AS CreatorName
+				, c.RegProcessDate AS RegProcessDate
+				, c.SearchTitle
+				, c.SearchSummary
+				, IFNULL(D.MemberCNT, 0)AS MemberCNT
+				, c.MsgCount
+				<!--  , IFNULL(ci.FilePath, '')AS FilePath -->
+				, IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+				, (SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName) FROM community_category cc WHERE cc.categoryID = c.categoryID)AS categoryName
+		FROM community c
+		INNER JOIN (SELECT CU_ID, MAX(YYYYMMDD) AS maxdate, Sum(Difference) AS activity FROM community_log_group_daily GROUP BY CU_ID ORDER BY activity DESC limit 5 ) AS T ON T.CU_ID = c.CU_ID
+		LEFT JOIN sys_object_user sou ON sou.UserCode = c.OperatorCode
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.FileType ='S' AND ci.IsCurrent = 'Y'
+		LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+		LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+		LEFT JOIN (SELECT cm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cm INNER JOIN sys_object_user souu ON souu.UserCode = cm.UR_Code WHERE cm.MemberLevel != '0' AND cm.MemberStatus = 'R' AND cm.DetailStatus = 'RV' AND souu.IsUse = 'Y' GROUP BY cm.CU_ID ) AS D ON D.CU_ID = c.CU_ID
+		WHERE 1=1 
+		AND c.RegStatus = 'R' 
+		AND c.RegProcessDate IS NOT NULL
+		<choose>
+			<when test='isSaaS == "Y" or communityMainORGDisplay == "N"'>
+				AND c.DN_ID = #{DN_ID}
+			</when>
+			<otherwise>
+				AND c.DN_ID IN (0,#{DN_ID})
+			</otherwise>
+		</choose>
+		ORDER BY c.Point DESC 
+		LIMIT 3
+	</select>
+	
+	<select id="selectCommunityFavorite"  parameterType="cmap" resultType="cmap">
+		SELECT	c.CU_ID
+				, c.OperatorCode
+				, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+				<!-- , c.CommunityName -->
+				, Fn_BaseGetDictionary_S(#{lang}, IFNULL(c.OperatorName,'')) AS CreatorName
+				, c.RegProcessDate AS RegProcessDate
+				, c.SearchTitle
+				, c.SearchSummary
+				, IFNULL(D.MemberCNT, 0)AS MemberCNT
+				, c.MsgCount
+				<!-- , IFNULL(ci.FilePath, '')AS FilePath  -->
+				, IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+				, (SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName) FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName
+		FROM community c 
+		INNER JOIN (SELECT  UR_CODE, CU_ID, SortKey, CreateDate FROM community_favorite WHERE 1=1 AND UR_Code = #{UR_CODE} ORDER BY SortKey Desc limit 30) AS T ON T.CU_ID = c.CU_ID
+		INNER JOIN sys_object_user sou ON sou.UserCode = c.OperatorCode AND sou.IsUse = 'Y'
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.FileType ='S' AND ci.IsCurrent = 'Y'
+		LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+		LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+		LEFT JOIN (SELECT cm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cm INNER JOIN sys_object_user souu ON souu.UserCode = cm.UR_Code WHERE cm.MemberLevel != '0' AND cm.MemberStatus = 'R' AND cm.DetailStatus = 'RV' AND souu.IsUse = 'Y' GROUP BY cm.CU_ID ) AS D ON D.CU_ID = c.CU_ID
+		WHERE 1=1 		
+		AND c.DN_ID IN (0,#{DN_ID})
+		LIMIT 3
+	</select>
+	
+	<select id="selectCommunitySearchWord"  parameterType="cmap" resultType="cmap">
+		SELECT	SearchWordID
+				, SearchWord
+				, SearchCnt
+				, SearchDate
+				, RecentlyPoint
+				, DomainID
+				, System
+				, RegID 
+				, RegDate
+				, ModID
+				, ModDate
+		FROM sys_search_word
+		WHERE SearchWord <![CDATA[ <> ]]> 'undefined' 
+		<choose>
+			<when test='isSaaS == "Y"'>
+				AND DomainID = #{DN_ID}
+			</when>
+			<otherwise>
+				AND DomainID IN (0,#{DN_ID})
+			</otherwise>
+		</choose>
+		AND System = 'Community' 
+		ORDER BY RecentlyPoint DESC, SearchDate DESC
+		LIMIT 5 
+	</select>
+	
+	<select id="selectCommunityNoticeTotalCnt" parameterType="cmap"  resultType="java.lang.Long">		
+		  SELECT COUNT(*) FROM 
+					( SELECT 1
+					 FROM board_message AS BM 
+					 LEFT OUTER JOIN community_member AS cm ON cm.UR_Code = BM.CreatorCode 
+					 INNER JOIN community AS c ON c.CU_ID = cm.CU_ID 
+			  		 INNER JOIN sys_object_folder sof ON sof.FolderID = BM.FolderID AND sof.MenuID = cm.CU_ID
+					 WHERE 1=1 
+					  <![CDATA[	
+					 AND BM.MsgState IN ('C', 'A') 
+					 AND MsgType != 'S' 
+					 AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND BM.CreatorCode = #{UR_Code})) 
+					 AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= NOW(3) ) 
+					 AND BM.DeleteDate IS NULL 
+					 AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{UR_Code})
+					  ]]> 
+					 AND BM.FolderID IN 
+					<foreach item="item" index="index" collection="list" open="(" close=")" separator=",">
+						#{item.FolderID}
+					</foreach>	
+				) AS RESULT WHERE 1=1 
+	</select>
+	
+	<select id="selectCommunityNotice" parameterType="cmap" resultType="cmap">
+				SELECT * FROM 
+					( SELECT BM.MessageID 
+							 , BM.Version 
+							 , BM.FolderID 
+							 , BM.ParentID 
+							 , BM.Seq
+							 , BM.Step 
+							 , BM.Depth 
+							 , BM.Subject 
+							 , BM.ReadCnt 
+							<!-- , (SELECT COUNT(*) FROM sys_comment WHERE TargetServiceType =  #{bizSection} AND TargetID = CONCAT(BM.MessageID,'_',BM.Version))AS CommentCnt  -->
+							 , BM.ReportCnt 
+							 , BM.FileCnt
+							 , BM.FileExtension 
+							 , DATE_FORMAT(BM.RegistDate,'%Y.%m.%d %H:%i:%s') AS RegistDate 
+							<!--  , Fn_BaseGetDictionary_S(#{lang},IF(BM.UsePubDeptName = 'Y', BM.CreatorDept, BM.CreatorName))AS CreatorName  -->
+							 , BM.CreatorLevel
+							 , BM.DeleteDate 
+							<!--  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName -->
+							 , c.CommunityName AS CommunityName
+							 , c.CU_ID
+							<!--  , IF((SELECT COUNT(*) FROM board_message_reader AS RD WHERE MessageID = BM.MessageID AND ReaderCode = #{UR_Code}) > 0, 'Y', 'N' ) AS IsRead
+							 , (SELECT MAX(FileID) FROM sys_file AS SF WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID -->
+					 FROM board_message AS BM 
+					 LEFT OUTER JOIN community_member AS cm ON cm.UR_Code = BM.CreatorCode 
+					 INNER JOIN community AS c ON c.CU_ID = cm.CU_ID 
+			  		 INNER JOIN sys_object_folder sof ON sof.FolderID = BM.FolderID AND sof.MenuID = cm.CU_ID
+					 WHERE 1=1 
+					  <![CDATA[	
+					 AND BM.MsgState IN ('C', 'A') 
+					 AND MsgType != 'S' 
+					 AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND BM.CreatorCode = #{UR_Code})) 
+					 AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= NOW(3) ) 
+					 AND BM.DeleteDate IS NULL 
+					 AND (BM.ReservationDate IS NULL OR BM.ReservationDate < NOW(3))
+					 AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{UR_Code})
+					  ]]> 
+					 AND (sof.IsUse = 'Y' OR c.OperatorCode = #{isCommunityAdmin}) 
+					 <if test='IsMobileSupport =="Y"'>
+					 	AND sof.IsMobileSupport = 'Y'
+					 </if>
+					 AND BM.FolderID IN 
+					<foreach item="item" index="index" collection="list" open="(" close=")" separator=",">
+						#{item.FolderID}
+					</foreach>	
+				) AS RESULT WHERE 1=1 
+				 
+				 ORDER BY IF(ParentID = 0, MessageID, Seq) DESC, depth,step ASC 
+			 				 
+				<if test="pageSize != null and pageOffset != null">
+						LIMIT #{pageSize} OFFSET #{pageOffset}
+				</if>
+				<if test="pageSize == null or pageOffset == null">
+					  LIMIT 3 
+				</if>
+	</select>
+	
+	<select id="selectCommunityFrequent"  parameterType="cmap" resultType="cmap">
+		SELECT  DISTINCT cm.CU_ID
+			  , c.CU_Code
+			  , c.CategoryID
+			  , c.CommunityType
+			  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			 <!--  , c.CommunityName -->
+			  , c.CreatorCode
+			  , c.OperatorCode
+			  , c.OperatorName
+			  , c.MemberCount
+			  , c.MsgCount
+			  , c.Grade
+			  , c.Point
+			  , IFNULL(c.SearchTitle,'')AS SearchTitle
+			  <!-- , IFNULL(ci.FilePath, '')AS FilePath  -->
+			  , IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+			  , cc.FolderPath
+			<!--	, Fn_BaseGetDictionary_S(#{lang}, IFNULL(c.OperatorName,'')) AS CreatorName -->
+			, IFNULL(c.OperatorName,'') AS CreatorName
+			  , IFNULL(D.MemberCNT, 0)AS MemberCNT
+			 <!--  , (SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName) FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName -->
+			 , cc.DisplayName AS categoryName
+			  , c.RegProcessDate AS RegProcessDate
+		FROM community_member cm
+		INNER JOIN community c ON c.CU_ID = cm.CU_ID
+		INNER JOIN community_category cc ON cc.CategoryID = c.CategoryID
+		LEFT JOIN sys_object_user sou ON sou.UserCode = c.OperatorCode
+		LEFT OUTER JOIN community_image ci ON ci.CU_ID = cm.CU_ID AND ci.FileType ='S'  AND ci.IsCurrent = 'Y'
+		LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+		LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+		LEFT JOIN (SELECT cmm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cmm INNER JOIN sys_object_user souu ON souu.UserCode = cmm.UR_Code WHERE cmm.MemberLevel != '0' AND cmm.MemberStatus = 'R' AND cmm.DetailStatus = 'RV' AND souu.IsUse = 'Y' GROUP BY cmm.CU_ID ) AS D ON D.CU_ID = c.CU_ID		
+		WHERE cm.MemberStatus = 'R'
+		AND c.RegStatus = 'R'
+		AND IFNULL(c.Secret,'N') != 'Y'
+		<choose>
+			<when test='isSaaS == "Y" or communityMainORGDisplay == "N"'>
+				AND c.DN_ID = #{DN_ID}
+			</when>
+			<otherwise>
+				AND c.DN_ID IN (0,#{DN_ID})
+			</otherwise>
+		</choose>
+		AND c.DefaultBoardType != 'TF'
+		ORDER BY Point DESC 
+		LIMIT 3 
+	</select>
+	
+	<select id="selectNewCommunity"  parameterType="cmap" resultType="cmap">
+		SELECT  DISTINCT cm.CU_ID
+			  , c.CU_Code
+			  , c.CategoryID
+			  , c.CommunityType
+			  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			  <!-- , c.CommunityName -->
+			  , c.CreatorCode
+			  , c.OperatorCode
+			  , c.OperatorName
+			  , c.MemberCount
+			  , c.MsgCount
+			  , c.Grade
+			  , c.Point
+			  , c.SearchTitle
+			  <!-- , IFNULL(ci.FilePath, '')AS FilePath  -->
+			  , IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+			  , cc.FolderPath
+			  <!-- , Fn_BaseGetDictionary_S(#{lang}, IFNULL(c.OperatorName,'')) AS CreatorName -->
+			  , IFNULL(c.OperatorName,'') AS CreatorName
+			  , IFNULL(D.MemberCNT, 0)AS MemberCNT
+			  <!-- , (SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName) FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName -->
+			  , cc.DisplayName AS categoryName
+			  , c.RegProcessDate AS RegProcessDate
+		FROM community_member cm
+		INNER JOIN community c ON c.CU_ID = cm.CU_ID
+		INNER JOIN community_category cc ON cc.CategoryID = c.CategoryID
+		LEFT JOIN sys_object_user sou ON sou.UserCode = c.OperatorCode
+		LEFT OUTER JOIN community_image ci ON ci.CU_ID = cm.CU_ID AND ci.FileType ='S'  AND ci.IsCurrent = 'Y' AND ci.IsCurrent = 'Y'
+		LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+		LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+		LEFT JOIN (SELECT cmm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cmm INNER JOIN sys_object_user souu ON souu.UserCode = cmm.UR_Code WHERE cmm.MemberLevel != '0' AND cmm.MemberStatus = 'R' AND cmm.DetailStatus = 'RV' AND souu.IsUse = 'Y' GROUP BY cmm.CU_ID ) AS D ON D.CU_ID = c.CU_ID
+		WHERE cm.MemberStatus = 'R'
+		AND c.RegStatus = 'R'
+		AND IFNULL(c.Secret,'N') != 'Y'
+		<choose>
+			<when test='isSaaS == "Y" or communityMainORGDisplay == "N"'>
+				AND c.DN_ID = #{DN_ID}
+			</when>
+			<otherwise>
+				AND c.DN_ID IN (0,#{DN_ID})
+			</otherwise>
+		</choose>
+		AND c.DefaultBoardType != 'TF'
+		ORDER BY RegProcessDate DESC 
+		LIMIT 2 
+	</select>
+	
+	<select id="selectUserCommunityGridList"  parameterType="cmap" resultType="cmap">
+	  SELECT * FROM (  
+		SELECT  A.CU_ID
+		 		, A.MN_ID
+		 		, A.CategoryID
+		 		, A.CU_Code
+		 		, A.DN_ID
+		 		, A.SearchTitle
+		 		, A.CommunityName
+		 		, A.CreatorCode
+		 		, A.AppStatus
+		 		, A.RegRequestDate
+		 		, A.FolderPath
+		 		, A.SortPath
+		 		, A.FileID
+		 		, A.CategoryName
+		 		, A.MembersCount
+		 		, A.RegProcessDate
+		 		, A.Point
+		 		, A.MemberCount
+		 		, A.Grade
+		 		, A.MsgCount
+		 		, Fn_BaseGetDictionary_S(#{lang}, A.MultiDisplayName) AS DisplayName
+		 		, A.CuAppDetail
+		 		, A.CommunityJoin
+		 		, A.CommunityType
+		 		, A.UserCode
+		 		, A.MemberLevel
+		 		, (SELECT MailAddress FROM sys_object_user WHERE UserCode = A.UserCode) AS MailAddress
+		 		, CONCAT(@i:=@i+1,'') AS num
+		 			 FROM (	
+						SELECT	  c.CU_ID
+									, c.MN_ID
+									, c.CategoryID
+									, c.CU_Code
+									, c.DN_ID
+									, c.SearchTitle
+									, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+									<!-- , c.CommunityName -->
+									, c.CreatorCode
+									, c.AppStatus
+									, DATE_FORMAT(c.RegRequestDate,'%Y.%m.%d')AS RegRequestDate
+									, cc.FolderPath
+									, cc.SortPath
+									, IFNULL(ci.FileID, '') AS FileID 
+									, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName)AS CategoryName
+									, (	SELECT COUNT(*) 
+										FROM community_member cmm 
+										INNER JOIN sys_object_user souu ON souu.UserCode = cmm.UR_Code 
+										WHERE cmm.MemberLevel != '0' 
+										AND cmm.MemberStatus = 'R' 
+										AND cmm.DetailStatus = 'RV'
+										AND souu.IsUse = 'Y'  
+										AND cmm.CU_ID = c.CU_ID 
+									) AS MembersCount
+									, c.RegProcessDate AS RegProcessDate
+									, c.Point
+									, c.MemberCount
+									, c.Grade
+									, c.MsgCount
+									, sou.DisplayName
+									, sou.MultiDisplayName
+									, sou.UserCode
+									, IFNULL(cm.MemberLevel,'') AS MemberLevel
+									, Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+									, Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+					 					, Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+									, @i:=0
+						FROM community AS c
+						INNER JOIN sys_object_group AS sog ON sog.GroupCode = c.CU_Code
+						LEFT JOIN sys_object_user	AS sou ON  sou.UserCode = c.OperatorCode
+						INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID
+						LEFT JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID
+						LEFT JOIN community_member AS cm ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{UR_Code} AND cm.DetailStatus IN ('RV', 'RA')
+						LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+						WHERE 1=1 
+						AND c.appstatus NOT IN ('UF', 'UV')
+						AND c.Gubun = 'C'
+						<choose>
+							<when test="CategoryID != null and CategoryID != '' and CategoryID != 'null'"> 
+								AND c.DN_ID = (SELECT DN_ID from community_category WHERE CategoryID = #{CategoryID})
+								AND cc.CategoryID = #{CategoryID}
+							</when>
+							<otherwise>
+								<choose>
+									<when test='isSaaS == "Y"'>
+										AND c.DN_ID = #{domainID}
+									</when>
+									<otherwise>
+										AND c.DN_ID IN (0,#{domainID})
+									</otherwise>
+								</choose>
+							</otherwise>
+						</choose>
+						<choose>
+							<when test ="searchType =='A'.toString()">
+									AND (c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+									 OR sou.DisplayName LIKE CONCAT('%',#{searchWord},'%') 
+									 OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+									  OR cd.Keyword LIKE CONCAT('%',#{searchWord},'%') 
+									 )
+							</when>
+							<when test ="searchType =='C'.toString()">
+									AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+							</when>
+							<when test ="searchType =='O'.toString()">
+									AND sou.DisplayName LIKE CONCAT('%',#{searchWord},'%')  	
+							</when>
+						</choose>
+					)A
+		)B
+		<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchTitle")'>SearchTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("CommunityType")'>CommunityType</when>
+					<when test='sortColumn.equalsIgnoreCase("CommunityJoin")'>CommunityJoin</when>
+					<when test='sortColumn.equalsIgnoreCase("MembersCount")'>MembersCount</when>
+					<when test='sortColumn.equalsIgnoreCase("Point")'>(Point + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("Grade")'>(Grade + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<otherwise>num*1</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectUserCommunityGridListCount"  parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)	
+		FROM community AS c
+		INNER JOIN sys_object_group AS sog ON sog.GroupCode = c.CU_Code
+		LEFT JOIN sys_object_user	AS sou ON  sou.UserCode = c.OperatorCode
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID
+		LEFT JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID
+		LEFT JOIN community_member AS cm ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{UR_Code} AND cm.DetailStatus IN ('RV', 'RA')
+		WHERE 1=1 
+		AND c.appstatus NOT IN ('UF', 'UV')
+		AND c.Gubun = 'C'
+		<choose>
+			<when test="CategoryID != null and CategoryID != '' and CategoryID != 'null'"> 
+				AND c.DN_ID = (SELECT DN_ID from community_category WHERE CategoryID = #{CategoryID})
+				AND cc.CategoryID = #{CategoryID}
+			</when>
+			<otherwise>
+				<choose>
+					<when test='isSaaS == "Y"'>
+					    AND c.DN_ID = #{domainID}
+					</when>
+					<otherwise>
+						AND c.DN_ID IN (0,#{domainID})
+					</otherwise>
+				</choose>
+			</otherwise>
+		</choose>
+		<choose>
+			<when test ="searchType =='A'.toString()">
+				AND (c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+									 OR sou.DisplayName LIKE CONCAT('%',#{searchWord},'%') 
+									 OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+									  OR cd.Keyword LIKE CONCAT('%',#{searchWord},'%') 
+									 )
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND sou.DisplayName LIKE CONCAT('%',#{searchWord},'%')  	
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectCommunityTreeData" parameterType="cmap" resultType="cmap">
+		SELECT		 cc.CategoryID AS FolderID
+					,cc.DN_ID
+					,cc.FolderType AS itemType
+					,cc.FolderType
+					,cc.FolderType AS type
+					,cc.FolderAlias
+					<!-- ,IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName)AS DisplayName	-->
+					, cc.DisplayName AS DisplayName 
+					<!-- ,IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName)AS FolderName	-->
+					,cc.DisplayName AS FolderName
+				<!-- 	,cc.DisplayName 
+					,cc.DisplayName AS FolderName -->
+					,cc.MemberOf
+					,cc.FolderPath
+					,cc.SortKey
+					,cc.SortPath
+					,cc.IsUse
+					,cc.Description
+					,cc.RegisterCode
+					,cc.RegistDate
+					,cc.ModifierCode
+					,cc.ModifyDate
+					,cc.DeleteDate
+					,cc.Reserved1
+					,cc.Reserved2
+					,(SELECT COUNT(*) FROM community_category AS cca WHERE cca.MemberOf = cc.CategoryID AND cca.IsUse = 'Y' AND cca.DeleteDate IS NULL) AS hasChild
+		FROM community_category AS cc
+		WHERE 1=1 
+		AND cc.DeleteDate IS NULL 
+		<choose>
+			<when test='isSaaS == "Y"'>
+				AND cc.DN_ID = #{DN_ID}
+			</when>
+			<otherwise>
+				AND cc.DN_ID IN (0,#{DN_ID})
+			</otherwise>
+		</choose>
+		AND cc.IsUse = 'Y'
+		ORDER BY cc.DN_ID ASC, cc.FolderType DESC, cc.SortPath ASC
+	</select>
+	
+	<select id="communitySelectCreateId" parameterType="cmap" resultType="String">
+		SELECT CONCAT('Community', (SELECT `AUTO_INCREMENT`
+									FROM  INFORMATION_SCHEMA.TABLES
+									WHERE TABLE_SCHEMA = 'COVI_SMART4J'
+									AND	TABLE_NAME	= 'COMMUNITY')		
+		) AS id FROM dual 
+	</select>
+	
+	<select id="checkCommunityNameCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community
+		WHERE CommunityName = #{DisplayName}
+		<choose>
+			<when test='isSaaS == "Y"'>
+				AND DN_ID = #{domainID}
+			</when>
+			<otherwise>
+				AND DN_ID IN (0,#{domainID})
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectCommunityBaseCode" parameterType="cmap" resultType="cmap">
+		SELECT	Code AS optionValue
+				, Fn_BaseGetDictionary_S (#{lang},MultiCodeName) AS optionText
+		FROM sys_base_code sbc
+		WHERE 1=1
+		AND CodeGroup = #{CodeGroup}
+		AND Code !=  #{CodeGroup}
+		AND IsUse = 'Y'
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = #{CodeGroup} ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		ORDER BY SortKey ASC
+	</select>
+	
+	<select id="selectCommunityDomainID" parameterType="cmap" resultType="java.lang.Long">
+		SELECT DN_ID
+		FROM community
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectCommunityCategoryDomainID" parameterType="cmap" resultType="java.lang.Long">
+		SELECT DN_ID
+		FROM community_category
+		WHERE CategoryID = #{_ParentID}
+	</select>
+	
+	<insert id="createCommunityInfomation"  parameterType="cmap" >
+		INSERT INTO community (
+									CategoryID
+								 , DN_ID
+								 , MN_ID
+								 , CommunityType
+								 , CommunityName
+								 , JoinOption
+								 , RegStatus
+								 , AppStatus
+								 , DefaultMemberLevel
+								 , RegProcessDate
+								 , LimitFileSize
+								 , SearchTitle
+								 , SearchSummary
+								 , CreatorCode
+								 , CreatorName
+								 , OperatorCode
+								 , OperatorName
+								 , DefaultBoardType
+								 , RegRequestDate
+								 , CreatorDept								 
+												) VALUES (
+									#{_ParentID}
+								 , #{DN_ID}
+								 , #{MN_ID}
+								 , #{ddlType}
+								 , #{txtCommunityName}
+								 , #{ddlJoinMothod}
+								 , 'P'
+								 , 'RA'
+								 , #{ddlMemberLevel}
+								 , NOW(3)
+								 , '300'
+								 , #{textLineIntroduction}
+								 , ''
+								, #{txtOperator}
+								 , (SELECT DisplayName FROM sys_object_user WHERE UserCode = #{txtOperator})
+								 , #{txtOperator}
+								 , (SELECT DisplayName FROM sys_object_user WHERE UserCode = #{txtOperator})
+								 , #{ddlDefaultBoardType}
+								 , NOW(3)
+								 ,( select MultiDeptName from sys_object_user_basegroup soub where UserCode = #{txtOperator} and jobtype = 'Origin' )								 
+								)
+			<selectKey resultType="java.lang.Long" keyProperty="CU_ID" order="AFTER">
+				SELECT LAST_INSERT_ID()
+			</selectKey>	
+	</insert>
+	
+	<insert id="createCommunityDetailInfomation"  parameterType="cmap" >
+		INSERT INTO community_detail(  CU_ID
+		 							,  Keyword
+									,  Description
+									,  DescriptionEditor
+									,  DescriptionOption
+									,  Provision
+									,  ProvisionEditor
+									,  ProvisionOption	) VALUES (
+									
+										#{CU_ID}
+									,  #{keyWordArry}
+									,  #{txtIntroduction}
+									,  #{txtIntroductionEditer}
+									,  #{DescriptionOption}
+									,  #{txtStipulation}
+									,  #{txtStipulationEditer}
+									,  #{ProvisionOption}
+									)
+		
+	</insert>
+	
+	<update id="updateCommunityStatus"  parameterType="cmap">
+		UPDATE community SET
+		 					  RegStatus = #{RegStatus}
+		 					, AppStatus = #{AppStatus}
+		 					, ProcesserCode = #{txtOperator}
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectCommunityInfo"  parameterType="cmap" resultType="cmap">
+		SELECT  c.CU_ID
+			  , c.CU_Code
+			  , c.CategoryID
+			  , c.DN_ID
+			  , c.CommunityType
+			  , sod.DomainID
+			  , sod.DomainCode
+			  , sod.DomainURL
+			  , sod.DisplayName
+			  , sod.MultiDisplayName
+			  , sod.ShortName
+			  , sod.MultiShortName
+			  , sod.MemberOf
+			  , sod.DomainPath
+			  , sod.SortKey
+			  , sod.SortPath
+			  , sod.IsUse
+			  , sod.ServiceUser
+			  , sod.ServiceStart
+			  , sod.ServiceEnd
+			  , sod.Description
+			  , sod.RegistDate
+			  , sod.DeleteDate
+			  , sod.MenuSyncTime
+			<!--	, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName -->
+			 , c.CommunityName AS CommunityName
+			<!--	, c.CommunityName -->
+			  , c.OperatorCode
+			  , c.DefaultBoardType
+		FROM community c
+		INNER JOIN sys_object_domain sod ON sod.DomainID = c.DN_ID
+		WHERE 1=1 
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="createObjectGroup"  parameterType="cmap">
+		  INSERT INTO sys_object_group
+			(
+				GroupCode,
+				CompanyCode,
+				GroupType,
+				MemberOf,
+				OUName,
+				
+				DisplayName,
+				MultiDisplayName,
+				ShortName,
+				MultiShortName,
+				Approvable,
+				
+				Receivable,
+				ApprovalUnitCode,
+				ReceiptUnitCode,
+				SortKey,
+				IsUse,
+				
+				IsDisplay,
+				IsMail,
+				IsHR,
+				RegistDate,
+				Description
+			) 
+			VALUES
+			(
+				#{CU_Code},
+				#{DomainCode},
+				'Community',
+				CONCAT(CONCAT(#{DN_ID},'_'),'Community'),
+				#{CommunityName}, 
+				#{CommunityName},
+				#{CommunityName},
+				#{CommunityName},
+				#{CommunityName},
+				1,  	
+				1,
+				#{CU_Code}, 
+				#{CU_Code},
+				((SELECT SortKey FROM (SELECT IFNULL(MAX(SortKey), '0') AS SortKey FROM sys_object_group WHERE GroupType = 'Community' AND MemberOf = CONCAT(CONCAT(#{DN_ID},'_'),'Community')) AS B) + 1),
+				'Y',
+				'Y',
+				'Y',
+				'Y',
+				NOW(3),
+				''
+			)
+	</insert>
+	
+	<update id="updateObjectGroup" parameterType="cmap">
+		 UPDATE sys_object_group SET GroupPath = covi_smart4j.Fn_ComObjectPathCreate_S(0, #{CU_Code},'GR')
+		 							, SortPath = covi_smart4j.Fn_ComSortPathCreate_S(0, #{CU_Code}, 'GR')
+		 							, OUPath = #{CommunityName}
+		 WHERE 1=1 
+		 AND GroupCode = #{CU_Code}
+	</update>
+	
+	<update id="updateCommunityGroupCode"  parameterType="cmap" >
+		UPDATE sys_object_group SET IsDisplay = #{IsDisplay}
+									,  IsUse = #{IsUse}
+		WHERE GroupCode IN (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})
+	</update>
+	
+	<select id="selectCommunityHomeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM community AS A 
+		INNER JOIN sys_object_domain AS B 
+		ON A.DN_ID = B.DomainID 
+		WHERE  A.CU_ID NOT IN (SELECT CU_ID FROM community_home WHERE CU_ID = #{CU_ID})
+		AND RegStatus = 'R'
+	</select>
+	
+	<insert id="createCommunityHome" parameterType="cmap">
+		INSERT INTO community_home
+			(	 LayoutID
+				,CU_ID	
+				,CommunityTheme
+				,IsUse
+				,RegisterCode
+		)
+		SELECT 
+				 LayoutID
+				,#{CU_ID}
+				,CommunityTheme
+				,IsUse
+				,#{userID}
+		FROM community_home_default
+		ORDER BY CU_ID ASC 
+		LIMIT 1 
+	</insert>
+	
+	<update id="updateCommunityACL" parameterType="cmap">
+		UPDATE sys_object_acl SET
+									  ObjectID = #{ObjectID}
+									, ObjectType = #{ObjectType}
+									, SubjectCode = #{SubjectCode}
+									, SubjectType = #{SubjectType}
+									, AclList = #{AclList}
+									, Security = #{Security}
+									, `Create` = #{Create}
+									, `Delete` = #{Delete}
+									, `Modify` = #{Modify}
+									, `Execute` = #{Execute}
+									, `View` = #{View}
+									, `Read` = #{Read}
+									, ModifierCode = #{userCode}
+									, ModifyDate = NOW(3)
+		WHERE 1=1 
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</update>
+	
+	<insert id="createCommunityACL" parameterType="cmap">
+		INSERT INTO sys_object_acl (				
+										  ObjectID
+										, ObjectType
+										, SubjectCode
+										, SubjectType
+										, AclList
+										, Security
+										, `Create`
+										, `Delete`
+										, `Modify`
+										, `Execute`
+										, `View`
+										, `Read`
+										, RegisterCode
+										, RegistDate
+														)VALUES(
+										  #{ObjectID}
+										, #{ObjectType}
+										, #{SubjectCode}	
+										, #{SubjectType}
+										, #{AclList}
+										, #{Security}
+										, #{Create}
+										, #{Delete}
+										, #{Modify}
+										, #{Execute}
+										, #{View}
+										, #{Read}
+										, #{userCode}
+										, NOW(3) 			
+									)
+		
+	</insert>
+	
+	<insert id="createCommunityCompanyACL" parameterType="cmap">
+		INSERT INTO sys_object_acl 
+				(				
+					  ObjectID
+					, ObjectType
+					, SubjectCode
+					, SubjectType
+					, AclList
+					, Security
+					, `Create`
+					, `Delete`
+					, `Modify`
+					, `Execute`
+					, `View`
+					, `Read`
+					, RegisterCode
+					, RegistDate
+				)VALUES(
+					  #{ObjectID}
+					, #{ObjectType}
+					, (SELECT DomainCode FROM sys_object_domain WHERE DomainID = #{DomainID})	
+					, #{SubjectType}
+					, #{AclList}
+					, #{Security}
+					, #{Create}
+					, #{Delete}
+					, #{Modify}
+					, #{Execute}
+					, #{View}
+					, #{Read}
+					, #{userCode}
+					, NOW(3) 			
+				)
+	</insert>
+	
+	<select id="communityFolderList"	parameterType="cmap"  resultType="cmap">
+		SELECT  FolderType 
+			  , DisplayName AS FolderName
+			  , exDisplayName AS DisplayFolderName
+			  , SortKey
+		FROM community_board_default 
+		WHERE IsUse = 'Y'
+		AND DN_ID IN (0, #{DN_ID})
+		AND CommunityType = #{DefaultBoardType}
+		ORDER BY SortKey
+	</select>
+	
+	<select id="selectCommunityFolderCnt"  parameterType="cmap" resultType="java.lang.Long">
+		 SELECT COUNT(*) 
+		 FROM sys_object_folder
+		 WHERE 1=1 
+		 AND FolderType = #{FolderType}
+		 AND ObjectType = 'Community'
+		 AND MenuID = #{CU_ID}
+	</select>
+	
+	<insert id="createCommunityFolder"  parameterType="cmap" >
+		INSERT INTO sys_object_folder( 
+									 DomainID
+									,MenuID
+									,ObjectType
+									,FolderType
+									,DisplayName
+									,MultiDisplayName
+									,MemberOf
+									,FolderPath
+									,SortKey
+									,SortPath
+									,IsInherited
+									,IsShared
+									,IsUse
+									,IsDisplay
+									,IsURL
+									,URL
+									,IsMobileSupport
+									,Description
+									,OwnerCode
+									,RegisterCode
+									,RegistDate
+									,SecurityLevel
+									,Reserved2
+												)VALUES(
+									 #{DN_ID}
+									,#{MenuID}
+									,'Community'
+									,#{FolderType}		
+									,#{CommunityName}
+									,#{CommunityMultiName}
+									,#{MemberOf}			
+									,''				
+									,#{SortKey}				
+									,#{SortPath}				
+									,#{IsInherited}		
+									,'N'			
+									,'Y'			
+									,'Y'			
+									,'N'		
+									,''				
+									,'Y'
+									,''				
+									,#{userID}	
+									,#{userID}	
+									,NOW(3)		
+									,#{SecurityLevel}	
+									,#{Reserved2}				
+								 )
+			<selectKey resultType="java.lang.Long" keyProperty="FolderID" order="AFTER">
+				SELECT LAST_INSERT_ID()
+			</selectKey>								 
+	</insert>
+	
+	<select id="selectCommunityMemberCount"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_CODE = #{userID}
+	</select>
+	
+	<insert id="createCommunityMember"  parameterType="cmap" >
+		INSERT INTO community_member (
+										  CU_ID
+										, UR_CODE
+										, NickName
+										, MemberStatus
+										, DetailStatus
+										, MemberLevel
+										, RegMessage	
+												)VALUES(
+										  #{CU_ID}
+										, #{userID}
+										, (SELECT DisplayName FROM sys_object_user WHERE UserCode = #{userID})
+										, 'R'
+										, 'RV'
+										, 9
+										, ''
+									  ) 
+	</insert>
+	
+	<update id="updateCommunityMemberCount"  parameterType="cmap" >
+		UPDATE community SET MemberCount = MemberCount + 1 
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectCommunityMenuTopCount"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_menu_top
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FD_ID = #{FolderID}
+	</select>
+	
+	<insert id="createBoardConfig"  parameterType="cmap">
+	  INSERT INTO board_config 
+		(
+			 FolderID
+			,UseBasicConfig
+			,UseFile 
+			,UseImage 
+			,UseVideo
+			,UsePopNotice 
+			,UseTopNotice 
+			,UseExpiredDate 
+			,UseAnony 
+			,UseReply 
+			,UseComment 
+			,UseInterest 
+			,UseFavorite 
+			,UseRecommend 
+			,UseSecret 
+			,UseTag
+			,UseLink 
+			,UsePrint 
+			,LimitFileSize 
+			,LimitFileCnt 
+			,LimitCommentCnt 
+			,LimitLinkCnt 
+			,RecentlyDay 
+			,ExpireDay 
+			,DefaultContents 
+			,UseScrap 
+			,UseCopy 
+			,UseCommentRecommend 
+			,UseLogWrite
+			,UseReadCnt 
+			,UseTrackback 
+			,UseRSS
+			,UseReaderView 
+			,UseDefaultSecret 
+			,UseEmail 
+			,UseCategory
+			,UseBodyForm
+			,UseUserForm
+			,UseOwnerProcess
+			,UseUserProcess
+			,RegisterCode 
+			,RegistDate
+			,BoardTotalLimitFileSize
+			,CurrentTotalFileSize
+			,UseReservation
+			,UsePubDeptName
+		 )	
+			SELECT 
+				 #{FolderID} 
+				,'Y' 
+				,UseFile 
+				,UseImage 
+				,UseVideo
+				,UsePopNotice 
+				,UseTopNotice 
+				,UseExpiredDate 
+				,UseAnony 
+				,UseReply 
+				,UseComment 
+				,UseInterest 
+				,'N' 
+				,UseRecommend 
+				,UseSecret 
+				,UseTag 
+				,UseLink 
+				,UsePrint 
+				,LimitFileSize 
+				,LimitFileCnt 
+				,LimitCommentCnt 
+				,LimitLinkCnt 
+				,RecentlyDay 
+				,ExpireDay 
+				,DefaultContents 
+				,UseScrap 
+				,UseCopy 
+				,UseCommentRecommend 
+				,UseLogWrite
+				,UseReadCnt 
+				,UseTrackback 
+				,UseRSS
+				,UseReaderView 
+				,UseDefaultSecret 
+				,UseEmail 
+				,UseCategory
+				,UseBodyForm
+				,UseUserForm
+				,'N'
+				,'N'
+				,#{userCode}
+				,now(3)
+				,BoardTotalLimitFileSize
+				,CurrentTotalFileSize
+				,UseReservation
+				,UsePubDeptName
+			FROM board_config_default
+			WHERE FolderType = (SELECT FolderType FROM sys_object_folder WHERE FolderID = #{FolderID} ) 
+	</insert>
+	
+	<select id="selectCommunityBoardCount"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM board_config bc
+		INNER JOIN sys_object_folder sof ON sof.FolderID = bc.FolderID 
+		WHERE 1=1 AND sof.ObjectType = 'Community'
+		AND MenuID =  #{CU_ID}
+	</select>
+	
+	<insert id="createCommunityMenuTop" parameterType="cmap">
+		INSERT INTO community_menu_top(CU_ID, FD_ID, SortKey)
+		SELECT	  #{CU_ID}
+				, #{FolderID}
+				, IFNULL(MAX(SortKey), -1) + 1
+		FROM community_menu_top
+		WHERE CU_ID = #{CU_ID}
+	</insert>
+	
+	<update id="updateBoardConfig"  parameterType="cmap">
+		  UPDATE board_config SET UseIncludeRecentReg = 'Y' WHERE FolderID =  #{FolderID}
+	</update>
+	
+	<select id="communityCnt" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT COUNT(*) 
+		  FROM sys_base_dictionary 
+		  WHERE 1=1 
+		  AND DicCode = CONCAT('CU_',#{CU_ID})
+		  AND DomainID = #{DN_ID} 
+	</select>
+	
+	<update id="updateCommunityNameDictionary"  parameterType="cmap" >
+		  UPDATE sys_base_dictionary SET 
+									 
+									 KoShort = #{DIC_Code_ko} 
+									, KoFull = #{DIC_Code_ko} 
+									, EnShort = #{DIC_Code_en}
+									, EnFull = #{DIC_Code_en}
+									, JaShort = #{DIC_Code_ja}
+									, JaFull = #{DIC_Code_ja}
+									, ZhShort = #{DIC_Code_zh}
+									, ZhFull = #{DIC_Code_zh} 
+									, ModifierCode = #{userID}
+									, ModifyDate = NOW(3)
+		WHERE 1=1
+		AND DicCode = CONCAT('CU_',#{CU_ID}) 				
+		AND DomainID = #{DN_ID} 
+	</update>
+	
+	<insert id="createCommunityNameDictionary" parameterType="cmap" >
+		INSERT INTO sys_base_dictionary (
+										  DomainID
+										, DicCode
+								
+										, KoShort
+										, KoFull
+										, EnShort
+										, EnFull
+										, JaShort
+										, JaFull
+										, ZhShort
+										, ZhFull
+										, IsUse
+										, IsCaching
+									
+										, RegisterCode
+										, RegistDate
+													)VALUES(
+													
+										  #{DN_ID}			
+										, CONCAT('CU_',#{CU_ID})
+										
+										, #{DIC_Code_ko} 
+										, #{DIC_Code_ko} 
+										, #{DIC_Code_en}
+										, #{DIC_Code_en}
+										, #{DIC_Code_ja}
+										, #{DIC_Code_ja}
+										, #{DIC_Code_zh}
+										, #{DIC_Code_zh}
+										, 'Y'
+										, 'Y'
+										
+										, #{userID}
+										, NOW(3) 
+									 )
+		
+	</insert>
+	
+	<select id="selectCommunityACLCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM sys_object_acl
+		WHERE 1=1 
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</select>
+	
+	<select id="selectcommunityHeaderSetting" parameterType="cmap" resultType="cmap">
+		SELECT <!-- c.CommunityName -->
+			 IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			 , c.CommunityType
+			 , IFNULL(cm.MemberStatus,'')AS MemberStatus
+			 , IFNULL(cm.DetailStatus,'')AS DetailStatus
+			 , IFNULL(cm.MemberLevel,'')AS MemberLevel
+			 , COUNT(cf.UR_CODE)AS favoriteCnt
+			 , IFNULL(chd.CommunityTheme,'')AS CommunityTheme
+			 , DATE_FORMAT(NOW(),'%H%i%s')AS nowDate
+			 , (SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CUCT_',cc.CategoryID), cc.DN_ID),cc.DisplayName) FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName
+			 , IFNULL(A.FilePath,'')AS FilePath
+			 , IFNULL(B.FilePath,'')AS BFilePath
+			 , c.DN_ID
+			 , p.PortalID
+			 , (SELECT FolderID FROM sys_object_folder WHERE MenuID = c.CU_ID AND FolderType = 'QuickComment' AND DeleteDate IS NULL LIMIT 1)AS FolderID
+			 , IFNULL(c.Gubun,'C') As Gubun
+			 , c.DefaultBoardType AS DefaultBoardType
+			 , ci.FileID			 
+		FROM community c
+		LEFT JOIN community_home_default chd ON chd.CU_ID = c.CU_ID  
+		LEFT JOIN community_member cm ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{UR_Code} AND cm.DetailStatus = 'RV'
+		LEFT JOIN community_favorite cf ON cf.CU_ID = c.CU_ID AND cf.UR_Code = #{UR_Code}
+		LEFT JOIN ( SELECT CONCAT(REPLACE(st.FilePath,'{0}',sf.CompanyCode), sf.FilePath, sf.SavedName) as FilePath
+						, ci.CU_ID 
+					FROM community_image ci
+		  	  		INNER JOIN sys_file sf ON sf.FileID = ci.FileID 
+		  	  		INNER JOIN sys_storage st ON st.StorageID = sf.StorageID
+					WHERE 1=1 AND ci.CU_ID = #{communityID} AND ci.IsCurrent = 'Y' AND ci.FileType = 'T') AS A ON A.CU_ID = c.CU_ID
+		LEFT JOIN ( SELECT CONCAT(REPLACE(st.FilePath,'{0}',sf.CompanyCode), sf.FilePath, sf.SavedName) as FilePath
+						, ci.CU_ID 
+					FROM community_image ci
+		  	  		INNER JOIN sys_file sf ON sf.FileID = ci.FileID 
+		  	  		INNER JOIN sys_storage st ON st.StorageID = sf.StorageID
+					WHERE 1=1 AND ci.CU_ID = #{communityID} AND ci.IsCurrent = 'Y' AND ci.FileType = 'B') AS B ON B.CU_ID = c.CU_ID
+		LEFT JOIN portal p ON p.CompanyCode = c.CU_Code AND p.IsUse = 'Y' AND p.BizSection = 'Community'
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'T'
+		WHERE c.CU_ID = #{communityID}
+	</select>
+	
+	<select id="communitySubHeaderSetting" parameterType="cmap" resultType="cmap">
+		<![CDATA[  
+			SELECT  c.RegProcessDate AS RegProcessDate
+				  , IFNULL(D.MemberCNT, 0)AS MemberCNT
+				  , IFNULL(F.visitCnt, 0)AS visitCnt
+				  , IFNULL(E.totalVisitCnt, 0)AS totalVisitCnt
+				  , c.CU_ID AS communityID
+			FROM community c 
+			LEFT JOIN (SELECT cm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cm JOIN sys_object_user AS sou ON sou.UserCode = cm.UR_Code WHERE cm.MemberStatus ='R' AND cm.MemberLevel !='0' AND cm.DetailStatus = 'RV' AND sou.IsUse = 'Y' GROUP BY cm.CU_ID ) AS D ON D.CU_ID = c.CU_ID
+			LEFT JOIN (SELECT CommunityID , COUNT(*) AS totalVisitCnt FROM community_visit GROUP BY CommunityID ) AS E ON E.CommunityID = c.CU_ID
+			LEFT JOIN (SELECT CommunityID , COUNT(*) AS visitCnt FROM community_visit WHERE VisitDate > CURRENT_DATE()  GROUP BY CommunityID ) AS F ON F.CommunityID = c.CU_ID
+			WHERE c.CU_ID = #{communityID}
+		 ]]> 
+	</select>
+	
+	<select id="communityLeftUserInfo" parameterType="cmap" resultType="cmap">
+		SELECT	cm.NickName
+				, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(#{domainID}, 'CuMemberLevel', cm.MemberLevel)) AS MemberLevel
+				, cm.UR_Code
+				, Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName)AS DisplayName
+				, sou.PhotoPath
+				, sogm.GroupCode
+		FROM community_member cm
+		INNER JOIN community c ON c.CU_ID = cm.CU_ID
+		INNER JOIN sys_object_user sou ON sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_group sog ON sog.MemberOf = c.CU_Code
+		INNER JOIN sys_object_group_member sogm ON sog.GroupCode = sogm.GroupCode and sogm.UserCode = #{UR_Code}
+		WHERE cm.CU_ID = #{communityID}
+		AND cm.UR_Code = #{UR_Code}
+		AND cm.DetailStatus IN ('RV','RA')
+		LIMIT 1
+	</select>
+	
+	<select id="communityLeftUserInfoAdmin" parameterType="cmap" resultType="cmap">
+		SELECT
+			DisplayName AS NickName
+			, Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(#{domainID}, 'CuMemberLevel', '9')) AS MemberLevel
+			, UserCode AS UR_Code
+			, IFNULL(DisplayName,'')AS DisplayName
+			, PhotoPath
+			, '' AS GroupCode
+		FROM sys_object_user
+		WHERE UserCode = #{UR_Code}
+		LIMIT 1
+	</select>
+	
+	<insert id="communityFavoritesInsert"  parameterType="cmap" >
+		INSERT INTO community_favorite(	UR_CODE
+		 								, CU_ID
+		 								, CreateDate
+													)VALUES(
+										  #{UR_CODE}			
+										, #{CU_ID}
+										, NOW(3)		
+										)		
+		
+	</insert>
+	
+	<select id="selectCommunityVisitCnt" parameterType="cmap"  resultType="java.lang.Long">
+		<![CDATA[  
+			SELECT COUNT(*) FROM community_visit 
+			WHERE 1=1 
+			AND VisitDate > CURRENT_DATE() 
+			AND UserCode = #{UR_Code}
+			AND CommunityID = #{CU_ID}
+		 ]]>
+	</select>
+	
+	<insert id="insertCommunityVisit"  parameterType="cmap" >
+		INSERT INTO community_visit(  CommunityID
+									, UserCode
+									)VALUES(
+									  #{CU_ID}				
+									, #{UR_Code}				
+									)
+		
+	</insert>
+	
+	<select id="selectCommunityTopMenu" parameterType="cmap" resultType="cmap">
+		SELECT	cmt.UseYn
+				, cmt.Idx
+				, cmt.SortKey
+				, Fn_BaseGetDictionary_S(#{lang}, sf.MultiDisplayName) AS DisplayName
+				, sf.FolderType
+		FROM community_menu_top cmt
+		INNER JOIN sys_object_folder sf ON sf.FolderID = cmt.FD_ID
+		<!-- INNER JOIN community_board_default cbd ON cbd.FolderType = sf.FolderType -->
+		AND cmt.CU_ID = #{CU_ID}	
+		AND sf.DeleteDate IS NULL
+		AND sf.FolderType != 'Root'
+		AND sf.IsUse = 'Y'
+		AND sf.IsDisplay = 'Y'
+		ORDER BY cmt.SortKey ASC
+	</select>
+	
+	<update id="updateCommunityTopMenuUse" parameterType="cmap">
+		UPDATE community_menu_top 
+		SET UseYn = #{isCheck}
+		WHERE 1=1
+		AND Idx = #{id}
+	</update>
+	
+	<update id="updateCommunityTopMenuSort" parameterType="cmap">
+		UPDATE community_menu_top SET SortKey = #{nSortKey} WHERE CU_ID = #{CU_ID} AND Idx = #{cIdx};
+		UPDATE community_menu_top SET SortKey = #{cSortKey} WHERE CU_ID = #{CU_ID} AND Idx = #{nIdx};
+	</update>
+	
+	<select id="selectCommunityHeaderSettingList" parameterType="cmap" resultType="cmap">
+		SELECT sf.DisplayName
+			 , sf.MultiDisplayName
+			 , sf.FolderType
+			 , sf.FolderID 
+			 , sf.MenuID
+		FROM community_menu_top cmt
+		INNER JOIN sys_object_folder sf ON sf.FolderID = cmt.FD_ID
+		<if test="IsAdmin == null or IsAdmin == '' or IsAdmin.equalsIgnoreCase('N')" >
+			<if test='aclDataArr != null and aclDataArr.length != 0'>
+			INNER JOIN sys_object_user_acl AS ACL ON sf.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+			</if>	    
+		</if>
+		AND cmt.CU_ID = #{CU_ID}	
+		AND cmt.UseYn ='Y'
+		AND sf.FolderType != 'Root'
+		AND sf.IsUse ='Y'
+		AND sf.DeleteDate IS NULL
+		ORDER BY cmt.SortKey ASC
+	</select>
+	
+	<select id="selectCommunityBoardLeft" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT  Fn_ComSortPathCreate_S(SOF.FolderID,'','FC') AS SortPath
+					, IFNULL(Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName),SOF.DisplayName) AS FolderName
+					, IFNULL(Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName),SOF.DisplayName) AS DisplayName
+					, SOF.FolderID
+					, SOF.FolderType AS itemType
+					, SOF.FolderType
+					, SOF.FolderType AS type
+					, SOF.MenuID 
+					, SOF.IsUse
+					, SOF.IsDisplay
+			FROM sys_object_folder AS SOF
+			<if test="IsAdmin == null or IsAdmin == '' or IsAdmin.equalsIgnoreCase('N')" >
+				<if test='aclDataArr != null and aclDataArr.length != 0'>
+				INNER JOIN sys_object_user_acl AS ACL ON SOF.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+				</if>	  
+			</if>
+			WHERE SOF.MenuID = #{CU_ID}
+			AND SOF.ObjectType = 'Community'
+			AND SOF.FolderType != 'Schedule'
+			AND SOF.DeleteDate IS NULL
+			<if test="IsMobileSupport != null and IsMobileSupport == 'Y'.toString()">	<!-- 모바일 지원 여부 확인 -->
+			    AND SOF.IsMobileSupport = 'Y'
+			</if>
+			<if test="IsAdmin == null or IsAdmin == '' or IsAdmin.equalsIgnoreCase('N')" >
+				AND SOF.IsUse = 'Y'
+				AND SOF.IsDisplay = 'Y'
+			</if>
+		)AS A
+		ORDER BY A.SortPath ASC
+	</select>
+	
+	<select id="selectCommunityTagCloud" parameterType="cmap" resultType="cmap">
+		SELECT bmt.Tag 
+			 , bmt.Version
+			 , sof.FolderID
+			 , bm.MessageID 
+		FROM sys_object_folder sof
+		INNER JOIN board_message bm ON bm.FolderID = sof.FolderID 
+		INNER JOIN board_message_tag bmt ON bmt.MessageID = bm.MessageID 
+		WHERE sof.MenuID = #{CU_ID}
+		AND sof.ObjectType ='Community'
+		AND bm.DeleteDate IS NULL 
+		AND sof.DeleteDate IS NULL 
+		ORDER BY bmt.TagID ASC 
+		LIMIT 6 
+	</select>
+	
+	<select id="selectCommunitySelectNoticeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM 
+			( SELECT BM.MessageID FROM board_message AS BM 
+			  LEFT OUTER JOIN sys_object_user AS SOU ON BM.CreatorCode = SOU.UserCode 
+			  LEFT OUTER JOIN board_progressstate AS BP ON BM.progressstate = BP.StateID 
+			  LEFT OUTER JOIN board_message_userform_value AS BMUV ON (BM.MessageID = BMUV.MessageID AND BM.Version = BMUV.Version) 
+			  INNER JOIN sys_object_folder AS sf ON BM.FolderID = sf.FolderID AND sf.MenuID = #{CU_ID} AND sf.DeleteDate IS NULL
+			  INNER JOIN community AS c ON c.CU_ID = sf.MenuID
+			  <if test='aclDataArr != null and aclDataArr.length != 0'>
+			  INNER JOIN sys_object_user_acl AS ACL ON sf.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+			  </if>
+			  WHERE 1=1
+			  AND BM.MsgState IN ('C', 'A') 
+			  AND MsgType != 'S' 
+			  AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND BM.CreatorCode = #{UR_Code})) 
+			  AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= NOW(3) )
+			  AND BM.DeleteDate IS NULL 
+			  AND (BM.ReservationDate IS NULL OR BM.ReservationDate <![CDATA[ < ]]> NOW(3))
+			  AND (sf.IsUse = 'Y' OR c.OperatorCode = #{isCommunityAdmin})
+			<if test='IsMobileSupport =="Y"'>
+			 	AND sf.IsMobileSupport = 'Y'
+			</if>
+			<if test="FolderType == 'Al' " >
+				AND sf.FolderType != 'QuickComment'
+			</if>
+			<if test="FolderType == 'Li' " >
+				AND sf.FolderType != 'QuickComment'
+			</if>
+			<if test="FolderType != 'Li' and FolderType != 'Al'" >
+				 AND sf.FolderType = #{FolderType}
+			</if>
+			AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{UR_Code})
+			AND sf.ObjectType ='Community'
+			) AS RESULT WHERE 1=1
+	</select>
+	
+	<select id="selectCommunitySelectNoticeList" parameterType="cmap" resultType="cmap">
+		SELECT * FROM 
+			( SELECT	BM.MessageID 
+					 , BM.Version 
+					 , BM.Number 
+					 , BM.FolderID 
+					 , BM.IsInherited 
+					 , BM.ParentID 
+					 , BM.MsgType 
+					 , BM.MsgState 
+					 , BM.CategoryID 
+					 , (SELECT Fn_BaseGetDictionary_S(#{lang},DisplayName) FROM board_category WHERE CategoryPath = BC.CategoryPath) AS CategoryName 
+					 , BC.CategoryPath 
+					 , BM.Seq
+					 , BM.Step 
+					 , BM.Depth 
+					 , BM.Subject 
+					 , BM.IsPopup
+					 , BM.IsTop 
+					 , BM.PopupStartDate
+					 , BM.PopupEndDate
+					 , BM.TopStartDate
+					 , BM.TopEndDate 
+					 , BM.ExpiredDate 
+					 , BM.UseSecurity 
+					 , BM.UseAnonym 
+					 , BM.IsApproval 
+					 , BM.IsUserForm 
+					 , BM.IsCheckOut 
+					 , BM.UseScrap 
+					 , BM.NoticeMedia 
+					 , BM.UseRSS 
+					 , BM.TrackBackURL 
+					 , BM.AnswerCnt 
+					 , BM.ReadCnt 
+					 , (SELECT COUNT(*) FROM sys_comment WHERE TargetServiceType = #{bizSection} AND TargetID = CONCAT(BM.MessageID,'_',BM.Version))AS CommentCnt 
+					 , (SELECT COUNT(*) FROM sys_like WHERE TargetServiceType = #{bizSection} AND TargetID = CONCAT(BM.MessageID,'_',BM.Version))AS RecommendCnt 
+					 , BM.ScrapCnt 
+					 , BM.ReportCnt 
+					 , BM.FileCnt
+					 , BM.FileExtension 
+					 , BM.TracbackCnt 
+					 , DATE_FORMAT(BM.RegistDate,'%Y.%m.%d %H:%i:%s') AS RegistDate 
+					 , BM.CreatorCode 
+					 , SOU.MultiDisplayName 
+					 , BM.CreateDate 
+					 , Fn_BaseGetDictionary_S(#{lang},IF(BM.UsePubDeptName = 'Y', BM.CreatorDept, BM.CreatorName))AS CreatorName 
+					 , BM.CreatorLevel
+					 , BM.CreatorPosition
+					 , BM.CreatorTitle 
+					 , BM.CreatorDept 
+					 , BM.DeleteDate 
+					 , BM.ReservationDate 
+					 , BM.OwnerCode 
+					 , BM.LinkURL 
+					 , BM.RegistDept 
+					 , (SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_group WHERE groupcode = BM.RegistDept) AS RegistDeptName 
+					 , BP.DisplayName AS ProgressState 
+					 , IF(BM.RevisionDate IS NULL, DATE_FORMAT(BM.RegistDate,'%Y.%m.%d'), DATE_FORMAT(BM.RevisionDate,'%Y.%m.%d')) AS RevisionDate 
+					 , (SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = BM.RevisionCode) AS RevisionName 
+					 ,(CASE BM.IsTop WHEN 'N' THEN 'Z' ELSE (CASE WHEN NOW(3) BETWEEN BM.TopStartDate AND BM.TopEndDate THEN 'A' ELSE 'Z' END) END) AS ListTop 
+					 , BMUV.UF_Value0
+					 , BMUV.UF_Value1
+					 , BMUV.UF_Value2
+					 , BMUV.UF_Value3
+					 , BMUV.UF_Value4
+					 , BMUV.UF_Value5
+					 , BMUV.UF_Value6
+					 , BMUV.UF_Value7
+					 , BMUV.UF_Value8
+					 , BMUV.UF_Value9
+					 , IFNULL(Fn_BaseGetDictionary_S(#{lang},sf.MultiDisplayName),sf.DisplayName)AS boardFolderName
+					 , IF((SELECT COUNT(*) FROM board_message_reader WHERE MessageID = BM.MessageID AND ReaderCode = #{UR_Code}) >0, 'Y', 'N' ) AS IsRead
+					 , (SELECT MAX(FileID) FROM sys_file WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID
+					 , c.CU_ID
+					 , c.CommunityName
+					 , sf.IsDisplay
+			 FROM board_message AS BM 
+			 LEFT OUTER JOIN sys_object_user AS SOU ON BM.CreatorCode = SOU.UserCode 
+			 LEFT OUTER JOIN board_category AS BC ON BM.CategoryID = BC.CategoryID AND BC.FolderID = BM.FolderID 
+			 LEFT OUTER JOIN board_progressstate AS BP ON BM.progressstate = BP.StateID 
+			 LEFT OUTER JOIN board_message_userform_value AS BMUV ON (BM.MessageID = BMUV.MessageID AND BM.Version = BMUV.Version) 
+			 INNER JOIN sys_object_folder AS sf ON BM.FolderID = sf.FolderID AND sf.MenuID = #{CU_ID} AND sf.DeleteDate IS NULL
+			 INNER JOIN community AS c ON c.CU_ID = sf.MenuID
+			 <if test='aclDataArr != null and aclDataArr.length != 0'>
+			 INNER JOIN sys_object_user_acl AS ACL ON sf.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+			 </if> 
+			 WHERE 1=1 
+			 AND BM.MsgState IN ('C', 'A') 
+			 AND MsgType != 'S' 
+			 AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND BM.CreatorCode = #{UR_Code})) 
+			 AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= NOW(3) ) 
+			 AND BM.DeleteDate IS NULL 
+			 AND (BM.ReservationDate IS NULL OR BM.ReservationDate <![CDATA[ < ]]> NOW(3))
+			 AND (sf.IsUse = 'Y' OR c.OperatorCode = #{isCommunityAdmin}) 
+			<if test='IsMobileSupport =="Y"'>
+			 	AND sf.IsMobileSupport = 'Y'
+			</if>
+			<if test="FolderType == 'Al' " >
+				AND sf.FolderType != 'QuickComment'
+			</if>
+			<if test="FolderType == 'Li' " >
+				AND sf.FolderType != 'QuickComment'
+			</if>
+			<if test="FolderType != 'Li' and FolderType != 'Al'" >
+				 AND sf.FolderType = #{FolderType}
+			</if>
+			 AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{UR_Code})
+			 AND sf.ObjectType ='Community'
+		) AS RESULT WHERE 1=1 
+		<if test="FolderType == 'Al' " >
+			ORDER BY RegistDate DESC, step ASC 
+		</if>
+		<if test="FolderType == 'Li' " >
+			ORDER BY RecommendCnt DESC 
+		</if>
+		<if test="FolderType != 'Li' and FolderType != 'Al'" >
+			ORDER BY ListTop ASC, RegistDate DESC, step ASC 
+		</if>			
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectCommunityActivity" parameterType="cmap" resultType="cmap">
+		SELECT DATE_FORMAT(VisitDate,'%d')AS VisitDate, visitCnt, VisitDate AS sortDate FROM (	
+			SELECT  COUNT(*)AS visitCnt
+				  , VisitDate  
+				  			FROM (
+								SELECT CommunityID
+									 , UserCode
+									 , DATE_FORMAT(VisitDate,'%Y.%m.%d')AS VisitDate
+								FROM community_visit 
+							)A
+			 
+							WHERE CommunityID = #{CU_ID}
+							GROUP BY VisitDate
+		
+		)B 
+		WHERE 1=1 AND VisitDate IN
+		<foreach item="item" index="index" collection="paramList" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY sortDate ASC 
+	</select>
+	
+	<select id="selectCommunityUserLevelCheck"  parameterType="cmap" resultType="String">
+		SELECT MemberLevel 
+		FROM community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}
+		AND DetailStatus IN ('RA','RV')
+	</select>
+	
+	<select id="selectCommunityTypeCheck"  parameterType="cmap" resultType="String">
+		SELECT CommunityType 
+		FROM community 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectCommunityDetailInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+		  		A.MemberCount,
+				A.MsgCount,
+				A.ReplyCount,
+				A.OneMsgCount,
+				A.VisitCount,
+				A.ViewCount,
+				A.Point,
+				A.Grade,
+				A.RegProcessDate,
+				A.CU_ID,
+				A.CommunityName,
+				A.RegStatus,
+				A.opName,
+				A.crName,
+				IFNULL(A.SearchTitle,'')AS SearchTitle,
+				CONCAT(A.LimitFileSize,'MB')AS LimitFileSize,
+				CONCAT(ROUND(A.UsedFileSize / POW(1024, r), 2), '',  ELT(r + 1, 'Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'))AS FileSize ,
+				CONCAT(@i:= @i+1) AS number,
+				A.DescriptionEditor,
+				A.ProvisionEditor,
+				A.CategoryID,
+				A.CommunityType,
+				A.crDeptName,
+				A.crJobPositionName,
+				A.crJobLevelName,
+				A.crJobTitleName,
+				A.opDeptName,
+				A.opJobPositionName,
+				A.opJobLevelName,
+				A.opJobTitleName,
+				A.MemberLevel,
+				A.MemberStatus,
+				A.DetailStatus,
+				A.DIC_Name,
+				A.KoShortWord,
+				A.KoFullWord,
+				A.EnShortWord,
+				A.EnFullWord,
+				A.JaShortWord,
+				A.JaFullWord,
+				A.ZhShortWord,
+				A.ZhFullWord,
+				A.UserCode,
+				IFNULL(A.Description,'')AS Description,
+				IFNULL(A.Provision,'')AS Provision,
+				A.DN_ID,
+				A.OperatorCode,
+				A.UnRegRequestDate,
+				A.UnRegProcessDate,
+				A.AppStatus,
+				A.AppStatusCode,
+				A.ClosingMsg,
+				A.DescriptionOption,
+				A.ProvisionOption,
+				A.FileID,
+				A.JoinOption				
+					FROM ( 	
+						SELECT  
+								IFNULL(TRUNCATE(LOG(1024, c.UsedFileSize), 0),0)AS r,
+								IFNULL(c.LimitFileSize,'0')AS LimitFileSize,
+								IFNULL(c.UsedFileSize,'0')AS UsedFileSize,
+								IFNULL(D.MemberCNT,'0') AS MemberCount,
+								c.MsgCount,
+								c.ReplyCount,
+								c.OneMsgCount,
+								c.VisitCount,
+								c.ViewCount,
+								c.Point,
+								c.Grade,
+								c.CU_ID,
+								IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName,
+								@i:=0,
+								IFNULL(Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName),'') AS opName,
+								IFNULL(Fn_BaseGetDictionary_S(#{lang}, souu.MultiDisplayName),'') AS crName,
+								c.SearchTitle,
+								c.RegProcessDate AS RegProcessDate,
+								IFNULL(Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuStatus', c.RegStatus)),'') AS RegStatus,
+								IFNULL(Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', IF(c.AppStatus IN ('UA','UD','UV'), '', c.AppStatus))),'') AS AppStatus,
+								c.AppStatus AS AppStatusCode,
+								cd.DescriptionEditor,
+								cd.ProvisionEditor,
+								cc.CategoryID,	
+								Fn_BaseGetDictionary_S(#{lang}, soub.MultiDeptName) AS opDeptName, 
+								Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobPositionName) AS opJobPositionName, 
+								Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobLevelName) AS opJobLevelName, 
+								Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobTitleName) AS opJobTitleName, 
+								Fn_BaseGetDictionary_S(#{lang}, souub.MultiDeptName) AS crDeptName, 
+								Fn_BaseGetDictionary_S(#{lang}, souub.MultiJobPositionName) AS crJobPositionName, 
+								Fn_BaseGetDictionary_S(#{lang}, souub.MultiJobLevelName) AS crJobLevelName, 
+								Fn_BaseGetDictionary_S(#{lang}, souub.MultiJobTitleName) AS crJobTitleName, 
+								Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType,
+								cm.MemberLevel,
+								cm.MemberStatus,
+								cm.DetailStatus,
+								IFNULL(bd.KoFull,'') AS DIC_Name,
+							  	IFNULL(bd.KoShort,'')AS KoShortWord,
+							  	IFNULL(bd.KoFull,'')AS KoFullWord,
+							  	IFNULL(bd.EnShort,'')AS EnShortWord,
+							  	IFNULL(bd.EnFull,'')AS EnFullWord,
+							  	IFNULL(bd.JaShort,'')AS JaShortWord,
+							  	IFNULL(bd.JaFull,'')AS JaFullWord,
+							  	IFNULL(bd.ZhShort,'')AS ZhShortWord,
+							  	IFNULL(bd.ZhFull,'')AS ZhFullWord,
+							  	souu.UserCode,
+							  	cd.Description,
+								cd.Provision,
+								c.DN_ID,
+								c.OperatorCode,
+								IFNULL(DATE_FORMAT(c.UnRegRequestDate,'%Y.%m.%d'),'')AS UnRegRequestDate,
+								IFNULL(DATE_FORMAT(c.UnRegProcessDate,'%Y.%m.%d'),'')AS UnRegProcessDate,
+								IFNULL(c.ClosingMsg,'')AS ClosingMsg,
+								cd.DescriptionOption,
+								cd.ProvisionOption,
+								IFNULL(A.FileID,'') AS FileID,
+								c.JoinOption								
+							FROM community c
+							LEFT JOIN sys_object_user	AS sou ON  sou.UserCode = c.OperatorCode
+							LEFT JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode  AND soub.JobType = 'Origin' 
+							LEFT JOIN sys_object_user	AS souu ON  souu.UserCode = c.CreatorCode
+							LEFT JOIN sys_object_user_basegroup souub ON souub.UserCode = souu.UserCode AND souub.JobType = 'Origin' 
+							INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+							INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+							LEFT JOIN (SELECT cmm.CU_ID , COUNT(*) AS MemberCNT FROM community_member cmm
+								INNER JOIN sys_object_user souuu ON souuu.UserCode = cmm.UR_Code
+								WHERE 1=1 AND cmm.DetailStatus = 'RV' AND cmm.MemberStatus = 'R' AND cmm.MemberLevel != '0' AND souuu.IsUse ='Y' GROUP BY cmm.CU_ID ) AS D ON D.CU_ID = c.CU_ID
+							LEFT JOIN (SELECT CU_ID ,MemberLevel ,MemberStatus ,DetailStatus FROM community_member WHERE UR_Code = #{UR_Code} ) AS cm ON cm.CU_ID = c.CU_ID 
+							LEFT JOIN sys_base_dictionary bd ON bd.DicCode = CONCAT('CU_',c.CategoryID) AND bd.DomainID = c.DN_ID
+							LEFT JOIN ( SELECT ci.FileID, ci.CU_ID FROM community_image ci
+								  	  		INNER JOIN sys_file sf ON sf.FileID = ci.FileID 
+											WHERE 1=1 AND ci.CU_ID = #{CU_ID} AND ci.IsCurrent = 'Y' AND ci.FileType = 'S') AS A ON A.CU_ID = #{CU_ID} 
+							WHERE 1=1
+							AND c.CU_ID = #{CU_ID}
+					)A GROUP BY CU_ID
+	</select>
+	
+	<select id="selectCurrentLocation" parameterType="cmap" resultType="cmap">
+		<![CDATA[  
+			SELECT DisplayName,CONCAT(num,'')AS num FROM (
+				SELECT * FROM (
+				
+					SELECT	@r AS id
+						  , (SELECT IFNULL(Fn_GetSelDictionary(#{lang} ,CONCAT('CUCT_', CategoryID), DN_ID), DisplayName) FROM community_category WHERE CategoryID = id ) AS DisplayName	
+						  , (SELECT @r := MemberOf FROM community_category WHERE CategoryID = id) AS parentId
+						  , (@L := @L + 1) AS num
+							 
+					FROM ( SELECT @r := #{CategoryID}, @L := 0) AS recursion, (SELECT * FROM community_category ) AS compare
+					WHERE @r <> 0
+				)A
+				ORDER BY A.num DESC  
+			)B 
+	 	]]>
+	</select>
+	
+	<select id="selectCommunityVisitList" parameterType="cmap" resultType="cmap">
+		SELECT MAX(VisitDate)AS VisitDate
+			 , UserCode 
+			 , DisplayName FROM (
+					SELECT  cv.UserCode
+						  , cv.VisitDate
+						  , Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName) AS DisplayName
+					  FROM community_visit cv 
+					  INNER JOIN sys_object_user sou ON sou.UserCode = cv.UserCode 
+					  WHERE cv.CommunityID = #{CU_ID}
+			  )A
+		GROUP BY UserCode
+		ORDER BY VisitDate DESC 
+		LIMIT 3
+	</select>
+	
+	<select id="selectCommunityJoinUserInfo" parameterType="cmap" resultType="cmap">
+		SELECT IFNULL(MailAddress,'')AS MailAddress
+			 , DisplayName 
+			 , (SELECT JoinOption FROM community WHERE CU_ID = #{CU_ID})AS JoinOption
+		  FROM sys_object_user
+		  WHERE 1=1 
+		  AND UserCode = #{UR_Code} 
+	</select>
+	
+	<insert id="insertCommunityMember" parameterType="cmap" >
+		INSERT INTO community_member (
+									  CU_ID
+									, UR_CODE
+									, NickName
+									, MemberStatus
+									, DetailStatus
+									, RegMessage
+									, MemberLevel
+									, RegProcessDate	) VALUES (
+									
+									  #{CU_ID}
+									, #{UR_Code}
+									, #{NickName}
+									, #{MemberStatus}
+									, #{DetailStatus}
+									, #{RegMessage}
+									, #{DefaultMemberLevel}
+									, NOW(3)
+									)
+	</insert>
+	
+	<select id="selectCommunityDefaultMemberLevel"  parameterType="cmap" resultType="String">
+		SELECT DefaultMemberLevel FROM community WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectCommunityMemberDuplyCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM community_member WHERE CU_ID = #{CU_ID} AND UR_Code = #{UR_Code} 
+	</select>
+	
+	<select id="insertCommunityGroupMemberCount" parameterType="cmap" resultType="java.lang.Long">
+			SELECT COUNT(*) 
+			FROM sys_object_group_member
+		WHERE 1=1
+		AND GroupCode = (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})
+		AND UserCode = #{UR_Code}
+	</select>
+	
+	<insert id="insertCommunityGroupMember"  parameterType="cmap" >
+		INSERT INTO sys_object_group_member
+				(	GroupCode,
+					UserCode,
+					SortKey,
+					Role,
+					IsUse,
+					IsHR,
+					MemberStatus
+				)
+				VALUES 
+				(
+					(SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID}),
+					#{UR_Code} ,
+					200,	
+					'member',	
+					'Y',		
+					'N',		
+					'A'			
+				)
+	</insert>
+	
+	<update id="updateCommunityGroupMember" parameterType="cmap">
+		UPDATE sys_object_group_member SET
+				IsUse = 'Y'
+		WHERE GroupCode = CONCAT('Community', #{CU_ID}) AND UserCode = #{UR_Code}
+	</update>
+	
+	<select id="insertCommunityGroupMemberByGradeCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT count(*) FROM sys_object_group_member
+		WHERE 1=1
+		AND GroupCode IN (SELECT sog.GroupCode FROM community c INNER JOIN sys_object_group sog ON c.DefaultMemberLevel = sog.Reserved6 WHERE CU_ID = #{CU_ID} AND sog.MemberOf IN (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID}))
+		AND UserCode = #{UR_Code}
+	</select>
+	
+	<insert id="insertCommunityGroupMemberByGrade"  parameterType="cmap" >
+		INSERT INTO sys_object_group_member
+				(	GroupCode,
+					UserCode,
+					SortKey,
+					Role,
+					IsUse,
+					IsHR,
+					MemberStatus
+				)
+				VALUES 
+				(
+					(SELECT sog.GroupCode FROM community c INNER JOIN sys_object_group sog ON c.DefaultMemberLevel = sog.Reserved6 WHERE CU_ID = #{CU_ID} AND sog.MemberOf IN (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})),
+					#{UR_Code},
+					200,	
+					'member',
+					'Y',		
+					'N',		
+					'A'			
+				)
+	</insert>
+	
+	<select id="selectCommunityScheduleMenu"  parameterType="cmap" resultType="String">
+		SELECT CONCAT(CONCAT((SELECT SortPath FROM sys_object_folder WHERE FolderID = #{MemberOf}),CONCAT(LEFT('000000000000000', 15 - LENGTH(#{CU_ID})),#{CU_ID})),';') FROM dual
+	</select>
+	
+	<select id="selectCommunityMemberManageGridListCount"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT  
+				COUNT(*)
+		FROM community c
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+		INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+		INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+		INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType='Origin'
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.MemberLevel = #{MemberLevel}
+		AND cm.MemberStatus = 'E'
+		AND cm.DetailStatus = 'RA'
+	</select>
+	
+	<select id="selectCommunityMemberManageGridList"  parameterType="cmap" resultType="cmap">
+		SELECT  
+				c.CU_ID,
+				IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName) AS CommunityName,
+				IFNULL(sou.DisplayName,'') AS opName,
+				cc.CategoryID,	
+				soub.DeptName AS opDeptName,
+				soub.JobPositionName AS opJobPositionName,
+				Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType,
+				cm.MemberLevel,
+				DATE_FORMAT(cm.RegRequestDate,'%Y.%m.%d')AS RegRequestDate,
+				cm.UR_Code
+		FROM community c
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+		INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+		INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+		INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType = 'Origin'
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.MemberLevel = #{MemberLevel}
+		AND cm.MemberStatus = 'E'
+		AND cm.DetailStatus = 'RA'
+		<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("opName")'>opName</when>
+					<when test='sortColumn.equalsIgnoreCase("opDeptName")'>opDeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("opJobPositionName")'>opJobPositionName</when>
+					<otherwise>RegRequestDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectCommunityDeleteMemberGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT  
+				COUNT(*)
+		FROM community c
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+		INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+		INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+		INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType='Origin'
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.DetailStatus in ('LF','LS')
+	</select>
+	
+	<select id="selectCommunityDeleteMemberGridList" parameterType="cmap" resultType="cmap">
+		SELECT  
+				c.CU_ID,
+				IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName,
+				IFNULL(sou.DisplayName,'') AS opName,						
+				cc.CategoryID,	
+				soub.DeptName AS opDeptName,
+				soub.JobPositionName AS opJobPositionName,
+				Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType,
+				cm.MemberLevel,
+				DATE_FORMAT(cm.RegRequestDate,'%Y.%m.%d')AS RegRequestDate,
+				cm.UR_Code,
+				IFNULL(cm.LeaveMessage,' ')AS LeaveMessage,
+				IFNULL(DATE_FORMAT(cm.LeaveProcessDate,'%Y.%m.%d'),' ')AS LeaveProcessDate,
+				DATE_FORMAT(cm.RegProcessDate,'%Y.%m.%d')AS RegProcessDate,
+				Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuMemberDetailStatus', cm.DetailStatus)) AS DetailStatus
+		FROM community c
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+		INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+		INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+		INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType='Origin'
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.DetailStatus IN ('LF','LS')
+		<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("opDeptName")'>opDeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("opJobPositionName")'>opJobPositionName</when>
+					<when test='sortColumn.equalsIgnoreCase("DetailStatus")'>DetailStatus</when>
+					<when test='sortColumn.equalsIgnoreCase("LeaveProcessDate")'>LeaveProcessDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LeaveMessage")'>LeaveMessage</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<otherwise>opName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+				LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectCommunityMemberGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+				SELECT  
+						cm.UR_Code
+				FROM community c
+				INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+				INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+				INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+				INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+				INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType='Origin'
+				WHERE 1=1
+				AND c.CU_ID = #{CU_ID}
+				AND cm.DetailStatus = 'RV'
+				<if test="searchText != null and searchText != ''">
+					AND sou.DisplayName LIKE CONCAT('%',#{searchText},'%')
+				</if>
+				AND sou.IsUse = 'Y'
+		  GROUP BY UR_Code 
+		  ORDER BY cm.MemberLevel DESC, soub.JobPositionSortKey ASC, sou.DisplayName ASC
+		)A 
+	</select>
+	
+	<select id="selectCommunityMemberGridList" parameterType="cmap" resultType="cmap">
+	  SELECT * FROM ( 
+			SELECT  
+					c.CU_ID,
+					IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName,
+					IFNULL(Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'') AS opName,
+					cc.CategoryID,	
+					Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) AS opDeptName,
+					Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobPositionName) AS opJobPositionName, 
+					soub.JobPositionSortKey AS opJobPositionSortKey,
+					Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType,
+					DATE_FORMAT(cm.RegRequestDate,'%Y.%m.%d')AS RegRequestDate,
+					cm.UR_Code,
+					cm.LeaveMessage,
+					DATE_FORMAT(cm.LeaveProcessDate,'%Y.%m.%d')AS LeaveProcessDate,
+					DATE_FORMAT(cm.RegProcessDate,'%Y.%m.%d')AS RegProcessDate,
+					Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuMemberDetailStatus', cm.DetailStatus)) AS DetailStatus,
+					cm.MemberGrade,
+					cm.MsgCount,
+					cm.ReplyCount,
+					cm.OneMsgCount,
+					cm.ViewCount,
+					(SELECT COUNT(*) FROM community_visit WHERE CommunityID = c.CU_ID AND UserCode = cm.UR_Code)AS VisitCount,
+					cm.MemberLevel AS memberLevel,
+					Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuMemberLevel', CAST(cm.MemberLevel as CHAR(30)))) AS CuMemberLevel,	
+					IFNULL((SELECT DATE_FORMAT(MAX(VisitDate),'%Y.%m.%d') FROM community_visit WHERE CommunityID = c.CU_ID AND UserCode = cm.UR_Code),' ')AS VisitDate,
+					IFNULL(sou.MailAddress,'')AS MailAddress,
+					IFNULL(sou.PhoneNumber,'')AS PhoneNumber,
+					sou.PhotoPath	
+			FROM community c
+			INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+			INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+			INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+			INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+			INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode AND soub.JobType='Origin'
+			WHERE 1=1
+			AND c.CU_ID = #{CU_ID}
+			AND cm.DetailStatus = 'RV'
+			<if test="searchText != null and searchText != ''">
+				AND sou.DisplayName LIKE CONCAT('%',#{searchText},'%')
+			</if>
+			AND sou.IsUse = 'Y'
+			GROUP BY UR_Code 
+		) A
+		<trim prefix="ORDER BY"  prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("opName")'>opName</when>
+					<when test='sortColumn.equalsIgnoreCase("opDeptName")'>opDeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<when test='sortColumn.equalsIgnoreCase("PhoneNumber")'>PhoneNumber</when>
+					<when test='sortColumn.equalsIgnoreCase("MailAddress")'>MailAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("CuMemberLevel")'>CuMemberLevel</when>
+					<when test='sortColumn.equalsIgnoreCase("VisitCount")'>(VisitCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("MsgCount")'>(MsgCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("ReplyCount")'>(ReplyCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("ViewCount")'>(ViewCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("VisitDate")'>VisitDate</when>
+					<otherwise>memberLevel</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC, opName ASC</when>
+					<otherwise> DESC, opName ASC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' "> 
+				memberLevel DESC, opName ASC
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+ 	<update id="updateCommunityMember" parameterType="cmap" >
+		UPDATE community_member SET  MemberLevel = #{DefaultMemberLevel}
+									, MemberStatus = #{MemberStatus}
+									, DetailStatus = #{DetailStatus}
+									, RegProcessDate = NOW(3)
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}											
+	</update>
+	
+	<select id="selectMemberLevelBox" parameterType="cmap" resultType="cmap">
+		SELECT  Fn_BaseGetDictionary_S(#{lang},MultiCodeName) AS optionText
+			  , code AS optionValue
+		FROM sys_base_code sbc
+		WHERE BizSection = 'Community' 
+		AND CodeGroup = 'CuMemberLevel' 
+		AND code = #{memberLevel}
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuMemberLevel' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		
+		UNION ALL 
+		
+		SELECT  Fn_BaseGetDictionary_S(#{lang},MultiCodeName )AS optionText
+			  , code AS optionValue
+		FROM sys_base_code sbc
+		WHERE BizSection = 'Community' 
+		AND CodeGroup = 'CuMemberLevel' 
+		AND IsUse = 'Y' 
+		AND code != #{memberLevel}
+		AND code NOT IN ('CuMemberLevel','0','9')
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuMemberLevel' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+	</select>
+	
+	<update id="communityMemberLevelChange"  parameterType="cmap">
+		UPDATE community_member SET 
+				MemberLevel = #{memberLevel}
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}
+	</update>
+	
+	<update id="communityGroupMemberLevelChange"  parameterType="cmap">
+		UPDATE sys_object_group_member SET 
+				GroupCode = (SELECT GroupCode FROM sys_object_group WHERE MemberOf = CONCAT('Community', #{CU_ID}) AND Reserved6 = #{memberLevel})
+		WHERE 1=1
+		AND GroupCode = (SELECT GroupCode FROM sys_object_group WHERE MemberOf = CONCAT('Community', #{CU_ID}) AND Reserved6 IN (SELECT MemberLevel FROM community_member WHERE CU_ID = #{CU_ID} AND UR_Code = #{UR_Code}))
+		AND UserCode = #{UR_Code}
+	</update>
+	
+	<select id="selectCommunityLeaveInfo" parameterType="cmap" resultType="cmap">
+		SELECT DATE_FORMAT(NOW(), '%Y.%m.%d')AS now_date
+			 , cm.MemberLevel
+			 , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			 , sou.DisplayName
+			 , soub.DeptName
+			 , soub.JobPositionName
+			 , Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuMemberLevel', cm.MemberLevel)) AS CuMemberLevel
+			 , DATE_FORMAT(cm.RegProcessDate, '%Y.%m.%d')AS RegProcessDate
+			 , sou.MailAddress
+			 , c.CommunityName
+			 , Fn_BaseGetDictionary_S (#{lang}, soub.MultiJobPositionName) AS MultiJobPositionName 
+			 , Fn_BaseGetDictionary_S (#{lang}, soub.MultiJobLevelName) AS MultiJobLevelName 
+			 , Fn_BaseGetDictionary_S (#{lang}, soub.MultiJobTitleName) AS MultiJobTitleName 
+		FROM community_member cm
+		INNER JOIN community c ON c.CU_ID = cm.CU_ID
+		INNER JOIN sys_object_user sou ON sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = cm.UR_Code 
+		WHERE 1=1
+		AND cm.CU_ID = #{CU_ID}
+		AND cm.UR_Code = #{UR_Code}
+	</select>
+	
+	<update id="communityMemberLeave" parameterType="cmap">
+		UPDATE community_member SET 
+				MemberStatus = 'U',
+				DetailStatus = 'LS',
+				LeaveMessage = #{LeaveMessage},
+				LeaveProcessDate = NOW(3)
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}
+	</update>
+	
+	<update id="communityGropMemberLeave" parameterType="cmap">
+		DELETE FROM sys_object_group_member
+		WHERE GroupCode = CONCAT('Community',#{CU_ID}) AND UserCode = #{UR_Code}
+	</update>
+	
+	<select id="communityGroupMemberGradeLeaveCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT count(*) FROM sys_object_group_member
+		WHERE 1=1
+		AND GroupCode IN ((SELECT GroupCode FROM (SELECT sog.GroupCode FROM community c INNER JOIN community_member cm on c.CU_ID = cm.CU_ID INNER JOIN sys_object_group sog on c.CU_Code = sog.MemberOf AND cm.MemberLevel = sog.Reserved6 WHERE c.CU_ID = #{CU_ID} AND cm.UR_Code = #{UR_Code}) AS B))
+		AND UserCode = #{UR_Code}
+	</select>
+	
+	<delete id="communityGroupMemberGradeLeave" parameterType="cmap">
+		DELETE FROM sys_object_group_member
+		WHERE 1=1
+		AND GroupCode IN ((SELECT GroupCode FROM (SELECT sog.GroupCode FROM community c INNER JOIN community_member cm on c.CU_ID = cm.CU_ID INNER JOIN sys_object_group sog on c.CU_Code = sog.MemberOf AND cm.MemberLevel = sog.Reserved6 WHERE c.CU_ID = #{CU_ID} AND cm.UR_Code = #{UR_Code}) AS B))
+		AND UserCode = #{UR_Code}
+	</delete>
+	
+	<select id="selectCommunityNoticeCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community c
+		INNER JOIN sys_object_folder sf ON c.CU_ID = sf.MenuID
+		<if test='aclDataArr != null and aclDataArr.length != 0'>
+		INNER JOIN sys_object_user_acl AS ACL ON sf.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+		</if>
+		INNER JOIN community_member cm ON cm.CU_ID = sf.MenuID
+		WHERE 1=1 
+		AND c.RegStatus = 'R'
+		<!-- 개설승인, 폐쇄거부, 복원 -->
+		AND c.AppStatus IN ('RV', 'UD', 'RS')
+		AND sf.ObjectType = 'Community'
+		AND sf.FolderType = 'Notice'
+		AND cm.UR_Code = #{UR_Code}
+		AND cm.MemberLevel != '0'
+		AND cm.MemberStatus = 'R'
+		AND cm.DetailStatus = 'RV'
+		AND (sf.IsUse = 'Y' OR c.OperatorCode = #{isCommunityAdmin})
+	</select>
+	
+	<select id="selectCommunityNoticeFolder" parameterType="cmap" resultType="cmap">
+		SELECT sf.FolderID 
+		FROM community c
+		INNER JOIN sys_object_folder sf ON c.CU_ID = sf.MenuID
+		<if test='aclDataArr != null and aclDataArr.length != 0'>
+		INNER JOIN sys_object_user_acl AS ACL ON sf.FolderID = ACL.ObjectID AND ACL.UserCode = #{UR_Code} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+		</if>
+		INNER JOIN community_member cm ON cm.CU_ID = sf.MenuID
+		WHERE 1=1 
+		AND c.RegStatus = 'R'
+		<!-- 개설승인, 폐쇄거부, 복원 -->
+		AND c.AppStatus IN ('RV', 'UD', 'RS')
+		AND sf.FolderType = 'Notice'
+		AND cm.UR_Code = #{UR_Code}
+		AND cm.MemberLevel != '0'
+		AND cm.MemberStatus = 'R'
+		AND cm.DetailStatus = 'RV'
+	</select>
+	
+	<update id="updateCommunityOpMember"  parameterType="cmap">
+		UPDATE community_member SET  MemberStatus = 'R'
+									, DetailStatus = 'RV'
+									, MemberLevel = '9'
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_CODE = #{userID}
+	</update>
+	
+	<select id="selectCommunityBoardRankInfo" parameterType="cmap" resultType="cmap">
+		SELECT CONCAT(num,'')AS num
+				 , UserCode
+				 , opName
+				 , MsgCount
+				 , PhotoPath
+				FROM (
+				SELECT @num:=@num+1 AS num
+					  , UserCode
+					  , opName
+					  , MsgCount
+					  , PhotoPath
+		  		 FROM(		
+					SELECT  
+							@num:=0,
+							sou.UserCode,
+							IFNULL(Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'') AS opName,
+							IFNULL(cm.MsgCount,0)AS MsgCount,
+							sou.PhotoPath
+					FROM community c
+					INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+					INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+					INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+					INNER JOIN sys_object_user AS sou ON  sou.UserCode = cm.UR_Code
+					INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode
+					WHERE 1=1
+					AND c.CU_ID = #{CU_ID}
+					AND cm.DetailStatus = 'RV'
+					AND cm.MemberStatus = 'R'
+					AND cm.MemberLevel != '0'
+					AND sou.IsUse = 'Y'
+					GROUP BY UserCode
+				)A
+			ORDER BY MsgCount DESC
+			)B
+		ORDER BY CAST(num AS UNSIGNED) ASC	
+		LIMIT 10 
+	</select>
+	
+	<select id="selectCommunityVisitRankInfo" parameterType="cmap" resultType="cmap">
+		SELECT CONCAT(num,'')AS num
+				, UserCode
+				, opName
+				, VisitCount
+				, PhotoPath
+				 FROM (
+				SELECT @num:=@num+1 AS num
+					  , UserCode
+					  , opName
+					  , VisitCount
+					  , PhotoPath FROM(		
+								SELECT  
+										@num:=0,
+										sou.UserCode,
+										IFNULL(Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'') AS opName,
+										IFNULL(cm.VisitCount,0)AS VisitCount,
+										sou.PhotoPath
+								FROM community c
+								INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+								INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+								INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+								INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+								INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode
+								WHERE 1=1
+								AND c.CU_ID = #{CU_ID}
+								AND cm.DetailStatus = 'RV'
+								AND cm.MemberStatus = 'R'
+								AND cm.MemberLevel != '0'
+								AND sou.IsUse = 'Y'
+								GROUP BY UserCode
+						)A
+				ORDER BY VisitCount DESC 
+			)B
+		ORDER BY CAST(num AS UNSIGNED) ASC	
+		LIMIT 10
+	</select>
+	
+	<select id="selectCommunityCallMemberList"  parameterType="cmap" resultType="cmap">
+			SELECT  
+				IFNULL(Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'') AS opName,
+				cm.UR_Code
+		FROM community c
+		INNER JOIN community_category AS cc ON cc.CategoryID = c.CategoryID 
+		INNER JOIN community_detail AS cd ON cd.CU_ID = c.CU_ID 
+		INNER JOIN community_member AS cm ON cm.CU_ID = c.CU_ID 
+		INNER JOIN sys_object_user	AS sou ON  sou.UserCode = cm.UR_Code
+		INNER JOIN sys_object_user_basegroup soub ON soub.UserCode = sou.UserCode
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.DetailStatus = 'RV'
+		AND cm.MemberStatus = 'R'
+		AND cm.MemberLevel != '0'
+		AND sou.MultiDisplayName LIKE CONCAT('%',#{searchWord},'%')  	
+		AND sou.IsUse = 'Y'	
+		GROUP BY UR_Code
+	</select>
+	
+	<select id="selectCommunityName" parameterType="cmap" resultType="String">
+		SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',CU_ID), DN_ID),CommunityName) AS CommunityName
+		FROM community 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="communityCallMemberSendMessage" parameterType="cmap">
+	  	<![CDATA[	INSERT INTO sys_alarm_list(				
+		 								UserCode
+		 							 , Category
+		 							 , MsgType
+		 							 , Title
+		 							 , URL
+		 							 , Message
+		 							 , OpenType
+		 							 , ObjectID
+		 							 , ObjectType
+		 							 , IsPush
+		 							 , PusherCode
+		 							 , ReceivedDate
+		 							 , IsRead
+		 											)VALUES(
+		 								#{UR_Code}
+		 							 , 'Community'
+		 							 , 'CuMemberContact'
+		 							 , SUBSTR(#{communityName}, 1, 200)
+		 							 ,  '/groupware/layout/community_CommunityList.do?CLSYS=community&CLMD=user&CLBIZ=Community'	
+		 							 , #{sendMessageTxt}
+		 							 , 'PAGEMOVE'
+		 							 , #{CU_ID}
+		 							 , 'CU'
+		 							 , 'N'
+		 							 , #{userID}
+		 							 , NOW(3)
+		 							 , 'N'
+		 						) ]]> 
+	</insert>
+	
+	<update id="communityUpdateInfo"  parameterType="cmap">
+		UPDATE community SET  OperatorCode = #{operatorCode}
+							, OperatorName = (SELECT DisplayName FROM sys_object_user WHERE UserCode = #{operatorCode})
+							, CommunityName = #{txtCommunityName}
+							, SearchTitle = #{textLineIntroduction}
+							<if test="JoinOption != null and JoinOption != ''">
+							, JoinOption = #{JoinOption}
+							</if>
+		WHERE 1=1 
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<update id="communityGroupUpdateInfo"  parameterType="cmap">
+		UPDATE sys_object_group SET DisplayName = #{txtCommunityName}
+								  , MultiDisplayName = #{txtCommunityName}
+								  , ShortName = #{txtCommunityName}
+								  , MultiShortName = #{txtCommunityName}
+								  , OUName = #{txtCommunityName}
+								  , OUPath = #{txtCommunityName}
+		WHERE 1=1 
+		AND GroupCode = (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID}  LIMIT 1 ) 
+	</update>
+	
+	<update id="communityFolderUpdateInfo"  parameterType="cmap">
+			UPDATE sys_object_folder SET  DisplayName = #{txtCommunityName}
+			 						 	, MultiDisplayName = #{txtCommunityName}
+			WHERE FolderID IN (
+			SELECT * FROM ( 
+				SELECT 
+					 sf.FolderID
+				FROM community_menu_top cmt
+				INNER JOIN sys_object_folder sf ON sf.FolderID = cmt.FD_ID
+			 	WHERE 1=1 
+				AND cmt.CU_ID = #{CU_ID} 
+				AND sf.DeleteDate IS NULL
+				AND sf.FolderType = 'Schedule'
+			) A
+		)
+	</update>
+	
+	<update id="communityFolderUpdateOnwer"  parameterType="cmap">
+		UPDATE sys_object_folder
+		   SET OwnerCode = #{operatorCode}
+		 WHERE MenuID = #{CU_ID} 
+		   AND ObjectType = 'Community'
+		   AND DeleteDate IS NULL
+	</update>
+	
+	<select id="communityTextDetailCnt"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_detail 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</select>
+	
+	<update id="communityUpdateInfoText"  parameterType="cmap">
+		UPDATE community_detail SET 
+									  Description = #{txtIntroduction}
+									, DescriptionEditor = #{txtIntroductionEditer}
+									, DescriptionOption = #{DescriptionOption}
+									, Provision = #{txtStipulation}
+									, ProvisionEditor = #{txtStipulationEditer}
+									, ProvisionOption = #{ProvisionOption}
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<insert id="communityCreateInfoText"  parameterType="cmap">
+		INSERT INTO community_detail (
+										  CU_ID 
+										, Description
+										, DescriptionEditor
+										, DescriptionOption
+										, Provision
+										, ProvisionEditor
+										, ProvisionOption
+														) VALUES (
+										  #{CU_ID}
+										, #{txtIntroduction} 
+										, #{txtIntroductionEditer}
+										, #{DescriptionOption}
+										, #{txtStipulation}
+										, #{txtStipulationEditer}			
+										, #{ProvisionOption}				
+									 )
+	</insert>
+	
+	<select id="selectCommunityAllianceGridListCount"  parameterType="cmap" resultType="java.lang.Long">
+	 SELECT COUNT(*) FROM ( 
+				SELECT	c.CU_ID, ca.Status
+				FROM community c
+				INNER JOIN community_affiliates ca ON ca.RequestID = c.CU_ID 
+				WHERE 1=1
+				AND c.AppStatus IN('RV','RS','UA','UD')	
+				AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+				AND ca.ReceiveID = #{CU_ID}
+				<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+				<if test="Status != null and Status != ''">
+					AND ca.Status = #{Status}
+				</if>
+				UNION ALL 
+				
+				SELECT  c.CU_ID, ca.Status
+				FROM community c
+				INNER JOIN community_affiliates ca ON ca.ReceiveID = c.CU_ID 
+				WHERE 1=1
+				AND c.AppStatus IN('RV','RS','UA','UD')	
+				AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+				AND ca.RequestID =  #{CU_ID}
+				<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+				<if test="Status != null and Status != ''">
+					AND ca.Status = #{Status}
+				</if>
+				
+				UNION ALL 
+				
+				SELECT * FROM (
+					SELECT  c.CU_ID, '' AS Status
+					FROM community c
+					WHERE c.CU_ID NOT IN (  SELECT CU_ID 
+													FROM community c
+													INNER JOIN community_affiliates ca ON ca.RequestID = c.CU_ID 
+													WHERE 1=1
+													AND c.AppStatus IN('RV','RS','UA','UD')	
+													AND ca.ReceiveID = #{CU_ID}
+													
+													UNION ALL 
+													
+													SELECT CU_ID 
+													FROM community c
+													INNER JOIN community_affiliates ca ON ca.ReceiveID = c.CU_ID 
+													WHERE 1=1
+													AND c.AppStatus IN('RV','RS','UA','UD')	
+													AND ca.RequestID = #{CU_ID}
+											)
+					AND c.CU_ID != #{CU_ID}
+					AND c.AppStatus IN('RV','RS','UA','UD')
+					AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+					<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+				)A WHERE 1=1 <if test="Status != null and Status != ''"> AND Status = #{Status} </if>
+		)A
+	</select>
+	
+	<select id="selectCommunityAllianceGridList"  parameterType="cmap" resultType="cmap">
+		SELECT	c.CU_ID
+			  , ca.PartiID
+			  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			  , (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = c.OperatorCode)AS DisplayName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = c.OperatorCode)AS MailAddress
+			  , c.OperatorCode
+			  , c.RegProcessDate AS RegProcessDate
+			  , IFNULL(D.MemberCNT, 0) AS MemberCount
+			  , DATE_FORMAT(ca.RequestDate,'%Y.%m.%d')AS RequestDate
+			  , DATE_FORMAT(ca.ProcessingDate,'%Y.%m.%d')AS ProcessingDate
+			  , RecipientID
+			  , IFNULL( (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = ca.RecipientID),'')AS RecipientName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = ca.RecipientID)AS RecipientMailAddress
+			  , RequesterID
+			  , IFNULL( (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = ca.RequesterID),'')AS RequesterName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = ca.RequesterID)AS RequesterMailAddress
+			  , Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuPartiStatus', IF(ca.Status = 'CuPartiStatus', '', ca.Status))) AS statusNm
+			  , ca.Status
+			  , '1' AS keyNum
+			  , IFNULL(c.SearchTitle,'') AS SearchTitle
+			  , ca.ProcessingMessage
+			  , ci.FileID
+		FROM community c
+		INNER JOIN community_affiliates ca ON ca.RequestID = c.CU_ID
+		LEFT JOIN (SELECT CU_ID , COUNT(*) AS MemberCNT FROM community_member WHERE MemberStatus ='R' AND MemberLevel !='0' AND DetailStatus = 'RV' GROUP BY CU_ID ) AS D ON D.CU_ID = c.CU_ID 
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE 1=1
+		AND c.AppStatus IN('RV','RS','UA','UD')	
+		AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+		AND ca.ReceiveID = #{CU_ID}
+		<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+		<if test="Status != null and Status != ''">
+			AND ca.Status = #{Status}
+		</if>
+		
+		UNION ALL 
+		
+		SELECT  c.CU_ID
+			  , ca.PartiID
+			  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			  , (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = c.OperatorCode)AS DisplayName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = c.OperatorCode)AS MailAddress
+			  , c.OperatorCode
+			  , c.RegProcessDate AS RegProcessDate
+			  , IFNULL(D.MemberCNT, 0) AS MemberCount
+			  , DATE_FORMAT(ca.RequestDate,'%Y.%m.%d')AS RequestDate
+			  , DATE_FORMAT(ca.ProcessingDate,'%Y.%m.%d')AS ProcessingDate
+			  , RecipientID
+			  , IFNULL( (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = RecipientID),'')AS RecipientName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = RecipientID)AS RecipientMailAddress
+			  , RequesterID
+			  , IFNULL( (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = RequesterID),'')AS RequesterName
+			  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = RequesterID)AS RequesterMailAddress
+			  , Fn_BaseGetDictionary_S (#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuPartiStatus', IF(ca.Status = 'CuPartiStatus', '', ca.Status))) AS statusNm
+			  , ca.Status
+			  , '2' AS keyNum
+			  , IFNULL(c.SearchTitle,'') AS SearchTitle
+			  , ca.ProcessingMessage
+			  , ci.FileID
+		FROM community c
+		INNER JOIN community_affiliates ca ON ca.ReceiveID = c.CU_ID
+		LEFT JOIN (SELECT CU_ID , COUNT(*) AS MemberCNT FROM community_member WHERE MemberStatus ='R' AND MemberLevel !='0' AND DetailStatus = 'RV' GROUP BY CU_ID ) AS D ON D.CU_ID = c.CU_ID 
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE 1=1
+		AND c.AppStatus IN('RV','RS','UA','UD')	
+		AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+		AND ca.RequestID =  #{CU_ID}
+		<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+		<if test="Status != null and Status != ''">
+			AND ca.Status = #{Status}
+		</if>
+		
+		UNION ALL 
+		SELECT * FROM (
+			SELECT  c.CU_ID
+				  , '' AS PartiID
+				  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+				  , (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = c.OperatorCode)AS DisplayName
+				  , (SELECT MailAddress FROM sys_object_user WHERE UserCode = c.OperatorCode)AS MailAddress
+				  , c.OperatorCode
+				  , IFNULL(c.RegProcessDate,'')AS RegProcessDate
+				  , IFNULL(D.MemberCNT, 0) AS MemberCount
+				  , '' AS RequestDate
+				  , '' AS ProcessingDate
+				  , '' AS RecipientID
+				  , '' AS RecipientName
+				  , '' AS RecipientMailAddress
+				  , '' AS RequesterID
+				  , '' AS RequesterName
+				  , '' AS RequesterMailAddress
+				  , '' AS statusNm
+				  , '' AS Status
+				  , '3' AS keyNum 
+				  , IFNULL(c.SearchTitle,'') AS SearchTitle
+				  , '' AS ProcessingMessage
+				  , ci.FileID
+			FROM community c
+			LEFT JOIN (SELECT CU_ID , COUNT(*) AS MemberCNT FROM community_member WHERE MemberStatus ='R' AND MemberLevel !='0' AND DetailStatus = 'RV' GROUP BY CU_ID ) AS D ON D.CU_ID = c.CU_ID
+			LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			WHERE c.CU_ID NOT IN (  SELECT CU_ID 
+											FROM community c
+											INNER JOIN community_affiliates ca ON ca.RequestID = c.CU_ID 
+											WHERE 1=1
+											AND c.AppStatus IN('RV','RS','UA','UD')	
+											AND ca.ReceiveID = #{CU_ID}
+											
+											UNION ALL 
+											
+											SELECT CU_ID 
+											FROM community c
+											INNER JOIN community_affiliates ca ON ca.ReceiveID = c.CU_ID 
+											WHERE 1=1
+											AND c.AppStatus IN('RV','RS','UA','UD')	
+											AND ca.RequestID = #{CU_ID}
+									)
+			AND c.CU_ID != #{CU_ID}
+			AND c.AppStatus IN('RV','RS','UA','UD')	
+			AND ( c.GUBUN = 'C' OR c.GUBUN IS NULL )
+			<if test='isSaaS == "Y"'> AND c.DN_ID = #{DN_ID} </if>
+		)A WHERE 1=1 <if test="Status != null and Status != ''"> AND Status = #{Status} </if>
+		<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>(MemberCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("RequesterName")'>RequesterName</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestDate")'>RequestDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RecipientName")'>RecipientName</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessingDate")'>ProcessingDate</when>
+					<when test='sortColumn.equalsIgnoreCase("Status")'>Status</when>
+					<otherwise>statusNm</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectCommunityMemberCheckCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_CODE = #{operatorCode}
+	</select>
+	
+	<update id="updateCommunityMemberOperatorCode" parameterType="cmap">
+		UPDATE community SET OperatorCode = #{userID}
+		WHERE 1=1 
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<update id="updateCommunityOperatorMember"  parameterType="cmap">
+		UPDATE community_member SET  MemberStatus = 'R'
+									, DetailStatus = 'RV'
+									, MemberLevel = '9'
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_CODE = #{operatorCode}
+	</update>
+	
+	<update id="updateCommunityBeforeOperatorMember" parameterType="cmap">
+		UPDATE community_member 
+		SET MemberLevel = '6'		<!-- 기존 운영자는 회원상태/ 상세회원상태값은 유지. 회원등급은 정회원(6)으로 변경. -->
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND UR_CODE != #{operatorCode}
+		AND MemberStatus = 'R'
+		AND DetailStatus = 'RV'
+		AND MemberLevel = '9'
+	</update>
+	
+	<update id="updateCommunityBeforeOperatorGroupMember" parameterType="cmap">
+		UPDATE sys_object_group_member 
+		SET GroupCode = CONCAT('CommunityGrade', #{CU_ID}, '_6')
+		WHERE GroupCode like CONCAT('CommunityGrade', #{CU_ID}, '%')
+		AND UserCode IN (
+			SELECT UR_CODE 
+			FROM community_member 
+			WHERE 1=1
+			AND CU_ID = #{CU_ID}
+			AND UR_CODE != #{operatorCode}
+			AND MemberStatus = 'R'
+			AND DetailStatus = 'RV'
+			AND MemberLevel = '9'
+		)
+	</update>
+	
+	<delete id="deleteCommunityBeforeOperatorGroupMemberGrade" parameterType="cmap">
+		DELETE FROM sys_object_group_member 
+		WHERE GroupCode like CONCAT('CommunityGrade', #{CU_ID}, '%')
+		AND UserCode IN (SELECT UR_CODE FROM community_member 
+						 WHERE 1=1
+						 AND CU_ID = #{CU_ID}
+						 AND UR_CODE != #{operatorCode}
+						 AND MemberStatus = 'R'
+						 AND DetailStatus = 'RV'
+						 AND MemberLevel = '9'
+						)
+	</delete>
+	
+	<delete id="deleteCommunityGroupMemberGrade" parameterType="cmap">
+		DELETE FROM sys_object_group_member  
+		WHERE GroupCode like CONCAT('CommunityGrade', #{CU_ID}, '%')
+		AND UserCode = #{operatorCode}
+	</delete>
+
+	<insert id="insertCommunityOperatorGroupMember" parameterType="cmap">
+		INSERT INTO sys_object_group_member
+		(	GroupCode,
+			UserCode,
+			SortKey,
+			Role,
+			IsUse,
+			IsHR,
+			MemberStatus
+		)
+		VALUES 
+		(
+			CONCAT('CommunityGrade', #{CU_ID}, '_9'),
+			#{operatorCode} ,
+			200,	
+			'member',	
+			'Y',		
+			'N',		
+			'A'			
+		)
+	</insert>
+	
+	<insert id="createCommunityOperatorMember"  parameterType="cmap">
+		 INSERT INTO community_member (
+										  CU_ID
+										, UR_CODE
+										, NickName
+										, MemberStatus
+										, DetailStatus
+										, MemberLevel
+										, RegMessage	
+												)VALUES(
+										  #{CU_ID}
+										, #{operatorCode}
+										, (SELECT DisplayName FROM sys_object_user WHERE UserCode = #{operatorCode})
+										, 'R'
+										, 'RV'
+										, 9
+										, ''
+									  ) 
+		
+	</insert>
+	
+	<select id="selectAlianceType"  parameterType="cmap" resultType="cmap">
+		SELECT	Code AS optionValue
+			  , Codename AS optionText
+		FROM sys_base_code sbc
+		WHERE 1=1
+		AND CodeGroup = 'CuPartiStatus'
+		AND Code != 'CuPartiStatus'
+		AND IsUse = 'Y'
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuPartiStatus' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		ORDER BY SortKey ASC
+	</select>
+	
+	<insert id="createAllianceApprove" parameterType="cmap">
+		INSERT INTO community_affiliates(  RequestID	
+										 , ReceiveID
+										 , RequesterID
+										 , RequestDate
+										 , Status
+										 , RequestMessage 		
+														)VALUES(
+											#{communityID}
+										  , #{RecipientID}
+										  , #{userID}
+										  , NOW(3)
+										  , #{Status}
+										  , #{RequestMessage}
+										 )
+	</insert>
+	
+	<update id="updateAllianceApprove" parameterType="cmap">
+		UPDATE community_affiliates SET  Status = #{Status}
+									  ,  RecipientID = #{userID}
+									  ,  ProcessingDate = NOW(3)
+									  ,  ProcessingMessage = #{RequestMessage}
+									  <choose>
+											<when test ="Status =='P'.toString()">
+											, RequestID = #{communityID}
+											, ReceiveID = #{RecipientID}
+												</when>
+									  </choose>
+		WHERE 1=1 
+		AND PartiID = #{PartiID}
+	</update>
+	
+	<insert id="selectAlianceTodoSendMsg" parameterType="cmap">
+	  INSERT INTO sys_alarm_list(				
+		 								UserCode
+		 							 , Category
+		 							 , MsgType
+		 							 , Title
+		 							 , URL
+		 							 , Message
+		 							 , OpenType
+		 							 , ObjectID
+		 							 , ObjectType
+		 							 , IsPush
+		 							 , PusherCode
+		 							 , ReceivedDate
+		 							 , IsRead
+		 											)VALUES(
+		 								#{UserCode}
+		 							 , 'Community'
+		 							 , 'PartiNotice'
+		 							 , SUBSTR(#{todoTitle}, 1, 200)
+		 							 , ''			
+		 							 , #{RequestMessage}
+		 							 , 'PAGEMOVE'
+		 							 , #{communityID}
+		 							 , 'CU'
+		 							 , 'N'
+		 							 , #{userID}
+		 							 , NOW(3)
+		 							 , 'N'
+		 						)
+	</insert>
+	
+	<select id="selectAlianceTypeName"  parameterType="cmap" resultType="String">
+		SELECT	Codename AS optionText
+		FROM sys_base_code sbc
+		WHERE 1=1
+		AND CodeGroup = 'CuPartiStatus'
+		AND Code != 'CuPartiStatus'
+		AND Code = #{Status}
+		AND IsUse = 'Y'
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND Code != 'CuPartiStatus' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		ORDER BY SortKey ASC
+	</select>
+	
+	<select id="communityAllianceList" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+				  , c.CU_ID AS communityID
+				  <!-- , IFNULL(ci.FilePath,'')AS FilePath  -->
+				  , IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+				  , ca.ProcessingDate
+				  , (SELECT cc.DisplayName FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName
+			FROM  community_affiliates ca
+			INNER JOIN community c ON c.CU_ID = ca.RequestID 
+			LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+			LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+			WHERE 1=1
+			AND ca.ReceiveID = #{communityID}
+			AND ca.Status ='A' and c.RegStatus = 'R'
+			
+			UNION ALL 
+			
+			SELECT IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+				 , c.CU_ID AS communityID 
+				 <!-- , IFNULL(ci.FilePath,'')AS FilePath -->
+				 , IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') as FilePath
+				 , ca.ProcessingDate
+				 , (SELECT cc.DisplayName FROM community_category cc WHERE cc.categoryID = c.categoryID) AS categoryName
+			FROM  community_affiliates ca 
+			INNER JOIN community c ON c.CU_ID = ca.ReceiveID
+			LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+			LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+			WHERE 1=1
+			AND ca.RequestID = #{communityID}
+			AND ca.Status ='A' and c.RegStatus = 'R'
+		)A ORDER BY ProcessingDate DESC 
+		LIMIT 10  
+	</select>
+	
+	<update id="communityClosingUpdate"  parameterType="cmap">
+		UPDATE community SET  AppStatus = 'UA'
+							, ClosingMsg = #{ClosingMsg}
+							, UnRegRequestDate = NOW(3)
+		WHERE CU_ID = #{CU_ID}
+		
+	</update>
+	
+	<select id="communityMemberTodoList" parameterType="cmap" resultType="cmap">
+		SELECT  
+				cm.UR_Code
+			  , IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID),c.CommunityName)AS CommunityName
+			  , c.CU_ID			
+		FROM community c
+		INNER JOIN community_member cm ON c.CU_ID = cm.CU_ID 
+		INNER JOIN sys_object_user sou ON sou.UserCode = cm.UR_Code
+		WHERE 1=1
+		AND cm.DetailStatus = 'RV' 
+		AND cm.MemberStatus = 'R' 
+		AND cm.MemberLevel != '0'
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="communityClosingSendMessage" parameterType="cmap">
+		 INSERT INTO sys_alarm_list(				
+		 								UserCode
+		 							 , Category
+		 							 , MsgType
+		 							 , Title
+		 							 , URL
+		 							 , Message
+		 							 , OpenType
+		 							 , ObjectID
+		 							 , ObjectType
+		 							 , IsPush
+		 							 , PusherCode
+		 							 , ReceivedDate
+		 							 , IsRead
+		 											)VALUES(
+		 								#{UR_Code}
+		 							 , 'Community'
+		 							 , 'CloseRequest'
+		 							 , SUBSTR(#{title}, 1, 200)
+		 							 , ''			
+		 							 , #{sendMessageTxt}
+		 							 , 'PAGEMOVE'
+		 							 , #{CU_ID}
+		 							 , 'CU'
+		 							 , 'N'
+		 							 , #{userID}
+		 							 , NOW(3)
+		 							 , 'N'
+		 						)
+	</insert>
+	
+	<select id="communityLayoutHeaderCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_home_default 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<update id="communityLayoutHeaderUpdate" parameterType="cmap">
+		UPDATE community_home_default SET CommunityTheme = #{color}
+										, UpdateCord = #{UserCord}
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<insert id="communityLayoutHeaderCreate" parameterType="cmap">
+		INSERT INTO community_home_default (
+												 CU_ID
+											  ,  CommunityTheme
+											  ,  IsUse
+											  ,  RegisterCode
+											  ,  RegistDate
+															)VALUES(
+															
+												 #{CU_ID}
+											  ,  #{color}
+											  ,  'Y'
+											  ,  #{UserCord}			
+											  ,  NOW(3)		
+											)
+	</insert>
+	
+	<insert id="communityLayoutDoorCreate" parameterType="cmap">
+		INSERT INTO community_door (			
+										CU_ID
+									  , IsCurrent
+									  , BodyText
+									  , RegistDate
+									  , RegistCode
+													)VALUES(
+													
+										#{CU_ID}
+									  , 'Y'
+									  , #{BodyText}
+									  , NOW(3)
+									  , #{UserCode}				
+									 )
+		
+	</insert>
+	
+	<select id="communityLayoutDoorCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM community_door 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<update id="communityLayoutDoorNotUseUpdate" parameterType="cmap">
+		UPDATE community_door SET IsCurrent = 'N' 
+		WHERE CU_ID = #{CU_ID}							
+	</update>
+	
+	<update id="communityLayoutDoorUpdate"  parameterType="cmap">
+		UPDATE community_door SET  BodyText = #{BodyText}
+								, EditCode = #{UserCode}
+		WHERE CU_ID = #{CU_ID} 		
+		AND DoorID = #{doorID}				
+	</update>
+	
+	<select id="selectCommunityDoorList" parameterType="cmap" resultType="cmap">
+		SELECT	DoorID
+				, DATE_FORMAT(RegistDate, '%Y-%m-%d %H:%i:%s')AS RegistDate
+				, IsCurrent
+		FROM community_door 
+		WHERE CU_ID = #{CU_ID} 
+		ORDER BY RegistDate ASC 
+	</select>
+	
+	<select id="selectCommunityDoorText" parameterType="cmap" resultType="String">
+		SELECT IFNULL(BodyText,'')AS BodyText 
+		FROM community_door
+		WHERE CU_ID = #{CU_ID}
+		AND DoorID = #{doorID}
+	</select>
+	
+	<update id="communityLayoutDoorChange" parameterType="cmap" >
+		UPDATE community_door SET IsCurrent = 'Y'
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND DoorID = #{doorID}
+	</update>
+	
+	<delete id="communityLayoutDoorDelete" parameterType="cmap" >
+		DELETE FROM community_door 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND DoorID = #{doorID}
+	</delete>
+	
+	<select id="communitySelectDoor" parameterType="cmap" resultType="String">
+		SELECT IFNULL(BodyText,'')AS BodyText 
+		FROM community_door
+		WHERE CU_ID = #{CU_ID}
+		AND IsCurrent = 'Y'
+		LIMIT 1 
+	</select>
+	
+	<insert id="communityImgSet" parameterType="cmap" >
+			INSERT INTO community_image(			
+											CU_ID
+										  , FileType
+										  , FilePath
+										  , IsCurrent
+										  , RegistDate
+										  , RegistCode
+														)VALUES(
+											#{CU_ID}
+										  , #{FileType}
+										  , #{FilePath}
+										  , 'Y'
+										  , NOW(3)
+										  , #{UserCode}
+										)
+		<selectKey keyProperty="ImageID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey> 							
+	</insert>
+	
+	<select id="communityImgCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM community_image
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FileType = #{FileType}
+	</select>
+	
+	<update id="communityImgCurrentUpdate" parameterType="cmap">
+		UPDATE community_image SET IsCurrent ='N'
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FileType = #{FileType}
+	</update>
+	
+	<update id="communityImgPathUpdate" parameterType="cmap">
+		UPDATE community_image SET  FileID = #{FileID} 
+			 					  , FilePath = #{fullPath} 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND ImageID = #{ImageID}
+	</update>
+	
+	<select id="selectCommunityImageList" parameterType="cmap" resultType="cmap">
+		SELECT  ci.ImageID
+			  , ci.FilePath
+			  , ci.IsCurrent
+			  , ci.FileID
+			  , sf.CompanyCode
+			  , DATE_FORMAT(ci.RegistDate, '%Y-%m-%d %H:%i:%s')AS RegistDate
+			  , CONCAT(REPLACE(st.FilePath,'{0}',sf.CompanyCode), sf.FilePath, sf.SavedName) AS "FullPath"
+		FROM community_image ci
+		INNER JOIN sys_file sf ON sf.FileID = ci.FileID 
+		INNER JOIN sys_storage st ON st.StorageID = sf.StorageID
+		WHERE 1=1 
+		AND ci.CU_ID = #{CU_ID}
+		AND ci.FileType = #{FileType}
+	</select>
+	
+	<delete id="communityImgDel"  parameterType="cmap">
+		DELETE FROM community_image
+		WHERE 1=1
+		AND FileID = #{FileID}
+	</delete>
+	
+	<delete id="communityImgSysFileDel"  parameterType="cmap">
+		DELETE FROM sys_file
+		WHERE 1=1
+		AND FileID = #{FileID}
+	</delete>
+	
+	<update id="communityImgCurrentChoice" parameterType="cmap">
+		UPDATE community_image SET IsCurrent = 'N'
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FileType = #{FileType}
+	</update>
+	
+	<update id="communityImgChoice" parameterType="cmap">
+		UPDATE community_image SET IsCurrent = 'Y'
+		WHERE 1=1
+		AND FileID = #{FileID}
+	</update>
+	
+	<select id="communitySearchWordPointCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM sys_search_word
+		WHERE 1=1
+		AND SearchWord = #{SearchWord}
+		AND DomainID = #{DN_ID}
+		AND System = 'Community' 
+	</select>
+	
+	<update id="communitySearchWordPointUpdate" parameterType="cmap">
+		UPDATE sys_search_word SET SearchCnt = SearchCnt+1
+								 , SearchDate = NOW(3)
+								 , RecentlyPoint = RecentlyPoint+1
+								 , ModDate = NOW(3)
+								 , ModID = #{UserCode}
+		WHERE 1=1
+		AND SearchWord = #{SearchWord}
+		AND DomainID = #{DN_ID}
+		AND System = 'Community' 
+	</update>
+	
+	<insert id="communitySearchWordPoint" parameterType="cmap">
+		INSERT INTO sys_search_word (			
+										  SearchWord
+										, SearchCnt
+										, SearchDate
+										, RecentlyPoint
+										, DomainID
+										, System
+										, RegID
+										, RegDate	
+												
+													)VALUES(
+										  #{SearchWord}
+									 	, 1
+									 	, NOW(3)
+										, 1
+										, #{DN_ID}
+										, 'Community'	
+										, #{UserCode}
+										, NOW(3)			
+									)
+	</insert>
+	
+	<insert id="createCommunityWebPortal" parameterType="cmap">
+		INSERT INTO portal (  	  LayoutID
+								, CompanyCode
+								, DisplayName
+								, PortalType
+								, SortKey
+								, IsUse
+								, RegisterCode
+								, RegistDate
+								, BizSection
+								, PortalTag
+								, LayoutSizeTag
+											)VALUES(
+							 	  (SELECT LayoutID FROM portal_layout WHERE 1=1 AND Reserved1 = 'Y' AND IsCommunity = 'Y' LIMIT 1)				
+								, (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID} )				
+								, #{txtCommunityName}
+								, 'Community'
+								, '1'
+								, 'Y'
+								, #{userID}
+								, NOW(3)
+								, 'Community'
+								, #{PortalTag}
+								, #{LayoutSizeTag}		
+							)
+			<selectKey resultType="java.lang.Long" keyProperty="PortalID" order="AFTER">
+				SELECT LAST_INSERT_ID()
+			</selectKey>						
+	</insert>
+	
+	<select id="communityDefaultPortalList" parameterType="cmap" resultType="cmap">
+		SELECT	BizSection
+				, `Seq`
+				, `Range`
+				, DisplayName 
+				, HtmlFilePath
+				, JsFilePath
+				, JsModuleName
+				, IsUse
+				, Reserved1 
+				, Reserved2 AS LayoutDivNumber
+				, MinHeight
+				, Preview
+				, DataJSON
+				, ExtentionJSON
+				, ScriptMethod				
+		FROM community_portal_webpart_default 
+		WHERE 1=1
+		AND IsUse ='Y' 
+		ORDER BY Reserved ASC 
+	</select>
+	
+	<insert id="createCommunityWebPart"  parameterType="cmap">
+		INSERT INTO portal_webpart (
+									  CompanyCode
+									, BizSection
+									, `Range`
+									, DisplayName
+									, HtmlFilePath
+									, JsFilePath
+									, JsModuleName
+									, IsUse
+									, Reserved1
+									, RegisterCode
+									, RegistDate
+									, Preview
+									, MinHeight
+									, DataJSON
+									, ExtentionJSON
+									, ScriptMethod
+									)VALUES(
+									  (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})					
+									, #{BizSection}					
+									, #{Range}					
+									, #{DisplayName}	
+									, #{HtmlFilePath}
+									, #{JsFilePath}
+									, #{JsModuleName}
+									, #{IsUse}	
+									, #{Reserved1}
+									, #{userID}
+									, NOW(3)	
+									, #{Preview}
+									, #{MinHeight}
+									, (SELECT DataJSON FROM community_portal_webpart_default WHERE Seq = #{Seq})	
+									, #{ExtentionJSON}
+									, #{ScriptMethod}
+									)
+			<selectKey resultType="java.lang.Long" keyProperty="WebpartID" order="AFTER">
+				SELECT LAST_INSERT_ID()
+			</selectKey>  
+	</insert>
+	
+	<insert id="createCommunityLayout"  parameterType="cmap">
+		 INSERT INTO portal_layout_webpart (
+		 								 		PortalID
+		 									 , WebpartID
+		 									 , LayoutDivNumber 
+		 									 , LayoutDivSort
+		 									 , WebpartOrder
+		 									 , RegistDate
+		 													)VALUES(
+		 										#{PortalID}
+		 									 , #{WebpartID}	
+		 									 , #{LayoutDivNumber}
+		 									 , '0'
+		 									 , '-1'
+		 									 , NOW(3)			
+		 													
+		 									)
+	</insert>
+	
+	<select id="getWebpartList" parameterType="cmap" resultType="cmap">
+		SELECT b.WebpartID
+			 , a.LayoutDivNumber
+			 , a.WebpartOrder
+			 , b.DisplayName
+			 , b.HtmlFilePath
+			 , b.JsFilePath
+		 	 , b.JsModuleName
+	 		 , b.Preview
+			 , b.`Resource`
+			 , b.ScriptMethod
+			 , b.MinHeight
+			 , b.DataJSON
+			 , b.ExtentionJSON
+			 , IFNULL(b.Reserved1, 'None') AS WebpartType
+		FROM covi_smart4j.portal_layout_webpart AS a
+		INNER JOIN covi_smart4j.portal_webpart AS b ON a.WebpartID = b.WebpartID
+		INNER JOIN community AS c ON c.CU_Code = b.CompanyCode
+		INNER JOIN portal AS p ON p.CompanyCode = c.CU_Code AND p.PortalID = a.PortalID 
+		WHERE c.CU_ID = #{CU_ID} AND b.IsUse = 'Y'
+		ORDER BY a.LayoutDivNumber ASC, a.LayoutDivSort ASC
+	</select>
+	
+	<select id="selectPortalTag" parameterType="cmap" resultType="java.lang.String">
+		SELECT b.PortalTag 
+		FROM covi_smart4j.portal AS b
+		INNER JOIN community AS c ON c.CU_Code = b.CompanyCode 
+		WHERE c.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="communityUserDomainList"  parameterType="cmap" resultType="cmap">
+		SELECT
+			SOD.DomainID
+		FROM sys_object_user AS SOU
+		INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+		INNER JOIN sys_object_domain AS SOD ON SOD.DomainCode  = SOUBG.CompanyCode
+		WHERE SOU.UserCode = #{UR_Code}
+		AND SOD.DomainID IS NOT NULL
+	</select>
+	
+	<!-- 커뮤니티 관리자 -->
+	<select id="sendMessagingCommunityOperator" parameterType="cmap" resultType="cmap">
+		SELECT cm.UR_Code AS UserCode
+			, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<!-- 가입된 커뮤니티 가입자	-->
+	<select id="sendMessagingList" parameterType="cmap" resultType="cmap">
+		SELECT cm.UR_Code AS UserCode
+			, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm ON c.CU_ID = cm.CU_ID AND cm.UR_Code = #{UR_Code}
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="sendMessagingSystemUserSettingCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		INNER JOIN covi_smart4j.sys_messaging_setting sms ON cm.UR_Code = sms.UserCode
+		INNER JOIN covi_smart4j.sys_base_code sbc ON sbc.BizSection = 'Community' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+	</select>
+	
+	<!-- 가입되어 있지 않은 사람  -->
+	<select id="sendMessagingListAdmin"	parameterType="cmap" resultType="cmap">
+		SELECT
+			  #{musercode} AS UserCode
+			, sbc.Code AS Code
+			, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		LEFT OUTER JOIN covi_smart4j.sys_messaging_setting sms ON sms.UserCode = #{musercode} AND sms.ServiceType = #{Code}
+		INNER JOIN covi_smart4j.sys_base_code sbc ON sbc.BizSection = 'Community' AND sbc.CodeGroup = 'TodoMsgType'
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+	</select>
+	
+	<select id="partiNoticeSendAdmin" parameterType="cmap" resultType="String">
+		SELECT
+			 cm.UR_Code
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="sendMessaging" parameterType="cmap" >
+		  INSERT INTO sys_alarm_list(				
+		 								UserCode
+		 							 , Category
+		 							 , MsgType
+		 							 , Title
+		 							 , URL
+		 							 , Message
+		 							 , OpenType
+		 							 , ObjectID
+		 							 , ObjectType
+		 							 , IsPush
+		 							 , PusherCode
+		 							 , ReceivedDate
+		 							 , IsRead
+		 							)VALUES(
+		 								#{UserCode}
+		 							 , #{Category}
+		 							 , #{Code}
+		 							 , SUBSTR(#{Title}, 1, 200)
+		 							 , #{URL}			
+		 							 , #{Message}
+		 							 , 'PAGEMOVE'
+		 							 , #{CU_ID}
+		 							 , #{ObjectType}
+		 							 , #{IsPush}
+		 							 , #{PusherCode}
+		 							 , NOW(3)
+		 							 , #{IsRead}
+		 						)		
+	</insert>
+	
+	<select id="selectCommunityApprovCheck"  parameterType="cmap" resultType="java.lang.Long">
+		  SELECT COUNT(*) FROM community WHERE (RegStatus = 'P' OR AppStatus IN ('UV','RA')) AND CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectCommunityHomepageCheck"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM community WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectCommunityDomainCheck"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM community WHERE CU_ID = #{CU_ID} AND DN_ID = #{DN_ID}
+	</select>
+	
+	<select id="selectReceiverMail" parameterType="cmap" resultType="cmap">
+		SELECT MailAddress AS receiverMail 
+		FROM sys_object_user
+		WHERE 1=1
+		AND UserCode = #{receiverCode}
+	</select>
+	
+	<select id="getCommunityName"  parameterType="cmap" resultType="String">
+		SELECT CommunityName FROM community WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="sendMessagingSettingUserCode" parameterType="cmap" resultType="String">
+		SELECT
+			cm.UR_Code AS UserCode
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="sendMessingSettingCnt"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.sys_base_code sbc
+		LEFT OUTER JOIN covi_smart4j.sys_messaging_setting sms ON sms.UserCode = #{receiverCode} AND sms.ServiceType = sbc.Code
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup soub ON soub.UserCode = #{receiverCode}
+		LEFT OUTER JOIN covi_smart4j.sys_object_domain sod ON sod.DomainCode = soub.CompanyCode
+		WHERE 1=1
+		AND sbc.IsUse = 'Y'
+		AND sbc.BizSection = 'Community'
+		AND sbc.CodeGroup = 'TodoMsgType'
+		AND sbc.Code = #{Code}
+		AND ((sms.MediaType LIKE '%MAIL%') OR (sbc.Reserved1 LIKE '%MAIL%'))
+		AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE BizSection = 'Community' AND Code = #{Code} AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = sod.DomainID, 0, 1) LIMIT 1)
+	</select>
+	
+	<select id="selectCommunityGradeList" parameterType="cmap" resultType="cmap">
+		SELECT CodeID
+			, CodeName
+			, Code
+		FROM covi_smart4j.sys_base_code sbc
+		WHERE 1=1
+		AND BizSection = 'Community'
+		AND CodeGroup = 'CuMemberLevel'
+		AND Code != 'CuMemberLevel'
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuMemberLevel' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+	</select>
+	
+	<select id="selectTargetCallMemberSendMessage"  parameterType="cmap" resultType="String">
+		SELECT IFNULL(MailAddress, '') from sys_object_user WHERE UserCode = #{UR_Code}
+	</select>
+	
+	<!-- 게시글 삭제시 소속한 폴더의 현재 사용중인 용량 업데이트 -->
+	<update id="updateCurrentFileSizeByMessage" parameterType="cmap">
+		UPDATE community
+		SET
+			UsedFileSize = IFNULL(UsedFileSize, 0) 
+			<choose>
+				<when test='storageControl.equals("-")'>-</when>
+				<otherwise>+</otherwise>
+			</choose> IFNULL(( 
+			SELECT IFNULL(SUM(size),0)
+			FROM sys_file AS CF
+			WHERE CF.MessageID = #{messageID} 
+			AND CF.ObjectType = 'FD'
+			AND CF.SaveType != 'INLINE' 
+		),0)
+		WHERE CU_ID = #{communityId}
+	</update>
+	
+	<select id="selectCurrentFileSizeByMessage" parameterType="cmap" resultType="java.lang.Long">
+		SELECT IF(UsedFileSize <![CDATA[ <= ]]> (LimitFileSize*1024*1024), 0, 1) AS LimitFileSize 
+		from community
+		WHERE  CU_ID = #{communityId}
+	</select>
+	
+	<select id="selectCurrentFileSizeByCommunity" parameterType="cmap" resultType="java.lang.Long">
+		SELECT IF(IFNULL(UsedFileSize,0) + IFNULL((#{Size} + 0), 0) <![CDATA[ <= ]]> (LimitFileSize*1024*1024), 0, 1) AS LimitFileSize 
+		from community
+		WHERE  CU_ID = #{CU_ID}
+	</select>
+	
+	<update id="communityFileSize" parameterType="cmap" >
+		UPDATE community SET 
+			UsedFileSize = UsedFileSize
+			<choose>
+				<when test='storageControl.equals("-")'>-</when>
+				<otherwise>+</otherwise>
+			</choose> IFNULL((#{Size} + 0), 0)
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectCommunityImageFileSize"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT IFNULL(Size, 0) FROM sys_file 
+		WHERE 1=1
+		AND FileID = #{FileID}
+	</select> 
+	
+	<update id="updateCommunityCode" parameterType="cmap">
+		UPDATE community
+		SET CU_Code = CONCAT('Community', #{CU_ID})
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	<select id="selectCommunityDataWebpart"  parameterType="cmap" resultType="cmap">
+		/* user.community.selectCommunityDataWebpart */
+		SELECT
+			COM.CU_ID
+			, COM.FilePath
+			, IFNULL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',COM.C_CU_ID), COM.C_DN_ID),COM.C_CommunityName) AS CommunityName
+			, COM.MemberCNT
+			, COM.CategoryName
+		FROM (
+				SELECT  DISTINCT cm.CU_ID
+					, IFNULL(CONCAT(REPLACE(st.FilePath,'{0}',fi.CompanyCode), fi.FilePath, fi.SavedName),'') AS FilePath
+					, IFNULL(D.MemberCNT, 0) AS MemberCNT
+					, cc.DisplayName AS CategoryName
+					, c.CU_ID AS C_CU_ID
+					, c.DN_ID AS C_DN_ID
+					, c.CommunityName AS C_CommunityName
+				FROM community_member cm
+				INNER JOIN community c ON c.CU_ID = cm.CU_ID
+				INNER JOIN community_category cc ON cc.CategoryID = c.CategoryID
+				LEFT JOIN sys_object_user sou ON sou.UserCode = c.OperatorCode
+				LEFT OUTER JOIN community_image ci ON ci.CU_ID = cm.CU_ID AND ci.FileType ='T'  AND ci.IsCurrent = 'Y'
+				LEFT JOIN sys_file fi ON fi.FileID = ci.FileID
+				LEFT JOIN sys_storage st ON st.StorageID = fi.StorageID
+				LEFT JOIN (SELECT CU_ID , COUNT(*) AS MemberCNT FROM community_member WHERE MemberLevel != '0' AND MemberStatus = 'R' AND DetailStatus = 'RV'  GROUP BY CU_ID ) AS D ON D.CU_ID = c.CU_ID
+				WHERE cm.MemberStatus = 'R'
+				AND c.RegStatus = 'R'
+				AND IFNULL(c.Secret,'N') != 'Y'
+				AND c.DN_ID IN (0, #{domainID})
+				AND c.DefaultBoardType != 'TF'
+				ORDER BY Point DESC 
+				LIMIT 2
+		) COM
+	</select>
+</mapper> 

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.theme">
+	<select id="selectThemeCount" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.sys_theme A
+		INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domainID != null and domainID != '' and domainID.length() gt 0">
+			 	AND A.DomainID = #{domainID}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+				AND A.DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+					#{domainID}
+				</foreach>
+			</if>
+		</trim>
+	</select>
+		
+	<select id="selectThemeList" parameterType="cmap" resultType="cmap">
+		SELECT * 
+		FROM (
+			SELECT  A.ThemeID
+				, A.DomainID
+				, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+				, A.SortKey
+				, A.Theme
+				, A.ThemeType
+				, A.ThemeName
+				, A.IsUse
+				, A.IsThemeChange
+				, A.IsSkinChange
+				, A.BgColor
+				, A.BgImage
+				, A.Description
+				, A.RegID
+				, A.ModID
+				, DATE_FORMAT(IFNULL(A.ModDate , A.RegDate), '%Y-%m-%d %H:%i:%s') AS ModDate
+			FROM covi_smart4j.sys_theme A
+			INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+		) temp
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domainID != null and domainID != '' and domainID.length() gt 0">
+			 	AND DomainID = #{domainID}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+				AND DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+					#{domainID}
+				</foreach>
+			</if>
+		</trim>
+		<!-- ORDER BY 절 -->
+		<trim prefix="ORDER BY">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				SortKey ASC 
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("ThemeName")'>ThemeName</when>
+					<when test='sortColumn.equalsIgnoreCase("Theme")'>Theme</when>
+					<when test='sortColumn.equalsIgnoreCase("ModDate")'>ModDate</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<!-- LIMIT 절 -->
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectone" parameterType="cmap" resultType="cmap">		
+		SELECT ThemeID
+			, DomainID
+			, SortKey
+			, Theme AS ThemeCode
+			, ThemeType
+			, ThemeName
+			, IsUse
+			, Description
+			, RegID
+			, RegDate AS RegDate
+		FROM sys_theme
+		WHERE 1=1
+		AND ThemeID = #{themeID}
+	</select>
+	
+	<!-- 도메인 추가 시 중복 체크  -->
+ 	<select id="chkDuplication"  parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) FROM sys_theme
+		WHERE Theme = #{themeCode}
+ 	</select>
+	
+	<insert id="insertTheme" parameterType="cmap" useGeneratedKeys="true">
+			INSERT INTO sys_theme(DomainID,  Theme, ThemeName, IsUse, IsThemeChange, IsSkinChange, Description, RegID)
+			VALUES (
+				#{domainID}, #{themeCode}, #{themeName}, 'Y', '', '', #{description}, #{regID}
+			)
+		<selectKey keyProperty="ThemeID" resultType="long" order="AFTER">
+			SELECT LAST_INSERT_ID();
+        </selectKey>
+	</insert>
+	
+	<update id="updateTheme" parameterType="cmap">
+		<![CDATA[
+		UPDATE  sys_theme
+		SET DomainID = #{domainID}
+			, Theme = #{themeCode}
+			, ThemeName = #{themeName}
+			, Description = #{description}
+		WHERE ThemeID= #{themeID}
+		]]>
+	</update>
+	
+	<delete id="deleteTheme" parameterType="cmap">
+		<![CDATA[
+		DELETE FROM sys_theme
+		WHERE ThemeID= #{themeID}
+		]]>
+	</delete>
+</mapper>

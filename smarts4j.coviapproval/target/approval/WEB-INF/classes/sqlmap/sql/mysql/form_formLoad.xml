@@ -1,0 +1,1207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="form.formLoad">
+    <select id="selectProcess" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			Process.ProcessID,
+			Process.ProcessDescriptionID,
+			Process.FormInstID,
+			Workitem.State,
+			Process.ProcessState,
+			Process.ParentProcessID,
+			Workitem.UserCode,
+			Process.DocSubject,
+			IFNULL(Workitem.DeputyID,'') AS DeputyID,
+			Process.BusinessState,
+			Process.ProcessName,
+			Workitem.TaskID,
+			Performer.SubKind
+			FROM covi_approval4j.jwf_process AS Process
+			INNER JOIN covi_approval4j.jwf_workitem AS Workitem ON Process.ProcessID = Workitem.ProcessID
+			INNER JOIN covi_approval4j.jwf_performer AS Performer ON Workitem.PerformerID = Performer.PerformerID
+			WHERE Workitem.WorkitemID = #{workitemID};
+		]]>
+	</select>
+	
+	<select id="selectOnlyProcess" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessID,
+	    	ProcessDescriptionID,
+	    	FormInstID,
+	    	'' AS State,
+	    	ProcessState, 
+	    	ParentProcessID, 
+	    	'' AS UserCode,
+	    	DocSubject,
+	    	'' AS DeputyID,
+	    	BusinessState,
+	    	ProcessName
+			FROM covi_approval4j.jwf_process
+			WHERE ProcessID = #{processID};
+	    ]]>
+	</select>
+	
+    <select id="selectProcessArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			Process.ProcessID AS ProcessID,
+			Process.ProcessDescriptionID AS ProcessDescriptionID,
+			Process.FormInstID,
+			'528' AS State,
+			'528' AS ProcessState,
+			Process.ParentProcessID,
+			Workitem.UserCode,
+			Process.DocSubject,
+			IFNULL(Workitem.DeputyID,'') AS DeputyID,
+			Process.BusinessState,
+			Process.ProcessName,
+			Workitem.TaskID,
+			Workitem.SubKind
+			FROM covi_approval4j.jwf_process AS Process
+			INNER JOIN covi_approval4j.jwf_workitem AS Workitem ON Process.ProcessID = Workitem.ProcessID
+			WHERE Workitem.WorkitemID = #{workitemID};
+		]]>
+	</select>
+    
+    <select id="selectOnlyProcessArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessID AS ProcessID,
+	    	ProcessDescriptionID AS ProcessDescriptionID,
+	    	FormInstID,
+	    	'' AS State,
+	    	ProcessState, 
+	    	ParentProcessID, 
+	    	'' AS UserCode,
+	    	DocSubject,
+	    	'' AS DeputyID,
+	    	BusinessState,
+	    	ProcessName
+			FROM covi_approval4j.jwf_process
+			WHERE ProcessID = #{processID};
+	    ]]>
+	</select>
+    
+	<select id="selectProcessDes" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionID,
+			FormInstID,
+			FormID,
+			FormName,
+			FormSubject,
+			IsSecureDoc,
+			IsFile,
+			FileExt,
+			IsComment,
+			ApproverCode,
+			ApproverName,
+			ApprovalStep,
+			ApproverSIPAddress,
+			IsReserved,
+			ReservedGubun,
+			ReservedTime,
+			Priority,
+			IsModify,
+			Reserved1,
+			Reserved2,
+			BusinessData1,
+			BusinessData2,
+			BusinessData3,
+			BusinessData4,
+			BusinessData5,
+			BusinessData6,
+			BusinessData7,
+			BusinessData8,
+			BusinessData9,
+			BusinessData10
+			FROM covi_approval4j.jwf_processdescription
+			WHERE ProcessDescriptionID = #{processDescID} ;
+		]]>
+	</select>
+	
+	<select id="selectProcessDesArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionID AS ProcessDescriptionID,
+			FormInstID,
+			FormID,
+			FormName,
+			FormSubject,
+			IsSecureDoc,
+			IsFile,
+			FileExt,
+			IsComment,
+			ApproverCode,
+			ApproverName,
+			ApprovalStep,
+			ApproverSIPAddress,
+			IsReserved,
+			ReservedGubun,
+			ReservedTime,
+			Priority,
+			IsModify,
+			Reserved1,
+			Reserved2,
+			BusinessData1,
+			BusinessData2,
+			BusinessData3,
+			BusinessData4,
+			BusinessData5,
+			BusinessData6,
+			BusinessData7,
+			BusinessData8,
+			BusinessData9,
+			BusinessData10
+			FROM covi_approval4j.jwf_processdescription
+			WHERE ProcessDescriptionID = #{processDescID} ;
+		]]>
+	</select>
+	
+	<select id="selectForm" parameterType="cmap" resultType="cmap">
+		SELECT F.FormID,
+			F.FormClassID,
+			F.SchemaID,
+			F.IsUse,
+			F.Revision,
+			F.SortKey,
+			F.FormName,
+			F.FormPrefix,
+			F.FormDesc,
+			F.FileName,
+			F.BodyDefault,
+			F.EntCode,
+			F.ExtInfo,
+			F.AutoApprovalLine,
+			F.BodyType,
+			F.SubTableInfo,
+			F.RegID,
+			F.RegDate,
+			F.ModID,
+			F.ModDate,
+			F.FormHelperContext,
+			F.FormNoticeContext,
+			CASE WHEN UF.CreateDate IS NOT NULL THEN 'Y' ELSE 'N' END AS IsFavorite,
+			F.CompanyCode,
+			CASE WHEN F.CompanyCode = #{DN_CODE} THEN 1
+				WHEN F.CompanyCode = 'ORGROOT' THEN 2
+				ELSE 3 END AS Companysort
+			<if test="'Y'.toString() eq isSaaS">
+				, SOD.DomainID
+			</if>		
+		FROM covi_approval4j.jwf_forms AS F
+		<if test="'Y'.toString() eq isSaaS">
+			JOIN covi_smart4j.sys_object_domain SOD ON SOD.DomainCode = F.CompanyCode
+		</if>
+		LEFT OUTER JOIN covi_approval4j.jwf_userforms AS UF ON F.FormID = UF.FormID AND UF.UserCode = #{userID}
+		<if test="formPrefix != null and formPrefix != '' ">
+				INNER JOIN covi_approval4j.jwf_formclass AS jfc on F.FormPrefix = #{formPrefix} and F.FormClassID = jfc.FormClassID
+		</if>
+		WHERE 
+		<if test="formID != null and formID != '' ">
+			F.FormID = #{formID}
+		</if>
+		<if test="formPrefix != null and formPrefix != '' ">
+			F.FormPrefix = #{formPrefix}
+				AND(
+				( jfc.AclAllYN = 'Y' and jfc.EntCode IN ('ORGROOT',  #{DN_CODE}) )
+				OR exists 
+				(
+					select 1 from covi_approval4j.jwf_forms_acl AS jfa 
+					where jfa.TargetID = jfc.FormClassID and jfa.ObjectType = 'CLASS'
+					and 
+					(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{DN_CODE}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{GR_CODE}
+					)
+				)
+			)
+			AND 
+			(
+				(
+					F.AclAllYN = 'Y'
+					<if test='isSaaS == "Y"'>
+						AND	F.CompanyCode IN ('ORGROOT',  #{DN_CODE})
+					</if>
+				)
+				OR exists 
+				( 
+					select 1 from covi_approval4j.jwf_forms_acl AS jfa 
+					where jfa.TargetID = F.FormID and jfa.ObjectType = 'FORM'
+					and 
+					(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{DN_CODE}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{GR_CODE}
+					)
+				)
+			)
+		</if>
+		ORDER BY CompanySort, Revision desc
+		LIMIT 1 ;
+	</select>
+	
+	<select id="selectFormAll" parameterType="cmap" resultType="cmap">
+			SELECT F.FormID,
+			F.FormClassID,
+			F.SchemaID,
+			F.IsUse,
+			F.Revision,
+			F.SortKey,
+			F.FormName,
+			F.FormPrefix,
+			F.FormDesc,
+			F.FileName,
+			F.BodyDefault,
+			F.EntCode,
+			F.ExtInfo,
+			F.CompanyCode
+			FROM covi_approval4j.jwf_forms AS F
+			JOIN (SELECT FormPrefix,MAX(Revision) AS Revision FROM covi_approval4j.jwf_forms GROUP BY FormPrefix) RF
+				ON F.FormPrefix = RF.FormPrefix and F.Revision = RF.Revision
+	</select>
+	
+	<select id="selectFormInstance" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID,
+			ProcessID,
+			FormID,
+			SchemaID,
+			Subject,
+			InitiatorID,
+			InitiatorName,
+			InitiatorUnitID,
+			InitiatorUnitName,
+			InitiatedDate,
+			CompletedDate,
+			DeletedDate,
+			LastModifiedDate,
+			LastModifierID,
+			EntCode,
+			EntName,
+			DocNo,
+			DocLevel,
+			DocClassID,
+			DocClassName,
+			DocSummary,
+			IsPublic,
+			SaveTerm,
+			AttachFileInfo,
+			AppliedDate,
+			AppliedTerm,
+			ReceiveNo,
+			ReceiveNames,
+			ReceiptList,
+			BodyType,
+			BodyContext,
+			DocLinks,  
+			EDMSDocLinks,
+			RuleItemInfo
+			FROM covi_approval4j.jwf_forminstance
+			WHERE FormInstID = #{formInstID};
+		]]>
+	</select>
+	
+	<select id="selectDomainData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DomainDataID,
+			DomainDataName,
+			ProcessID,
+			DomainDataContext 
+			FROM covi_approval4j.jwf_domaindata
+			WHERE ProcessID = #{processID};
+		]]>
+	</select>
+	
+	<select id="selectDomainDataArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DomainDataID,
+			DomainDataName,
+			ProcessID,
+			DomainDataContext 
+			FROM covi_approval4j.jwf_domaindata
+			WHERE ProcessID = #{processID};
+		]]>
+	</select>
+	
+	<select id="selectDomainDataStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+			DomainDataContext 
+			FROM covi_approval4j_store.jwf_comment
+			WHERE ProcessID = #{processID};	
+		]]>
+	</select>	
+	
+	<select id="selectFormSchema" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT SchemaID,
+			SchemaName,
+			SchemaDesc,
+			SchemaContext
+			FROM covi_approval4j.jwf_formsschema
+			WHERE SchemaID = #{schemaID};
+		]]>
+	</select>
+	
+	<select id="selectPravateDomainData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+			SELECT
+			PrivateDomainDataID,
+			CustomCategory,
+			DefaultYN,
+			DisplayName,
+			OwnerID,
+			Abstract,
+			Description,
+			PrivateContext
+			FROM covi_approval4j.jwf_privatedomaindata
+			WHERE OwnerID = #{OwnerID} ]]>
+			<if test="DefaultYN != null">
+				AND DefaultYN = #{DefaultYN}
+			</if>
+			LIMIT 1
+	</select>
+	
+	<select id="selectDocReadHistory" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT
+	    FROM covi_approval4j.jwf_docreadhistory  
+	    WHERE  FormInstID = #{FormInstID}
+	    AND ProcessID = #{ProcessID}
+	    AND UserID = #{UserID}
+	    AND AdminYN = #{AdminYN}
+	</select>
+	
+	<insert id="insertDocReadHistory" parameterType="cmap" >
+	        INSERT INTO covi_approval4j.jwf_docreadhistory (
+		    	UserID,
+		    	UserName,
+		    	JobTitle,
+		    	JobLevel,
+		    	ReadDate,
+		    	ProcessID,
+		    	FormInstID,
+		    	AdminYN
+		    )
+		    VALUES (
+		    	#{UserID},
+		    	#{UserName},
+		    	#{JobTitle},
+		    	#{JobLevel},
+		    	now(3),
+		    	#{ProcessID},
+		    	#{FormInstID},
+		    	#{AdminYN}
+		    )
+	</insert>
+	
+	<select id="selectTCInfoDocReadHistory" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT
+	    FROM covi_approval4j.jwf_circulationread as readTable
+	    INNER JOIN covi_approval4j.jwf_circulationbox as boxTable
+	    ON readTable.CirculationBoxID = boxTable.CirculationBoxID AND boxTable.ReceiptID = #{ReceiptID}
+	    WHERE  boxTable.FormInstID = #{FormInstID}
+	    AND readTable.UserCode = #{UserCode}
+	    AND readTable.DeptCode = #{DeptCode}
+	    AND Kind = #{Kind}
+	</select>
+	
+	<insert id="insertTCInfoDocReadHistory" parameterType="cmap" >
+	<![CDATA[
+	 	INSERT INTO covi_approval4j.jwf_circulationread (
+	 		CirculationBoxID,
+	 		UserCode,
+	 		UserName,
+	 		DeptCode,
+	 		DeptName,
+	 		ReceiptDate
+	 	)
+	 	SELECT 
+ 			CirculationBoxID,
+	 		#{UserCode},
+	 		#{UserName},
+	 		#{DeptCode},
+	 		#{DeptName},
+	 		now(3)
+		FROM covi_approval4j.jwf_circulationbox 
+	 	WHERE FormInstID = #{FormInstID} 
+	 	AND ReceiptID = #{ReceiptID} 
+	 	AND Kind = #{Kind}
+	    AND DataState <> 'D'
+		AND DeletedDate is null
+	]]>
+	</insert>
+	
+	<update id="updateTCInfoDocReadHistory" parameterType="cmap" >
+	    UPDATE covi_approval4j.jwf_circulationbox
+	    SET ReadDate = now(3)
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND ReadDate IS NULL
+	    AND Kind = #{Kind}
+	</update>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<select id="selectTCInfoDocReadHistoryStore" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT
+	    FROM covi_approval4j_store.jwf_circulationread as readTable
+	    INNER JOIN covi_approval4j_store.jwf_circulationbox as boxTable
+	    ON readTable.CirculationBoxID = boxTable.CirculationBoxID AND boxTable.ReceiptID = #{ReceiptID}
+	    WHERE  boxTable.FormInstID = #{FormInstID}
+	    AND readTable.UserCode = #{UserCode}
+	    AND readTable.DeptCode = #{DeptCode}
+	    AND Kind = #{Kind}
+	</select>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<update id="updateTCInfoDocReadHistoryStore" parameterType="cmap" >
+	    UPDATE covi_approval4j_store.jwf_circulationbox
+	    SET ReadDate = now(3)
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND ReadDate IS NULL
+	    AND Kind = #{Kind}
+	</update>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<insert id="insertTCInfoDocReadHistoryStore" parameterType="cmap" >
+	 	INSERT INTO covi_approval4j_store.jwf_circulationread (
+	 		CirculationBoxID,
+	 		UserCode,
+	 		UserName,
+	 		DeptCode,
+	 		DeptName,
+	 		ReceiptDate
+	 	)
+	 	VALUES (
+	 		(SELECT CirculationBoxID FROM covi_approval4j_store.jwf_circulationbox WHERE FormInstID = #{FormInstID} AND ReceiptID = #{ReceiptID} AND Kind = #{Kind} LIMIT 1),
+	 		#{UserCode},
+	 		#{UserName},
+	 		#{DeptCode},
+	 		#{DeptName},
+	 		now(3)
+	 	)
+	</insert>
+	
+	<select id="selectFile" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	F.FileID
+	    	,F.StorageID
+	    	,F.ServiceType
+	    	,F.ObjectID
+	    	,F.ObjectType
+	    	,F.MessageID
+	    	,F.SaveType
+	    	,F.LastSeq
+	    	,F.Seq
+	    	,F.FilePath
+	    	,F.FileName
+	    	,F.SavedName
+	    	,F.Extention
+	    	,F.Size
+	    	,CONVERT(F.RegistDate, char(50))AS RegistDate
+	    	,F.RegisterCode
+	    	,F.CompanyCode
+	    	,F.Encrypted
+	    	,S.LastSeq as "StorageLastSeq"
+			,S.FilePath as "StorageFilePath"
+			,S.InlinePath
+			,S.IsActive
+	    FROM covi_smart4j.sys_file F
+	    INNER JOIN covi_smart4j.sys_storage S ON S.StorageID = F.StorageID
+	    WHERE F.MessageID = #{FormInstID}
+	    AND F.ServiceType = 'APPROVAL'
+	 	AND F.SaveType != 'INLINE'
+	 	AND F.ObjectType != 'PDF'
+	 	AND IFNULL(F.IsDeleted, 'N') = 'N'
+	 	ORDER BY F.Seq ASC
+	</select>
+
+	<select id="selectFormCompanyCode" parameterType="cmap" resultType="cmap">
+		SELECT F.CompanyCode AS FormCompanyCode 
+		FROM covi_approval4j.jwf_forms AS F
+		LEFT OUTER JOIN covi_approval4j.jwf_forminstance AS A ON A.FormID = F.FormID 
+		LEFT OUTER JOIN covi_approval4j.jwf_process AS B ON A.FormInstID = B.FormInstID   
+		WHERE 1=1
+		<choose>
+			<when test="FormID != null and FormID != '' ">
+				AND F.FormID = #{FormID}
+			</when>
+			<when test="FormPrefix != null and FormPrefix != '' ">
+				AND F.FormPrefix = #{FormPrefix}
+			</when>			
+			<otherwise>
+				AND B.ProcessID =#{ProcessID}
+			</otherwise>
+		</choose>
+		limit 1
+	</select>
+	
+	<select id="selectStoreFormCompanyCode" parameterType="cmap" resultType="cmap">
+		SELECT F.CompanyCode AS FormCompanyCode 
+		FROM covi_approval4j.jwf_forms AS F
+		LEFT OUTER JOIN covi_approval4j_store.jwf_forminstance AS A ON A.FormID = F.FormID 
+		LEFT OUTER JOIN covi_approval4j_store.jwf_processarchive AS B ON A.FormInstID = B.FormInstID   
+		WHERE 1=1 
+		<choose>
+			<when test="FormID != null and FormID != '' ">
+				AND F.FormID = #{FormID}
+			</when>
+			<when test="FormPrefix != null and FormPrefix != '' ">
+				AND F.FormPrefix = #{FormPrefix}
+			</when>
+			<otherwise>
+				AND B.ProcessArchiveID =#{ProcessID}
+			</otherwise>
+		</choose>
+		limit 1
+	</select>
+	
+	<select id="selectUsingSignImage" parameterType="java.lang.String" resultType="cmap">
+	    SELECT FilePath FROM covi_approval4j.jwf_signimage
+	    WHERE UserCode = #{UserCode} AND IsUse = 'Y'
+	    ORDER BY InsertDate DESC
+	    LIMIT 1
+	</select>
+	
+	<select id="selectUsingSignImageId" parameterType="java.lang.String" resultType="java.lang.String">
+	    SELECT FileID FROM covi_approval4j.jwf_signimage
+	    WHERE UserCode = #{UserCode} AND IsUse = 'Y'
+	    ORDER BY InsertDate DESC
+	    LIMIT 1
+	</select>	
+	
+	<select id="selectFormInstanceIsArchived" parameterType="cmap" resultType="cmap">
+		SELECT CASE WHEN COUNT(*) > 0 THEN 'false' ELSE 'true' END AS isArchive
+		FROM covi_approval4j.jwf_process
+		WHERE FormInstID = #{FormInstID}
+		AND ProcessState = 288
+	</select>
+	
+	<select id="selectFormInstanceID" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID 
+	    FROM covi_approval4j.jwf_process
+	    WHERE ProcessID = #{ProcessID}
+	    LIMIT 1
+	</select>
+	
+	<select id="selectFormInstanceIDArchive" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID 
+	    FROM covi_approval4j.jwf_process
+	    WHERE ProcessID = #{ProcessID}
+	    LIMIT 1
+	</select>
+	
+	<select id="selectFormInstanceIDStore" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID 
+	    FROM covi_approval4j_store.jwf_processarchive
+	    WHERE ProcessArchiveID = #{ProcessID}
+	    LIMIT 1
+	</select>
+	
+	<select id="selectPerformerData" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS PF ON WI.PerformerID = PF.PerformerID
+		WHERE P.FormInstID = #{FormInstID}
+		AND WI.UserCode IN (#{UserID}, #{DeptID})
+		AND PF.State = '1'
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectPerformerDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		WHERE P.FormInstID = #{FormInstID}
+		AND P.ProcessState = 528
+		AND WI.UserCode IN (#{UserID}, #{DeptID})
+		AND WI.Deleted IS NULL
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectPerformerDataStore" parameterType="cmap" resultType="cmap">
+	    SELECT WI.UserCode as PerformerID FROM covi_approval4j_store.jwf_workitemarchive AS WI
+		INNER JOIN covi_approval4j_store.jwf_processarchive AS P ON WI.ProcessArchiveID = P.ProcessArchiveID
+		WHERE P.FormInstID = #{FormInstID}
+		AND WI.UserCode IN (#{UserID}, #{DeptID})
+		AND WI.Deleted IS NULL
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectPerformerDeputyData" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS PF ON WI.PerformerID = PF.PerformerID
+		WHERE P.FormInstID = #{FormInstID}
+		AND WI.DeputyID = #{UserID}
+		AND PF.State = '1'
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectPerformerDeputyDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		WHERE P.FormInstID = #{FormInstID}
+		AND P.ProcessState = 528
+		AND WI.DeputyID = #{UserID}
+		AND WI.Deleted IS NULL
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectJobFunctionData" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		JOIN covi_approval4j.jwf_jobfunction B ON WI.UserCode=B.JobFunctionCode AND B.EntCode = #{entCode}
+		JOIN covi_approval4j.jwf_jobfunctionmember C ON B.JobFunctionID=C.JobFunctionID
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS PF ON WI.PerformerID = PF.PerformerID
+		WHERE P.FormInstID = #{FormInstID}
+		AND C.UserCode = #{UserID}
+		AND PF.State = '1'
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectJobFunctionDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		JOIN covi_approval4j.jwf_jobfunction B ON WI.UserCode=B.JobFunctionCode AND B.EntCode = #{entCode}
+		JOIN covi_approval4j.jwf_jobfunctionmember C ON B.JobFunctionID=C.JobFunctionID
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		WHERE P.FormInstID = #{FormInstID}
+		AND P.ProcessState = 528
+		AND C.UserCode = #{UserID}
+		AND WI.Deleted IS NULL
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectJFManagerByCode" parameterType="cmap" resultType="cmap">
+	    SELECT B.UserCode FROM covi_approval4j.jwf_jobfunction A
+		JOIN covi_approval4j.jwf_jobfunctionmember B ON A.JobFunctionID=B.JobFunctionID
+		WHERE A.JobFunctionCode = #{JFCode}
+		AND A.EntCode = #{DNCode} 
+		AND B.UserCode = #{UserID}
+		LIMIT 1;
+	</select>
+	
+	<select id="selectDeptReceiveData" parameterType="cmap" resultType="cmap">
+	    SELECT WI.PerformerID FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS PF ON WI.PerformerID = PF.PerformerID
+		WHERE P.FormInstID =#{FormInstID}
+		AND WI.UserCode = #{DeptID}
+		AND PF.State = '1'
+		AND PF.SubKind IN ('R','C','AD','AS','AE') -- 2015.12 수정 합의함등도 추가 AND PF_SUB_KIND = 'R'
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectDeptReceiveDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		WHERE P.FormInstID = #{FormInstID}
+		AND P.ProcessState = 528
+		AND WI.UserCode = #{DeptID}
+		AND WI.Deleted IS NULL
+		AND WI.SubKind = 'REQCMP'
+		ORDER BY WI.Created DESC
+		LIMIT 1;
+	</select>
+	
+	<select id="selectFormPrefixData" parameterType="cmap" resultType="cmap">
+	    SELECT F.FormPrefix FROM covi_approval4j.jwf_forminstance AS FI
+		INNER JOIN covi_approval4j.jwf_forms AS F ON F.FormID = FI.FormID
+		WHERE FormInstID = #{FormInstID}
+		LIMIT 1
+	</select>
+	
+	<select id="selectBizDocData" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT FROM covi_approval4j.jwf_bizdocform AS A
+		JOIN covi_approval4j.jwf_bizdocmember B ON A.BizDocID = B.BizDocID
+		WHERE A.FormPrefix = #{FormPreFix}
+		AND B.UserCode = #{UserID};
+	</select>
+	
+	<select id="selectTCInfoData" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT FROM covi_approval4j.jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID IN ( #{UserID}, #{DeptID});
+	</select>
+	
+	<select id="selectTCInfoDataStore" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS CNT FROM covi_approval4j_store.jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID IN ( #{UserID}, #{DeptID});
+	</select>
+	
+	<select id="selectFormAfterDomainData" parameterType="cmap" resultType="cmap">
+	    SELECT d.DomainDataContext FROM covi_approval4j.jwf_domaindata AS d
+		LEFT JOIN covi_approval4j.jwf_process AS p ON p.ProcessID = d.ProcessID
+		WHERE p.FormInstID = #{FormInstID}
+		LIMIT 1
+	</select>
+	
+	<select id="selectOnlyProcessStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessArchiveID AS ProcessID,
+	    	ProcessDescriptionArchiveID AS ProcessDescriptionID,
+	    	FormInstID,
+	    	'' AS State,
+	    	ProcessState, 
+	    	ParentProcessID, 
+	    	'' AS UserCode,
+	    	DocSubject,
+	    	'' AS DeputyID,
+	    	BusinessState,
+	    	ProcessName
+			FROM covi_approval4j_store.jwf_processarchive
+			WHERE ProcessArchiveID = #{processID};
+	    ]]>
+	</select>
+	
+	<select id="selectProcessStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			Process.ProcessArchiveID AS ProcessID,
+			Process.ProcessDescriptionArchiveID AS ProcessDescriptionID,
+			Process.FormInstID,
+			'528' AS State,
+			'528' AS ProcessState,
+			Process.ParentProcessID,
+			Workitem.UserCode,
+			Process.DocSubject,
+			IFNULL(Workitem.DeputyID,'') AS DeputyID,
+			Process.BusinessState,
+			Process.ProcessName,
+			Workitem.TaskID,
+			Workitem.SubKind
+			FROM covi_approval4j_store.jwf_processarchive AS Process
+			INNER JOIN covi_approval4j_store.jwf_workitemarchive AS Workitem ON Process.ProcessArchiveID = Workitem.ProcessArchiveID
+			WHERE Workitem.WorkitemArchiveID = #{workitemID};
+		]]>
+	</select>
+	
+	<select id="selectProcessDesStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionArchiveID AS ProcessDescriptionID,
+			FormInstID,
+			FormID,
+			FormName,
+			FormSubject,
+			IsSecureDoc,
+			IsFile,
+			FileExt,
+			IsComment,
+			ApproverCode,
+			ApproverName,
+			ApprovalStep,
+			ApproverSIPAddress,
+			IsReserved,
+			ReservedGubun,
+			ReservedTime,
+			Priority,
+			IsModify,
+			Reserved1,
+			Reserved2,
+			BusinessData1,
+			BusinessData2,
+			BusinessData3,
+			BusinessData4,
+			BusinessData5,
+			BusinessData6,
+			BusinessData7,
+			BusinessData8,
+			BusinessData9,
+			BusinessData10
+			FROM covi_approval4j_store.jwf_processdescriptionarchive
+			WHERE ProcessDescriptionArchiveID = #{processDescID} ;
+		]]>
+	</select>
+	
+	<select id="selectFormInstanceStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID,
+			ProcessID,
+			FormID,
+			SchemaID,
+			Subject,
+			InitiatorID,
+			InitiatorName,
+			InitiatorUnitID,
+			InitiatorUnitName,
+			InitiatedDate,
+			CompletedDate,
+			DeletedDate,
+			LastModifiedDate,
+			LastModifierID,
+			EntCode,
+			EntName,
+			DocNo,
+			DocLevel,
+			DocClassID,
+			DocClassName,
+			DocSummary,
+			IsPublic,
+			SaveTerm,
+			AttachFileInfo,
+			AppliedDate,
+			AppliedTerm,
+			ReceiveNo,
+			ReceiveNames,
+			ReceiptList,
+			BodyType,
+			BodyContext,
+			DocLinks,
+			EDMSDocLinks,	
+			RuleItemInfo,
+			IsArchive
+			FROM covi_approval4j_store.jwf_forminstance
+			WHERE FormInstID = #{formInstID};
+		]]>
+		<!-- IsArchive : Migration 문서외 시스템 이관된 결재문서여부 -->
+	</select>
+	
+	<select id="selectFileStore" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	F.FileID
+	    	,F.StorageID
+	    	,F.ServiceType
+	    	,F.ObjectID
+	    	,F.ObjectType
+	    	,F.MessageID
+	    	,F.SaveType
+	    	,F.LastSeq
+	    	,F.Seq
+	    	,F.FilePath
+	    	,F.FileName
+	    	,F.SavedName
+	    	,F.Extention
+	    	,F.Size
+	    	,CONVERT(F.RegistDate, char(50)) AS RegistDate
+	    	,F.RegisterCode
+	    	,F.CompanyCode
+	    	,F.Encrypted
+	    	,S.LastSeq as "StorageLastSeq"
+			,S.FilePath as "StorageFilePath"
+			,S.InlinePath
+			,S.IsActive
+	    FROM covi_smart4j.sys_file F
+	    INNER JOIN covi_smart4j.sys_storage S ON S.StorageID = F.StorageID
+	    WHERE F.MessageID = #{FormInstID}
+	    AND F.ServiceType = 'APPROVALMIG'
+	 	ORDER BY F.Seq ASC
+	</select>
+	
+	<select id="selectAuditDocData" parameterType="cmap" resultType="cmap">
+		SELECT MenuID, DomainCode FROM covi_smart4j.sys_object_acl AS A
+		INNER JOIN covi_smart4j.sys_object_menu AS M ON (A.ObjectType = 'MN' AND A.ObjectID = M.MenuID)
+		INNER JOIN covi_smart4j.sys_object_domain AS D ON M.DomainID = D.DomainID
+		WHERE M.BizSection = 'Approval'
+		AND M.Reserved1 = 'Audit'
+ 	</select> 
+	 
+	<select id="selectAuditDocDataStore" parameterType="cmap" resultType="cmap">
+		SELECT MenuID, DomainCode FROM covi_smart4j.sys_object_acl AS A
+		INNER JOIN covi_smart4j.sys_object_menu AS M ON (A.ObjectType = 'MN' AND A.ObjectID = M.MenuID)
+		INNER JOIN covi_smart4j.sys_object_domain AS D ON M.DomainID = D.DomainID
+		WHERE M.BizSection = 'Approval'
+		AND M.Reserved1 = 'AuditStore'
+ 	</select>
+	 
+	 <select id="selectParentDeptData" parameterType="cmap" resultType="cmap">
+	 	SELECT
+	 		A.GroupCode, 
+	 		A.DisplayName, 
+	 		IFNULL(A.MemberOf, '') AS Reserved1,
+	 		IFNULL(B.DisplayName, '') AS Reserved2
+	 	FROM covi_smart4j.sys_object_group A
+	 	INNER JOIN covi_smart4j.sys_object_group B
+	 	ON A.MemberOf = B.GroupCode
+	 	WHERE A.GroupType = 'Dept'
+	 	AND A.GroupCode = #{DeptID}
+	 	LIMIT 1
+	 </select>
+	 
+	<select id="selectDomainCheck" parameterType="cmap" resultType="cmap">
+	    SELECT FI.FormInstID 
+	    FROM covi_approval4j.jwf_forminstance AS FI
+		WHERE FI.FormInstID = #{FormInstID}
+		AND FI.EntCode IN 
+        <foreach item="item" index="index" collection="EntCodeList" open="(" close=")" separator=",">
+           	#{item.optionValue}
+   		</foreach>
+		LIMIT 1;
+	</select>
+	 
+	<select id="selectManageTarget" parameterType="cmap" resultType="cmap">
+		SELECT 'P' as TARGETTYPE, TARGETCODE, mem.ViewStartDate AS VIEWSTARTDATE, mem.ViewEndDate AS VIEWENDDATE
+		FROM covi_approval4j.jwf_persondirector AS p
+		INNER JOIN covi_approval4j.jwf_persondirectormember AS mem ON p.UserCode = mem.UserCode
+		WHERE p.UserCode = #{UserID}
+		AND (p.AuthEndDate IS NULL OR p.AuthEndDate = '00:00:00' or DATE(NOW()) BETWEEN p.AuthStartDate AND p.AuthEndDate)
+		
+		UNION
+		
+		SELECT 'P' as TARGETTYPE, jdmem.UnitCode AS TARGETCODE, jdmem.ViewStartDate AS VIEWSTARTDATE, jdmem.ViewEndDate AS VIEWENDDATE
+		FROM covi_approval4j.jwf_director AS jd
+		INNER JOIN covi_approval4j.jwf_directormember AS jdmem ON jd.UserCode = jdmem.UserCode
+		WHERE jd.UserCode = #{UserID}
+		AND (jd.AuthEndDate IS NULL OR jd.AuthEndDate = '00:00:00' or DATE(NOW()) BETWEEN jd.AuthStartDate AND jd.AuthEndDate)
+		
+		UNION
+		
+		SELECT 'U' as TARGETTYPE, TargetUnitCode as TARGETCODE, umem.ViewStartDate AS VIEWSTARTDATE, umem.ViewEndDate AS VIEWENDDATE
+		FROM covi_approval4j.jwf_unitdirector AS unit
+		INNER JOIN covi_approval4j.jwf_unitdirectormember AS umem ON unit.UnitCode = umem.UnitCode
+		WHERE unit.UnitCode = #{DeptID}
+		AND (unit.AuthEndDate IS NULL OR unit.AuthEndDate = '00:00:00' or DATE(NOW()) BETWEEN unit.AuthStartDate AND unit.AuthEndDate)
+	</select> 
+	 
+	<select id="selectManageDocDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT FROM covi_approval4j.jwf_process AS wp
+		INNER JOIN covi_approval4j.jwf_workitem AS ww ON wp.ProcessID = ww.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS wpf ON ww.WorkItemID = wpf.WorkitemID
+		WHERE formInstID = #{FormInstID}
+		AND ww.State = 528 AND wp.ProcessState = 528
+		AND wpf.UserCode = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and wp.StartDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')))
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and wp.StartDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		OR
+		(wp.StartDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')) and wp.StartDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		)
+	</select> 
+	
+	<select id="selectManageDocStoreDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT FROM covi_approval4j_store.jwf_processarchive AS wp
+		INNER JOIN covi_approval4j_store.jwf_workitemarchive AS ww ON wp.ProcessArchiveID = ww.ProcessArchiveID
+		WHERE formInstID = #{FormInstID}
+		AND ww.UserCode = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and wp.StartDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')))
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and wp.StartDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		OR
+		(wp.StartDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')) and wp.StartDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		)
+	</select>
+	
+	<select id="selectManageDocTcInfoDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT FROM covi_approval4j.jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID  = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and ReceiptDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')))
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and ReceiptDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		OR
+		(ReceiptDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')) and ReceiptDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		)
+	</select>
+	
+	<select id="selectManageDocTcInfoStoreDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT FROM covi_approval4j_store.jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID  = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and ReceiptDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')))
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and ReceiptDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		OR
+		(ReceiptDate &lt;= TIMESTAMPADD(Day,1,STR_TO_DATE(#{ViewEndDate}, '%Y-%m-%d %H:%i:%s')) and ReceiptDate &gt;= STR_TO_DATE(#{ViewStartDate}, '%Y-%m-%d %H:%i:%s'))
+		)
+	</select>
+	
+	<select id="selectIsLinkedDocData" parameterType="cmap" resultType="cmap">
+	  	SELECT COUNT(*) AS CNT FROM covi_approval4j.jwf_forminstance AS fi
+		INNER JOIN covi_approval4j.jwf_process AS wp ON fi.FormInstID = wp.FormInstID
+		INNER JOIN covi_approval4j.jwf_processdescription AS wpd ON wp.ProcessDescriptionID = wpd.ProcessDescriptionID
+		WHERE 
+		wp.ProcessID = #{OwnerProcessId} AND wpd.IsSecureDoc = 'N' AND
+		(fi.DocLinks LIKE CONCAT(#{ProcessID}, '@@@%') OR fi.DocLinks LIKE CONCAT('%^^^',#{ProcessID},'@@@%'))
+	</select> 
+	
+	<select id="selectIsLinkedDocDataStore" parameterType="cmap" resultType="cmap">
+	  	SELECT COUNT(*) AS CNT FROM covi_approval4j_store.jwf_forminstance AS fi
+		INNER JOIN covi_approval4j_store.jwf_processarchive AS wp ON fi.FormInstID = wp.FormInstID
+		INNER JOIN covi_approval4j_store.jwf_processdescriptionarchive AS wpd ON wp.ProcessDescriptionArchiveID = wpd.ProcessDescriptionArchiveID
+		WHERE 
+		wp.ProcessArchiveID = #{OwnerProcessId} AND wpd.IsSecureDoc = 'N' AND
+		(fi.DocLinks LIKE CONCAT(#{ProcessID}, '@@@%') OR fi.DocLinks LIKE CONCAT('%^^^',#{ProcessID},'@@@%'))
+	</select> 
+	
+	<select id="selectIsLinkedDocExpData" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(*) AS CNT FROM covi_account4j_si.act_expence_application_list AS actList
+		INNER JOIN covi_account4j_si.act_expence_application_ref AS actRef ON actRef.ExpenceApplicationListID = actList.ExpenceApplicationListID
+		INNER JOIN covi_approval4j.jwf_process AS wp ON actRef.ProcessID = wp.ProcessID
+		INNER JOIN covi_approval4j.jwf_processdescription AS wpd ON wp.ProcessDescriptionID = wpd.ProcessDescriptionID
+		WHERE 
+		actList.ExpenceApplicationID =  #{ExpAppID} AND actRef.ProcessID = #{ProcessID} AND wpd.IsSecureDoc = 'N' 
+	</select> 
+	
+	<select id="selectIsLinkedDocExpDataStore" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(*) AS CNT FROM covi_account4j_si.act_expence_application_list AS actList
+		INNER JOIN covi_account4j_si.act_expence_application_ref AS actRef ON actRef.ExpenceApplicationListID = actList.ExpenceApplicationListID
+		INNER JOIN covi_approval4j_store.jwf_processarchive AS wp ON actRef.ProcessID = wp.ProcessArchiveID
+		INNER JOIN covi_approval4j_store.jwf_processdescriptionarchive AS wpd ON wp.ProcessDescriptionArchiveID = wpd.ProcessDescriptionArchiveID
+		WHERE 
+		actList.ExpenceApplicationID =  #{ExpAppID} AND actRef.ProcessID = #{ProcessID} AND wpd.IsSecureDoc = 'N'
+	</select> 
+	
+	<select id="selectPerformerDataGov" parameterType="cmap" resultType="cmap">
+	    SELECT RD.RECORDDEPTCODE AS "PerformerID"
+	    FROM covi_approval4j.gov_record_doc RD
+	    WHERE RD.FORMINSTID = #{FormInstID}
+	    AND RD.RECORDDOCUMENTID = #{GovDocID}
+		LIMIT 1;
+	</select>
+	
+	<select id="selectEntCode" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT 
+			EntCode
+			FROM covi_approval4j.jwf_forminstance
+			WHERE FormInstID = #{FormInstID};
+		]]>
+	</select>
+	
+	<select id="selectEntCodeStore" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT 
+			EntCode
+			FROM covi_approval4j_store.jwf_forminstance
+			WHERE FormInstID = #{FormInstID};
+		]]>
+	</select>
+	
+	<select id="selectFormExtInfo" parameterType="cmap" resultType="cmap">
+		SELECT SCHEMACONTEXT AS "SchemaContext" FROM covi_approval4j.jwf_forms F
+		INNER JOIN covi_approval4j.jwf_formsSCHEMA S ON F.SCHEMAID = S.SCHEMAID 
+		WHERE F.FORMID = #{formID}
+	</select>
+	
+	<select id="existsFormAuth" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT COUNT(1)
+		FROM covi_approval4j.jwf_forms AS jf
+		INNER JOIN covi_approval4j.jwf_formclass as jfc on
+			<choose>
+				<when test="formId != null and formId != '' ">
+					jf.FormID = #{formId}
+				</when>
+				<when test="formPrefix != null and formPrefix != '' ">
+					jf.FormPrefix = #{formPrefix}
+				</when>
+			</choose>
+		and jf.FormClassID = jfc.FormClassID
+		where 
+		(
+			( jfc.AclAllYN = 'Y' and jfc.EntCode IN ('ORGROOT',  #{entCode}) )
+			OR exists 
+			( 
+				select 1 from covi_approval4j.jwf_forms_acl jfa 
+				where jfa.TargetID = jfc.FormClassID and jfa.ObjectType = 'CLASS'
+				and 
+				(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		AND 
+		(
+			(
+				jf.AclAllYN = 'Y'
+				<if test='isSaaS == "Y"'>
+				AND	jf.CompanyCode IN ('ORGROOT',  #{entCode})
+				</if>
+			)
+			OR exists 
+			( 
+				select 1 from covi_approval4j.jwf_forms_acl jfa 
+				where jfa.TargetID = jf.FormID and jfa.ObjectType = 'FORM'
+				and 
+				(
+				jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+				or
+				jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+	</select>
+	
+	<select id="selectCstfInfo" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			select sfr.StoredFormRevID AS "StoredFormRevID" 
+				,sf.StoredFormID AS "StoredFormID"
+				,sf.FormPrefix AS "FormPrefix"
+				,sf.FormName AS "FormName"
+				,sfr.FormHtmlFileID AS "FormHtmlFileID"
+				,f.FileName AS "FileName"
+				,f.SavedName AS "SavedName"
+				,f.CompanyCode AS "CompanyCode"
+				,CONCAT(REPLACE(s.FilePath,'{0}',f.CompanyCode),f.FilePath) AS "FullPath"
+			from covi_approval4j.jwf_store_forms sf
+				join covi_approval4j.jwf_store_forms_rev sfr on sf.StoredFormID = sfr.StoredFormID 
+				left outer join covi_smart4j.sys_file f on sfr.FormHtmlFileID = f.fileid
+				left outer join covi_smart4j.sys_storage s on s.StorageID = f.StorageID
+			where sfr.StoredFormRevID =#{StoredFormRevID};
+		]]>
+	</select>
+	
+	<select id="selectDomainID" parameterType="cmap" resultType="String">
+		SELECT DomainID
+		FROM sys_object_domain
+		WHERE DomainCode = #{domainCode}
+	</select>
+	
+	<select id="selectFormTempInstBox" parameterType="cmap" resultType="cmap">
+		SELECT FormTempInstBoxID
+			,FormInstID
+			,FormID
+			,SchemaID
+			,FormPrefix
+			,FormInstTableName
+			,UserCode
+			,CreatedDate
+			,Subject
+			,Kind
+		FROM covi_approval4j.jwf_formstempinstbox
+		WHERE 
+		<choose>
+			<when test="formTempInstID != null and formTempInstID != '' ">
+				FormTempInstBoxID = #{formTempInstID}
+			</when>
+			<when test="formInstID != null and formInstID != '' ">
+				FormInstID = #{formInstID}
+			</when>
+			<otherwise>
+				1 = 2
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectGovRecordRowSeq" resultType="java.lang.String">
+		SELECT NVL(RowSeq, '') AS "RowSeq" FROM covi_approval4j.gov_record_doc  
+		WHERE RecordDocumentID = #{RecordDocumentID}
+	</select>		
+</mapper>
+
+

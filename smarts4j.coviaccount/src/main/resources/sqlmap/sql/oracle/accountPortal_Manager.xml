@@ -1,0 +1,853 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.portalManager">
+	<select id="getTotalSummery" parameterType="cmap"  resultType="cmap">
+		SELECT 		
+			NVL(SUM(Amount),0) "amount"
+			, COUNT(*) "cnt"
+		FROM       	act_expence_application AEA
+		INNER JOIN 	act_expence_application_list AEAL				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  act_expence_application_div AEAD 				ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID						
+		LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 				ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+		WHERE       AEA.CompanyCode =  #{companyCode}
+		AND     	ProofDate	LIKE #{payDate}||'%'
+		AND			AEA.ApplicationStatus = 'E'
+		<if test=" deptCode != null and deptCode != '' ">
+		AND			AEAD.CostCenterCode = #{deptCode} 
+		</if>
+		<if test=" searchType == 'user' ">
+		AND			AEA.RegisterID = #{UR_Code} 
+		</if>
+		<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+		)   		
+      	</if>
+	</select>
+
+	<select id="getProofCodeCount" parameterType="cmap"  resultType="cmap">
+		SELECT
+			CASE WHEN AccountCode = 'Total' THEN 'Total' ELSE AccountCode END AS "AccountCode" 
+			, Cnt AS "Cnt"
+			, Amount AS "Amount"
+			, AccountName AS "AccountName"
+		FROM (
+			SELECT     
+				NVL(A.AccountCode, 'Total') AccountCode
+				, COUNT(*) Cnt
+				, SUM(Amount) Amount
+				, MAX(AccountName) AccountName
+			FROM (
+				SELECT ProofCode, 1
+						,	AEAD.Amount AS Amount	
+					<choose>
+		                <when test='IsUseStandardBrief == "Y" '>
+						,	AEAD.StandardBriefID AccountCode, AEAD.StandardBriefName AccountName
+		                </when>
+		                <otherwise>
+						,	AEAD.AccountCode AccountCode, AEAD.AccountName AccountName
+		                </otherwise>
+		            </choose>
+				FROM       act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN  act_expence_application_div AEAD 			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID						
+				LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+		        WHERE		AEA.CompanyCode =  #{companyCode}
+				AND			ProofDate	LIKE #{payDate}||'%'
+		        <if test=" deptCode != null and deptCode != '' ">
+		        AND			AEAD.CostCenterCode = #{deptCode} </if>
+		        <if test=" searchType == 'user' ">
+		        AND			AEA.RegisterID = #{UR_Code} </if>
+		   		<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+		   		AND			USR_CUD.DeptCode IN (			
+							SELECT  GroupCode
+							FROM 	sys_object_group
+							WHERE 	GroupType = 'Dept'
+							AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+				)   		
+	        	</if>
+				AND        AEA.ApplicationStatus = 'E'
+			) A
+			GROUP BY ROLLUP(A.AccountCode) 
+		) AA
+		ORDER BY Amount DESC
+	</select>
+	
+	<select id="getAccountCodeCount" parameterType="cmap" resultType="cmap">
+		SELECT 
+			Code AS "Code"
+			, (SELECT CostCenterName FROM act_cost_center acc WHERE acc.CostCenterCode = Code) AS "Name"
+			, Cnt AS "Cnt"
+			, Amount AS "Amount"
+		FROM (
+			SELECT 
+				NVL(Code, 'Total') Code
+				, COUNT(*) Cnt
+				, SUM(Amount) Amount
+			FROM (
+				SELECT 
+					AEAD.CostCenterCode Code					
+					, 1
+					, AEAD.Amount Amount		
+				FROM        act_expence_application AEA
+				INNER JOIN  act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN  act_expence_application_div AEAD 			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+				WHERE		AEA.CompanyCode =  #{companyCode}
+		        AND			ProofDate	LIKE #{payDate} || '%'
+		        <if test=" accountCode != null and accountCode != '' "> 
+					<choose>
+		                <when test='IsUseStandardBrief == "Y" '>
+				        	AND		AEAD.StandardBriefID = #{accountCode} 
+		                </when>
+		                <otherwise>
+				        	AND		AEAD.AccountCode = #{accountCode} 
+		                </otherwise>
+		            </choose>
+		        </if> 
+		        <if test=" searchType == 'user' "> 
+		        AND			AEA.RegisterID = #{UR_Code}  
+		        </if>
+		        <if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+		   		AND			USR_CUD.DeptCode IN (			
+							SELECT  GroupCode
+							FROM 	sys_object_group
+							WHERE 	GroupType = 'Dept'
+							AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+				)
+		        </if>		        				        
+				AND AEA.ApplicationStatus = 'E'
+			) A
+			GROUP BY ROLLUP(A.Code) 
+		) AA
+		ORDER BY Amount DESC
+	</select>
+	
+	<select id="getApprovalListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM JWF_Process A
+		INNER JOIN JWF_Workitem B ON A.ProcessID = B.ProcessID
+		INNER JOIN JWF_Performer C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN JWF_ProcessDescription D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		WHERE 1=1			
+		AND	C.UserCode = #{UR_Code}			
+		AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND C.State = 1
+		AND B.State = #{state}
+		AND A.ProcessState = 288
+		AND A.DeleteDate IS NULL
+		
+	</select>
+
+	<select id="getApprovalList" parameterType="cmap"  resultType="cmap">		
+		SELECT A.ProcessID AS "ProcessID"
+				, B.WorkItemID AS "WorkItemID"
+				, C.PerformerID AS "PerformerID"
+				, A.InitiatorID AS "InitiatorID"
+				, A.InitiatorName AS "InitiatorName"
+				, A.InitiatorUnitID AS "InitiatorUnitID"
+				, A.InitiatorUnitName AS "InitiatorUnitName"
+				, C.UserCode AS "UserCode"
+				, C.UserName AS "UserName"
+				, C.SubKind AS "SubKind"
+				, C.SubKind AS "FormSubKind"
+				, B.Created AS "Created"
+				, B.TaskID AS "TaskID"
+				, FormSubject AS "FormSubject"
+				, TO_CHAR(B.Created, 'MM-DD HH24:MI') AS "Created"
+				, B.TaskID AS "TaskID"
+				, U.PhotoPath AS "PhotoPath"
+				, D.BusinessData1  AS "BusinessData1"
+				, D.BusinessData2 AS "BusinessData2"
+		FROM JWF_Process A
+		INNER JOIN JWF_Workitem B ON A.ProcessID = B.ProcessID
+		INNER JOIN JWF_Performer C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN JWF_ProcessDescription D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		LEFT OUTER JOIN sys_object_user U ON U.UserCode = A.InitiatorID
+		WHERE 1=1
+		AND	C.UserCode = #{UR_Code}
+		AND      C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND      C.State = 1
+		AND 	 D.BusinessData1 = 'APPROVAL'
+		AND      B.State = #{state}
+		AND      A.ProcessState = 288
+		AND      A.DeleteDate IS NULL
+		AND		ROWNUM <![CDATA[<=]]> 3
+		ORDER BY A.EndDate desc
+	</select>
+	
+	<select id="getProofCodeList" parameterType="cmap"  resultType="cmap">
+		SELECT AEA.ExpenceApplicationID AS "ExpenceApplicationID"
+				, AEA.CompanyCode AS "CompanyCode"
+				, AEA.ApplicationTitle AS "ApplicationTitle"
+				, AEA.ApplicationType AS "ApplicationType"
+				, AEA.ApplicationStatus AS "ApplicationStatus"
+				, AEA.RegisterID AS "RegisterID"
+				, USR.DisplayName AS "RegisterName"
+				, AEA.ProcessID AS "ProcessID"				
+				, TO_CHAR(NVL(AEA.ApplicationDate, AEA.RegistDate), 'MM-DD HH24:MI') AS "ApplicationDate"
+				, AEA.RequestType AS "RequestType"
+				, AEA.RegistDate AS "RegistDate"
+				, AEA.ChargeJob AS "ChargeJob"					
+				, AEAL.ExpenceApplicationListID AS "ExpenceApplicationListID"
+				, AEAL.ExpenceApplicationListID AS "cdRownum"					
+				, TO_CHAR(TO_DATE(AEAL.ProofDate), 'YYYY.MM.DD') AS "ProofDate"
+				, TO_CHAR(TO_DATE(AEAL.PostingDate), 'YYYY.MM.DD') AS "PostingDate"
+				, AEAL.ProofCode AS "ProofCode"					
+				, AEAL.CardUID AS "CardUID"
+				, AEAL.CashUID AS "CashUID"
+				, AEAL.TaxUID AS "TaxUID"
+				, AEAL.TaxType AS "TaxType"
+				, AEAL.TaxCode AS "TaxCode"
+				, AEAL.PayAdjustMethod AS "PayAdjustMethod"
+				, AEAL.PayMethod AS "PayMethod"
+				, AEAL.IsWithholdingTax AS "IsWithholdingTax"
+				, AEAL.IncomeTax AS "IncomeTax"
+				, AEAL.LocalTax AS "LocalTax"
+				, AEAL.PayDate AS "PayDate"
+				, AEAL.VendorNo AS "VendorNo"
+				, AEAL.TotalAmount AS "TotalAmount"					
+				, AEAD.Amount AS "Amount"
+				, AEAD.AccountCode AS "AccountCode"
+				, C.AccountName AS "AccountName"	
+		FROM       act_expence_application AEA
+		INNER JOIN act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  act_expence_application_div AEAD 	ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN act_account C                 ON AEAD.AccountCode = c.AccountCode
+		LEFT OUTER JOIN sys_object_user USR				ON AEA.RegisterID = USR.UserCode
+	    WHERE		AEA.CompanyCode =  #{companyCode}
+		AND			ProofDate LIKE #{payDate} || '%'
+        AND			AEA.RegisterID = #{UR_Code}
+		AND			AEA.ApplicationStatus = 'E'
+		AND			AEAL.ProofCode = #{proofCode}			  
+		AND			ROWNUM <![CDATA[<=]]> 4
+	</select>
+	
+	<!-- 사용안함 -->
+	<select id="getMobileReceiptList" parameterType="cmap"  resultType="cmap">
+		SELECT	AR.ReceiptID AS "ReceiptID",
+				AR.CompanyCode AS "CompanyCode",
+				AR.ExpenceMgmtCode AS "ExpenceMgmtCode",
+				AR.UsageText AS "UsageText",
+				AR.PhotoDate AS "PhotoDate",
+				AR.PhotoDate AS "PhotoDateStr",
+				AR.ReceiptType AS "ReceiptType",
+				AR.ReceiptFileID AS "ReceiptFileID",
+				AR.Active AS "Active",				
+				FN_GETACTBASECODENAME('Active', AR.Active, 'ALL') AS "ActiveName",
+				AR.RegisterID AS "RegisterID",
+				TO_CHAR( AR.RegistDate, 'MM.DD HH24.MI' ) AS "RegistDateMDHM", 
+				TO_CHAR( AR.RegistDate, 'YYYY.MM.DD' ) AS "RegistDate",				
+				REPLACE(ST.FilePath,'{0}',SF.CompanyCode)||SF.FilePath || SF.SavedName AS "URLPath",
+				AR.AccountCode AS "AccountCode",
+				C.AccountName AS "AccountName",
+				TotalAmount AS "TotalAmount",
+				(
+					SELECT StandardBriefName
+					FROM act_standard_brief SB
+					WHERE SB.StandardBriefID = AR.StandardBriefID 
+				) AS "StandardBriefName"	
+		FROM	act_receipt AR
+		LEFT OUTER JOIN sys_file SF ON AR.ReceiptFileID = SF.FileID
+		LEFT OUTER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+		LEFT OUTER JOIN act_account C ON AR.AccountCode = C.AccountCode
+		WHERE	AR.RegisterID  = #{UR_Code}
+		AND     ROWNUM <![CDATA[<=]]> 3
+		ORDER BY AR.ReceiptID DESC
+	</select>
+	
+	<select id="getAccountSum" parameterType="cmap"  resultType="cmap">		
+		WITH DATA AS (		
+			SELECT SUM(Amount) AS AmountSum
+					<choose>
+		                <when test='IsUseStandardBrief == "Y" '>
+							,AEAD.StandardBriefID Code, AEAD.StandardBriefName Name
+		                </when>
+		                <otherwise>
+							,AEAD.AccountCode Code, AEAD.AccountName Name
+		                </otherwise>
+		            </choose>
+			FROM       act_expence_application AEA
+			INNER JOIN act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			INNER JOIN act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+			LEFT OUTER JOIN sys_object_user_basegroup USR_CUD			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+	        WHERE		AEA.CompanyCode =  #{companyCode}
+			AND			ProofDate	LIKE #{payYear} || '%'
+	        <if test=" searchType == 'user' "> 
+	        AND			AEA.RegisterID = #{UR_Code}
+	        </if>		
+			<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " > 
+	        AND			USR_CUD.DeptCode IN (			
+						SELECT  GroupCode
+						FROM 	sys_object_group
+						WHERE 	GroupType = 'Dept'
+						AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+			)
+	        </if>		
+			AND			AEA.ApplicationStatus = 'E'
+			GROUP BY   					
+			<choose>
+                <when test='IsUseStandardBrief == "Y" '>
+				AEAD.StandardBriefID, AEAD.StandardBriefName
+                </when>
+                <otherwise>
+				AEAD.AccountCode, AEAD.AccountName
+                </otherwise>
+            </choose>
+			ORDER BY SUM(Amount) desc		
+		)
+		SELECT 
+			AmountSum AS "AmountSum"
+			, Code AS "Code"
+			, Name AS "Name"
+		FROM DATA
+		WHERE ROWNUM <![CDATA[<=]]> 5
+	</select>
+	
+	<select id="getAccountMonthSum" parameterType="cmap"  resultType="cmap">
+		WITH MASTER AS (
+			<![CDATA[
+				SELECT  #{payYear} || (CASE WHEN LEVEL < 10 THEN ('0' || LEVEL) ELSE TO_CHAR(LEVEL) END) payDate
+				FROM DUAL
+				CONNECT BY LEVEL <= 12		
+			]]>
+		),
+		DETAIL AS (
+			SELECT A.payDate, B.*
+			FROM (
+				SELECT (#{payYear} || payDate) AS payDate
+				FROM (
+					SELECT '01' AS payDate FROM DUAL UNION ALL
+					SELECT '02' FROM DUAL UNION ALL
+					SELECT '03' FROM DUAL UNION ALL
+					SELECT '04' FROM DUAL UNION ALL
+					SELECT '05' FROM DUAL UNION ALL
+					SELECT '06' FROM DUAL UNION ALL
+					SELECT '07' FROM DUAL UNION ALL					
+					SELECT '08' FROM DUAL UNION ALL					
+					SELECT '09' FROM DUAL UNION ALL					
+					SELECT '10' FROM DUAL UNION ALL					
+					SELECT '11' FROM DUAL UNION ALL					
+					SELECT '12' FROM DUAL
+				) DT
+			) A			
+			LEFT OUTER JOIN (		
+				SELECT 
+					SUBSTR(ProofDate, 1, 6) AS "paydt"
+					, SUM(Amount) AS "AmountSum"
+					<foreach collection="Codes" item="item" index="index" separator="," open="," close="">
+						<choose>
+				            <when test='IsUseStandardBrief == "Y" '>
+			        	        SUM(case when StandardBriefID = #{item} then Amount else 0 end) AS SUM_${item}
+			    	        </when>
+				            <otherwise>
+				                SUM(case when AccountCode = #{item} then Amount else 0 end) AS SUM_${item}
+				        	</otherwise>
+				        </choose>
+			    	</foreach>
+				FROM       act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				LEFT OUTER JOIN sys_object_user_basegroup USR_CUD			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+		        WHERE		AEA.CompanyCode =  #{companyCode}
+				AND			ProofDate LIKE #{payYear} || '%'            	        
+		        <if test=" searchType == 'user' "> 
+		        AND			AEA.RegisterID = #{UR_Code}
+		        </if>		
+				<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+		   		AND			USR_CUD.DeptCode IN (			
+							SELECT  GroupCode
+							FROM 	sys_object_group
+							WHERE 	GroupType = 'Dept'
+							AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+				)
+		        </if>	        	        
+				AND AEA.ApplicationStatus = 'E'
+				GROUP BY SUBSTR(ProofDate ,1,6)
+			) B ON A.payDate = B."paydt"
+		)
+		SELECT 
+			A.payDate AS "payDate"
+			, B.*
+		FROM MASTER A 
+		LEFT OUTER JOIN DETAIL B ON	( A.payDate = B."paydt" )
+		ORDER BY A.payDate ASC
+	</select>
+	
+	<select  id="getDeptList" parameterType="cmap"  resultType="cmap">
+		SELECT '' AS "DeptCode", '전체' AS "DeptName" 
+		FROM DUAL
+		
+		UNION ALL
+		
+		SELECT	ACC.CostCenterCode AS "DeptCode", ACC.CostCenterName AS "DeptName"
+		FROM	act_cost_center ACC
+		JOIN	(
+					SELECT		DISTINCT AEAD.CostCenterCode 
+					FROM		act_expence_application AEA
+					INNER JOIN	act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+					INNER JOIN	act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+					WHERE		AEA.CompanyCode =  #{companyCode}
+					AND ProofDate LIKE #{payDate} || '%'
+					<if test="stdCode != null and stdCode != ''" >
+			   		AND			USR_CUD.DeptCode IN (			
+								SELECT  GroupCode
+								FROM 	sys_object_group
+								WHERE 	GroupType = 'Dept'
+								AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+					)
+			       	</if>
+				) A ON ACC.CostCenterCode = A.CostCenterCode
+	</select>
+	
+	<select  id="getAccountList" parameterType="cmap"  resultType="cmap">
+		SELECT '' AS "AccountCode", '전체' AS "AccountName" 
+		FROM DUAL
+		
+		UNION ALL
+
+		SELECT 
+		<choose>
+			<when test='IsUseStandardBrief == "Y" '>
+			A.StandardBriefID AS "AccountCode", SB.StandardBriefName AS "AccountName" 
+			</when>
+			<otherwise>
+			A.AccountCode AS "AccountCode", C.AccountName AS "AccountName" 
+			</otherwise>
+		</choose>
+		FROM (
+				SELECT DISTINCT AEAD.AccountCode <if test='IsUseStandardBrief == "Y" '>, AEAD.StandardBriefID</if>
+				FROM		act_expence_application AEA
+				INNER JOIN	act_expence_application_list AEAL		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN	act_expence_application_div AEAD 		ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID 
+				LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 		ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'	
+				WHERE		AEA.CompanyCode =  #{companyCode}
+				AND			ProofDate	LIKE #{payDate} || '%'	
+				<if test="stdCode != null and stdCode != ''" >
+		   		AND			USR_CUD.DeptCode IN (			
+							SELECT  GroupCode
+							FROM 	sys_object_group
+							WHERE 	GroupType = 'Dept'
+							AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+				)	
+				</if>
+				AND AEA.ApplicationStatus = 'E'
+		) A	
+		JOIN act_account C			ON C.AccountCode = A.AccountCode	
+        <if test='IsUseStandardBrief == "Y" '>
+		JOIN  act_standard_brief SB 	ON C.AccountID = SB.AccountID AND A.StandardBriefID = SB.StandardBriefID
+        </if>
+		WHERE  C.IsUse = 'Y'
+	</select>
+	
+	<select id="getTopCategory"  parameterType="cmap"  resultType="cmap">		
+		SELECT 	deptCode AS "UserCode"
+				, deptName AS "DisplayName"
+				, 'dept' AS "type" 
+		FROM sys_object_user_basegroup
+		WHERE UserCode = #{UR_Code}			
+	</select>
+
+	<select id="getBudgetMonthSum"  parameterType="cmap"  resultType="cmap">	
+		WITH DETAIL AS (
+			SELECT DT.ExecuteDate
+				   , NVL(UsedAmount, 0) UsedAmount
+				   , Status
+			FROM (
+				SELECT (#{payYear} || MON) AS ExecuteDate 
+				FROM (
+					SELECT '01' AS MON FROM DUAL UNION ALL
+					SELECT '02' FROM DUAL UNION ALL
+					SELECT '03' FROM DUAL UNION ALL
+					SELECT '04' FROM DUAL UNION ALL
+					SELECT '05' FROM DUAL UNION ALL
+					SELECT '06' FROM DUAL UNION ALL
+					SELECT '07' FROM DUAL UNION ALL					
+					SELECT '08' FROM DUAL UNION ALL					
+					SELECT '09' FROM DUAL UNION ALL					
+					SELECT '10' FROM DUAL UNION ALL					
+					SELECT '11' FROM DUAL UNION ALL
+					SELECT '12' FROM DUAL 			
+				) DT
+			)DT
+			LEFT OUTER JOIN (
+				SELECT 	TO_CHAR(EXR.ExecuteDate, 'YYYYMM') AS ExecuteYM
+						, EXR.UsedAmount 
+						, EXR.Status 
+				FROM bem_execute_regist EXR
+				WHERE EXR.CompanyCode = #{companyCode}
+				AND AccountCode = #{accountCode}
+				<foreach collection="sbCodeList" item="list" open="AND StandardBriefID IN(" close=")"  separator=",">
+					 #{list}
+				</foreach>
+				AND Status != 'R'				
+				<if test=" searchType == 'user' "> AND	InitiatorID = #{UR_Code} </if>
+				<if test=" searchType == 'dept' "> AND	InitiatorDeptCode = #{stdCode} </if>
+				AND TO_CHAR(EXR.ExecuteDate, 'YYYY') = #{payYear}
+			) A ON DT.ExecuteDate = A.ExecuteYM
+		)
+		SELECT 	NVL(ExecuteDate,'TOTAL') AS "ExecuteDate"
+		  		, NVL(SUM(UsedAmount),0) AS "UsedAmount" 
+		   		, SUM( CASE WHEN Status = 'C' THEN UsedAmount ELSE 0 END ) AS "complete"
+		   		, SUM( CASE WHEN Status = 'P' THEN UsedAmount ELSE 0 END ) AS "pending"
+		FROM DETAIL
+		GROUP BY ROLLUP( ExecuteDate )
+	</select>
+	
+	<select id="getBudgetTotal"  parameterType="cmap"  resultType="cmap">
+		SELECT 		NVL( SUM(BudgetAmount),0 ) AS "BudgetAmount"
+		, BaseTerm AS "BaseTerm"
+		, FN_GETACTBASECODENAME('BaseTerm', BaseTerm,'ALL') AS "BaseTermName"
+		FROM 		bem_regist REG
+		INNER JOIN 	sys_object_user_basegroup USR_CUD ON REG.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+		WHERE 		REG.CompanyCode = #{companyCode}
+		AND         REG.FiscalYear = #{payYear}
+		AND			REG.BaseTerm = 'Year'
+		AND			REG.IsUse	=	'Y'
+		AND			REG.AccountCode = #{accountCode}
+		<foreach collection="sbCodeList" item="list" open="AND StandardBriefID IN(" close=")"  separator=",">
+			 #{list}
+		</foreach>
+		<if test=" searchType == 'user' ">
+		AND	USR_CUD.UserCode = #{UR_Code} 
+		</if>
+		<if test=" searchType == 'dept' "> 
+		AND	USR_CUD.DeptCode IN (			
+				SELECT  GroupCode
+				FROM 	sys_object_group
+				WHERE 	GroupType = 'Dept'
+				AND		GroupPath LIKE '%;' || #{stdCode} || ';%'
+		) 
+		</if>
+		GROUP BY BaseTerm
+	</select>
+	
+	<select id="getAuditList" parameterType="cmap" resultType="cmap">
+		SELECT	AD.AuditID AS "AuditID"
+				, AD.RuleCode AS "RuleCode"			
+				, AD.StdDescription AS "StdDescription"										
+		FROM	act_audit	AD			
+	 	WHERE	AD.CompanyCode = #{companyCode}
+		AND		IsUse = 'Y'
+		AND		ROWNUM <![CDATA[<=]]> 5	
+		ORDER BY AuditID DESC 
+	</select>
+	
+	<select id="getBudgetStdCode" parameterType="cmap" resultType="cmap">	
+		SELECT CD.Code AS "Code"
+				, CD.CodeName AS "CodeName"
+				, CD.Reserved1 AS "Reserved1"
+				, CD.Reserved2 AS "Reserved2"
+		FROM	act_base_code CD
+	 	WHERE	CD.CodeGroup = 'budgetStd'
+	 	AND		CODE != 'budgetStd'
+	 	AND		IsUse = 'Y'
+	 	<choose>
+		    <when test='isSaaS == "Y"'>
+				AND CD.CompanyCode =	#{companyCode}
+			</when>
+			<otherwise>
+				AND CD.CompanyCode IN ('ALL', 	#{companyCode})
+			</otherwise>
+		</choose>
+		AND		ROWNUM <![CDATA[<=]]> 1	
+	 	ORDER BY CASE WHEN CD.CompanyCode = #{companyCode} THEN 0 ELSE 1 END		
+	</select>
+	
+	<select id="getReportDetailList" parameterType="cmap" resultType="cmap">
+		SELECT AEAD.CostCenterCode AS "CostCenterCode"
+				, (SELECT CostCenterName FROM act_cost_center ACC WHERE ACC.CostCenterCode = AEAD.CostCenterCode) AS "CostCenterName"
+				, AEA.RegisterID AS "RegisterID"
+				, SOU.DisplayName AS "RegisterName"
+				, TO_CHAR(TO_DATE(AEAL.ProofDate), 'YYYY.MM.DD') AS "ProofDate"
+				, AEAD.AccountCode AS "AccountCode"
+				, AEAD.AccountName AS "AccountName"
+				, AEAD.StandardBriefID AS "StandardBriefID"
+				, AEAD.StandardBriefName AS "StandardBriefName"
+				, AEAD.UsageComment AS "UsageComment"
+				, AEAD.Amount AS "Amount"
+		FROM        act_expence_application AEA
+		INNER JOIN  act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN sys_object_user SOU 						ON AEA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+		WHERE   AEA.CompanyCode = #{CompanyCode}
+		AND     AEA.ApplicationStatus = 'E'
+		AND     AEAL.ProofDate	LIKE #{ProofMonth}||'%'		
+		<choose>
+			<when test="CostCenterCode != null and CostCenterCode != ''">
+	    AND		AEAD.CostCenterCode = #{CostCenterCode}
+			</when>
+			<otherwise>
+				<if test="DeptCode != null and DeptCode != ''">
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE '%;'||#{DeptCode}||';%'
+		)
+				</if>
+			</otherwise>
+		</choose>
+		<if test=" AccountName != null and AccountName != '' "> 
+		AND		AEAD.AccountName = #{AccountName}
+		</if>
+        <if test=" RegisterName != null and RegisterName != '' "> 
+		AND		SOU.DisplayName LIKE '%'||#{RegisterName}||'%'
+		</if>
+        <if test=" AccountCode != null and AccountCode != '' "> 
+		AND		AEAD.AccountCode = #{AccountCode}
+		</if>
+		<if test=" StandardBriefName != null and StandardBriefName != '' "> 
+		AND		AEAD.StandardBriefName = #{StandardBriefName}
+		</if>
+        <if test=" StandardBriefID != null and StandardBriefID != '' "> 
+		AND		AEAD.StandardBriefID = #{StandardBriefID}
+		</if>
+        <if test=" UsageComment != null and UsageComment != '' "> 
+		AND		AEAD.UsageComment LIKE '%'||#{UsageComment}||'%'
+		</if>
+	  	<if test=" SearchAmtSt != null and SearchAmtSt != '' ">
+		AND		AEAD.Amount <![CDATA[ >= ]]> #{SearchAmtSt} 
+		</if>
+	  	<if test=" SearchAmtEd != null and SearchAmtEd != '' ">
+		AND		AEAD.Amount <![CDATA[ <= ]]> #{SearchAmtEd} 
+		</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AEAD.Amount DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>"CostCenterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>"RegisterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ProofDate")'>"ProofDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageComment")'>"UsageComment"</when>
+					<when test='sortColumn.equalsIgnoreCase("Amount")'>"Amount"</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	<select id="getReportDetailListCnt" parameterType="cmap"  resultType="java.lang.Long">	
+		SELECT COUNT(*)
+		FROM        act_expence_application AEA
+		INNER JOIN  act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN sys_object_user SOU 						ON AEA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'	
+		WHERE   AEA.CompanyCode = #{CompanyCode}
+		AND     AEA.ApplicationStatus = 'E'
+		AND     AEAL.ProofDate	LIKE #{ProofMonth}||'%'		
+		<choose>
+			<when test="CostCenterCode != null and CostCenterCode != ''">
+    	AND		AEAD.CostCenterCode = #{CostCenterCode}
+			</when>
+			<otherwise>
+				<if test="DeptCode != null and DeptCode != ''">
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE '%;'||#{DeptCode}||';%'
+		)
+				</if>
+			</otherwise>
+		</choose>
+        <if test=" AccountName != null and AccountName != '' "> 
+		AND		AEAD.AccountName = #{AccountName}
+		</if>
+        <if test=" RegisterName != null and RegisterName != '' "> 
+		AND		SOU.DisplayName LIKE '%'||#{RegisterName}||'%'
+		</if>
+        <if test=" AccountCode != null and AccountCode != '' "> 
+		AND		AEAD.AccountCode = #{AccountCode}
+		</if>
+		<if test=" StandardBriefName != null and StandardBriefName != '' "> 
+		AND		AEAD.StandardBriefName = #{StandardBriefName}
+		</if>
+        <if test=" StandardBriefID != null and StandardBriefID != '' "> 
+		AND		AEAD.StandardBriefID = #{StandardBriefID}
+		</if>	
+        <if test=" UsageComment != null and UsageComment != '' "> 
+		AND		AEAD.UsageComment LIKE '%'||#{UsageComment}||'%'
+		</if>
+	  	<if test=" SearchAmtSt != null and SearchAmtSt != '' ">
+		AND		AEAD.Amount <![CDATA[ >= ]]> #{SearchAmtSt} 
+		</if>
+	  	<if test=" SearchAmtEd != null and SearchAmtEd != '' ">
+		AND		AEAD.Amount <![CDATA[ <= ]]> #{SearchAmtEd} 
+		</if>
+	</select>
+	
+	<select id="reportTransferExcelDownload" parameterType="cmap" resultType="cmap">
+		SELECT 
+			VB.BankName AS "BankName"
+			, VB.BankAccountNo AS "BankAccountNo"
+			, TRUNC(EAL.TotalAmount) AS "TotalAmount"
+			, ( CASE WHEN VB.BankAccountName IS NULL OR VB.BankAccountName = '' THEN 
+					(CASE WHEN EAL.VendorName IS NULL OR EAL.VendorName = '' THEN ATI.InvoicerCorpName ELSE EAL.VendorName END) 
+				ELSE VB.BankAccountName END ) AS "BankAccountName"
+		FROM act_expence_application_list EAL
+		LEFT OUTER JOIN act_vendor V
+			ON V.VendorNo  = EAL.VendorNo  
+		LEFT OUTER JOIN (
+			SELECT VENDORID, MAX(BANKID) AS BankID FROM act_vendor_bank SUB
+			GROUP BY SUB.VENDORID
+		) VB2
+			ON VB2.VendorID = V.VendorID
+		LEFT OUTER JOIN act_vendor_bank VB
+			ON VB.VendorID = V.VendorID
+			AND VB.BankID = VB2.BankID
+		LEFT OUTER JOIN act_taxinvoice ATI
+			ON EAL.TaxUID = ATI.TaxInvoiceID
+		WHERE EAL.ExpenceApplicationListID IN 
+		<foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY ExpenceApplicationListID
+	</select>
+	
+	<!-- 직원경비 지출내역 구분별(일반,접대비,프로젝트,출장) 이체자료 다운로드  -->
+	<select id="employeeExpenceExcelDownload" parameterType="cmap" resultType="cmap">
+		SELECT a.VendorNo AS "VendorNo"
+			, (Select FormName from act_expence_forms AEF
+						WHERE a.RequestType = AEF.FormCode and AEF.CompanyCode = a.CompanyCode) AS "RequestTypeName"
+			, bgroup.DeptName AS "DeptName"
+			, Fn_BaseGetDictionary_S(#{lang}, usr.MultiDisplayName) AS "UserName"
+			, TRUNC(a.RealPayAmount) AS "RealPayAmount"
+			, VD.BankName AS "BankName"
+			, VD.BankAccountNo AS "BankAccountNo"
+			, VD.BankAccountName AS "BankAccountName"
+		FROM (		
+			SELECT AEA.Sub_UR_Code AS VendorNo, AEA.RequestType, AEA.CompanyCode
+				, SUM(CASE WHEN AEAL.RealPayAmount IS NULL
+					THEN (
+						SELECT 
+						CASE 
+							WHEN (AEAL.ProofCode = 'TaxBill' AND SUM(AEAD.Amount) != AEAL.TotalAmount) THEN SUM(AEAD.Amount) + AEAL.TaxAmount 
+							ELSE SUM(AEAD.Amount) 
+						END
+						FROM act_expence_application_div AEAD
+						WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					)
+					ELSE AEAL.RealPayAmount END) AS RealPayAmount
+			FROM act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL 
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			-- 일반, 프로젝트, 접대비, 출장
+			WHERE AEAL.ExpenceApplicationListID IN <foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			GROUP BY AEA.Sub_UR_Code, AEA.RequestType, AEA.CompanyCode
+		) a
+		LEFT OUTER JOIN (
+			SELECT VD.VendorID, MAX(VD.VendorNo) AS VendorNo, MIN(VDB.BankID) AS BankID, MAX(VD.VendorName) AS VendorName, MAX(VDB.BankName) AS BankName
+				, MAX(VDB.BankAccountNo) AS BankAccountNo
+				, MAX(VDB.BankAccountName) AS BankAccountName
+			FROM act_vendor_bank VDB
+			JOIN act_vendor VD
+			ON VD.VendorID = VDB.VendorID
+			AND VD.VendorType = 'OR' -- 임직원 거래처 Type
+			GROUP BY VD.VendorID
+		) VD
+		ON VD.VendorNo = a.VendorNo
+		LEFT OUTER JOIN sys_object_user usr
+		ON usr.UserCode = a.VendorNo
+		LEFT OUTER JOIN sys_object_user_basegroup bgroup
+		ON bgroup.UserCode = usr.UserCode
+		AND bgroup.JobType = 'Origin'
+		ORDER BY deptname, username
+	</select>
+	<!-- 거래처지급내역 이체자료 다운로드, 자금지출결의시 쿼리와 동일하게 Group by 처리  -->
+	<select id="vendorExpenceExcelDownload" parameterType="cmap" resultType="cmap">
+		<!--  "VendorName","RealPayAmount","BankName", "BankAccountNo","BankAccountName"  -->
+		SELECT
+			MAX(A.VendorName) AS "VendorName",
+		  	TRUNC(SUM(A.RealPayAmount)) AS "RealPayAmount",
+			MAX(A.BankName) AS "BankName",
+			MAX(A.BankAccountNo) AS "BankAccountNo",
+			MAX(A.BankAccountName) AS "BankAccountName"
+		FROM
+		  (
+		    SELECT
+		      AEA.ExpenceApplicationID,
+		      AEA.RegisterID,
+		      AEAL.ExpenceApplicationListID,
+		      CASE WHEN AEAL.PayMethod IS NULL THEN CASE WHEN AEAL.ProofCode = 'CorpCard' THEN 'D' ELSE 'C' END ELSE AEAL.PayMethod END AS PayMethod,
+		      CASE
+		        WHEN AEAL.RealPayAmount IS NULL THEN (
+		          SELECT
+		            CASE
+		              WHEN (
+		                AEAL.ProofCode = 'TaxBill' AND SUM(AEAD.Amount) != AEAL.TotalAmount
+		              ) THEN SUM(AEAD.Amount) + AEAL.TaxAmount ELSE SUM(AEAD.Amount)
+		            END
+		          FROM ACT_EXPENCE_APPLICATION_DIV AEAD
+		          WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		        )
+		        ELSE AEAL.RealPayAmount
+		      END AS RealPayAmount,
+		      NVL(AEAL.VendorNo, AEA.RegisterID) AS VendorNo,
+		      NVL(NVL(VD.VendorName, ATI.InvoicerCorpName), AEAL.VendorName) AS VendorName,
+		      (
+		        SELECT StandardBriefID FROM ACT_EXPENCE_APPLICATION_DIV AEAD WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID AND ROWNUM = 1
+		      )  AS StandardBriefID
+			  , CASE WHEN NVL(LENGTH(AEAL.BankAccountNo),0) > 0  THEN (
+					SELECT A.CodeName FROM act_base_code A 
+					WHERE A.CodeGroup='Bank' AND A.IsUse='Y' AND A.Code= AEAL.BankCode 
+					AND CompanyCode = (
+						CASE WHEN EXISTS (
+							SELECT CompanyCode FROM act_base_code 
+							WHERE CodeGroup='Bank' AND IsUse='Y' AND Code= AEAL.BankCode AND CompanyCode = AEA.CompanyCode
+						) THEN AEA.CompanyCode 
+						ELSE 'ALL' END
+					) 
+				) ELSE VD.BankName END AS BankName
+			  , CASE WHEN NVL(LENGTH(AEAL.BankAccountNo),0) > 0  THEN AEAL.BankAccountNo ELSE VD.BankAccountNo END AS BankAccountNo
+			  , CASE WHEN NVL(LENGTH(AEAL.BankAccountNo),0) > 0  THEN AEAL.BankAccountName ELSE VD.BankAccountName END AS BankAccountName
+		    FROM
+		      ACT_EXPENCE_APPLICATION AEA
+		      INNER JOIN ACT_EXPENCE_APPLICATION_LIST AEAL ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		      INNER JOIN ACT_EXPENCE_FORMS AEF ON AEA.RequestType = AEF.FormCode and AEF.CompanyCode = AEA.CompanyCode
+		      LEFT OUTER JOIN ACT_TAXINVOICE ATI ON AEAL.TaxUID = ATI.TaxInvoiceID
+		      LEFT OUTER JOIN (
+					SELECT
+						AV.VendorID, AV.VendorNo, AB.BankID, AV.VendorName, AB.BankName
+						, AB.BankAccountNo
+						, AB.BankAccountName
+					FROM act_vendor AV 
+					INNER JOIN (
+						SELECT A.VendorID, A.BankID, A.BankName, A.BankAccountNo, A.BankAccountName
+						FROM act_vendor_bank A
+						WHERE A.BankID = (SELECT MIN(BankID) FROM act_vendor_bank B WHERE A.VendorID = B.VendorID)
+					) AB ON AV.VendorID = AB.VendorID
+			  ) VD ON VD.VendorNo = AEAL.VendorNo
+		    WHERE
+		      1 = 1
+		      AND AEF.MenuType = 'V'
+		      AND AEA.RequestType IN ('VENDOR')
+		      AND AEAL.ExpenceApplicationListID IN <foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">#{item}</foreach>
+		  ) A
+		WHERE PayMethod = 'C'
+		GROUP BY
+		  A.ExpenceApplicationID,
+		  A.RegisterID,
+		  A.PayMethod,
+		  A.VendorNo,
+		  A.StandardBriefID
+	</select>
+</mapper>

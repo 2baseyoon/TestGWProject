@@ -1,0 +1,974 @@
+﻿<common>
+	<commands>
+		<command name="d_download" desc="{Download}" caption="{Download}"/>
+		<command name="d_pdf_download" desc="{DownloadAsPDF}" caption="{DownloadAsPDF}"/>
+		<command name="d_print" desc="{Print}" caption="{Print}"/>
+		<command name="e_undo" desc="{Undo}" caption="{Undo}"/>
+		<command name="e_redo" desc="{Redo}" caption="{Redo}"/>
+		<!-- text format -->
+		<command name="font_name">
+			<dropdown type="text" icon="false" dataSize="large" caption="{FontName}">
+				<data name="no_such_font" desc=" " value="has_not_font" selected="true" updateDesc="true"/>
+				<dataSetItem name="font_name" icon="false"/>
+			</dropdown>
+		</command>
+		<command name="menu_font_name" actionCommand="font_name">
+			<dataSetItem name="font_name" icon="false"/>
+		</command>
+		<command name="font_name_combo" actionCommand="font_name">
+			<combo type="input" caption="{FontName}">
+				<input border="none" icon="false"/>
+				<dropdown type="text" icon="false" dataSize="large">
+					<data name="no_such_font" desc=" " value="has_not_font" selected="true" updateDesc="true"/>
+					<dataSetItem name="font_name" icon="false"/>
+				</dropdown>
+			</combo>
+		</command>
+		<command name="font_size">
+			<combo type="input" caption="{FontSize}">
+				<input icon="false" unit="pt" border="none"/>
+				<dropdown type="text" dataSize="medium" unit="pt">
+					<dataSetItem name="font_size" icon="false"/>
+				</dropdown>
+			</combo>
+		</command>
+		<command name="font_color">
+			<widgetGroupItem name="font_color"/>
+		</command>
+		<command name="font_highlight_color">
+			<widgetGroupItem name="font_highlight_color"/>
+		</command>
+		<command name="bold" desc="{Bold}" caption="{Bold}"/>
+		<command name="italic" desc="{Italic}" caption="{Italic}"/>
+		<command name="underline" desc="{Underline}" caption="{Underline}"/>
+		<command name="strikethrough" desc="{Strikethrough}" caption="{Strikethrough}"/>
+		<command name="letter_spacing" caption="{LetterSpacing}">
+			<input unit="pt" border="none"/>
+		</command>
+		<command name="text_script">
+			<button name="superscript" caption="{Superscript}" desc="{Superscript}" value="superscript"/>
+			<button name="subscript" caption="{Subscript}" desc="{Subscript}" value="subscript"/>
+		</command>
+		<!-- paragraph format -->
+		<command name="p_decrease_indent" desc="{Outdent}" caption="{Outdent}"/>
+		<command name="p_increase_indent" desc="{Indent}" caption="{Indent}"/>
+		<command name="p_line_spacing">
+			<dropdown dataSize="medium" caption="{Lineheight}">
+				<dataSetItem name="line_spacing" icon="false"/>
+			</dropdown>
+		</command>
+		<command name="p_menu_line_spacing" actionCommand="p_line_spacing">
+			<dataSetItem name="line_spacing" icon="false"/>
+		</command>
+		<command name="p_list">
+			<combo name="number_list" caption="{NumberList}" value="number_1">
+				<dropdown dataSize="116" layout="buttonGrid">
+					<dataSetItem name="number_list" size="medium"/>
+				</dropdown>
+			</combo>
+			<combo name="bullet_list" caption="{BulletList}" value="bullet_1">
+				<dropdown dataSize="116" layout="buttonGrid">
+					<dataSetItem name="bullet_list" size="medium"/>
+				</dropdown>
+			</combo>
+		</command>
+		<command name="p_menu_bullet_list" actionCommand="p_list">
+			<separator desc="{BulletList}"/>
+			<panel margin="9 0 0 0">
+				<dataSetItem name="bullet_list" size="medium"/>
+			</panel>
+		</command>
+		<command name="p_menu_number_list" actionCommand="p_list">
+			<separator desc="{NumberList}"/>
+			<panel margin="9 0 0 0">
+				<dataSetItem name="number_list" size="medium"/>
+			</panel>
+		</command>
+		<command name="p_align" toggleButtons="switch">
+			<button name="align_left" caption="{JustifyLeft}" desc="{JustifyLeft}" value="left" shortcut="{JustifyLeftShortcut}"/>
+			<button name="align_center" caption="{JustifyCenter}" desc="{JustifyCenter}" value="center" shortcut="{JustifyCenterShortcut}"/>
+			<button name="align_right" caption="{JustifyRight}" desc="{JustifyRight}" value="right" shortcut="{JustifyRightShortcut}"/>
+			<button name="align_justify" caption="{JustifyFull}" desc="{JustifyFull}" value="both" shortcut="{JustifyFullShortcut}"/>
+		</command>
+		<command name="e_format_copy" desc="{CopyFormat}" caption="{CopyFormat}"/>
+		<command name="e_format_remove" desc="{RemoveFormat}" caption="{RemoveFormat}"/>
+		<command name="p_style">
+			<dropdown type="text" icon="false" dataSize="large" caption="{ParagraphStyle}">
+				<dataSetItem name="paragraph_style" icon="false"/>
+			</dropdown>
+		</command>
+		<command name="p_menu_p_style" actionCommand="p_style">
+			<dataSetItem name="paragraph_style" icon="false"/>
+		</command>
+		<!-- table -->
+		<command name="t_insert_row_above" desc="{InsertRowAbove}" caption="{AddRowToTop}"/>
+		<command name="t_insert_row_below" desc="{InsertRowAfter}" caption="{AddRowToBottom}"/>
+		<command name="t_insert_col_left" desc="{InsertColumnLeft}" caption="{AddColumnToLeft}"/>
+		<command name="t_insert_col_right" desc="{InsertColumnRight}" caption="{AddColumnToRight}"/>
+		<command name="t_delete_col" desc="{DeleteColumn}" caption="{DeleteColumn}"/>
+		<command name="t_delete_row" desc="{DeleteRow}" caption="{DeleteRow}"/>
+		<command name="c_merge" desc="{MergeCell}" caption="{MergeCell}"/>
+		<command name="c_unmerge" desc="{unMergeCell}" caption="{unMergeCell}"/>
+		<command name="c_height_distribute" desc="{DistributeRowsEvenly}" caption="{DistributeRowsEvenly}"/>
+		<command name="c_width_distribute" desc="{DistributeColumnsEvenly}" caption="{DistributeColumnsEvenly}"/>
+		<command name="t_delete" desc="{DeleteAboutTable}" caption="{DeleteTable}"/>
+		<command name="t_margin_left" caption="{TableIndentLeft}">
+			<input icon="false" unit="px" textIcon="X" border="underline"/>
+		</command>
+		<command name="c_valign" toggleButtons="switch">
+			<button name="valign_top" caption="{Top}" value="top"/>
+			<button name="valign_middle" caption="{Center}" value="middle"/>
+			<button name="valign_bottom" caption="{Bottom}" value="bottom"/>
+		</command>
+		<command name="c_padding">
+			<widgetGroupItem name="cell_padding"/>
+		</command>
+		<command name="c_bgcolor">
+			<widgetGroupItem name="bgcolor"/>
+		</command>
+		<command name="c_bgcolor_opacity">
+			<widgetGroupItem name="bgcolor_opacity"/>
+		</command>
+		<!-- shape -->
+		<command name="s_valign" toggleButtons="switch">
+			<button name="valign_top" caption="{Top}" desc="{Top}" value="top"/>
+			<button name="valign_middle" caption="{Center}" desc="{Center}" value="middle"/>
+			<button name="valign_bottom" caption="{Bottom}" desc="{Bottom}" value="bottom"/>
+		</command>
+		<command name="s_bgcolor">
+			<widgetGroupItem name="bgcolor"/>
+		</command>
+		<command name="s_bgcolor_opacity">
+			<widgetGroupItem name="bgcolor_opacity"/>
+		</command>
+		<command name="s_border_style">
+			<widgetGroupItem name="border_style_svg"/>
+		</command>
+		<!-- 테두리 두께 -->
+		<command name="s_border_width" caption="{ShapeBorderWidth}">
+			<input name="border_width" unit="px" spinner="true" border="underline"/>
+		</command>
+		<!-- 테두리 색 -->
+		<command name="s_border_color">
+			<widgetGroupItem name="border_color"/>
+		</command>
+		<command name="s_border_opacity">
+			<widgetGroupItem name="border_opacity"/>
+		</command>
+		<!-- 도형 정렬 -->
+		<command name="s_order">
+			<button name="s_order_front" caption="{ShapeOrderFirst}" desc="{ShapeOrderFirst}" value="front"/>
+			<button name="s_order_forward" caption="{ShapeOrderFront}" desc="{ShapeOrderFront}" value="forward"/>
+			<button name="s_order_back" caption="{ShapeOrderLast}" desc="{ShapeOrderLast}" value="back"/>
+			<button name="s_order_backward" caption="{ShapeOrderBack}" desc="{ShapeOrderBack}" value="backward"/>
+		</command>
+		<command name="s_align_left" caption="{JustifyLeft}" desc="{JustifyLeft}" value="left"/>
+		<command name="s_align_center" caption="{JustifyCenter}" desc="{JustifyCenter}" value="center"/>
+		<command name="s_align_right" caption="{JustifyRight}" desc="{JustifyRight}" value="right"/>
+		<command name="s_align_top" caption="{ToolTipTop}" desc="{ToolTipTop}" value="top"/>
+		<command name="s_align_middle" caption="{ToolTipMiddle}" desc="{ToolTipMiddle}" value="middle"/>
+		<command name="s_align_bottom" caption="{ToolTipBottom}" desc="{ToolTipBottom}" value="bottom"/>
+		<command name="s_align_even_horizontal" caption="{property_update_arrangement_align_distribute_horizontally}" desc="{property_update_arrangement_align_distribute_horizontally}" value="horizontal"/>
+		<command name="s_align_even_vertical" caption="{property_update_arrangement_align_distribute_vertically}" desc="{property_update_arrangement_align_distribute_vertically}" value="vertical"/>
+		<command name="s_size">
+			<widgetGroupItem name="shape_size"/>
+		</command>
+		<command name="s_position">
+			<widgetGroupItem name="shape_position"/>
+		</command>
+		<command name="s_text_wrapping" toggleButtons="switch">
+			<button name="s_inline_text" caption="{ImagePositionInLineWithText}" desc="{ImagePositionInLineWithText}" value="inline"/>
+			<button name="s_front_text" caption="{ImagePositionInFrontOfText}" desc="{ImagePositionInFrontOfText}" value="front"/>
+			<button name="s_behind_text" caption="{ImagePositionBehindText}" desc="{ImagePositionBehindText}" value="behind"/>
+		</command>
+		<!-- image -->
+		<command name="i_border_style">
+			<widgetGroupItem name="border_style"/>
+		</command>
+		<command name="i_border_width" caption="{ImageLinewidth}">
+			<input name="border_width" unit="px" spinner="true" border="underline"/>
+		</command>
+		<command name="i_border_color">
+			<widgetGroupItem name="border_color"/>
+		</command>
+		<command name="i_position">
+			<widgetGroupItem name="img_position"/>
+		</command>
+		<command name="i_size">
+			<widgetGroupItem name="img_size"/>
+		</command>
+		<!-- context -->
+		<command name="e_copy" desc="{Copy}" caption="{Copy}"/>
+		<command name="e_cut" desc="{Cut}" caption="{Cut}"/>
+		<command name="e_paste" desc="{Paste}" caption="{Paste}"/>
+		<command name="e_open_link" desc="{OpenLink}" caption="{OpenLink}"/>
+		<command name="e_delete_link" desc="{DeleteLink}" caption="{DeleteLink}"/>
+		<command name="s_add_text" desc="{textBoxInsert}" caption="{textBoxInsert}"/>
+		<command name="s_edit_text" desc="{textBoxEdit}" caption="{textBoxEdit}"/>
+		<command name="e_select" desc="{Select}">
+			<dropdown dataSize="fit" caption="{Select}" layout="multiListItem">
+				<dataSetItem name="select_item"/>
+			</dropdown>
+		</command>
+		<command name="e_menu_select" actionCommand="e_select">
+			<dataSetItem name="select_item"/>
+		</command>
+		<command name="e_select_all" desc="{SelectAll}" caption="{SelectAll}"/>
+		<command name="s_insert_textbox" desc="{Textbox}" caption="{Textbox}"/>
+		<!-- dialog -->
+		<command name="i_insert_image">
+			<widgetGroupItem name="insert_image"/>
+		</command>
+		<command name="e_insert_hyperlink">
+			<separator desc="{DisplayCharacter}"/>
+			<input name="hyperlink_input" desc="{DisplayCharacter}" icon="false" size="full" nonExec="true" valueKey="hyperlink" margin="0 0 0 0"/>
+			<separator desc="{LinkTarget}"/>
+			<panel matchType="block">
+				<radio name="hyperlink_link_type" match="web" size="full" desc="{WebAddress}" valueKey="link_type" value="web" nonExec="true" selected="true"/>
+				<radio name="hyperlink_link_type" match="email" size="full" desc="{EmailAddress}" valueKey="link_type" value="email" nonExec="true"/>
+				<radio name="hyperlink_link_type" match="bookmark" size="full" desc="{BookmarkAddress}" valueKey="link_type" value="bookmark" nonExec="true"/>
+				<input match="web" size="full" icon="false" nonExec="true" valueKey="web"/>
+				<input match="email" size="full" icon="false" nonExec="true" valueKey="email"/>
+				<listBox name="hyperlink_type_bookmark" match="bookmark">
+					<button sampleItem="true" desc="sample_desc" caption="sample_caption" valueKey="bookmark" value="sample_value" nonExec="true" size="full" icon="false"/>
+				</listBox>
+			</panel>
+			<separator line="true" margin="0 0 12 0"/>
+			<panel childHAlign="right">
+				<button name="hyperlink_add_confirm" type="result" desc="{common_ok}" size="fit" icon="false" valueKey="execute"/>
+			</panel>
+		</command>
+		<command name="s_insert_shape">
+			<template name="shape"/>
+		</command>
+		<command name="t_insert_table">
+			<template name="table"/>
+			<separator line="true" margin="12 0 12 0"/>
+			<panel name="sub_table_size" childVAlign="center">
+				<panel type="inline">
+					<input desc="{Row}" size="full" icon="false" nonExec="true" valueKey="t_row_num" margin="0 0 0 0"/>
+				</panel>
+				<panel type="inline" childHAlign="center" desc="X" width="fit" margin="0 9 0 9"/>
+				<panel type="inline" margin="0 9 0 0">
+					<input desc="{Column}" size="full" icon="false" nonExec="true" valueKey="t_col_num" margin="0 0 0 0"/>
+				</panel>
+				<button type="result" icon="false" desc="{InsertButton}" size="fit" margin="0 0 0 0" valueKey="execute"/>
+			</panel>
+			<panel name="table_error_message_box" updateDesc="true" margin="6 0 -6 0"/>
+		</command>
+		<command name="insert_symbols">
+			<panel matchType="block">
+				<dropdown margin="0 0 9 0" type="text" icon="false" size="full" border="all" nonExec="true" valueKey="symbol_type">
+					<dataSetItem name="symbols" icon="false"/>
+				</dropdown>
+				<panel height="120" border="all" overflowScroll="y">
+					<panel name="symbol_style_box" margin="0 0 4 3" focusablePanel="true">
+						<template name="symbol"/>
+					</panel>
+				</panel>
+				<panel name="recent_symbol" margin="9 0 0 0" height="26" border="all" focusablePanel="true">
+					<button sampleItem="true" desc="sample_desc" valueKey="symbol" value="sample_value" icon="false" size="fit" margin="4 4 0 0" nonExec="true" textAlign="center"/>
+				</panel>
+			</panel>
+			<panel margin="9 0 0 0">
+				<panel type="inline" desc="{InsertText}" width="fit" margin="5 6 0 0"/>
+				<panel type="inline">
+					<input name="symbol_input" icon="false" nonExec="true" size="full" valueKey="symbol_input"/>
+				</panel>
+			</panel>
+			<panel childHAlign="right">
+				<button name="insert_symbol_confirm" type="result" icon="false" desc="{InsertButton}" valueKey="execute" size="fit"/>
+			</panel>
+		</command>
+		<!-- 번역 -->
+		<command name="e_trans_view_change" caption="{ChangeView}"/>
+		<command name="e_trans_close" caption="{Close}"/>
+		<command name="e_trans_lang">
+			<panel>
+				<panel name="trans_origin_lang">
+					<dropdown type="text" icon="false" size="full" border="all" nonExec="true" valueKey="origin_lang">
+						<dataSetItem name="trans_language" icon="false"/>
+					</dropdown>
+				</panel>
+				<panel childHAlign="center" margin="5 0 5 0">
+					<image name="arrow_down" size="small"/>
+				</panel>
+				<panel name="trans_target_lang">
+					<dropdown type="text" icon="false" size="full" border="all" nonExec="true" valueKey="target_lang">
+						<dataSetItem name="trans_language" icon="false"/>
+					</dropdown>
+				</panel>
+				<panel>
+					<panel type="inline" margin="0 9 0 0" childVAlign="bottom">
+						<progress name="trans_progress" textPosition="top"/>
+					</panel>
+					<panel type="inline" width="fit" childHAlign="right" margin="12 0 12 0">
+						<button name="trans_cancel" type="result" desc="{Cancel}" size="fit" icon="false" value="cancel" valueKey="execute"/>
+						<button name="trans_confirm" type="result" desc="{Confirm}" size="fit" icon="false" value="confirm" valueKey="execute"/>
+						<button name="trans_reset" type="result" desc="{Reset}" size="fit" margin="0 0 0 5" icon="false" value="reset" valueKey="execute"/>
+					</panel>
+				</panel>
+			</panel>
+		</command>
+		<command name="e_trans_result">
+			<panel name="trans_target_field" matchType="block">
+				<dropdown type="text" icon="false" size="full" border="all" nonExec="true" valueKey="trans_target">
+					<dataSetItem name="trans_target_field" icon="false"/>
+				</dropdown>
+				<listBox name="trans_content" margin="12 0 12 0">
+					<button name="trans_content_data" desc="sample_desc" sampleItem="true" valueKey="trans_content_data" value="sample_value" match="sample_match" nonExec="true" size="full" icon="false"/>
+				</listBox>
+				<panel childHAlign="right" margin="0 0 12 0">
+					<button name="apply" type="result" desc="{Apply}" size="fit" icon="false" value="apply" valueKey="execute"/>
+					<button name="insertAfter" type="result" desc="{InsertBelowTheOriginal}" size="fit" icon="false" value="insertAfter" valueKey="execute"/>
+					<button name="trans_confirm" type="result" desc="{AllApply}" size="fit" icon="false" value="allApply" valueKey="execute"/>
+				</panel>
+			</panel>
+		</command>
+		<command name="e_view_scale">
+			<dropdown type="text" icon="false">
+				<dataSetItem name="view_scale_zoom_fit" icon="false"/>
+				<dataSetItem name="view_scale" icon="false"/>
+			</dropdown>
+		</command>
+		<command name="e_menu_view_scale" actionCommand="e_view_scale" toggleButtons="switch">
+			<dataSetItem name="view_scale" icon="false"/>
+			<separator line="true"/>
+			<dataSetItem name="view_scale_zoom_fit"/>
+		</command>
+		<command name="e_zoom">
+			<button name="zoom_out" caption="{status_bar_zoom_out}" value="zoom_out" margin="2 4 0 15"/>
+			<button name="zoom_in" caption="{status_bar_zoom_in}" value="zoom_in" margin="2 15 0 0"/>
+			<button name="zoom_fit" caption="{status_bar_zoom_combo_fit}" value="zoom_fit" margin="2 0 0 0"/>
+		</command>
+		<command name="e_memo" caption="{Memo}" desc="{Memo}"/>
+		<command name="e_insert_memo" caption="{InsertMemo}" desc="{InsertMemo}"/>
+		<command name="e_edit_memo" caption="{EditMemo}" desc="{EditMemo}"/>
+		<command name="e_hide_memo" caption="{HideMemo}" desc="{HideMemo}"/>
+		<command name="e_show_memo" caption="{DisplayMemo}" desc="{DisplayMemo}"/>
+		<command name="e_delete_memo" caption="{RemoveMemo}" desc="{RemoveMemo}"/>
+		<command name="d_save" caption="{Save}" desc="{Save}"/>
+		<command name="d_save_as">
+			<panel childVAlign="center" margin="0 0 12 0">
+				<button name="up_folder" caption="{common_window_file_dialog_up_one_level}" size="medium" border="all" valueKey="up_folder" margin="0 4 0 0"/>
+				<panel type="inline" childVAlign="center" border="all" name="save_as_file_path" updateDesc="true" height="28" desc=" "/>
+			</panel>
+			<panel>
+				<template name="save_as"/>
+			</panel>
+			<separator desc="{FileName}"/>
+			<panel childVAlign="center">
+				<panel type="inline">
+					<input name="save_as_file_name" icon="false" size="full" nonExec="true" valueKey="file_name" margin="0 0 0 0"/>
+				</panel>
+				<panel type="inline" childVAlign="center" width="fit" margin="0 0 0 4">
+					<panel name="save_as_file_extension" width="fit" desc=".docx" updateDesc="true"/>
+				</panel>
+			</panel>
+			<separator line="true" margin="12 0 12 0"/>
+			<panel name="save_as_error_message_box" updateDesc="true"/>
+			<panel childHAlign="right">
+				<button name="save_as_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute" value="confirm"/>
+				<button name="save_as_cancel" type="result" desc="{Cancel}" size="fit" icon="false" uiValue="dialog_save_as" uiCommand="hide"/>
+			</panel>
+		</command>
+		<command name="e_dialog_rename">
+			<panel name="message" desc="{DocumentRenameEmpty}"/>
+			<input size="full" valueKey="file_name" icon="false" nonExec="true" margin="12 0 0 0"/>
+			<panel childHAlign="right" margin="18 0 0 0">
+				<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute" value="confirm"/>
+				<button name="rename_cancel" type="result" desc="{Cancel}" size="fit" icon="false" uiValue="dialog_rename" uiCommand="hide"/>
+			</panel>
+		</command>
+		<command name="e_dialog_confirm">
+			<button name="alert_yes" type="result" desc="{Yes}" size="fit" icon="false" valueKey="execute" value="yes"/>
+			<button name="alert_no" type="result" desc="{No}" size="fit" icon="false" uiCommand="hide" uiValue="dialog_confirm"/>
+		</command>
+		<command name="e_dialog_error">
+			<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" value="confirm" valueKey="execute"/>
+		</command>
+		<command name="e_dialog_print">
+			<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute" value="confirm"/>
+			<button name="print_cancel" type="result" desc="{Cancel}" size="fit" icon="false" uiCommand="hide" uiValue="dialog_print"/>
+		</command>
+		<command name="e_dialog_download">
+			<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute" value="confirm"/>
+			<button name="download_cancel" type="result" desc="{Cancel}" size="fit" icon="false" uiCommand="hide" uiValue="dialog_download"/>
+		</command>
+		<command name="e_dialog_alert">
+			<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute" value="confirm"/>
+		</command>
+		<command name="collabo_user">
+			<panel sampleItem="true" childVAlign="center">
+				<panel type="inline" name="user_color" bgColor="#000000" width="16" height="16" margin="0 8 0 0"/>
+				<panel type="inline">
+					<button name="user_name" size="full" desc="{sample_data}" icon="false" value="{sample_value}"/>
+				</panel>
+			</panel>
+		</command>
+		<command name="e_refresh"/>
+		<command name="font_size_dropdown" actionCommand="font_size">
+			<dropdown type="text" dataSize="medium" unit="pt" icon="false">
+				<dataSetItem name="font_size" icon="false"/>
+			</dropdown>
+		</command>
+		<command name="e_desktop_confirm">
+			<button type="result" desc="{EditOnDesktop}" size="fit" icon="false"/>
+		</command>
+		<command name="e_desktop_execute">
+			<button type="result" desc="{EditOnDesktop}" size="fit" icon="false"/>
+		</command>
+	</commands>
+	<panelGroups>
+		<panelGroup name="insert_row_col">
+			<panel type="inline">
+				<panel childHAlign="center">
+					<commandItem name="t_insert_row_above" caption="{AddRowToTop}" desc="" margin="0 0 8 0"/>
+				</panel>
+				<panel childHAlign="center">
+					<panel type="inline">
+						<panel childHAlign="center">
+							<commandItem name="t_insert_col_left" caption="{AddColumnToLeft}" desc="" margin="0 0 0 0"/>
+						</panel>
+					</panel>
+					<panel type="inline">
+						<panel childHAlign="center">
+							<image name="insert_row_col_center"/>
+						</panel>
+					</panel>
+					<panel type="inline">
+						<panel childHAlign="center">
+							<commandItem name="t_insert_col_right" caption="{AddColumnToRight}" desc="" margin="0 0 0 0"/>
+						</panel>
+					</panel>
+				</panel>
+				<panel childHAlign="center">
+					<commandItem name="t_insert_row_below" caption="{AddRowToBottom}" desc="" margin="8 0 0 0"/>
+				</panel>
+			</panel>
+		</panelGroup>
+		<panelGroup name="user_list">
+			<panel name="no_collaborationusers" type="title" desc="{NoCollaborationUsers}"/>
+			<panel name="collaborationusers" type="title" control="true" desc="{CollaborationUsers}">
+				<commandItem name="collabo_user" />
+			</panel>
+		</panelGroup>
+		<panelGroup name="dialog_insert_image">
+			<!-- 그림 삽입 -->
+			<dialog name="dialog_insert_image" control="true" width="400">
+				<panel type="title" desc="{InsertImage}" border="underline">
+					<commandItem name="i_insert_image"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_insert_hyperlink">
+			<!-- 하이퍼링크 -->
+			<dialog name="dialog_insert_hyperlink" control="true" width="400">
+				<panel type="title" desc="{Hyperlink}" border="underline">
+					<commandItem name="e_insert_hyperlink"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_insert_shape">
+			<!-- 도형 삽입 -->
+			<dialog name="dialog_insert_shape" size="medium" control="true">
+				<panel type="title" desc="{InsertShape}" border="underline">
+					<commandItem name="s_insert_shape"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_insert_table">
+			<!-- 표 삽입 -->
+			<dialog name="dialog_insert_table" control="true" width="267">
+				<panel type="title" desc="{InsertTable}" border="underline">
+					<commandItem name="t_insert_table"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_insert_symbols">
+			<!-- 문자 삽입 -->
+			<dialog name="dialog_insert_symbols" size="medium" control="true" width="404">
+				<panel type="title" desc="{Symbol}" border="underline">
+					<commandItem name="insert_symbols"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_alert">
+			<!-- 알림 -->
+			<dialog name="dialog_alert" size="medium">
+				<panel type="title" name="alert_title" desc="alert_title" margin="-5 0 0 0">
+					<panel>
+						<panel type="inline" width="fit" childVAlign="center" margin="0 12 0 0" hide="true">
+							<image name="img_dialog_icon"/>
+						</panel>
+						<panel type="inline">
+							<panel name="message" desc="message"/>
+						</panel>
+					</panel>
+					<panel childHAlign="right" margin="18 0 0 0">
+						<commandItem name="e_dialog_alert"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_error">
+			<!-- 오류 -->
+			<dialog name="dialog_error" size="medium">
+				<panel type="title" name="error_title" desc="error_title" margin="-5 0 0 0">
+					<!--<image name="exclamation_mark"/>-->
+					<panel name="message" desc="message"/>
+					<textarea name="error_msg_area" margin="12 0 0 0" height="70" textColor="#666666"/>
+					<panel childHAlign="right" margin="18 0 0 0">
+						<commandItem name="e_dialog_error"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_confirm">
+			<!-- 확인 -->
+			<dialog name="dialog_confirm" size="medium">
+				<panel type="title" name="confirm_title" desc="confirm_title" margin="-5 0 0 0">
+					<panel>
+						<panel type="inline" width="fit" margin="0 12 0 0" hide="true">
+							<image name="img_dialog_icon"/>
+						</panel>
+						<panel type="inline">
+							<panel name="message" desc="message"/>
+						</panel>
+					</panel>
+					<panel childHAlign="right" margin="18 0 0 0">
+						<commandItem name="e_dialog_confirm"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_print">
+			<!-- 인쇄 -->
+			<dialog name="dialog_print" size="medium">
+				<panel type="title" name="print_title" desc="print_title" margin="-5 0 0 0">
+					<panel>
+						<panel type="inline" width="24" height="24" margin="-6 18 0 0">
+							<image name="img_loading"/>
+						</panel>
+						<panel type="inline">
+							<panel name="message" desc="message"/>
+						</panel>
+					</panel>
+					<panel childHAlign="right" margin="18 0 0 0">
+						<commandItem name="e_dialog_print"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_download">
+			<!-- 다운로드 -->
+			<dialog name="dialog_download" size="medium">
+				<panel type="title" name="download_title" desc="download_title" margin="-5 0 0 0">
+					<panel>
+						<panel type="inline" width="24" height="24" margin="-6 18 0 0">
+							<image name="img_loading"/>
+						</panel>
+						<panel type="inline">
+							<panel name="message" desc="message"/>
+						</panel>
+					</panel>
+					<panel childHAlign="right" margin="18 0 0 0">
+						<commandItem name="e_dialog_download"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_rename">
+			<!-- 이름 변경 -->
+			<dialog name="dialog_rename" size="medium">
+				<panel type="title" desc="{Rename}" margin="-5 0 0 0">
+					<commandItem name="e_dialog_rename"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_document_info">
+			<!-- 문서 정보 -->
+			<dialog name="dialog_document_info" control="true" width="400">
+				<panel type="title" desc="{DocumentInfo}" border="underline">
+					<separator desc="{FileName}"/>
+					<panel border="all" bgColor="#f6f6f7">
+						<panel name="document_file_name" desc=" " margin="6 6 6 6" updateDesc="true"/>
+					</panel>
+					<separator desc="{LastModifiedDate}"/>
+					<panel border="all" bgColor="#f6f6f7">
+						<panel name="modified_date" desc=" " margin="6 6 6 6" updateDesc="true"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_save_as">
+			<!-- save as-->
+			<dialog name="dialog_save_as" control="true" size="large">
+				<panel type="title" desc="{common_window_save_as_title}" border="underline">
+					<commandItem name="d_save_as"/>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="dialog_shortcut_info">
+			<!-- shortcut 가이드 -->
+			<dialog name="dialog_shortcut_info" width="600" control="true">
+				<panel type="title" desc="{ShortCutInfo}" border="underline">
+					<panel height="360" overflowScroll="y">
+						<template name="shortcut_info"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="tool_tooltip">
+			<panel name="tooltip"/>
+		</panelGroup>
+		<panelGroup name="tool_loading_progress">
+			<panel name="loading_progress"/>
+		</panelGroup>
+		<panelGroup name="tool_toast_message">
+			<panel name="toast_message"/>
+		</panelGroup>
+		<panelGroup name="dialog_viewer">
+			<!-- 미지원 스펙 문서 -->
+			<dialog name="dialog_viewer" size="medium">
+				<panel type="title" desc="{OpenReadOnlyModeTitle}" margin="-5 0 0 0">
+					<panel name="message" desc="{OpenFailNotSupportedDataMessage}"/>
+					<panel name="dialog_viewer_buttons" childHAlign="right"  margin="18 0 0 0">
+						<button name="alert_confirm" type="result" desc="{Confirm}" size="fit" icon="false" uiCommand="hide" uiValue="dialog_viewer"/>
+					</panel>
+				</panel>
+			</dialog>
+		</panelGroup>
+		<panelGroup name="watcher_mode_message">
+			<panel name="watcher_mode_message" type="title">
+				<panel desc="{WatcherModeDescription}" childHAlign="center" childVAlign="center"/>
+			</panel>
+		</panelGroup>
+		<panelGroup name="message_bar">
+			<panel name="message_bar" hide="true">
+				<panel>
+					<panel name="message_box">
+						<panel type="inline" name="progress" size="fit">
+							<panel name="loading"/>
+						</panel>
+						<panel type="inline" name="message"/>
+						<panel name="button_box" type="inline" size="fit">
+							<commandItem name="e_refresh"/>
+							<button name="close" uiCommand="hide" uiValue="message_bar"/>
+						</panel>
+					</panel>
+					<panel name="dla_box" childHAlign="left" margin="0 0 12 12">
+						<checkbox name="dont_look_again_btn" desc="{DoNotShowAgain}" uiCommand="dont_look_again" margin="0 0 0 0"/>
+					</panel>
+				</panel>
+			</panel>
+		</panelGroup>
+		<panelGroup name="tool_screen">
+			<panel name="screen" hide="true"/>
+		</panelGroup>
+	</panelGroups>
+	<widgetGroups>
+		<widgetGroup name="shape_position">
+			<panel>
+				<panel margin="18 0 0 0">
+					<panel type="inline" margin="0 18 0 0">
+						<separator desc="{ShapeLeftPosition}"/>
+						<dropdown name="s_left_from" type="text" icon="false" border="underline" caption="{ShapeLeftFrom}" nonExec="true" valueKey="left_from">
+							<dataSetItem name="left_from_list" icon="false"/>
+						</dropdown>
+						<input name="s_left_position" caption="{ShapeLeftPosition}" textIcon="X" unit="px" spinner="true" border="underline" nonExec="true" valueKey="left"/>
+					</panel>
+					<panel type="inline">
+						<separator desc="{ShapeTopPosition}"/>
+						<dropdown name="s_top_from" type="text" icon="false" border="underline" caption="{ShapeTopFrom}" nonExec="true" valueKey="top_from">
+							<dataSetItem name="top_from_list" icon="false"/>
+						</dropdown>
+						<input name="s_top_position" caption="{ShapeTopPosition}" textIcon="Y" unit="px" spinner="true" border="underline" nonExec="true" valueKey="top"/>
+					</panel>
+				</panel>
+				<panel childHAlign="right">
+					<button name="s_position_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute"/>
+				</panel>
+			</panel>
+		</widgetGroup>
+		<widgetGroup name="shape_size">
+			<panel>
+				<panel>
+					<input name="s_width" textIcon="W" caption="{ImageSizeWidth}" unit="px" spinner="true" border="underline" nonExec="true" valueKey="width" margin="0 18 0 0"/>
+					<input name="s_height" textIcon="H" caption="{ImageSizeHeight}" unit="px" spinner="true" border="underline" nonExec="true" valueKey="height"/>
+				</panel>
+				<panel childHAlign="right">
+					<button name="s_size_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute"/>
+				</panel>
+			</panel>
+		</widgetGroup>
+		<widgetGroup name="cell_padding">
+			<panel>
+				<panel>
+					<panel type="inline" margin="0 18 0 0">
+						<input name="c_padding_left" unit="px" spinner="true" caption="{LeftPadding}" border="underline" nonExec="true" valueKey="left"/>
+						<input name="c_padding_right" unit="px" spinner="true" caption="{RightPadding}" border="underline" nonExec="true" valueKey="right"/>
+					</panel>
+					<panel type="inline">
+						<input name="c_padding_top" unit="px" spinner="true" caption="{TopPadding}" border="underline" nonExec="true" valueKey="top"/>
+						<input name="c_padding_bottom" unit="px" spinner="true" caption="{BottmPadding}" border="underline" nonExec="true" valueKey="bottom"/>
+					</panel>
+				</panel>
+				<panel childHAlign="right">
+					<button name="c_margin_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute"/>
+				</panel>
+			</panel>
+		</widgetGroup>
+		<widgetGroup name="bgcolor_opacity" caption="{ShapeBackgroundOpacity}">
+			<input unit="%" spinner="true" border="underline"/>
+		</widgetGroup>
+		<widgetGroup name="border_style">
+			<dropdown type="lineStyle" border="underline" caption="{ImageOutline}">
+				<dataSetItem name="border_line_style" textAlign="center"/>
+			</dropdown>
+		</widgetGroup>
+		<widgetGroup name="border_style_svg">
+			<dropdown type="lineStyle" border="underline" caption="{ShapeBorderStyle}">
+				<data name="bdr_style_none" caption="{NoBorder}" value="none" textAlign="center"/>
+				<dataSetItem name="border_line_style_svg" textAlign="center"/>
+			</dropdown>
+		</widgetGroup>
+		<widgetGroup name="bgcolor">
+			<combo type="color" caption="{ShapeBackground}" border="underline">
+				<dropdown dataSize="fit">
+					<template name="color_picker"/>
+				</dropdown>
+			</combo>
+		</widgetGroup>
+		<widgetGroup name="border_color">
+			<combo type="color" caption="{ShapeLineColor}" border="underline">
+				<dropdown dataSize="fit">
+					<template name="color_picker" noColorItem="false"/>
+				</dropdown>
+			</combo>
+		</widgetGroup>
+		<widgetGroup name="t_border_color">
+			<dropdown type="color" caption="{ShapeLineColor}" border="underline" dataSize="fit">
+				<template name="color_picker" noColorItem="false"/>
+			</dropdown>
+		</widgetGroup>
+		<widgetGroup name="border_opacity" caption="{ShapeBorderOpacity}">
+			<input unit="%" spinner="true" border="underline"/>
+		</widgetGroup>
+		<widgetGroup name="font_color">
+			<combo type="colorWithIcon" caption="{FontColor}">
+				<dropdown dataSize="fit">
+					<template name="color_picker" noColorItem="false"/>
+				</dropdown>
+			</combo>
+		</widgetGroup>
+		<widgetGroup name="font_highlight_color">
+			<combo type="colorWithIcon" caption="{FontHighlightColor}">
+				<dropdown dataSize="fit">
+					<template name="color_picker"/>
+				</dropdown>
+			</combo>
+		</widgetGroup>
+		<widgetGroup name="img_size">
+			<panel>
+				<input name="i_width" textIcon="W" unit="px" spinner="true" caption="{ImageSizeWidth}" border="underline" nonExec="true" valueKey="width" margin="0 18 0 0"/>
+				<input name="i_height" textIcon="H" unit="px" spinner="true" caption="{ImageSizeHeight}" border="underline" nonExec="true" valueKey="height"/>
+				<panel>
+					<checkbox desc="{ImageOriginalSize}" size="full" nonExec="true" valueKey="original_size"/>
+					<checkbox desc="{ImageRatioSize}" size="full" nonExec="true" valueKey="ration_size"/>
+				</panel>
+				<panel childHAlign="right">
+					<button name="i_size_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute"/>
+				</panel>
+			</panel>
+		</widgetGroup>
+		<widgetGroup name="img_position">
+			<panel>
+				<panel margin="18 0 0 0">
+					<panel type="inline" margin="0 18 0 0">
+						<separator desc="{ShapeLeftPosition}"/>
+						<dropdown name="i_left_from" type="text" icon="false" border="underline" caption="{ShapeLeftFrom}" nonExec="true" valueKey="left_from">
+							<dataSetItem name="left_from_list" icon="false"/>
+						</dropdown>
+						<input name="i_left_position" caption="{ShapeLeftPosition}" textIcon="X" unit="px" spinner="true" border="underline" nonExec="true" valueKey="left"/>
+					</panel>
+					<panel type="inline">
+						<separator desc="{ShapeTopPosition}"/>
+						<dropdown name="i_top_from" type="text" icon="false" border="underline" caption="{ShapeTopFrom}" nonExec="true" valueKey="top_from">
+							<dataSetItem name="top_from_list" icon="false"/>
+						</dropdown>
+						<input name="i_top_position" caption="{ShapeTopPosition}" textIcon="Y" unit="px" spinner="true" border="underline" nonExec="true" valueKey="top"/>
+					</panel>
+				</panel>
+				<panel childHAlign="right">
+					<button name="i_position_confirm" type="result" desc="{Confirm}" size="fit" icon="false" valueKey="execute"/>
+				</panel>
+			</panel>
+		</widgetGroup>
+		<widgetGroup name="insert_image">
+			<panel matchType="enable">
+				<radio name="img_location_type" desc="{ImageInComputer}" valueKey="location_type" value="from_computer" nonExec="true" selected="true" match="file"/>
+				<localFile nonExec="true" size="full" valueKey="from_computer" margin="0 0 18 0" match="file" accept=".jpg,.jpeg,.gif,.png"/>
+				<radio name="img_location_type" desc="{ImageURL}" valueKey="location_type" value="from_web" nonExec="true" match="web"/>
+				<input type="url" icon="false" size="full" nonExec="true" valueKey="from_web" match="web"/>
+			</panel>
+			<separator line="true" margin="0 0 12 0"/>
+			<panel name="image_error_message_box" updateDesc="true"/>
+			<panel childHAlign="right">
+				<button name="img_insert_confirm" type="result" desc="{InsertButton}" size="fit" icon="false" valueKey="execute"/>
+			</panel>
+		</widgetGroup>
+	</widgetGroups>
+	<dataSets>
+		<dataSet name="paragraph_style" toggleButtons="switch">
+			<data desc="{Normal}" value="normal" shortcut="{paraStNormalShortcut}"/>
+			<data desc="{Heading}" value="title"/>
+			<data desc="{SubTitle}" value="subtitle"/>
+			<data desc="{Heading1}" value="heading_1" shortcut="{Heading1Shortcut}"/>
+			<data desc="{Heading2}" value="heading_2" shortcut="{Heading2Shortcut}"/>
+			<data desc="{Heading3}" value="heading_3" shortcut="{Heading3Shortcut}"/>
+			<data desc="{Header}" value="header"/>
+			<data desc="{Footer}" value="footer"/>
+			<data desc="sample_desc" value="sample_value" sampleItem="true"/>
+		</dataSet>
+		<dataSet name="font_name" toggleButtons="switch">
+			<data desc="sample_desc" value="sample_value" sampleItem="true"/>
+		</dataSet>
+		<dataSet name="line_spacing" toggleButtons="switch">
+			<data desc="1.0" value="1.0"/>
+			<data desc="1.15" value="1.15"/>
+			<data desc="1.2" value="1.2"/>
+			<data desc="1.4" value="1.4"/>
+			<data desc="1.5" value="1.5"/>
+			<data desc="1.6" value="1.6"/>
+			<data desc="1.8" value="1.8"/>
+			<data desc="2.0" value="2.0"/>
+			<data desc="3.0" value="3.0"/>
+		</dataSet>
+		<dataSet name="number_list">
+			<data name="number_list1" value="number_1"/>
+			<data name="number_list2" value="number_2"/>
+			<data name="number_list3" value="number_3"/>
+			<data name="number_list4" value="number_4"/>
+			<data name="number_list5" value="number_5"/>
+			<data name="number_list6" value="number_6"/>
+			<data name="number_list7" value="number_7"/>
+		</dataSet>
+		<dataSet name="bullet_list">
+			<data name="bullet_list1" value="bullet_1"/>
+			<data name="bullet_list2" value="bullet_2"/>
+			<data name="bullet_list3" value="bullet_3"/>
+			<data name="bullet_list4" value="bullet_4"/>
+			<data name="bullet_list5" value="bullet_5"/>
+			<data name="bullet_list6" value="bullet_6"/>
+			<data name="bullet_list7" value="bullet_7"/>
+		</dataSet>
+		<dataSet name="trans_language">
+			<data desc="{English}" value="English"/>
+			<data desc="{Korean}" value="Korean"/>
+			<data desc="{Japanese}" value="Japaneses"/>
+			<data desc="{ChineseSimplified}" value="ChineseSimplified"/>
+			<data desc="{Arabic}" value="Arabic"/>
+			<data desc="{German}" value="German"/>
+			<data desc="{Spanish}" value="Spanish"/>
+			<data desc="{Russian}" value="Russian"/>
+			<data desc="{Portugal}" value="Portugal"/>
+			<data desc="{Brazil}" value="Brazil"/>
+		</dataSet>
+		<dataSet name="font_size" unit="pt">
+			<data desc="8" value="8"/>
+			<data desc="9" value="9"/>
+			<data desc="10" value="10"/>
+			<data desc="11" value="11"/>
+			<data desc="12" value="12"/>
+			<data desc="14" value="14"/>
+			<data desc="16" value="16"/>
+			<data desc="18" value="18"/>
+			<data desc="20" value="20"/>
+			<data desc="22" value="22"/>
+			<data desc="24" value="24"/>
+			<data desc="26" value="26"/>
+			<data desc="36" value="36"/>
+			<data desc="48" value="48"/>
+			<data desc="72" value="72"/>
+		</dataSet>
+		<dataSet name="symbols">
+			<data desc="{generalPunctuation}" value="generalPunctuation" match="generalPunctuation" selected="true"/>
+			<data desc="{FormatSymbol}1" value="symbol1" match="symbol1"/>
+			<data desc="{FormatSymbol}2" value="symbol2" match="symbol2"/>
+			<data desc="{currencySymbols}" value="currencySymbols" match="symbolCurrency"/>
+			<data desc="{letterLikeSymbols}" value="letterLikeSymbols" match="letterLikeSymbols"/>
+			<data desc="{numericFormat}" value="numericFormat" match="numericFormat"/>
+			<data desc="{arrow}" value="arrow" match="arrow"/>
+			<data desc="{mathematicalOperators}" value="mathematicalOperators" match="mathematicalOperators"/>
+			<data desc="{symbolGreek}" value="greek" match="symbolGreek"/>
+			<data desc="{symbolUnit}" value="unit" match="symbolUnit"/>
+			<data desc="{symbolCircleCharacter}" value="circleCharacter" match="symbolCircleCharacter"/>
+			<data desc="{symbolEnclosedCharacter}" value="enclosedAlphanumeric" match="enclosedAlphanumeric"/>
+			<data desc="{boxDrawing}" value="boxDrawing" match="boxDrawing"/>
+			<data desc="{autoShapes}" value="autoShapes" match="autoShapes"/>
+			<data desc="{miscellaneousSymbols}" value="miscellaneousSymbols" match="miscellaneousSymbols"/>
+			<data desc="{cJKSymbolsAndPunctuation}" value="cJKSymbolsAndPunctuation" match="cJKSymbolsAndPunctuation"/>
+		</dataSet>
+		<dataSet name="trans_target_field">
+			<data desc="{Document}" value="Document" match="document"/>
+			<data desc="{Header}" value="Header" match="header"/>
+			<data desc="{Footer}" value="Footer" match="footer"/>
+			<data desc="{Footnote}" value="Footnote" match="footnote"/>
+			<data desc="{Endnote}" value="Endnote" match="endnote"/>
+			<data desc="{Textbox}" value="Textbox" match="textbox"/>
+		</dataSet>
+		<dataSet name="border_line_style">
+			<data name="bdr_style_none" caption="{NoBorder}" value="none"/>
+			<data name="bdr_style_solid" caption="{ShapeSolid}" value="solid"/>
+			<data name="bdr_style_dashed" caption="{ShapeSysDash}" value="dashed"/>
+			<data name="bdr_style_dotted" caption="{ShapeDot}" value="dotted"/>
+			<data name="bdr_style_double" caption="{ShapeDouble}" value="double"/>
+		</dataSet>
+		<dataSet name="border_line_style_svg">
+			<data name="bdr_style_solid" caption="{ShapeSolid}" value="solid" selected="true"/>
+			<data name="bdr_style_dashed_5_15" caption="{ShapeDot}" value="dashed_5_15"/>
+			<data name="bdr_style_dashed_10_10" caption="{ShapeSysDash}" value="dashed_10_10"/>
+			<data name="bdr_style_dashed_40_20" caption="{ShapeDash}" value="dashed_40_20"/>
+			<data name="bdr_style_dashed_40_20_20_20" caption="{ShapeDashDot}" value="dashed_40_20_20_20"/>
+			<data name="bdr_style_dashed_80_20" caption="{ShapeLgDash}" value="dashed_80_20"/>
+			<data name="bdr_style_dashed_80_20_20_20" caption="{ShapeLgDashDot}" value="dashed_80_20_20_20"/>
+			<data name="bdr_style_dashed_80_20_20_20_20_20" caption="{ShapeLgDashDotDot}" value="dashed_80_20_20_20_20_20"/>
+		</dataSet>
+		<dataSet name="view_scale">
+			<data desc="50%" value="50"/>
+			<data desc="75%" value="75"/>
+			<data desc="100%" value="100"/>
+			<data desc="150%" value="150"/>
+			<data desc="200%" value="200"/>
+			<data desc="300%" value="300"/>
+		</dataSet>
+		<dataSet name="view_scale_zoom_fit">
+			<data desc="{status_bar_zoom_fit}" value="fitInWindow"/>
+		</dataSet>
+		<dataSet name="left_from_list" toggleButtons="switch">
+			<data desc="{Page}" value="page"/>
+			<data desc="{Character}" value="character"/>
+			<data desc="{Column}" value="column"/>
+			<data desc="{Margin}" value="margin"/>
+			<data desc="{LeftMargin}" value="leftMargin"/>
+			<data desc="{RightMargin}" value="rightMargin"/>
+			<data desc="{InsideMargin}" value="insideMargin"/>
+			<data desc="{OutsideMargin}" value="outsideMargin"/>
+		</dataSet>
+		<dataSet name="top_from_list" toggleButtons="switch">
+			<data desc="{Page}" value="page"/>
+			<data desc="{Paragraph}" value="paragraph"/>
+			<data desc="{Line}" value="line"/>
+			<data desc="{Margin}" value="margin"/>
+			<data desc="{TopMargin}" value="topMargin"/>
+			<data desc="{BottomMargin}" value="bottomMargin"/>
+			<data desc="{InsideMargin}" value="insideMargin"/>
+			<data desc="{OutsideMargin}" value="outsideMargin"/>
+		</dataSet>
+		<dataSet name="select_item">
+			<data name="select_all" desc="{SelectAll}" value="select_all" shortcut="{SelectAllShortcut}"/>
+			<data name="select_objects" desc="{SelectObjects}" value="select_object"/>
+		</dataSet>
+	</dataSets>
+</common>

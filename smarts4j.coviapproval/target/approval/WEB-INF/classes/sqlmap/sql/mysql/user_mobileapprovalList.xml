@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.mobileapprovalList">
+    <select id="selectMobileMenuList" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+		    SELECT Reserved2 AS MenuMode, DisplayName AS MenuName
+			FROM covi_smart4j.sys_object_menu
+			WHERE Reserved1 LIKE '%Approval%'
+			AND Reserved2 IS NOT NULL
+		]]>
+	</select>
+
+	<!-- 미결함 목록 개수 데이터 -->
+	<select id="selectMobileApprovalListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, D.*
+				, B.Created
+				FROM covi_approval4j.jwf_process AS A
+				INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.DeleteDate IS NULL
+				</if>
+
+				UNION ALL
+
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, D.*
+				, B.Created
+				FROM covi_approval4j.jwf_process AS A
+				INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE B.DeputyID = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.DeleteDate IS NULL
+				</if>
+			) AS ApprovalList
+	</select>
+
+	<!-- 진행함 목록 개수 데이터 -->
+	<select id="selectMobileProcessListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, D.*
+				FROM covi_approval4j.jwf_process AS A
+				INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019','T020')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.DeleteDate IS NULL
+				</if>
+
+				UNION ALL
+
+				SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, D.*
+				FROM covi_approval4j.jwf_process AS A
+				INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE B.DeputyID = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016')
+				AND C.State = 1
+				AND B.State = 528
+				AND A.ProcessState = 288
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.DeleteDate IS NULL
+				</if>
+			) AS ProcessList
+	</select>
+
+	<!-- 완료함 목록 개수 데이터 -->
+	<select id="selectMobileCompleteListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT B.ProcessID AS ProcessArchiveID
+					, A.PerformerID
+					, A.WorkitemID AS WorkitemArchiveID
+					, B.FormPrefix
+					, B.InitiatorID
+					, B.InitiatorName
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, A.UserCode
+					, A.UserName
+					, A.SubKind
+					, A.SubKind AS FormSubKind
+					, C.*
+					, B.EndDate
+				FROM covi_approval4j.jwf_workitem AS A
+				INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+				WHERE ((A.UserCode = #{userID} AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021'))
+					OR (A.DeputyID = #{userID} AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021')))
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.Deleted IS NULL
+				</if>
+				AND A.PIDeleted IS NULL
+				AND A.PIBusinessState = '02_01'
+				AND B.ProcessState = 528
+			) AS CompleteList
+	</select>
+
+	<!-- 반려함 목록 개수 데이터 -->
+	<select id="selectMobileRejectListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT B.ProcessID AS ProcessArchiveID
+					, A.PerformerID
+					, A.WorkitemID AS WorkitemArchiveID
+					, B.FormPrefix
+					, B.InitiatorID
+					, B.InitiatorName
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, A.UserCode
+					, A.UserName
+					, A.SubKind
+					, A.SubKind AS FormSubKind
+					, C.*
+					, B.EndDate
+				FROM covi_approval4j.jwf_workitemArchive AS A
+				INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+				WHERE ((A.UserCode = #{userID} AND A.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T109','T020','T021'))
+					OR (A.DeputyID = #{userID} AND A.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T109','T020','T021')))
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.Deleted IS NULL
+				</if>
+				AND A.PIDeleted IS NULL
+				AND A.PIBusinessState = '02_02'
+				AND B.ProcessState = 528
+			) AS RejectList
+	</select>
+
+	<!-- 참조/회람함 목록 개수 데이터 -->
+	<select id="selectMobileTCInfoListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT 	  A.*
+						, B.InitiatorID
+						, B.InitiatorName
+						, B.InitiatorUnitID
+						, B.InitiatorUnitName
+						, B.InitiatedDate
+						, C.FormPrefix
+						, C.FormID
+						, C.FormName
+						, C.FormSubject
+						, C.IsSecureDoc
+						, C.IsFile
+						, C.FileExt
+						, C.IsComment
+						, C.ApproverCode
+						, C.ApproverName
+						, C.ApprovalStep
+						, C.ApproverSIPAddress
+						, C.IsReserved
+						, C.ReservedGubun
+						, C.ReservedTime
+						, C.Priority
+						, C.IsModify
+						, C.Reserved1
+						, C.Reserved2
+				FROM covi_approval4j.jwf_circulationbox AS A
+				INNER JOIN covi_approval4j.jwf_forminstance AS B ON A.FormInstID = B.FormInstID
+				INNER JOIN covi_approval4j.jwf_circulationboxDescription AS C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+				WHERE A.State = 'C'
+				<if test="adminYn == null or adminYn == '' ">
+					AND B.DeletedDate IS NULL
+				</if>
+				AND A.ReceiptType = 'P'
+				AND A.ReceiptID = #{userID}
+				AND A.DataState != 'D'
+			) AS TCInfoList
+	</select>
+
+	<!-- 완료함 목록 개수 데이터 -->
+	<select id="selectMobileDeptDraftCompleteListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT B.ProcessID AS ProcessArchiveID
+					, A.PerformerID
+					, A.WorkitemID AS WorkitemArchiveID
+					, A.SubKind
+					, A.UserCode
+					, A.UserName
+					, B.FormPrefix
+					, C.*
+					, B.InitiatorName
+					, B.InitiatorID
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, B.EndDate
+				FROM covi_approval4j.jwf_workitem AS A
+				INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+				WHERE A.UserCode = #{deptID}
+				AND A.SubKind = 'A'
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.Deleted IS NULL
+				</if>
+				AND A.PIDeleted IS NULL
+				AND B.ProcessState = 528
+			) AS DeptDraftCompleteList
+	</select>
+
+	<!-- 수신완료함 목록 개수 데이터 -->
+	<select id="selectMobileDeptReceiveCompleteListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT B.ProcessID AS ProcessArchiveID
+					, A.PerformerID
+					, A.WorkitemID AS WorkitemArchiveID
+					, B.FormPrefix
+					, C.*
+					, B.InitiatorName
+					, B.InitiatorID
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, A.UserCode
+					, A.UserName
+					, A.SubKind
+					, B.EndDate
+				FROM covi_approval4j.jwf_workitem AS A
+				INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+				WHERE A.UserCode = #{deptID}
+				AND A.SubKind = 'REQCMP'
+				<if test="adminYn == null or adminYn == '' ">
+					AND A.Deleted IS NULL
+				</if>
+				AND A.PIDeleted IS NULL
+				AND B.ProcessState = 528
+			) AS DeptReceiveCompleteList
+	</select>
+
+	<!-- 참조/회람함 목록 개수 데이터 -->
+	<select id="selectMobileDeptReceiveProcessListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*) FROM (
+				SELECT
+					 A.CirculationBoxID
+				   , A.ProcessID
+				   , A.CirculationBoxDescriptionID
+				   , A.FormInstID
+				   , A.ReceiptID
+				   , A.ReceiptType
+				   , A.ReceiptName
+				   , A.ReceiptDate
+				   , A.Kind AS SubKind
+				   , A.State
+				   , A.ReadDate
+				   , A.SenderID
+				   , A.SenderName
+				   , A.Subject
+				   , A.Comment
+				   , A.DataState
+				   , A.RegID
+				   , A.RegDate
+				   , A.ModID
+				   , A.ModDate
+					, B.InitiatorID
+					, B.InitiatorName
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, B.InitiatedDate
+					, C.FormID AS FormID
+					, C.FormPrefix
+					, C.FormName
+					, C.FormSubject
+					, C.IsSecureDoc
+					, C.IsFile
+					, C.FileExt
+					, C.IsComment
+					, C.ApproverCode
+					, C.ApproverName
+					, C.ApprovalStep
+					, C.ApproverSIPAddress
+					, C.IsReserved
+					, C.ReservedGubun
+					, C.ReservedTime
+					, C.Priority
+					, C.IsModify
+					, C.Reserved1
+					, C.Reserved2
+				FROM covi_approval4j.jwf_circulationbox AS A
+				INNER JOIN covi_approval4j.jwf_forminstance AS B ON A.FormInstID = B.FormInstID
+				INNER JOIN covi_approval4j.jwf_circulationboxDescription AS C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+				WHERE A.State = 'C'
+				<if test="adminYn == null or adminYn == '' ">
+					AND B.DeletedDate IS NULL
+				</if>
+				AND A.ReceiptType = 'U'
+				AND A.ReceiptID =  #{deptID}
+				AND A.DataState != 'D'
+			) AS DeptReceiveProcessList
+	</select>
+
+</mapper>
+

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="common.pdfconvert">
+    <select id="selectTargetApprovalList" parameterType="cmap" resultType="cmap">
+	    SELECT
+				WF_PROCESS.*,
+				(CASE
+						WHEN WF_PROCESS.PiBusinessState = '02_02_' OR WF_PROCESS.PiBusinessState = '02_01_'
+							THEN WF_PROCESS.PiBusinessState
+						ELSE  '-'
+				END
+				)AS BusinessState
+		FROM (
+						SELECT
+						 Subject AS Subject ,
+						 form.FormName ,
+						 FI.FormInstID  ,
+						 InitiatorName AS InitiatorName ,
+						 InitiatorID AS InitiatorID ,
+						 InitiatorUnitID AS InitiatorUnitID ,
+						 InitiatorUnitName AS InitiatorUnitName ,
+						 FI.ProcessID AS PiID ,
+						 P.ProcessState AS PiState ,
+						 SUBSTR(P.BusinessState,1,6) AS PiBusinessState ,
+						 P.BusinessState AS DocBusinessState ,
+						 DocNo AS DocNo ,
+						 InitiatedDate AS WorkDt ,
+						 FormPrefix ,
+						 FI.EntCode as EntCode,
+						 FI.ProcessID AS ProcessID,
+						 CompletedDate ,
+						 P.ProcessState as ProcessState,
+						 InitiatedDate,
+						 P.BusinessData1,
+						 P.BusinessData2
+				FROM
+					  covi_approval4j.jwf_forminstance AS FI
+					  INNER JOIN (
+					  					SELECT A.ProcessID, A.ProcessState, A.BusinessState, B.BusinessData1, B.BusinessData2
+										FROM 	covi_approval4j.jwf_process AS A
+					  					INNER JOIN covi_approval4j.jwf_processdescription AS B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+									 )P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN covi_approval4j.jwf_forms as form on FI.formid = form.formid
+			)WF_PROCESS
+		<!-- 검색 데이터 Where 절 -->
+		WHERE 1=1
+		AND IFNULL(BusinessData1, 'APPROVLAL') = 'APPROVAL'
+		<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+		    AND EntCode = #{selectEntinfoListData}
+		</if>
+	  	<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != '' ">
+		 	AND CompletedDate BETWEEN STR_TO_DATE(#{StartDate}, '%Y-%m-%d %H:%i:%s') AND STR_TO_DATE(#{EndDate}, '%Y-%m-%d %H:%i:%s')
+	  	 </if>
+        AND ProcessState = 528
+    	AND DocBusinessState LIKE '02_01%'
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	CompletedDate DESC
+		</trim>
+	</select>
+	<select id="selectConvertDupList" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(1) FROM covi_approval4j.jwf_pdfconvert_history 
+		WHERE FormInstID = #{FormInstID}
+		AND State = #{searchState}
+	</select>
+	<insert id="insertConvertHistory"  parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_pdfconvert_history (
+			State,
+			TaskID,
+			FormPrefix,
+			FormInstID,
+			UserCode,
+			Subject,
+			ConvertStartTime,
+			RegisterCode,
+			RegistDate
+		)
+		VALUES (
+			#{State},
+			#{TaskID},
+			#{FormPrefix},
+			#{FormInstID},
+			#{InitiatorID},
+			#{Subject},
+			#{ConvertStartTime},
+			#{RegisterCode},
+			now(3)
+		)
+		<selectKey keyProperty="HistoryID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	<update id="updateConvertHistory" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_pdfconvert_history 
+		SET
+			State = #{State},
+			ConvertEndTime = #{ConvertEndTime},
+			ErrorStackTrace = #{ErrorStackTrace}
+		WHERE HistoryID = #{HistoryID}
+	</update>
+	
+	<!-- 이력조회 목록 -->
+	<select id="selectConvertHistoryCnt" parameterType="cmap" resultType="long">
+			SELECT	COUNT(1) AS CNT
+			FROM covi_approval4j.jwf_pdfconvert_history C
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">				
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test="SearchType.equalsIgnoreCase('FormPrefix')">C.FormPrefix</when>
+						<when test="SearchType.equalsIgnoreCase('TaskID')">C.TaskID</when>
+						<when test="SearchType.equalsIgnoreCase('Subject')">C.Subject</when>
+						<when test="SearchType.equalsIgnoreCase('FormInstID')">C.FormInstID</when>
+						<otherwise>C.Subject</otherwise>
+	           		</choose>
+	          			like CONCAT('%',#{SearchText},'%')
+				</if>
+				<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+					AND ConvertStartTime between #{StartDate} and #{EndDate}
+				</if>
+			</trim>	
+	</select>
+	<select id="selectConvertHistory" parameterType="cmap" resultType="cmap">
+			SELECT	C.HistoryID
+				, C.State
+				, C.TaskID
+				, C.ErrorStackTrace
+				, C.FormPrefix
+				, C.FormInstID
+				, C.UserCode
+				, DU.MultiDisplayName AS UserName
+				, C.Subject
+				, C.ConvertStartTime
+				, C.ConvertEndTime
+				, C.RegisterCode
+				, U.MultiDisplayName AS RegisterName
+				, C.RegistDate
+				, FI.ProcessID
+			FROM covi_approval4j.jwf_pdfconvert_history C
+			LEFT OUTER JOIN covi_smart4j.sys_object_user U
+				ON U.UserCode = C.RegisterCode
+			LEFT OUTER JOIN covi_smart4j.sys_object_user DU
+				ON DU.UserCode = C.UserCode
+			LEFT OUTER JOIN covi_approval4j.jwf_forminstance FI
+				ON FI.FormInstID = C.FormInstID
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">				
+			<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+           		AND 
+           		<choose>
+					<when test="SearchType.equalsIgnoreCase('FormPrefix')">C.FormPrefix</when>
+					<when test="SearchType.equalsIgnoreCase('TaskID')">C.TaskID</when>
+					<when test="SearchType.equalsIgnoreCase('Subject')">C.Subject</when>
+					<when test="SearchType.equalsIgnoreCase('FormInstID')">C.FormInstID</when>
+					<otherwise>C.Subject</otherwise>
+           		</choose>
+          			like CONCAT('%',#{SearchText},'%')
+			</if>
+			<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+				AND ConvertStartTime between #{StartDate} and #{EndDate}
+			</if>
+		</trim>	
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test="sortColumn.equalsIgnoreCase('sort_CodeGroup')">RegistDate</when>
+					<when test="sortColumn.equalsIgnoreCase('sort_ConvertEndTime')">ConvertEndTime</when>
+					<when test="sortColumn.equalsIgnoreCase('sort_TaskID')">TaskID</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test="sortDirection.equalsIgnoreCase('ASC')"> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				HistoryID DESC
+			</if>
+		</trim>
+		<!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+   		</if>
+	</select>
+</mapper>

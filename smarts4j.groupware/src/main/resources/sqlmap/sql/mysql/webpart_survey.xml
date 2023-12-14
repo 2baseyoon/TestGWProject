@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.survey">
+	<select id="selectWebpartSurveyList" parameterType="cmap" resultType="cmap">
+		SELECT A.ItemID, A.Item, A.QuestionID,
+			   B.SurveyID, B.Subject, B.Description, B.RegistDate, 
+			   B.respondentYn, B.totCnt,
+			   CASE WHEN totCnt = 0 THEN '' ELSE ((SELECT COUNT(AnswerID) 
+			   	  FROM covi_smart4j.survey_question_item_answer C 
+			   	 WHERE C.ItemID = A.ItemID) / totCnt * 100) END AS rate				   	 
+		  FROM covi_smart4j.survey_question_item A
+		  JOIN (SELECT A.SurveyID, A.Subject, A.Description, 
+		  			   LOWER(DATE_FORMAT(A.RegistDate, "%Y-%m-%d %H:%i:%s")) AS RegistDate,
+					   IF ((SELECT COUNT(RespondentID) 
+					 		  FROM covi_smart4j.survey_respondent C 
+							 WHERE C.SurveyID = A.SurveyID
+							   AND RespondentCode = #{userId}) <![CDATA[>]]> 0, 'Y', 'N') AS respondentYn,
+					   (SELECT COUNT(AnswerID) 
+					   	  FROM covi_smart4j.survey_question_item_answer D 
+					   	 WHERE D.SurveyID = A.SurveyID) AS totCnt
+				  FROM covi_smart4j.survey A
+				  LEFT JOIN covi_smart4j.survey_question B
+				    ON A.SurveyID = B.SurveyID
+				 WHERE NOW() BETWEEN SurveyStartDate AND SurveyEndDate
+				   AND State = 'F'
+				   AND QuestionCount = 1
+				   AND QuestionType = 'S'
+				   AND Fn_SurveyTargetRespondent_R(A.SurveyID, #{userId}) = 'Y'
+				 ORDER BY RegistDate DESC
+				 LIMIT 1
+			   ) B
+		 	ON A.SurveyID = B.SurveyID
+		 ORDER BY rate DESC, ItemNO ASC
+	</select>   
+	<select id="getWebpartSurveyData" parameterType="cmap" resultType="cmap">
+	/*webpart.survey.getWebpartSurveyData*/
+	SELECT A.ItemID, A.Item, A.QuestionID,
+			   B.SurveyID, B.Subject, B.Description, B.RegistDate, 
+			   B.respondentYn, B.totCnt,
+			   CASE WHEN totCnt = 0 THEN '' ELSE ((SELECT COUNT(AnswerID) 
+			   	  FROM covi_smart4j.survey_question_item_answer C 
+			   	 WHERE C.ItemID = A.ItemID) / totCnt * 100) END AS rate				   	 
+			   	 , Fn_SurveyRate_R(B.SurveyID) AS joinRate
+			   	 , B.QuestionCount, B.QuestionType
+			   	 , B.SurveyStartDate, B.SurveyEndDate
+			   	 , (CASE WHEN B.RegisterCode = #{userId} THEN 'Y'
+						 ELSE 'N' END ) AS registerYn
+		  FROM covi_smart4j.survey_question_item A
+		  JOIN (SELECT A.SurveyID, A.Subject, A.Description, 
+		  			   LOWER(DATE_FORMAT(A.RegistDate, "%Y-%m-%d %H:%i:%s")) AS RegistDate,
+					   IF ((SELECT COUNT(RespondentID) 
+					 		  FROM covi_smart4j.survey_respondent C 
+							 WHERE C.SurveyID = A.SurveyID
+							   AND RespondentCode = #{userId}) <![CDATA[>]]> 0, 'Y', 'N') AS respondentYn,
+					   (SELECT COUNT(AnswerID) 
+					   	  FROM covi_smart4j.survey_question_item_answer D 
+					   	 WHERE D.SurveyID = A.SurveyID) AS totCnt
+					   	 , A.QuestionCount, B.QuestionType
+					   	 , DATE_FORMAT(A.SurveyStartDate, '%Y.%m.%d') AS SurveyStartDate
+					   	 , DATE_FORMAT(A.SurveyEndDate, '%Y.%m.%d') AS SurveyEndDate
+					   	 , A.RegisterCode
+				  FROM covi_smart4j.survey A
+				  LEFT JOIN covi_smart4j.survey_question B
+				    ON A.SurveyID = B.SurveyID
+				 WHERE NOW() BETWEEN SurveyStartDate AND SurveyEndDate
+				   AND State = 'F'
+				   AND A.DeleteDate IS NULL
+				   AND A.CommunityID = 0 
+				   AND Fn_SurveyTargetRespondent_R(A.SurveyID, #{userId}) = 'Y'
+				 ORDER BY RegistDate DESC
+				 LIMIT 1
+			   ) B
+		 	ON A.SurveyID = B.SurveyID
+		 ORDER BY rate DESC, ItemNO ASC
+	</select> 
+</mapper>
+

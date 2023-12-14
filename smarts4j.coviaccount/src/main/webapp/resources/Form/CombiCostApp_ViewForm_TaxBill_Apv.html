@@ -1,0 +1,39 @@
+<tr name="headerArea" viewkeyno="@@{ViewKeyNo}">
+	<th style="width: 3%;">NO</th>
+	<th style="width: 17%;">**{ACC_lbl_proofDate}<br>**{ACC_lbl_vendorName}<br>**{ACC_lbl_BusinessNumber}</th> <!-- 증빙일자 / 거래처명 / 사업자번호 -->
+	<th style="width: 10%;">**{ACC_lbl_supplyValue}<br>**{ACC_lbl_taxValue}<br>**{ACC_lbl_totalAmount}</th>			<!-- 공급가액 / 세액 / 합계금액 -->
+	<th name="PayArea" style="width: 10%; display: none;" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}">**{ACC_lbl_pay}</th>	<!-- 지급방법 -->
+	<th style="width: 15%;">**{ACC_lbl_BankAccount}</th>	<!-- 은행계좌 -->
+	<!-- 세부증빙 영역 시작 -->
+   	<th style="width: 10%; background: #bad2da;">**{ACC_lbl_account}<span name="noSBArea"><br>**{ACC_standardBrief}</span><span name="noDTArea"><br>**{lbl_apv_detail_case}</span></th>	<!-- 계정 / 표준적요 / 세부유형 -->
+    <th style="width: 15%; background: #bad2da;">**{ACC_lbl_costCenter}<span name="noIOArea"><br>**{ACC_lbl_projectName}</span></th>	<!-- 코스트센터 / 프로젝트명 -->
+    <th style="width: 20%; background: #bad2da;">**{ACC_lbl_useHistory2}<br>**{ACC_lbl_useHistoryAdditional}</th> <!-- 적요 / 부가적요 -->
+    <th style="width: 10%; background: #bad2da;">**{lbl_acc_supplyPayAmt2}</th>	<!-- 청구금액(공급가액) -->
+    <th name="EditArea" style="width:7%; display:none;"></th>
+    <th name="DivViewArea" style="width:7%; background: #bad2da;""></th>
+    <!-- 세부증빙 영역 끝 -->
+	<!-- <th style="width: 15%;">**{ACC_lbl_addFile}<br>**{lbl_apv_linkdoc}</th> -->											<!-- 첨부파일 / 연결문서 -->
+</tr>						
+<tr name="evidItemAreaApv" listid="@@{ExpenceApplicationListID}" viewkeyno="@@{ViewKeyNo}">
+	<td rowspan="@@{rowspan}">@@{rowNum}</td>
+	<td rowspan="@@{rowspan}" stdtype="D">@@{ProofDate}<br>@@{VendorName}<br>@@{InvoicerCorpNum}<br><a href="#" class="btn_Bill" name="noTaxIFView" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}" onClick="@@{pageNm}.combiCostApp_onTaxBillAppClick('@@{TaxInvoiceID}')"></a></td>
+	<td rowspan="@@{rowspan}" style="text-align: right; padding-right: 5px;"><strong>@@{RepAmount}<br>@@{TaxAmount}<br>@@{TotalAmount}</strong></td>
+	<td rowspan="@@{rowspan}" style="display: none;" name="PayArea" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}">@@{PayMethod}</td>
+	<td rowspan="@@{rowspan}">@@{BankInfo}</td><!-- 은행정보 -->
+	@@{divApvArea}
+	<td name="EditArea" rowspan="@@{rowspan}" style="display:none;">
+		<a class="btnTypeDefault" style="min-width:40px;" onclick="@@{pageNm}.combiCostAppView_clickEdit(this, '@@{ExpenceApplicationListID}')">**{lbl_Edit}</a>
+	</td>
+	<td name="DivViewArea" rowspan="@@{rowspan}" style="">
+		<a class="btnMoreStyle02" style="min-width:40px;" onclick="@@{pageNm}.combiCostApp_onDivDetailClick('@@{ExpenceApplicationListID}')">**{lbl_detail}</a>
+	</td>
+</tr>
+@@{divApvArea2}
+<tr name="fileDocAreaApv" viewkeyno="@@{ViewKeyNo}">
+	<td colspan="2">
+		<span id="combCostApp_fileViewArea_@@{ViewKeyNo}" name="FileViewArea" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}"></span>
+	</td>
+	<td colspan="2">
+		<span id="combCostApp_docViewArea_@@{ViewKeyNo}" name="DocViewArea" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}"></span>
+	</td>
+</tr>

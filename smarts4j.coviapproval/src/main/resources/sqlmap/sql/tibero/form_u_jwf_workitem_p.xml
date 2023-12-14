@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.workitem">
+	<update id="updateBusinessData" parameterType="cmap">			
+	    UPDATE jwf_workitem
+		<trim prefix="SET" suffixOverrides=",">
+		    BusinessData6 = 'MODIFY'
+		</trim>		
+		WHERE ProcessID IN (
+			SELECT ProcessID FROM JWF_PROCESS
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				 FormInstID = #{FormInstID}
+			</trim>		
+		)
+	</update>
+		
+	<select id="selectAutoIncrement" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT JWF_PERFORMER_SEQ.CURRVAL FROM dual
+    ]]>
+	</select>
+	
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM jwf_workitem
+	    WHERE ProcessID = #{ProcessID}
+	</delete>
+	
+	<select id="selectDeputy" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT COUNT(*) OVER() AS "Count", DeputyCode AS "DeputyCode", DeputyName AS "DeputyName", DeputyOption AS "DeputyOption"
+		FROM sys_object_user_approval
+		WHERE UserCode = #{userCode} and UseDeputy = 'Y' and SUBSTR(#{today},0,10) >= DeputyFromDate and SUBSTR(#{today},0,10) <= DeputyToDate
+		]]> 
+    </select>
+    
+	<update id="updateWorkitem" parameterType="cmap">			
+		UPDATE jwf_workitem
+		SET UserCode = #{userCode}
+			, UserName = #{userName}
+			<if test="deputyCode != null ">
+		        ,DeputyID = #{deputyCode}
+		    </if>
+		    <if test="deputyName != null ">
+		        ,DeputyName = #{deputyName}
+		    </if>
+		WHERE WorkitemID = #{workitemId}
+	</update>
+	
+	<update id="updateState" parameterType="cmap">
+	    UPDATE jwf_workitem
+		SET STATE = #{State}
+		WHERE WorkitemID = #{WorkitemID}
+	</update>
+	
+	<update id="updateWorkitemforFinish" parameterType="cmap">
+ 	    UPDATE jwf_workitem 
+ 	    SET State = #{State}, Finished = sysdate
+ 	    <if test="isMobile != null and isMobile != '' and (isMobile eq 'Y'.toString())">
+ 	        , BusinessData2 = 'MOBILE'
+ 	    </if>
+ 	    WHERE WorkitemID = #{WorkitemID}
+ 	    AND Finished IS NULL;
+ 	</update>
+ 	
+	<insert id="insert" parameterType="hashmap">
+        INSERT INTO jwf_workitem
+        (
+            TaskID,
+            ProcessID,
+            PerformerID,
+            WorkItemDescriptionID,
+            Name,
+            DSCR,
+            Priority,
+            ActualKind,
+            UserCode,
+            UserName,
+            DeputyID,
+            DeputyName,
+            State,
+            Created,
+            FinishRequested,
+            Finished,
+            `Limit`,
+            LastRepeated,
+            Finalized,
+            Deleted,
+            InlineSubProcess,
+            Charge,
+            BusinessData1,
+            BusinessData2,
+            BusinessData3,
+            BusinessData4,
+            BusinessData5,
+            BusinessData6,
+            BusinessData7,
+            BusinessData8,
+            BusinessData9,
+            BusinessData10
+        )
+        VALUES
+        (
+        	#{TaskID},
+        	#{ProcessID},
+        	#{PerformerID},
+            #{WorkItemDescriptionID}, 
+            #{Name}, 
+            #{DSCR},
+            #{Priority},
+            #{ActualKind},
+            #{UserCode},
+            #{UserName},
+            #{DeputyID},
+            #{DeputyName},
+            #{State},
+            #{Created},
+            #{FinishRequested},
+            #{Finished},
+            #{Limit},
+            #{LastRepeated},
+            #{Finalized},
+            #{Deleted},
+            #{InlineSubProcess},
+            #{Charge},
+            #{BusinessData1},
+            #{BusinessData2},
+            #{BusinessData3},
+            #{BusinessData4},
+            #{BusinessData5},
+            #{BusinessData6},
+            #{BusinessData7},
+            #{BusinessData8},
+            #{BusinessData9},
+            #{BusinessData10}
+        )
+        <selectKey keyProperty="WorkItemID" resultType="Integer" order="AFTER">
+			SELECT JWF_WORKITEM_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+    </insert>
+    
+    <select id="select" parameterType="cmap" resultType="cmap">
+    	SELECT *
+		FROM jwf_workitem
+		WHERE WorkitemID = #{workitemID}
+    </select>
+    
+    <update id="updatePerformerID" parameterType="cmap">
+	    UPDATE jwf_workitem
+		SET PerformerID = #{performerID}
+		WHERE WorkitemID = #{workitemID}
+	</update>
+	
+    <select id="selectOriginWorkItemID" parameterType="cmap" resultType="java.lang.String">
+    	SELECT BusinessData5
+		FROM jwf_workitem
+		WHERE WorkitemID = #{WorkitemID}
+    </select>
+	
+	<delete id="deleteUserWorkItemID" parameterType="cmap">
+		DELETE 
+		FROM jwf_workitem
+		WHERE BusinessData5 = #{workitemID}
+		AND WorkItemID IN
+		<foreach collection="deleteInfos" item="item" index="index"  open="(" close=")" separator=",">
+           #{item.wiid}
+        </foreach>
+	</delete>
+</mapper>

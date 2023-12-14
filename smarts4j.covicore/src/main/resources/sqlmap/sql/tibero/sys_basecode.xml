@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="basecode">
+    
+	<select id="selectone" parameterType="cmap" resultType="cmap">
+		SELECT  CodeID AS "CodeID"
+		      , BizSection AS "BizSection"
+		      , DomainID AS "DomainID"
+		      , CodeGroup AS "CodeGroup"
+		      , Code AS "Code"
+		      , SortKey AS "SortKey"
+		      , IsUse AS "IsUse"
+		      , CodeName AS "CodeName"
+		      , MultiCodeName AS "MultiCodeName"
+		      , Reserved1 AS "Reserved1"
+		      , Reserved2 AS "Reserved2"
+		      , Reserved3 AS "Reserved3"
+		      , ReservedInt AS "ReservedInt"
+		      , Description AS "Description"
+		      , RegisterCode AS "RegisterCode"
+		      , TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+		      , ModifierCode AS "ModifierCode"
+		      , TO_CHAR(ModifyDate, 'YYYY-MM-DD HH24:MI:SS') AS "ModifyDate"
+		FROM SYS_BASE_CODE
+		WHERE 1=1
+		AND CodeGroup = #{codeGroup}
+		AND DomainID = #{domainID}
+		<choose>
+			<when test="codeID != null and codeID != '' and codeID.length() gt 0">
+		AND CodeID = #{codeID}
+			</when>
+			<otherwise>
+		AND Code = #{code}
+			</otherwise>
+		</choose>
+	</select>
+    
+    <select id="selectgrid" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+        SELECT *
+ 		FROM (
+				SELECT  A.CodeID AS "CodeID"
+						,  A.BizSection AS "BizSection"
+						,  NVL(Fn_BaseGetDictionary_S(#{lang}, D.MultiCodeName), A.BizSection) AS "BizSectionName"
+						,  A.DomainID AS "DomainID"
+						,  Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS "DisplayName"
+						,  A.CodeGroup AS "CodeGroup"
+						,  A.Code AS "Code"
+						,  A.SortKey AS "SortKey"
+						,  A.IsUse AS "IsUse"
+						,  Fn_BaseGetDictionary_S(#{lang}, NVL(A.MultiCodeName, A.CodeName)) AS "CodeName"
+						,  A.Reserved1 AS "Reserved1"
+						,  A.Reserved2 AS "Reserved2"
+						,  A.Reserved3 AS "Reserved3"
+						,  A.ReservedInt AS "ReservedInt"
+						,  A.Description AS "Description"
+						,  A.RegisterCode AS "RegisterCode"
+						,  Fn_BaseGetDictionary_S(#{lang}, C.MultiDisplayName) AS "RegisterName"
+						,  A.ModifierCode AS "ModifierCode"
+						,  TO_CHAR(NVL(A.ModifyDate , A.RegistDate), 'YYYY-MM-DD HH24:MI:SS') AS "ModifyDate"
+				FROM sys_base_code A 
+				INNER JOIN sys_object_domain B ON A.DomainID = B.DomainID
+				LEFT JOIN sys_object_user C ON A.RegisterCode = C.UserCode
+				LEFT JOIN sys_base_code D ON D.CodeGroup = 'BizSection' AND A.BizSection = D.Code
+				WHERE 1=1
+ 		) temp
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domain != null and domain != '' and domain.length() gt 0">
+			 	AND temp."DomainID" = #{domain}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+			 	AND temp."DomainID" IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+				    #{domainID}
+				</foreach>
+			</if>
+		  	<if test="bizSection != null and bizSection != '' and bizSection.length() gt 0 and bizSection != 'BizSection'">
+			 	AND temp."BizSection" = #{bizSection}
+			</if>
+			<if test="codeGroup != null and codeGroup != '' and codeGroup.length() gt 0">
+			 	AND temp."CodeGroup" = #{codeGroup}
+			</if>
+			<if test="codeName != null and codeName != '' and codeName.length() gt 0">
+			 	AND temp.CodeName LIKE CONCAT('%', #{codeName}, '%')
+			</if>
+			<if test="isUse != null and isUse != '' and isUse.length() gt 0">
+			 	AND temp.IsUse = #{isUse}
+			</if>
+			<if test="reservedInt != null and reservedInt != '' and reservedInt.length() gt 0">
+				AND 
+				<choose>
+					<when test='reservedInt.equalsIgnoreCase("0")'>( ReservedInt = #{reservedInt} OR ReservedInt IS NULL )</when>
+					<otherwise>temp.ReservedInt = #{reservedInt}</otherwise>
+				</choose>
+			</if>
+			<if test="searchtext != null and searchtext != '' and searchtext.length() gt 0">
+				AND 
+				<choose>
+					<when test='selectsearch.equalsIgnoreCase("Description")'>temp."Description"</when>
+					<when test='selectsearch.equalsIgnoreCase("CodeName")'>temp."CodeName"</when>
+					<when test='selectsearch.equalsIgnoreCase("Code")'>temp."Code"</when>
+					<otherwise>temp."CodeGroup"</otherwise>
+				</choose>
+				 LIKE '%'||#{searchtext}||'%'
+			</if>
+			<if test="startdate != '' or enddate != ''">
+				AND temp."ModifyDate" between #{startdate} and #{enddate}	
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("BizSectionName")'>temp."BizSectionName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeGroup")'>temp."CodeGroup"</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>temp."Code"</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>temp."DisplayName"</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>temp."SortKey"</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeName")'>temp."CodeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>temp."Description"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>temp."RegisterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>temp."IsUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>temp."RegistDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>temp."ModifyDate"</when>
+					<otherwise>temp."CodeID"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+ 	<select id="selectgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+ 		FROM (
+			SELECT  A.CodeID
+				,  A.BizSection
+				,  NVL(Fn_BaseGetDictionary_S(#{lang}, D.MultiCodeName), A.BizSection) AS BizSectionName
+				,  A.DomainID
+				,  Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+				,  A.CodeGroup
+				,  A.Code
+				,  A.SortKey
+				,  A.IsUse
+				,  Fn_BaseGetDictionary_S(#{lang}, NVL(A.MultiCodeName, A.CodeName)) AS CodeName
+				,  A.Reserved1
+				,  A.Reserved2
+				,  A.Reserved3
+				,  A.ReservedInt
+				,  A.Description
+				,  A.RegisterCode
+				,  Fn_BaseGetDictionary_S(#{lang}, C.MultiDisplayName) AS RegisterName
+				,  A.ModifierCode
+				,  TO_CHAR(NVL(A.ModifyDate , A.RegistDate), 'YYYY-MM-DD HH24:MI:SS') AS ModifyDate
+			FROM sys_base_code A 
+			INNER JOIN sys_object_domain B ON A.DomainID = B.DomainID
+			LEFT JOIN sys_object_user C ON A.RegisterCode = C.UserCode
+			LEFT JOIN sys_base_code D ON D.CodeGroup = 'BizSection' AND A.BizSection = D.Code
+			WHERE 1=1
+ 		) temp
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domain != null and domain != '' and domain.length() gt 0">
+			 	AND temp.DomainID = #{domain}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+			 	AND temp.DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+				    #{domainID}
+				</foreach>
+			</if>
+		  	<if test="bizSection != null and bizSection != '' and bizSection.length() gt 0 and bizSection != 'BizSection'">
+			 	AND temp.BizSection = #{bizSection}
+			</if>
+			<if test="codeGroup != null and codeGroup != '' and codeGroup.length() gt 0">
+			 	AND temp.CodeGroup = #{codeGroup}
+			</if>
+			<if test="codeName != null and codeName != '' and codeName.length() gt 0">
+			 	AND temp.CodeName LIKE CONCAT('%', #{codeName}, '%')
+			</if>
+			<if test="isUse != null and isUse != '' and isUse.length() gt 0">
+			 	AND temp.IsUse = #{isUse}
+			</if>
+			<if test="reservedInt != null and reservedInt != '' and reservedInt.length() gt 0">
+				AND 
+				<choose>
+					<when test='reservedInt.equalsIgnoreCase("0")'>( ReservedInt = #{reservedInt} OR ReservedInt IS NULL )</when>
+					<otherwise>temp.ReservedInt = #{reservedInt}</otherwise>
+				</choose>
+			</if>
+			<if test="searchtext != null and searchtext != '' and searchtext.length() gt 0">
+				AND 
+				<choose>
+					<when test='selectsearch.equalsIgnoreCase("Description")'>temp.Description</when>
+					<when test='selectsearch.equalsIgnoreCase("CodeName")'>temp.CodeName</when>
+					<when test='selectsearch.equalsIgnoreCase("Code")'>temp.Code</when>
+					<otherwise>temp.CodeGroup</otherwise>
+				</choose>
+				 LIKE '%'||#{searchtext}||'%'
+			</if>
+			<if test="startdate != '' or enddate != ''">
+				AND temp.ModifyDate between #{startdate} and #{enddate}	
+			</if>
+		</trim>
+	</select>
+	
+    <insert id="insertgrid" parameterType="cmap" useGeneratedKeys="true">
+		INSERT INTO SYS_BASE_CODE 
+		(BizSection, DomainID, CodeGroup, Code, SortKey, IsUse, CodeName, MultiCodeName, Reserved1, Reserved2, Reserved3, ReservedInt, Description, RegisterCode,RegistDate)
+		VALUES 
+		(#{bizSection}, #{DN_ID}, #{codeGroup}, #{code}, #{sortKey}, #{isUse}, #{codeName}, #{multiCodeName},#{reserved1},#{reserved2},#{reserved3},#{reservedInt},#{description},#{registerCode},SYSDATE)
+		<selectKey keyProperty="CodeID" resultType="Integer" order="AFTER">
+			SELECT SYS_BASE_CODE_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+    
+    <update id="updategrid" parameterType="cmap">
+		UPDATE SYS_BASE_CODE
+		SET	  BizSection = #{bizSection}
+			, SortKey = #{sortKey}
+			, IsUse = #{isUse}
+			, CodeName = #{codeName}
+			, MultiCodeName = #{multiCodeName}
+			, Reserved1 = #{reserved1}
+			, Reserved2 = #{reserved2}
+			, Reserved3 = #{reserved3}
+			, ReservedInt = #{reservedInt}
+			, Description = #{description}
+			, ModifierCode = #{modifierCode}
+			, ModifyDate = SYSDATE
+		WHERE 1=1
+		AND Code = #{code}
+		AND CodeGroup = #{codeGroup}
+		AND DomainID = #{DN_ID}
+	</update>
+    
+    <update id="updateIsUse" parameterType="cmap">
+		UPDATE SYS_BASE_CODE
+		SET	  IsUse = #{isUse}
+			, ModifierCode = #{modID}
+			, ModifyDate =  SYSDATE
+		WHERE 1=1
+		AND Code = #{code}
+		AND CodeGroup = #{codeGroup}
+		AND DomainID = #{domainID}
+	</update>
+    
+	<delete id="deletegrid" parameterType="cmap">
+		DELETE FROM SYS_BASE_CODE
+		WHERE CodeGroup || '|' || Code || '|' || DomainID IN
+		<foreach collection="selValArr" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</delete>
+    
+    <select id="selectForCheckingDouble" resultType="java.lang.Long" >
+	    SELECT COUNT(*)
+	    FROM SYS_BASE_CODE
+	    WHERE Code = #{code} 
+	      <!-- AND BizSection = #{bizSection}  -->
+	      AND CodeGroup = #{codeGroup} 
+	</select>
+	
+		<select id="selectBaseCode" parameterType="cmap" resultType="cmap">
+		SELECT  Description  AS "Description" 
+		      , RegisterCode AS "RegisterCode" 
+		      , CodeGroup AS "CodeGroup" 
+		      , MultiCodeName AS "MultiCodeName" 
+		      , BizSection AS "BizSection" 
+		      , Code AS "Code" 
+		      , ModifyDate AS "ModifyDate" 
+		      , CodeID AS "CodeID" 
+		      , Reserved1 AS "Reserved1" 
+		      , IsUse AS "IsUse" 
+		      , Reserved3 AS "Reserved3" 
+		      , Reserved2 AS "Reserved2" 
+		      , ReservedInt AS "ReservedInt" 
+		      , RegistDate AS "RegistDate" 
+		      , SortKey AS "SortKey" 
+		      , CodeName AS "CodeName" 
+		FROM SYS_BASE_CODE
+		WHERE CodeGroup = #{CodeGroup}
+		AND isUse = 'Y'
+		AND DomainID = #{DomainID}
+		ORDER BY SortKey ASC 
+	</select>
+	
+	<select id="selectBaseCodeGroup" parameterType="cmap" resultType="cmap">
+		SELECT   A.BizSection AS "BizSection", MAX(NVL(Fn_BaseGetDictionary_S(#{lang}, D.MultiCodeName), A.BizSection)) AS "BizSectionName" 
+		FROM 	SYS_BASE_CODE A
+		LEFT JOIN SYS_BASE_CODE D ON D.CodeGroup = 'BizSection' AND A.BizSection = D.Code 
+		WHERE A.CodeGroup = #{codeGroup} 
+		AND A.DomainID = 0
+		GROUP BY A.BizSection
+		ORDER BY A.BizSection ASC
+	</select>
+	
+	<select id="selectCodeGroupCnt" resultType="java.lang.Long">
+		/* queryId = basecode.selectCodeGroupCnt */
+		SELECT	COUNT(1)
+		FROM 	(
+					SELECT 	Fn_BaseGetDictionary_S( #{lang} , MAX(T2.MultiDisplayName)) AS DomainName
+							, T1.CodeGroup
+							, (	SELECT 	CodeName
+								FROM	SYS_BASE_CODE
+					            WHERE	DomainID = 0 AND CodeGroup = 'CodeGroup' AND Code = T1.CodeGroup) AS CodeGroupName
+					        , NVL(Fn_BaseGetDictionary_S(#{lang}, MAX(T3.MultiCodeName)), MAX(T1.BizSection)) AS BizSectionName
+					FROM 	SYS_BASE_CODE T1
+					INNER JOIN SYS_OBJECT_DOMAIN T2 ON T1.DomainID = T2.DomainID
+					LEFT JOIN SYS_BASE_CODE T3 ON T3.CodeGroup = 'BizSection' AND T1.BizSection = T3.Code
+					WHERE	1=1
+					<if test="domainID != null and domainID != ''">
+					AND 	T1.DomainID = #{domainID}
+					</if>
+					<if test="bizSection != null and bizSection != ''">
+					AND		T1.BizSection = #{bizSection}
+					</if>
+					<if test="searchType != null and searchType != ''">
+						<if test="searchType == 'CodeGroup'">
+							<if test="searchText != null and searchText != ''">
+					AND 	UPPER(T1.CodeGroup) LIKE '%'||UPPER(#{searchText})||'%'
+							</if>
+						</if>
+					</if>
+					GROUP BY T1.DomainID, T1.CodeGroup
+		) T10
+	</select>
+	
+	<select id="selectCodeGroupList" parameterType="cmap" resultType="cmap">
+		/* queryId = basecode.selectCodeGroupList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	T10.DomainID AS "DomainID"
+				, T10.DomainName AS "DomainName"
+				, T10.CodeGroup AS "CodeGroup"
+				, T10.CodeGroupName AS "CodeGroupName"
+				, T10.BizSectionName AS "BizSectionName"
+		FROM 	(
+					SELECT 	T1.DomainID
+							, Fn_BaseGetDictionary_S( #{lang} , MAX(T2.MultiDisplayName)) AS DomainName
+							, T1.CodeGroup
+							, (	SELECT 	CodeName
+								FROM	SYS_BASE_CODE
+					            WHERE	DomainID = 0 AND CodeGroup = 'CodeGroup' AND Code = T1.CodeGroup) AS CodeGroupName
+					        , NVL(Fn_BaseGetDictionary_S(#{lang}, MAX(T3.MultiCodeName)), MAX(T1.BizSection)) AS BizSectionName
+					FROM 	SYS_BASE_CODE T1
+					INNER JOIN SYS_OBJECT_DOMAIN T2 ON T1.DomainID = T2.DomainID
+					LEFT JOIN SYS_BASE_CODE T3 ON T3.CodeGroup = 'BizSection' AND T1.BizSection = T3.Code
+					WHERE	1=1
+					<if test="domainID != null and domainID != ''">
+					AND 	T1.DomainID = #{domainID}
+					</if>
+					<if test="bizSection != null and bizSection != ''">
+					AND		T1.BizSection = #{bizSection}
+					</if>
+					<if test="searchType != null and searchType != ''">
+						<if test="searchType == 'CodeGroup'">
+							<if test="searchText != null and searchText != ''">
+					AND 	UPPER(T1.CodeGroup) LIKE '%'||UPPER(#{searchText})||'%'
+							</if>
+						</if>
+					</if>
+					GROUP BY T1.DomainID, T1.CodeGroup
+		) T10
+		WHERE 1=1
+		<include refid="oracle.include.pagingFooter"/>
+	</select>	
+</mapper>

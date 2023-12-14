@@ -1,0 +1,4 @@
+(function() {
+var toc =  [{"type":"item","name":"표/셀 속성: 기본","url":"table/tableattribute/table(general).htm"},{"type":"item","name":"표/셀 속성: 여백/캡션","url":"table/tableattribute/table(outblank).htm"},{"type":"item","name":"표/셀 속성: 테두리","url":"table/tableattribute/table(border).htm"},{"type":"item","name":"표/셀 속성: 배경","url":"table/tableattribute/table(background).htm"},{"type":"item","name":"표/셀 속성: 표","url":"table/tableattribute/table(table).htm"},{"type":"item","name":"표/셀 속성: 셀","url":"table/tableattribute/table(cellattribute).htm"}];
+window.rh.model.publish(rh.consts('KEY_TEMP_DATA'), toc, { sync:true });
+})();

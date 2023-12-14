@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.audit">
+	<select id="getAuditList" parameterType="cmap" resultType="cmap">
+		SELECT	ROWNUM	AS "AuditNum"
+			,	AD.AuditID AS "AuditID"
+			,	AD.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',AD.CompanyCode,#{companyCode}) AS "CompanyName"
+			,	AD.RuleCode AS "RuleCode"
+			,	AD.RuleName AS "RuleName"
+			,	AD.RuleDescription AS "RuleDescription"
+			,	FN_GETACTBASECODENAME('AuditStdType',AD.StdType,#{companyCode}) AS "StdType"
+			,	AD.StdType AS "StdTypeCode"
+			,	AD.StdDescription AS "StdDescription"
+			,	AD.StdValue AS "StdValue"
+			,	AD.StdStartTime AS "StdStartTime"
+			,	AD.StdEndTime AS "StdEndTime"
+			,	FN_GETACTBASECODENAME('AuditColor',AD.ApplicationColor,#{companyCode})	AS "ApplicationColor"
+			, 	AD.ApplicationColor AS "ApplicationColorCode"
+			,	AD.IsUse AS "IsUse"
+			,	AD.RuleInfo AS "RuleInfo"
+		FROM	act_audit	AD		
+		WHERE 1=1
+		<if test="companyCode != null and companyCode != ''">
+			AND AD.CompanyCode = #{companyCode}
+		</if>	
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AuditID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("AuditNum")'>"AuditNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("StdType")'>"StdType"</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleCode")'>"RuleCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleName")'>"RuleName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleDescription")'>"RuleDescription"</when>
+					<when test='sortColumn.equalsIgnoreCase("StdDescription")'>"StdDescription"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationColor")'>"ApplicationColor"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="getAuditDetail" parameterType="cmap" resultType="cmap">
+		SELECT	AD.AuditID AS "AuditID"
+			,	AD.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',AD.CompanyCode,AD.CompanyCode) AS "CompanyName"
+			,	AD.RuleCode AS "RuleCode"
+			,	AD.RuleName AS "RuleName"
+			,	AD.RuleDescription AS "RuleDescription"
+			,	AD.StdType AS "StdType"
+			,	AD.StdDescription AS "StdDescription"
+			,	AD.StdValue AS "StdValue"
+			,	AD.StdStartTime AS "StdStartTime"
+			,	AD.StdEndTime AS "StdEndTime"
+			,	AD.ApplicationColor AS "ApplicationColor"
+			,	AD.IsUse AS "IsUse"
+			,	AD.RuleInfo AS "RuleInfo"
+		FROM	act_audit	AD
+		WHERE	AuditID	= #{auditID}
+	</select>
+	
+	<update id="updateAuditInfo" parameterType="cmap" >
+ 		UPDATE act_audit
+ 			SET
+ 				IsUse				= #{isUse}
+			,	ModifierID			= #{UR_Code}
+			,	ModifyDate			= SYSDATE
+			
+ 			<if test ="popupYN == 'Y'.toString()">
+ 			,	StdType				= #{stdType}
+			,	StdValue			= #{stdValue}
+			,	StdStartTime		= #{stdStartTime}
+			,	StdEndTime			= #{stdEndTime}
+			,	StdDescription		= #{stdDescription}
+			,	ApplicationColor	= #{applicationColor}
+			,	RuleInfo			= #{ruleInfo}
+			</if>
+ 		WHERE	AuditID	= #{auditID}
+ 	</update>
+ 	
+ 	<select id="getAuditRuleInfo" parameterType="cmap" resultType="cmap">
+	 	SELECT
+	 		RuleCode, 
+	 		RuleName, 
+	 		StdType, 
+	 		StdValue, 
+	 		StdStartTime,
+	 		StdEndTime, 
+	 		ApplicationColor, 
+	 		RuleInfo 
+	 	FROM act_audit
+		WHERE 
+			<choose>
+				<when test="ruleCodes != null">
+					<foreach collection="ruleCodes" item="item" index="index" separator="," open="RuleCode IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+		AND IsUse = 'Y'
+ 	</select>
+</mapper>

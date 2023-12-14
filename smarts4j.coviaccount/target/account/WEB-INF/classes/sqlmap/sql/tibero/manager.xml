@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.manager">
+    
+    <!-- 담당자 검색 -->
+    <select id="getManagerList" parameterType="cmap" resultType="cmap">
+        /*
+        account.manager.getManagerList
+        */
+		<include refid="oracle.include.pagingHeader" />
+        SELECT	
+        		MA.CompanyCode AS "CompanyCode"
+        ,		FN_GETACTBASECODENAME('CompanyCode', MA.CompanyCode, #{companyCode}) AS "CompanyName"
+        ,		MA.ManagerID AS "ManagerID"	
+        ,		MA.TaxMailAddress AS "TaxMailAddress"
+        ,		BASE.DisplayName AS "DisplayName"
+        ,		TO_CHAR(MA.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+        FROM ACT_MANAGER MA
+        LEFT OUTER JOIN
+        		SYS_OBJECT_USER BASE
+        ON		BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND	(	
+					UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')	OR 
+					UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test = "startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate  BETWEEN TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS') 
+    	</if>
+    	<if test = "startDD == null and startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  <= TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+    	<if test = "startDD != null and startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  >= TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ManagerID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxMailAddress")'>"TaxMailAddress"</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>"DisplayName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+    <!-- 카운트 -->
+    <select id="getManagerListCnt" resultType="java.lang.Long">
+        /*
+        account.manager.getManagerListCnt
+        */
+        SELECT COUNT(*)
+        FROM ACT_MANAGER MA
+        LEFT OUTER JOIN
+        		SYS_OBJECT_USER BASE
+        ON		BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND	(	
+					UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')	OR
+					UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test = "startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate  BETWEEN TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS') 
+    	</if>
+    	<if test = "startDD == null and startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  <= TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+    	<if test = "startDD != null and startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  >= TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+	</select>
+	
+    <!-- 담당자 등록 -->
+    <insert id="insertManagerInfo" parameterType="cmap">
+        /*
+        account.manager.insertManagerInfo
+        */
+        INSERT INTO ACT_MANAGER (
+        	CompanyCode
+	    ,	ManagerUserCode
+        ,	TaxMailAddress
+        ,	RegisterID
+        ,	RegistDate
+        
+        ) VALUES (
+    		#{CompanyCode}
+        ,	#{ManagerUserCode}
+        ,	#{TaxMailAddress}
+        ,	#{UR_Code}
+		,	SYSDATE
+        )
+        
+    </insert>
+    
+	<update id="updateManagerInfo" parameterType="cmap">
+	/*
+	account.manager.updateManagerInfo
+	담당자 수정
+	*/
+	UPDATE ACT_MANAGER
+	SET CompanyCode = #{CompanyCode}
+		, ManagerUserCode = #{ManagerUserCode}
+		, TaxMailAddress = #{TaxMailAddress}
+	WHERE ManagerID = #{ManagerID}
+	</update>
+        
+    <!-- 담당자 삭제 -->
+    <delete id="deleteManagerInfo">
+        /*
+        account.manager.deleteManagerInfo
+        */
+    	DELETE FROM ACT_MANAGER
+    	WHERE ManagerID = #{managerID}
+    </delete>
+    
+    <!-- 담당자 카운트 -->
+    <select id="getManagerCnt" resultType="java.lang.Long">
+        /*
+        account.manager.getManagerCnt
+        */
+        SELECT COUNT(*)
+        FROM 	ACT_MANAGER
+        WHERE 	CompanyCode		= #{CompanyCode}
+        AND		ManagerUserCode	= #{ManagerUserCode}
+        AND 	UPPER(TaxMailAddress) = UPPER(#{TaxMailAddress})
+        
+    </select>
+    
+    <!-- 담당자 엑셀 다운로드 -->
+    <select id="managerExcelDownload" parameterType="cmap" resultType="cmap">
+        /*
+        account.manager.managerExcelDownload
+        */
+        SELECT	
+        		MA.CompanyCode AS "CompanyCode"
+        ,		FN_GETACTBASECODENAME('CompanyCode', MA.CompanyCode, #{companyCode}) AS "CompanyName"
+        ,		MA.ManagerID AS "ManagerID"	
+        ,		MA.TaxMailAddress AS "TaxMailAddress" 
+        ,		BASE.DisplayName AS "DisplayName"
+        ,		TO_CHAR(MA.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+        FROM ACT_MANAGER MA
+        LEFT OUTER JOIN
+        		SYS_OBJECT_USER BASE
+        ON		BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND	(	
+					UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')	OR
+					UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND UPPER(MA.TaxMailAddress) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND UPPER(BASE.DisplayName) LIKE UPPER('%' || #{searchStr} || '%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test = "startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate  BETWEEN TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS') 
+    	</if>
+    	<if test = "startDD == null and startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  <= TO_DATE(#{endDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+    	<if test = "startDD != null and startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate  >= TO_DATE(#{startDD},'YYYY-MM-DD HH24:MI:SS')
+    	    ]]>
+    	</if>
+		ORDER BY ManagerID
+		</select>
+		
+		<select id="selectManagerInfo" parameterType="cmap" resultType="cmap">
+			/*
+			account.manager.selectManagerInfo
+			담당자 상세조회
+			*/
+			
+			SELECT 
+				  MA.CompanyCode AS "CompanyCode"
+				, MA.ManagerID AS "ManagerID"
+				, MA.TaxMailAddress AS "TaxMailAddress"
+				, MA.ManagerUserCode AS "ManagerUserCode"
+				, USR.DisplayName AS "ManagerUserName"
+			FROM ACT_MANAGER MA
+			INNER JOIN SYS_OBJECT_USER USR
+			ON USR.UserCode = MA.ManagerUserCode
+			WHERE MA.ManagerID = #{ManagerID}
+		</select>
+    
+</mapper>

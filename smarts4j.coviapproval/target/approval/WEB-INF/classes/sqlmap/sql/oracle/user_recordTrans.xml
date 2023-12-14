@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.record.trans">
+
+	<select id="selectRecordGFileData" parameterType="cmap" resultType="cmap">
+		SELECT	GRF.RECORDDEPTCODE, GRF.RECORDPRODUCTNAME, GRF.PRODUCTYEAR, GRF.SERIESNAME, GRF.SERIESCODE, GRF.RECORDSEQ, GRF.RECORDCOUNT, GRF.RECORDSUBJECT, GRF.RECORDTYPE
+			, GRF.ENDYEAR, GRF.KEEPPERIOD, GRF.KEEPMETHOD, GRF.KEEPPLACE, GRF.PROVIDEYN, GRF.PROVIDEENDDATE, NULL AS PROVIDEREASON, GRF.WORKCHARGER, GRF.OLDRECORDCLASSNUM, GRF.RECORDCLASS
+			, GRF.EDITCHECK, GRF.RECORDPAGECOUNT
+			, LPAD((SELECT COUNT(*) FROM GOV_RECORD_DOC X WHERE X.RECORDCLASSNUM = GRF.RECORDCLASSNUM), 3, 0) RECORDREGISTEREDCOUNT
+			, LPAD(
+                    (SELECT COUNT(*) FROM GOV_RECORD_DOC X WHERE X.RECORDCLASSNUM = GRF.RECORDCLASSNUM) +
+                    (SELECT COUNT(*) FROM GOV_RECORD_DOC X
+		  			JOIN SYS_FILE B ON X.FORMINSTID = B.MESSAGEID AND B.SERVICETYPE = 'Approval' AND ( B.SAVETYPE = 'FILE' OR B.SAVETYPE = 'ATTACH')
+		  			WHERE X.RECORDCLASSNUM = GRF.RECORDCLASSNUM) 
+                    , 5, 0) RECORDFILECOUNT
+			, GRF.TAKEOVERCHECK, GRF.RECORDDEPTCODE_1, GRF.SERIESCODE_1, GRF.PRODUCTYEAR_1
+			, GRF.RECORDSEQ_1, GRF.RECORDCOUNT_1, GRF.RECORDCLASSNUM, GRF.RECORDFILECODE, GRF.SERIESPATH, GRF.RECORDSTATUS, GRF.REGISTERID, GRF.REGISTDATE, GRF.MODIFIERID, GRF.MODIFYDATE
+			, GRF.DELETEDATE
+		FROM GOV_RECORD_GFILE GRF
+		WHERE GRF.DELETEDATE IS NULL
+		<if test="endYear != null and endYear != '' and recordDeptCode != null and recordDeptCode != ''">
+			AND GRF.ENDYEAR = #{endYear} AND GRF.RECORDDEPTCODE = #{recordDeptCode}
+		</if>
+		<if test="recordClassNum != null and recordClassNum != '' ">
+			AND GRF.RECORDCLASSNUM = #{recordClassNum}
+		</if>
+		<if test="recordStatusArr != null">
+			AND GRF.RECORDSTATUS IN
+			<foreach collection="recordStatusArr" item="item" index="index" separator="," open="(" close=")">
+				#{item}
+			</foreach>
+		</if>
+		<if test="recordClassNumArr != null">
+			AND GRF.RECORDCLASSNUM IN
+			<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+				#{item}
+			</foreach>
+		</if>
+	</select>
+	
+	<select id="selectRecordDocList_Old" parameterType="cmap" resultType="cmap">
+		SELECT A.*
+		FROM (
+		    SELECT 
+		    	GRD.*, 
+		    
+		    	GRF.PRODUCTYEAR
+		    FROM GOV_RECORD_DOC GRD
+		    	INNER JOIN GOV_RECORD_GFILE GRF ON GRD.RECORDCLASSNUM = GRF.RECORDCLASSNUM
+		    WHERE GRD.DELETEDATE IS NULL
+			AND GRF.RECORDCLASSNUM IN
+			<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+				#{item}
+			</foreach>
+		) A
+		ORDER BY A.RECORDCLASSNUM
+	</select>
+	
+	<select id="selectRecordDocList" parameterType="cmap" resultType="cmap">
+		SELECT A.*
+		FROM (
+		    SELECT 
+		    	 GRD.RECORDDOCUMENTID
+		        ,GRD.RECORDDEPTCODE 
+		        ,GRD.RECORDPRODUCTNAME 
+		        ,GRD.REGISTCHECK 
+		        ,GRD.PRODUCTDATE
+		        ,GRD.PRODUCTNUM 
+		        ,GRD.OLDPRODUCTNUM 
+		        ,GRD.ATTACHNUM
+		        ,GRD.RECORDSUBJECT 
+		        ,GRD.RECORDPAGECOUNT 
+		        ,GRD.APPROVALNAME 
+		        ,GRD.PROPOSALNAME
+		        ,GRD.COMPLETEDATE 
+		        ,GRD.RECEIPTNAME
+		        ,GRD.DISTNUM 
+		        ,GRD.RECORDSEQ
+		        ,GRD.RECORDCHECK
+		        ,(GRF.RECORDDEPTCODE || GRF.SERIESCODE || GRF.PRODUCTYEAR || GRF.RECORDSEQ || GRF.RECORDCOUNT) AS "RECORDCLASSNUM"
+		        ,GRD.SPECIALRECORD
+		        ,GRD.RELEASECHECK
+		        ,GRD.RELEASERESTRICTION
+		        ,GRD.KEEPPERIOD
+		        ,GRD.CONTENTSUMMARY 
+		        ,GRD.RECORDTYPE
+		        ,GRD.RECORDCLASS
+		        ,GRD.MODIFYCHECK
+		        ,GRD.REJECTCHECK
+		        ,GRD.APPROVALDOCLINK
+		        ,GRD.RECORDFILEPATH
+		        ,GRD.SECURELEVEL
+		        ,GRD.DIVISIONTYPE
+		        ,GRD.FORMINSTID
+		        ,GRD.PARENTFORMINSTID
+		        ,GRD.DELETEDATE
+		        ,GRD.MODIFYDATE
+		        --,GRD.CHECKFLAG
+		        ,GRF.PRODUCTYEAR
+		    FROM GOV_RECORD_DOC GRD
+		    	INNER JOIN GOV_RECORD_GFILE GRF ON GRD.RECORDCLASSNUM = GRF.RECORDCLASSNUM
+		    WHERE GRD.DELETEDATE IS NULL
+			AND GRF.RECORDCLASSNUM IN
+			<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+				#{item}
+			</foreach>
+		) A
+		ORDER BY A.RECORDCLASSNUM
+	</select>
+	
+					
+	<select id="selectRecordDocPageList" parameterType="cmap" resultType="cmap">
+		SELECT A.*
+		FROM (
+		    SELECT
+	           	GRD.*, GRF.PRODUCTYEAR, SF.FILEPATH, SF.FILENAME, SF.SAVEDNAME, SF.EXTENTION, SF.SIZE_, '001' AS FILEPAGECOUNT,
+                TO_CHAR(ROW_NUMBER() OVER(PARTITION BY GRD.RECORDDOCUMENTID ORDER BY SF.SEQ, SF.FILENAME), 'FM00') AS FILESEQ
+	        FROM
+	            GOV_RECORD_DOC     GRD
+	            INNER JOIN GOV_RECORD_GFILE   GRF ON GRD.RECORDCLASSNUM = GRF.RECORDCLASSNUM
+	            INNER JOIN SYS_FILE SF ON GRD.FORMINSTID = SF.MESSAGEID AND SF.SERVICETYPE = 'Approval' AND ( SF.SAVETYPE = 'FILE' OR SF.SAVETYPE = 'ATTACH')
+	        WHERE
+	            GRD.DELETEDATE IS NULL
+	            AND GRD.RECORDDEPTCODE = GRF.RECORDDEPTCODE
+				AND GRF.RECORDCLASSNUM IN
+				<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+	        ORDER BY GRD.RECORDCLASSNUM, GRD.PRODUCTNUM, TO_NUMBER(SEQ)
+		) A
+		WHERE 1=1
+	</select>
+	
+	<select id="selectRecordHistoryList" parameterType="cmap" resultType="cmap">
+			SELECT A.*
+			FROM(
+				SELECT GRF.RECORDDEPTCODE, GRF.SERIESCODE, GRF.PRODUCTYEAR, GRF.RECORDSEQ, GRF.RECORDCOUNT, 
+					GRGH.BEFORESUBJECT AS RECORDSUBJECTBEFORE, GRGH.AFTERSUBJECT AS RECORDSUBJECTAFTER,
+					GRGH.BEFORETYPE AS RECORDTYPEBEFORE, GRGH.AFTERTYPE AS RECORDTYPEAFTER, TO_CHAR(GRGH.MODIFYDATE, 'YYYYMMDD') MODIFYDATE, GRGH.MODIFYREASON, SOU.DISPLAYNAME AS MODIFYNAME
+				FROM GOV_RECORD_GFILE GRF
+					INNER JOIN GOV_RECORD_GFILE_HISTORY GRGH ON GRF.RECORDCLASSNUM = GRGH.RECORDCLASSNUM
+					LEFT OUTER JOIN SYS_OBJECT_USER SOU ON SOU.USERCODE = GRGH.MODIFIERID
+				WHERE GRF.DELETEDATE IS NULL
+				AND GRF.RECORDCLASSNUM IN
+				<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+				ORDER BY GFILEHISTORYID
+			) A
+	</select>
+	
+	
+	<update id="updateRecordGfileStatus" parameterType="cmap">
+		UPDATE GOV_RECORD_GFILE GRF
+			SET  RECORDSTATUS = DECODE(RECORDSTATUS, '4', RECORDSTATUS, #{recordStatus})
+		WHERE GRF.DELETEDATE IS NULL
+			<if test="endYear != null and endYear != '' and recordDeptCode != null and recordDeptCode != ''">
+				AND GRF.ENDYEAR = #{endYear} AND GRF.RECORDDEPTCODE = #{recordDeptCode}
+			</if>
+			<if test="seriesCode != null and seriesCode != '' ">
+				AND GRF.SERIESCODE = #{seriesCode} 
+			</if>
+			<if test="recordSeq != null and recordSeq != '' ">
+				AND GRF.RECORDSEQ = #{recordSeq} 
+			</if>
+			<if test="recordCount != null and recordCount != '' ">
+				AND GRF.RECORDCOUNT = #{recordCount} 
+			</if>
+			<if test="recordClassNum != null and recordClassNum != '' ">
+				AND GRF.RECORDCLASSNUM = #{recordClassNum}
+			</if>
+			<if test="recordClassNumArr != null">
+				AND GRF.RECORDCLASSNUM IN
+				<foreach collection="recordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+			</if>
+	</update>
+	
+	
+	<select id="selectJwfForminstance" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM( 
+		    SELECT * FROM JWF_PROCESSARCHIVE JF WHERE JF.FORMINSTID = #{forminstid} AND JF.PARENTPROCESSID = '0'
+		) A
+	</select>
+	
+	<select id="selectSendMailList" resultType="cmap">
+		SELECT 'User' AS Type
+				, GM.UserCode AS Code
+				, NVL(UR.DisplayName, '') AS CodeName
+				, NVL(UR.MailAddress, '') AS MailAddress
+				, GM.GroupMemberID AS MemberID
+		FROM SYS_OBJECT_GROUP_MEMBER GM
+		LEFT JOIN SYS_OBJECT_USER UR ON GM.UserCode = UR.UserCode
+		WHERE GM.GroupCode = 'RecordAdmin'
+	</select>
+	
+</mapper>

@@ -1,0 +1,2455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.govDoc">
+
+	<resultMap type="java.lang.String" id="resultMapProcessGov">
+		<result property="LOG" 	column="LOG" 		jdbcType="CLOB" javaType="java.lang.String" />
+	</resultMap>
+
+	 <select id="selectProcessGovLogDetail" parameterType="cmap" resultType="cmap">
+	 		WITH HIS AS (
+				SELECT 	UNIQUE_ID 
+						,SEND_USER 
+						,STATUS 
+						,PROCESS_DT 
+						,REQ_RESEND_DT
+						,RESEND_DT
+						,LOG_YN
+						,SEND_ID
+						,( SELECT OU FROM JWF_PROCESSGOV_LDAP WHERE OUCODE = SEND_ID ) ORG_NM
+						,RECEIVE_USER
+						,DOC_ID
+						,JP.FORMINSTID FORM_INST_ID
+						,JP.PROCESSID PROCESS_ID
+						,HISTORY_SEQ
+						,COUNT(1) OVER() TOTAL_COUNT
+				FROM	JWF_PROCESSGOV_HISTORY	JPH
+				LEFT OUTER JOIN JWF_PROCESSGOV JP
+				ON JPH.UNIQUE_ID = JP.UNIQUEID
+				WHERE JPH.UNIQUE_ID = #{uniqueId}
+				<if test="sendID != null and !sendID.equals('')" > AND SEND_ID = #{sendID} </if>	
+				ORDER BY PROCESS_DT DESC
+			)			
+			SELECT A.*
+			FROM (
+				SELECT 	ROWNUM R_NUM
+						,HIS.*			
+				FROM HIS
+				<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+			) A
+			<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>	 	
+	 </select>	
+	
+	 <select id="selectReceiveList" parameterType="String" resultType="hashMap">
+	 		SELECT 	SEND_ID
+	 				,( SELECT UCORGFULLNAME FROM JWF_PROCESSGOV_LDAP WHERE OUCODE = SEND_ID ) ORG_NM
+	 		FROM	JWF_PROCESSGOV_HISTORY
+			WHERE 	UNIQUE_ID = #{value}
+			GROUP BY SEND_ID
+			ORDER BY ORG_NM
+	 </select>
+
+    <select id="selectGovAuthManage" parameterType="cmap" resultType="String">
+		SELECT ADMINYN
+		FROM GOV_AUTHMANAGE
+		WHERE AUTHORITYID = #{userId}
+		AND	ROWNUM = 1
+	</select>
+	
+	<select id="selectLog" parameterType="hashmap" resultType="java.lang.String" resultMap="resultMapProcessGov">
+		SELECT  LOG				
+		FROM 	JWF_PROCESSGOV_HISTORY DTL
+		WHERE 	HISTORY_SEQ = #{historySeq}		
+	</select>	
+	
+	<select id="selectGovHistoryList" parameterType="cmap" resultType="cmap">
+		WITH HISTORY_LIST AS (	
+			SELECT 	UNIQUE_ID 
+					,JPR.PROCESSSUBJECT 
+					,HIS.FILE_NAME 
+					,HIS.PROCESS_DT 
+					,HIS.STATUS 
+					,LOG_YN 		
+					,JPR.LINKURL
+					,HISTORY_SEQ
+					,COUNT(1) OVER() TOTAL_COUNT
+					,JPR.DOCTYPE
+					,HIS.INSERT_DT
+			FROM JWF_PROCESSGOV_HISTORY HIS
+			LEFT OUTER JOIN JWF_PROCESSGOV_RECEIVE JPR
+			ON HIS.UNIQUE_ID = JPR.UNIQUEID 
+			WHERE LOG_TYPE = 'RECEIVE'
+			AND	SEQ = 1		  	
+		  	<if test=" keyword != null and keyword != '' ">
+				<if test=" fieldName.equals('title') "> 		AND	PROCESSSUBJECT 	LIKE '%' || #{keyword} || '%' </if>				
+			</if>
+		  	<if test=" fromDate != null and !fromDate.equals('') ">
+				<![CDATA[
+					AND	PROCESS_DT >= #{fromDate}
+					AND	PROCESS_DT <= #{toDate}
+				]]>	
+			</if>
+			<choose>
+		        <when test="receiveStatus.equals('send')">
+					AND STATUS in ('send','resend') 
+		        </when>
+		        <when test="receiveStatus.equals('fail')">
+					AND STATUS in ('fail') 
+		        </when>
+		    </choose>
+		    <if test="sortBy != null and !sortBy.equals('') ">			     
+				ORDER BY 
+		   		<choose>
+					<when test='sortBy.equalsIgnoreCase("PROCESSSUBJECT")'>PROCESSSUBJECT</when>		   		
+					<when test='sortBy.equalsIgnoreCase("RECEIVERNAME")'>RECEIVERNAME</when>
+					<when test='sortBy.equalsIgnoreCase("DOCNUMBER")'>DOCNUMBER</when>
+					<when test='sortBy.equalsIgnoreCase("INITIATORNAME")'>INITIATORNAME</when>
+					<when test='sortBy.equalsIgnoreCase("SENDDATE")'>SENDDATE</when>
+					<when test='sortBy.equalsIgnoreCase("SEND_STATUS")'>SEND_STATUS</when>
+					<when test='sortBy.equalsIgnoreCase("INSERTED")'>INSERTED</when>
+					<when test='sortBy.equalsIgnoreCase("DOCTYPE")'>DOCTYPE</when>
+					<when test='sortBy.equalsIgnoreCase("DISTRIBDATE")'>DISTRIBDATE</when>
+					<when test='sortBy.equalsIgnoreCase("DISTRIBDEPTNAME")'>DISTRIBDEPTNAME</when>
+					<when test='sortBy.equalsIgnoreCase("FILE_NAME")'>FILE_NAME</when>
+					<when test='sortBy.equalsIgnoreCase("PROCESS_DT")'>PROCESS_DT</when>
+					<when test='sortBy.equalsIgnoreCase("STATUS")'>STATUS</when>
+					<otherwise>UNIQUE_ID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>  
+		   	</if>			
+		)
+		SELECT ROWNUM
+			   ,A.*
+		FROM (
+			SELECT 	HIS.*			
+					,ROWNUM R_NUM
+			FROM HISTORY_LIST HIS			
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+    
+    <!-- 문서유통 발송함 목록 쿼리 (엑셀저장 쿼리) -->
+	<select id="selectGovApvSendCmplList" parameterType="cmap" resultType="cmap">
+		WITH HIS AS (
+			SELECT UNIQUE_ID, MAX(PROCESS_DT) AS LAST_SEND_DT
+			FROM JWF_PROCESSGOV_HISTORY
+			GROUP BY UNIQUE_ID
+		)
+		,AUTHMANAGE AS (
+			SELECT MGRUNITCODE
+			FROM GOV_AUTHMANAGE
+			GROUP BY MGRUNITCODE
+		)
+		,PROCESSGOV AS (
+			SELECT * FROM (
+				SELECT  G.DOCNUMBER
+				 		,TO_CLOB(G.RECEIVERNAME) RECEIVERNAME
+				 		,G.PROCESSSUBJECT
+				 		,G.SENDDATE
+				 		,G.DOCTYPE
+				 		,G.INITIATORID
+				 		,Fn_BaseGetDictionary_S(#{lang}, G.INITIATORNAME) AS INITIATORNAME
+				 		,Fn_BaseGetDictionary_S(#{lang}, G.INITIATORUNITNAME) AS INITIATORUNITNAME
+				 		,G.PROCESSID
+						,G.FORMINSTID
+						,G.LINKURL
+						,G.UNIQUEID
+						,G.INSERTED
+						,COUNT(*) OVER() TOTAL_COUNT
+						,Fn_BaseGetDictionary_S(#{lang}, SBC.MULTICODENAME) AS GOVDOC_STATUS
+						,H.LAST_SEND_DT
+				FROM JWF_PROCESSGOV G
+				LEFT OUTER JOIN AUTHMANAGE M ON G.INITIATORUNITID = M.MGRUNITCODE
+				LEFT OUTER JOIN SYS_BASE_CODE SBC ON (CASE WHEN G.DOCTYPE IN ('send', 'arrive', 'receive', 'accept', 'resend') THEN 'complete' ELSE G.DOCTYPE END) = SBC.CODE AND SBC.CODEGROUP = 'GovDocStatus' AND SBC.ISUSE = 'Y'
+				LEFT OUTER JOIN HIS H ON G.UNIQUEID = H.UNIQUE_ID
+				WHERE 1=1
+				<trim prefix="AND DOCTYPE IN">
+					<if test=" govDocs.equals('sendWait') ">  	 ('wait','send','fail','arrive','receive','accept','req-resend','resend','return') </if>					
+				</trim>
+				<if test=" keyword != null and keyword != '' ">
+					<if test=" fieldName.equals('title') "> 		AND	PROCESSSUBJECT 		LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('writer') "> 		AND	INITIATORNAME 		LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('dest') "> 			AND	RECEIVERNAME 		LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('docnumber') "> 	AND	DOCNUMBER 			LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('writedept') "> 	AND	INITIATORUNITNAME 	LIKE '%' || #{keyword} || '%' </if>
+				</if>
+				<if test=" fromDate != null and !fromDate.equals('') ">
+					<![CDATA[
+						AND	SENDDATE >= #{fromDate}
+						AND	SENDDATE <= #{toDate}
+					]]>
+				</if>
+				<choose>
+			        <when test="govDocStatus.equals('complete')">
+						AND DOCTYPE IN ('send', 'arrive', 'receive', 'accept', 'resend')
+			        </when>
+					<when test=" govDocStatus != null and govDocStatus != '' ">
+						AND DOCTYPE = #{govDocStatus}
+			        </when>
+			    </choose>
+			)
+		    <if test="sortBy != null and !sortBy.equals('') ">
+				ORDER BY 
+		   		<choose>
+					<when test='sortBy.equalsIgnoreCase("PROCESSSUBJECT")'>PROCESSSUBJECT</when>
+					<when test='sortBy.equalsIgnoreCase("RECEIVERNAME")'>RECEIVERNAME</when>
+					<when test='sortBy.equalsIgnoreCase("DOCNUMBER")'>DOCNUMBER</when>
+					<when test='sortBy.equalsIgnoreCase("INITIATORNAME")'>INITIATORNAME</when>
+					<when test='sortBy.equalsIgnoreCase("INITIATORUNITNAME")'>INITIATORUNITNAME</when>
+					<when test='sortBy.equalsIgnoreCase("SENDDATE")'>SENDDATE</when>
+					<when test='sortBy.equalsIgnoreCase("SEND_STATUS")'>SEND_STATUS</when>
+					<when test='sortBy.equalsIgnoreCase("INSERTED")'>INSERTED</when>
+					<when test='sortBy.equalsIgnoreCase("DOCTYPE")'>DOCTYPE</when>
+					<when test='sortBy.equalsIgnoreCase("DISTRIBDATE")'>DISTRIBDATE</when>
+					<when test='sortBy.equalsIgnoreCase("DISTRIBDEPTNAME")'>DISTRIBDEPTNAME</when>
+					<when test='sortBy.equalsIgnoreCase("FILE_NAME")'>FILE_NAME</when>
+					<when test='sortBy.equalsIgnoreCase("PROCESS_DT")'>PROCESS_DT</when>
+					<when test='sortBy.equalsIgnoreCase("STATUS")'>STATUS</when>
+					<when test='sortBy.equalsIgnoreCase("GOVDOC_STATUS")'>GOVDOC_STATUS</when>
+					<otherwise>SENDDATE</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+		   	</if>
+		)
+		SELECT 	PROCESSID AS PROCESS_ID
+	   		   	,FORMINSTID AS FORM_INST_ID
+				,DOCNUMBER
+			   	,RECEIVERNAME
+			   	,PROCESSSUBJECT
+			   	,SENDDATE
+			   	,TO_CHAR(INSERTED,'yyyy-MM-dd hh24:mi:ss') AS INSERTED
+			   	,INITIATORID
+			   	,INITIATORNAME
+			   	,INITIATORUNITNAME
+			   	,DOCTYPE
+			 	,TOTAL_COUNT
+			 	,LINKURL
+			 	,UNIQUEID
+			 	,DOCTYPE
+			 	,GOVDOC_STATUS
+			 	,LAST_SEND_DT
+		FROM (
+			SELECT 	ROWNUM R_NUM
+					,JP.*
+			FROM PROCESSGOV JP
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	
+	<select id="selectGovApvReceive" parameterType="cmap" resultType="cmap">
+		WITH CTE_GOVDOC AS (			
+				SELECT  A.PROCESSSUBJECT
+						,A.DOCUSER
+						,A.DOCID
+						,A.DOCNUMBER
+						,A.RECEIVEENT
+						,A.INSERTED
+						,TO_CHAR(A.LINKURL) AS LINKURL
+						,A.DISPLAYSENDNAME AS RECEIVERNAME						
+						,A.DOCTYPE
+						,A.PROCESSID
+						,A.RECEIVENO
+						,A.UNIQUEID
+						,A.FORMINSTID
+						,A.INITIATORNAME						
+						,TO_CHAR(TO_DATE(A.DISTRIBDATE,'yyyyMMddhh24miss'),'yyyy-MM-dd hh24:mi:ss') DISTRIBDATE		
+						,TO_CHAR(TO_DATE(ACCEPTDATE,'yyyyMMddhh24miss'),'yyyy-MM-dd hh24:mi:ss') ACCEPTDATE
+						,Fn_BaseGetDictionary_S(#{lang},A.DISTRIBDEPTNAME) DISTRIBDEPTNAME									
+						,A.SENDTYPE
+						,A.SECURITYOPTION
+						,A.SECURITYTEXT
+						,Fn_BaseGetDictionary_S(#{lang}, SBC.MULTICODENAME) AS GOVDOC_STATUS
+				FROM JWF_PROCESSGOV_RECEIVE A
+				LEFT OUTER JOIN SYS_BASE_CODE SBC ON A.DOCTYPE = SBC.CODE AND SBC.CODEGROUP = 'GovDocStatus' AND SBC.ISUSE = 'Y'
+				<if test='govDocs.equals("receiveWait")'>WHERE SENDTYPE = '1'</if>
+				<if test='govDocs.equals("receiveGov24Wait")'>WHERE SENDTYPE IN ('2','3')</if>
+		), DATA AS (
+			SELECT G.*
+				   ,COUNT(1) OVER() TOTAL_COUNT 
+			FROM CTE_GOVDOC G
+			<trim prefix="WHERE DOCTYPE IN">
+					<choose>
+						<when test=' govDocs.equals("receiveWait") '>		('send','resend','accept','distribute','req-resend','return')	</when>
+						<when test=' govDocs.equals("receiveGov24Wait") '>	('send','resend','accept','deny','req-resend')	</when>
+						<when test=' govDocs.equals("receiveProcess") '>	('distribute','return')	</when>
+					</choose>				
+				</trim>
+				<if test=" keyword != null and !keyword.equals('') ">
+					<if test=" fieldName.equals('title') "> 	AND	PROCESSSUBJECT 		LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('writer') "> 	AND	DOCUSER 			LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('sent') "> 		AND	DISPLAYSENDNAME 	LIKE '%' || #{keyword} || '%' </if>			
+					<if test=" fieldName.equals('docnumber') "> AND	DOCNUMBER 			LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('senddept') ">	AND	RECEIVERNAME 		LIKE '%' || #{keyword} || '%' </if>			
+				</if>
+				<if test=" fromDate != null and !fromDate.equals('') ">
+					<![CDATA[
+						AND	INSERTED >= #{fromDate}
+						AND	INSERTED <= #{toDate}
+					]]>
+				</if>
+				<choose>
+			        <when test="govDocStatus.equals('send')">
+						AND DOCTYPE IN ('send','resend')
+			        </when>
+			        <when test=" govDocStatus != null and govDocStatus != '' ">
+						AND DOCTYPE = #{govDocStatus}
+			        </when>
+			        <when test=" govDocSecurity != null and govDocSecurity != '' ">
+						AND SECURITYOPTION = #{govDocSecurity}
+			        </when>
+			    </choose>				
+				<if test="sortBy != null and !sortBy.equals('') ">			     
+					ORDER BY 
+			   		<choose>
+						<when test='sortBy.equalsIgnoreCase("PROCESSSUBJECT")'>PROCESSSUBJECT</when>		   		
+						<when test='sortBy.equalsIgnoreCase("RECEIVERNAME")'>RECEIVERNAME</when>
+						<when test='sortBy.equalsIgnoreCase("DOCNUMBER")'>DOCNUMBER</when>
+						<when test='sortBy.equalsIgnoreCase("INITIATORNAME")'>INITIATORNAME</when>
+						<when test='sortBy.equalsIgnoreCase("SENDDATE")'>SENDDATE</when>
+						<when test='sortBy.equalsIgnoreCase("SEND_STATUS")'>SEND_STATUS</when>
+						<when test='sortBy.equalsIgnoreCase("INSERTED")'>INSERTED</when>
+						<when test='sortBy.equalsIgnoreCase("DOCTYPE")'>DOCTYPE</when>
+						<when test='sortBy.equalsIgnoreCase("DISTRIBDATE")'>DISTRIBDATE</when>
+						<when test='sortBy.equalsIgnoreCase("DISTRIBDEPTNAME")'>DISTRIBDEPTNAME</when>
+						<when test='sortBy.equalsIgnoreCase("FILE_NAME")'>FILE_NAME</when>
+						<when test='sortBy.equalsIgnoreCase("PROCESS_DT")'>PROCESS_DT</when>
+						<when test='sortBy.equalsIgnoreCase("STATUS")'>STATUS</when>
+						<when test='sortBy.equalsIgnoreCase("SENDTYPE")'>SENDTYPE</when>
+						<when test='sortBy.equalsIgnoreCase("GOVDOC_STATUS")'>GOVDOC_STATUS</when>
+						<otherwise>UNIQUEID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>  
+		     	</if>
+		)
+		SELECT 	PROCESSSUBJECT
+				,INITIATORNAME 	
+				,DOCID AS "DOC_ID"
+				,DOCNUMBER
+				,TO_CHAR( INSERTED , 'yyyy-MM-dd hh24:mi:ss' ) AS INSERTED
+				,RECEIVERNAME	
+				,DOCTYPE
+				,PROCESSID AS PROCESS_ID							
+				,UNIQUEID
+				,RECEIVENO
+				,FORMINSTID							
+				,ACCEPTDATE
+				,LINKURL				
+				,DISTRIBDEPTNAME	
+				,DISTRIBDATE
+				,TOTAL_COUNT			
+				,SENDTYPE
+				,GOVDOC_STATUS
+				,SECURITYOPTION
+				,SECURITYTEXT
+		FROM(
+			SELECT 	ROWNUM R_NUM					
+					,CTE.*
+			FROM 	DATA CTE
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	
+	<select id="selectGovSendInfoHistory" parameterType="cmap" resultType="cmap">
+		SELECT  JPR.PROCESSSUBJECT
+				,JPR.DOCNUMBER
+				,TO_CHAR(JPR.INSERTED,'yyyy-MM-dd') INSERTED
+				,JPR.DISPLAYSENDNAME
+				,JPR.ACCEPTNUMBER
+				,JPR.UNIQUEID
+				,JPR.ACCEPTORNAME						
+				,TO_CHAR(TO_DATE(JPR.ACCEPTDATE,'yyyyMMddhh24miss'),'yyyy-MM-dd') ACCEPTDATE
+				,JPT.PUBDOC_FOOT_PUBLICATION AS PUBLICATION 									
+		FROM JWF_PROCESSGOV_RECEIVE JPR
+		LEFT OUTER JOIN JWF_PROCESSGOV_RECEIVE_TEMP JPT
+		ON JPR.UNIQUEID = JPT.UNIQUE_ID 
+		WHERE UNIQUEID = #{uniqueId}
+	</select>
+	
+	<select id="selectGovAuthManageList" parameterType="cmap" resultType="cmap">
+		SELECT A.AUTHORITYID, U.DisplayName AS "AUTHORITYNAME", A.ADMINYN
+		FROM (
+			SELECT AUTHORITYID, ADMINYN
+			FROM GOV_AUTHMANAGE
+			WHERE ADMINYN IS NOT NULL
+			GROUP BY AUTHORITYID, ADMINYN
+			<if  test=' adminYN == "N" '> 
+				HAVING AUTHORITYID = #{userId}
+			</if>
+		) A
+		INNER JOIN SYS_OBJECT_USER U
+			ON A.AUTHORITYID = U.UserCode
+		<if  test=' adminYN == "Y" '> 
+			WHERE (ADMINYN = 'Y' AND A.AUTHORITYID = #{userId})
+			OR ADMINYN = 'N'
+		</if>
+		ORDER BY A.ADMINYN DESC, A.AUTHORITYID
+	</select>
+	
+	<select id="selectGovManageList" parameterType="cmap" resultType="cmap">		
+		WITH MANAGE AS (	
+			SELECT 	A.AUTHORITYID AS authorityId
+					,NVL(B.DisplayName, A.AUTHORITYID) AS AUTHORITY_NAME 
+					,A.ADMINYN
+					,C.DisplayName||'('||A.MGRUNITCODE||')' AS "MGRUNITNM"
+					,A.MGRUNITCODE
+					,C.DisplayName
+					,A.REGID
+			FROM GOV_AUTHMANAGE A
+			LEFT OUTER JOIN SYS_OBJECT_USER B
+			ON A.AUTHORITYID = B.USERCODE 
+			LEFT OUTER JOIN SYS_OBJECT_GROUP C
+			ON A.MGRUNITCODE = C.GROUPCODE 
+			WHERE 1=1
+			<if test=' null != authorityId '>
+				AND	AUTHORITYID = #{authorityId}
+			</if>
+			ORDER BY REGDATE DESC
+		)
+		<choose>
+			<when test=' null != authorityId '>
+				SELECT *
+				FROM MANAGE
+			</when>
+			<otherwise>
+				SELECT ROWNUM R_NUM
+					   ,A.*
+				FROM(
+					SELECT 	authorityId						
+							,AUTHORITY_NAME
+					   		,LISTAGG(MGRUNITNM, ', ') within group (order by AUTHORITYID) AS "LIST_UNIT_NM"			   
+					FROM   MANAGE A		
+					GROUP BY AUTHORITYID,AUTHORITY_NAME
+				) A	
+			</otherwise>
+		</choose>
+		
+		
+	</select>
+	
+	<delete id="deleteGovDocUser" parameterType="cmap">
+		DELETE FROM GOV_AUTHMANAGE
+		WHERE  AUTHORITYID = #{authorityID}
+	</delete>
+	
+	<insert id="insertGovDocUser" parameterType="cmap">
+		INSERT ALL
+         <foreach collection="deptList" item="list" index="index" separator=" ">
+	         INTO GOV_AUTHMANAGE(    
+	         	AUTHORITYID
+				,MGRUNITCODE
+				,ADMINYN
+				,USEYN
+				,REGID
+				,REGDATE
+	        )
+			VALUES
+			(
+				#{authorityID}
+				, #{list.code}
+				, #{adminYN}
+				, 'Y' 	
+				, #{userId}			
+				, SYSDATE
+	        )
+        </foreach>
+        SELECT * FROM DUAL
+	</insert>	
+	
+	<insert id="insertProcessGov" parameterType="cmap">
+		INSERT INTO JWF_PROCESSGOV
+	           (DOCID
+	           ,ProcessID
+	           ,FormInstID
+	           ,ProcessSubject
+	           ,InitiatorID
+	           ,InitiatorName
+	           ,InitiatorUnitID
+	           ,InitiatorUnitName
+	           ,DocNumber
+	           ,INSERTED
+	           ,BodyContext
+	           ,ApprovalContext
+	           ,AttachInfo
+	           ,LinkURL
+	           ,SignImage
+	           ,SendStatus
+	           ,SendAPIMsg
+	           ,DisplaySendName
+	           ,ReceiverName
+	           ,RECEIVER
+	           ,SendDate
+	           ,SenderID
+	           ,SenderName
+	           ,SenderEnt
+	           ,StampID)
+	     SELECT 
+				, #{formInstID}
+				, #{processID}
+				, #{formInstID}
+				, FI.SUBJECT
+				, FI.InitiatorID
+				, FI.InitiatorName
+				, FI.InitiatorUnitID
+				, FI.InitiatorUnitName
+				, #{docNumber}
+				, SYSDATE AS INSERTED
+				, #{bodyContext}
+				, NULL
+				, FI.AttachFileInfo
+				, #{approvalURL}
+				, NULL
+				, 'SENDOFFLINE'
+				, ''
+				, ''
+				, #{govRecieveName}
+				, NULL
+				, SYSDATE
+				, ''
+				, ''
+				, FI.EntCode
+				, '106'
+		  FROM JWF_FORMINSTANCE FI
+		  WHERE FI.FormInstID = #{formInstID}
+	</insert>
+	
+	<insert id="insertProcessGovRec" parameterType="cmap">
+		INSERT INTO JWF_PROCESSGOV_RECEIVE
+           (UNIQUEID
+           , DOCID
+           , ProcessID
+           , FormInstID
+           , ProcessSubject
+           , InitiatorID
+           , InitiatorName
+           , InitiatorUnitID
+           , InitiatorUnitName
+           , DocUser
+           , DocNumber
+           , Inserted
+           , BodyContext
+           , ApprovalContext
+           , AttachInfo
+           , LinkURL
+           , SignImage
+           , DocType
+           , DisplaySendName
+           , ReceiveEnt)
+     VALUES
+           (JWF_PROCESSGOV_UNIQUE_SEQ.nextval
+           ,#{formInstID}
+           ,#{processID}
+           ,#{formInstID}
+           ,#{documentSubject}
+           ,#{initiatorID}
+           ,#{initiatorName}
+           ,#{initiatorUnitID}
+           ,#{initiatorName}
+           ,#{docUser}
+           ,#{docNumber}
+           ,SYSDATE
+           ,#{bodyContext}
+           ,NULL
+           ,#{attachInfo}
+           ,#{linkURL}
+           ,NULL
+           ,#{docType}
+           ,#{dispalySendName}
+           ,#{receiveEnt})
+	</insert>
+	
+	<insert id="insertProcessGovRecAssign" parameterType="cmap">
+		<selectKey keyProperty="MaxSeq" resultType="Integer" order="BEFORE">
+			<![CDATA[ 
+			SELECT NVL(MAX(SEQ), 0) + 1
+			FROM JWF_PROCESSGOV_RECEIVEASSIGN 
+			WHERE DocID = #{docID}
+			]]>
+		</selectKey>
+	
+		INSERT INTO JWF_PROCESSGOV_RECEIVEASSIGN
+		(
+			DOCID
+			, SEQ
+			, AuthorityID
+			, AuthorityName
+			, AuthorityDeptName
+			, InUserID
+			, InUserName
+			, InUserDeptName
+			, PreStatus
+			, STATUS
+			, INSERTED
+		)
+		SELECT #{docID}
+			, #{MaxSeq}
+			, A.Usercode
+			, A.DisplayName
+			, B.DeptName
+			, #{userID}
+			, #{userName}
+			, #{deptName}
+			, (CASE WHEN #{userID} = 'GDocService' THEN 'RECEIVEACCEPT' ELSE  'RECEIVECOMPLETE' END)
+			, #{status}
+			, SYSDATE
+		FROM sys_object_user A
+		INNER JOIN sys_object_user_basegroup B
+			on A.usercode = B.usercode and b.JobType = 'Origin'
+		LEFT OUTER JOIN JWF_PROCESSGOV_RECEIVEASSIGN C -- 이미 지정되어 접수대기 상태인 담당자는 입력 불가
+			ON A.usercode = C.AUTHORITYID
+			AND C.STATUS = 'RECEIVEWAIT'
+			AND C.DocID = #{docID} 
+		WHERE C.DocID IS NULL
+		and A.usercode = #{authorityID}
+	</insert>
+	
+	<update id="updateProcessGovRecAssign" parameterType="cmap">
+		-- 자신의 최근 이력 SEQ값을 UPDATE하기 위해 다시 조회
+		<selectKey keyProperty="CurSeq" resultType="Integer" order="BEFORE">
+			<![CDATA[ 
+			SELECT MAX(SEQ)-1
+			FROM JWF_PROCESSGOV_RECEIVEASSIGN
+			WHERE DocID = #{docID} AND AuthorityID = #{userID}
+			]]>
+		</selectKey>
+	
+		UPDATE JWF_PROCESSGOV_RECEIVEASSIGN
+		SET PRESTATUS = CASE WHEN INUSERID = 'GDocService' THEN 'RECEIVEACCEPT'
+							ELSE  CASE WHEN STATUS = 'RECEIVEWAIT' THEN 'RECEIVECOMPLETE' ELSE STATUS END
+						END
+			, STATUS = 'RECEIVECOMPLETE'
+		WHERE DocID = #{docID}
+		AND SEQ = #{CurSeq}
+		AND AuthorityID = #{userID}
+	</update>	
+	
+	<insert id="insertProcessGovRecAssign2" parameterType="cmap">
+		<selectKey keyProperty="MaxSeq" resultType="Integer" order="BEFORE">
+			<![CDATA[ 
+			SELECT NVL(MAX(SEQ), 0)+1
+			FROM JWF_PROCESSGOV_RECEIVEASSIGN 
+			WHERE DocID = #{docID}
+			]]>
+		</selectKey>
+	
+		INSERT INTO JWF_PROCESSGOV_RECEIVEASSIGN
+		(
+			DOCID
+			, SEQ
+			, AuthorityID
+			, AuthorityName
+			, AuthorityDeptName
+			, InUserID
+			, InUserName
+			, InUserDeptName
+			, PreStatus
+			, STATUS
+			, INSERTED
+		)
+		SELECT #{docID}
+			, #{MaxSeq}
+			, A.GroupCode
+			, A.DisplayName
+			, A.DisplayName
+			, #{userID}
+			, #{userName}
+			, A.DisplayName
+			, (CASE WHEN #{userID} = 'GDocService' THEN 'RECEIVEACCEPT'
+				WHEN #{status} = 'RECEIVEMOVE' THEN 'RECEIVEMOVE'
+				ELSE  'RECEIVECOMPLETE' END)
+			, #{status}
+			, SYSDATE
+		FROM sys_object_group A
+		WHERE A.GroupCode = #{authorityID}
+	</insert>
+	
+	<update id="updateProcessGovRecAssign2" parameterType="cmap">
+		-- 자신의 최근 이력 SEQ값을 UPDATE하기 위해 다시 조회
+		<selectKey keyProperty="CurSeq" resultType="Integer" order="BEFORE">
+			<![CDATA[ 
+			SELECT MAX(SEQ)-1
+			FROM JWF_PROCESSGOV_RECEIVEASSIGN
+			WHERE DocID = #{docID} AND AuthorityID = #{userID}
+			]]>
+		</selectKey>
+	
+		UPDATE JWF_PROCESSGOV_RECEIVEASSIGN
+		SET PreStatus = CASE WHEN InUserID = 'GDocService' THEN 'RECEIVEACCEPT'
+								WHEN #{status} = 'RECEIVEMOVE' THEN 'RECEIVEMOVE_NONE'
+								WHEN STATUS = 'RECEIVECOMPLETE' THEN 'RECEIVEPROCESS'
+							ELSE STATUS END
+			, STATUS = CASE WHEN #{status} = 'RECEIVEMOVE' THEN 'RECEIVEMOVE_NONE'
+							ELSE 'RECEIVEPROCESS' END
+		WHERE DocID = #{docID}
+		AND SEQ = #{CurSeq}
+		AND AuthorityID = #{userID}
+	</update>
+	
+	<insert id="insertDocumentNumber" parameterType="hashmap">
+		MERGE INTO jwf_documentnumber a
+	    USING DUAL
+	       ON (a.FiscalYear = #{fiscalYear}
+	            and a.DeptCode = #{deptCode}
+	            and a.DocListType = #{docListType} )
+	    WHEN MATCHED THEN
+	        UPDATE SET a.SerialNumber = a.SerialNumber+1
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+				FiscalYear,
+				SerialNumber,
+				DocListType,
+				DeptCode,
+				DeptName,
+				CategoryNumber,
+				DisplayedNumber
+			)
+			VALUES
+			(
+				#{fiscalYear},
+				1,
+				#{docListType},
+				#{deptCode},
+				#{deptName},
+				'',
+				''
+			)
+			
+		<selectKey keyProperty="SerialNumber" resultType="Integer" order="AFTER">
+			<![CDATA[ 
+			SELECT SerialNumber as "SerialNumber" 
+			FROM jwf_documentnumber
+			WHERE DeptCode = #{deptCode}
+			AND DocListType = #{docListType}
+			AND FiscalYear = #{fiscalYear}
+			]]>
+		</selectKey>
+	</insert>
+	
+	<update id="updateDocumentNumber" parameterType="hashmap">
+ 	    UPDATE jwf_documentnumber 
+ 	    SET DisplayedNumber = #{displayedNumber}
+ 	    WHERE DeptCode = #{deptCode}
+		AND DocListType = #{docListType}
+		AND FiscalYear = #{fiscalYear}
+		AND SerialNumber = #{SerialNumber}
+ 	</update>
+ 	
+	<select id="selectDocumentNumber" parameterType="cmap" resultType="cmap">
+		SELECT FiscalYear as "FiscalYear"
+			, DocListType as "DocListType"
+			, SerialNumber as "SerialNumber"
+			, DeptCode as "DeptCode"
+			, DeptName as "DeptName"
+			, DisplayedNumber as "DisplayedNumber"
+	    FROM jwf_documentnumber
+	    where DeptCode = #{deptCode}
+	</select>
+	
+	<insert id="updateFormNo" parameterType="cmap">
+		UPDATE JWF_FORMINSTANCE
+		SET ReceiveNo = (ReceiveNo || #{No})
+		WHERE FormInstID = #{formInstID}
+	</insert>
+	
+	<insert id="updateGovSendNo" parameterType="cmap">
+		update JWF_PROCESSGOV
+			set DocNumberSend = #{No}, SendDate = SYSDATE
+		where FormInstID = #{formInstID}
+	</insert>
+	
+	<insert id="updateGovReceiveNo" parameterType="cmap">
+		update JWF_PROCESSGOV_RECEIVE
+			set ReceiveNo = #{No}
+		where FormInstID = #{formInstID}
+	</insert>
+	
+	<update id="updateProcessGovRecvStatus" parameterType="cmap">
+		UPDATE JWF_PROCESSGOV_RECEIVE
+		SET	DOCTYPE = #{status} 
+			<if test=" status != null and status == 'accept' ">
+				,ACCEPTDATE = TO_CHAR(SYSDATE,'yyyymmddhh24miss')
+				,ACCEPTORNAME = #{userId}
+				,ACCEPTNUMBER = #{displayedNumber}
+			</if>
+			<if test=" distribDeptId != null and distribDeptId != '' ">
+				,DISTRIBDEPTID = #{distribDeptId}
+				,DISTRIBDEPTNAME = DISTRIBDEPTNAME||#{distribDeptName}
+				,DISTRIBDATE = TO_CHAR(SYSDATE,'yyyymmddhh24miss')
+			</if>
+		WHERE FORMINSTID =   #{formInstId}
+	</update>
+	
+	
+	<select id="selectDocInfo" parameterType="cmap" resultType="cmap">
+		SELECT FI.SUBJECT
+			, FI.BODYCONTEXT
+			, FM.BODY_HTML
+	    FROM JWF_FORMINSTANCE FI
+			INNER JOIN WF_FORM_GOVDOCS_001 FM
+				ON FI.FORMINSTID = FM.FORMINSTID
+	    where FI.FormInstID = #{formInstID}
+	</select>
+	
+	<update id="updateDocBodyContext" parameterType="cmap">
+		UPDATE JWF_FORMINSTANCE
+		SET BODYCONTEXT = #{bodyContext}
+		WHERE FormInstID = #{formInstID}
+	</update>
+	
+	<select id="selectArrayProc" parameterType="String" resultType="String">
+		SELECT PROCESSID
+	    FROM JWF_PROCESS
+	    where FormInstID = #{FormInstID}
+	</select>	
+	
+	<select id="selectDocSubject" parameterType="cmap" resultType="cmap">
+		SELECT SUBJECT
+	    FROM JWF_FORMINSTANCE
+	    where FormInstID = #{formInstID}
+	</select>
+	
+		
+	<select id="selectGovDocManageList" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		    SELECT A.DeptCode AS "DeptCode"
+				 , A.DeptName AS "DeptName"
+				 , A.ListAuthorityName AS "ListAuthorityName"
+				 , A.ListAuthorityID AS "ListAuthorityID"							
+			FROM (
+				SELECT LISTAGG(SOU.DisplayName, ', ') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityName
+					 , LISTAGG(GDM.AuthorityID, ';') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityID
+					 , GDM.MgrUnitCode AS DeptCode
+					 , SOG.DisplayName AS DeptName
+					 , SOG.SortKey
+					 , SOG.GroupID
+				FROM GOV_DOCMANAGE GDM
+				INNER JOIN SYS_OBJECT_USER SOU ON GDM.AuthorityID = SOU.UserCode
+				INNER JOIN SYS_OBJECT_GROUP SOG ON GDM.MGRUnitCode = SOG.GroupCode
+				WHERE 1 = 1
+				<if test="deptCode != null and deptCode != ''">
+				    AND GDM.MgrUnitCode = #{deptCode}
+				</if>
+				GROUP BY GDM.MgrUnitCode, SOG.DisplayName, SOG.SortKey, SOG.GroupID
+				
+				<if test="deptCode == null or deptCode == ''">
+					UNION
+					
+					SELECT NULL AS ListAuthorityName
+						 , NULL AS ListAuthorityID
+						 , SOG.GroupCode AS DeptCode
+						 , SOG.DisplayName AS DeptName
+						 , SOG.SortKey
+						 , SOG.GroupID
+					FROM SYS_OBJECT_GROUP SOG
+					WHERE 1 = 1
+					AND NOT EXISTS (
+						SELECT GDM.MgrUnitCode
+						FROM GOV_DOCMANAGE GDM
+						WHERE GDM.MGRUnitCode = SOG.GroupCode
+					)
+					AND SOG.GroupType IN ('Dept', 'Company') 
+					AND SOG.GroupPath LIKE 'ORGROOT;'|| #{CompanyCode} ||';%'
+					AND SOG.IsUse = 'Y'
+					AND SOG.IsDisplay = 'Y'
+					AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+					AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+				</if>
+			) A
+			WHERE 1 = 1
+			<if test="searchType != null and searchType !=''">
+				<choose>
+					<when test="searchType == 'Assign'">
+						AND A.ListAuthorityName IS NOT NULL
+						AND A.ListAuthorityID IS NOT NULL
+					</when>
+					<when test="searchType == 'Misassign'">
+						AND A.ListAuthorityName IS NULL
+						AND A.ListAuthorityID IS NULL
+					</when>
+				</choose>
+			</if>
+			<trim prefix="ORDER BY" prefixOverrides =",">
+				<choose>
+					<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+						<choose>
+							<when test='sortColumn.equalsIgnoreCase("DeptName")'>A.DeptName</when>
+							<when test='sortColumn.equalsIgnoreCase("ListAuthorityName")'>A.ListAuthorityName</when>
+						</choose>
+						<choose>
+							<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+							<otherwise> DESC</otherwise>
+						</choose>
+					</when>
+					<otherwise>
+						, A.SortKey ASC, A.GroupID ASC
+					</otherwise>
+				</choose>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectGovDocManager" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) AS "CNT"
+		FROM GOV_DOCMANAGE
+		WHERE REGID = #{UserId}
+	</select>
+	
+	<select id="selectGovDocManageCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT LISTAGG(SOU.DisplayName, ', ') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityName
+				 , LISTAGG(GDM.AuthorityID, ';') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityID
+				 , GDM.MgrUnitCode AS DeptCode
+				 , SOG.DisplayName AS DeptName
+				 , SOG.SortKey
+				 , SOG.GroupID
+			FROM GOV_DOCMANAGE GDM
+			INNER JOIN SYS_OBJECT_USER SOU ON GDM.AuthorityID = SOU.UserCode
+			INNER JOIN SYS_OBJECT_GROUP SOG ON GDM.MGRUnitCode = SOG.GroupCode
+			WHERE 1 = 1
+			<if test="deptCode != null and deptCode != ''">
+				AND SOG.GroupCode IN (#{deptCode}, 'Company') 
+			</if>
+			GROUP BY GDM.MgrUnitCode, SOG.DisplayName, SOG.SortKey, SOG.GroupID
+			
+			<if test="deptCode == null or deptCode == ''">
+				UNION
+				
+				SELECT NULL AS ListAuthorityName
+					 , NULL AS ListAuthorityID
+					 , SOG.GroupCode AS DeptCode
+					 , SOG.DisplayName AS DeptName
+					 , SOG.SortKey
+					 , SOG.GroupID
+				FROM SYS_OBJECT_GROUP SOG
+				WHERE 1 = 1
+				AND NOT EXISTS (
+					SELECT GDM.MgrUnitCode
+					FROM GOV_DOCMANAGE GDM
+					WHERE GDM.MGRUnitCode = SOG.GroupCode
+				)
+				AND SOG.GroupType IN ('Dept', 'Company') 
+				AND SOG.GroupPath LIKE 'ORGROOT;'|| #{CompanyCode} ||';%'
+				AND SOG.IsUse = 'Y'
+				AND SOG.IsDisplay = 'Y'
+				AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+				AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+			</if>
+		) A
+		WHERE 1 = 1
+		<if test="searchType != null and searchType !=''">
+			<choose>
+				<when test="searchType == 'Assign'">
+					AND A.ListAuthorityName IS NOT NULL
+					AND A.ListAuthorityID IS NOT NULL
+				</when>
+				<when test="searchType == 'Misassign'">
+					AND A.ListAuthorityName IS NULL
+					AND A.ListAuthorityID IS NULL
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<delete id="deleteGovDocInOutUser" parameterType="cmap">
+		DELETE FROM GOV_DOCMANAGE
+		WHERE  MgrUnitCode = #{mgrUnitCode}
+	</delete>
+	
+	<insert id="insertGovDocInOutUser" parameterType="cmap">
+		INSERT ALL
+         <foreach collection="userList" item="list" index="index" separator=" ">
+	         INTO GOV_DOCMANAGE(    
+				  MgrUnitCode
+	         	, AuthorityID
+				, RegID
+				, RegDate
+	        )
+			VALUES
+			(
+				  #{mgrUnitCode}
+				, #{list.userId}
+				, #{userId}			
+				, SYSDATE
+	        )
+        </foreach>
+        SELECT * FROM DUAL
+	</insert>
+	
+	<!-- 기록물철 부서 관리자 -->
+	
+	<select id="selectGovRecordDocManageList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT A.DeptCode AS "DeptCode"
+				 , A.DeptName AS "DeptName"
+				 , A.ListAuthorityName AS "ListAuthorityName"
+				 , A.ListAuthorityID AS "ListAuthorityID"
+			FROM ( 		
+					SELECT LISTAGG(SOU.DisplayName, ', ') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityName
+						 , LISTAGG(GDM.UserCode, ';') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityID
+						 , SOG.GroupCode AS DeptCode
+						 , SOG.DisplayName AS DeptName
+						 , SOG.SortKey
+						 , SOG.GroupID	
+				FROM SYS_OBJECT_GROUP_MEMBER GDM
+				left JOIN SYS_OBJECT_GROUP_MEMBER GM ON GDM.UserCode = GM.UserCode
+				inner JOIN SYS_OBJECT_GROUP SOG ON GM.GroupCode  = SOG.GroupCode
+				inner join sys_object_user SOU ON GDM.UserCode = sou.UserCode
+				WHERE GDM.GROUPCODE = 'RecordDeptAdmin' and SOG.GroupType = 'Dept'
+				<if test="deptCode != null and deptCode != ''">
+					AND SOG.GroupCode = #{deptCode} 
+				</if>
+				GROUP BY SOG.GroupCode, SOG.DisplayName, SOG.SortKey, SOG.GroupID
+				
+				<if test="deptCode == null or deptCode == ''">
+					UNION
+					
+					SELECT NULL AS ListAuthorityName
+						 , NULL AS ListAuthorityID
+						 , SOG.GroupCode AS DeptCode
+						 , SOG.DisplayName AS DeptName
+						 , SOG.SortKey
+						 , SOG.GroupID
+					FROM SYS_OBJECT_GROUP SOG
+					WHERE 1 = 1
+					AND SOG.GroupType IN ('Dept', 'Company') 
+					AND SOG.GroupPath LIKE 'ORGROOT;'|| #{CompanyCode} ||';%'
+					AND SOG.IsUse = 'Y'
+					AND SOG.IsDisplay = 'Y'
+					AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+					AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+				</if>
+			) A
+			WHERE 1 = 1
+			<if test="searchType != null and searchType !=''">
+				<choose>
+					<when test="searchType == 'Assign'">
+						AND A.ListAuthorityName IS NOT NULL
+						AND A.ListAuthorityID IS NOT NULL
+					</when>
+					<when test="searchType == 'Misassign'">
+						AND A.ListAuthorityName IS NULL
+						AND A.ListAuthorityID IS NULL
+					</when>
+				</choose>
+			</if>
+			<trim prefix="ORDER BY" prefixOverrides =",">
+				<choose>
+					<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+						<choose>
+							<when test='sortColumn.equalsIgnoreCase("DeptName")'>A.DeptName</when>
+							<when test='sortColumn.equalsIgnoreCase("ListAuthorityName")'>A.ListAuthorityName</when>
+						</choose>
+						<choose>
+							<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+							<otherwise> DESC</otherwise>
+						</choose>
+					</when>
+					<otherwise>
+						, A.SortKey ASC, A.GroupID ASC
+					</otherwise>
+				</choose>
+			</trim>
+	   	<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectGovRecordDocManageCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+				SELECT LISTAGG(SOU.DisplayName, ', ') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityName
+					 , LISTAGG(GDM.UserCode, ';') WITHIN GROUP (ORDER BY SOU.SortKey ASC, SOU.UserID ASC) AS ListAuthorityID
+					 , SOG.GroupCode AS DeptCode
+					 , SOG.DisplayName AS DeptName
+					 , SOG.SortKey
+					 , SOG.GroupID	
+				FROM SYS_OBJECT_GROUP_MEMBER GDM
+				left JOIN SYS_OBJECT_GROUP_MEMBER GM ON GDM.UserCode = GM.UserCode
+				inner JOIN SYS_OBJECT_GROUP SOG ON GM.GroupCode  = SOG.GroupCode
+				inner join sys_object_user SOU ON GDM.UserCode = sou.UserCode
+				WHERE GDM.GROUPCODE = 'RecordDeptAdmin' and SOG.GroupType = 'Dept'
+			GROUP BY SOG.GroupCode, SOG.DisplayName, SOG.SortKey, SOG.GroupID
+			
+			<if test="deptCode == null or deptCode == ''">
+				UNION
+				
+				SELECT NULL AS ListAuthorityName
+					 , NULL AS ListAuthorityID
+					 , SOG.GroupCode AS DeptCode
+					 , SOG.DisplayName AS DeptName
+					 , SOG.SortKey
+					 , SOG.GroupID
+				FROM SYS_OBJECT_GROUP SOG
+				WHERE 1 = 1
+				AND SOG.GroupType IN ('Dept', 'Company') 
+				AND SOG.GroupPath LIKE 'ORGROOT;'|| #{CompanyCode} ||';%'
+				AND SOG.IsUse = 'Y'
+				AND SOG.IsDisplay = 'Y'
+				AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+				AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+			</if>
+		) A
+		WHERE 1 = 1
+		<if test="searchType != null and searchType !=''">
+			<choose>
+				<when test="searchType == 'Assign'">
+					AND A.ListAuthorityName IS NOT NULL
+					AND A.ListAuthorityID IS NOT NULL
+				</when>
+				<when test="searchType == 'Misassign'">
+					AND A.ListAuthorityName IS NULL
+					AND A.ListAuthorityID IS NULL
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<delete id="deleteGovRecordDocInOutUser" parameterType="cmap">
+		DELETE from SYS_OBJECT_GROUP_MEMBER 
+		WHERE UserCode in (select UserCode from SYS_OBJECT_GROUP_MEMBER B where B.GroupCode = #{deptcode})
+		AND GroupCode = 'RecordDeptAdmin'
+	</delete>
+	
+	<insert id="insertGovRecordDocInOutUser" parameterType="cmap">
+		INSERT INTO SYS_OBJECT_GROUP_MEMBER(
+			GroupCode,
+			UserCode,
+			SortKey,
+			Role,
+			IsUse,
+			IsHR,
+			MemberStatus,
+			JoinDate
+		)
+		<foreach collection="userList" item="list" index="index" separator=" UNION ALL ">
+			SELECT
+				'RecordDeptAdmin',
+				#{list.userId},
+				'999',
+				'regular',
+				'Y',
+				'Y',
+				'A',
+				sysdate
+			FROM DUAL
+		</foreach>
+	</insert>
+	
+	<!-- 기록물철 부서 관리자 여부 확인 -->
+	<select id="selectRecordDeptAdminCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*)
+		FROM (
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, NVL(UR.DisplayName, '') AS CodeName
+					, NVL(UR.MailAddress, '') AS MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM SYS_OBJECT_GROUP_MEMBER GM
+			LEFT JOIN SYS_OBJECT_USER UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = 'RecordDeptAdmin'
+			UNION 
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, NVL(GR.DisplayName, '') AS "CodeName"
+					, NVL(GR.PrimaryMail, '') AS "MailAddress"
+					, GM.MemberGroupID AS MemberID
+			FROM SYS_OBJECT_GROUP_MEMBERGROUP GM
+			LEFT JOIN SYS_OBJECT_GROUP GR ON GM.MemberGroupCode = GR.GroupCode
+			WHERE GM.GroupCode = 'RecordDeptAdmin'
+		) A 
+		WHERE Code = #{UserId}
+	</select>
+	
+	<select id="selectProductInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DOC.FormInstID AS "FormInstID",
+			DOC.RecordSeq AS "RecordSeq",
+			DOC.RowSeq AS "RowSeq"
+		FROM GOV_RECORD_DOC DOC
+		INNER JOIN ${subTable1} SUB
+		ON DOC.FormInstID = SUB.FormInstID AND DOC.RowSeq = SUB.RowSeq
+		WHERE SUB.MULTI_FORM_INST_ID = #{formInstID}
+		AND DOC.DivisionType = 'COMPLETE'
+	</select>
+	
+	<select id="selectDistDocNumber" parameterType="cmap" resultType="cmap">
+		SELECT PD.Reserved2 AS "ReceiveNo"
+		FROM jwf_process P
+		INNER JOIN jwf_processdescription PD
+		ON P.ProcessDescriptionID = PD.ProcessDescriptionID
+		WHERE P.ProcessID = #{processID}
+	</select>
+	
+	<select id="selectDocMainInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+		    GMT.DRAFTER_ID AS "DRAFTER_ID",
+		    GMT.DRAFTER_NAME AS "DRAFTER_NAME",
+		    GMT.DRAFTER_DEPT AS "DRAFTER_DEPT",
+		    GMT.DRAFTER_DEPTNM AS "DRAFTER_DEPTNM",
+		    JFI.DocNo AS "DocNo"
+		FROM ${mainTable} GMT
+		LEFT OUTER JOIN JWF_FORMINSTANCE JFI
+		ON GMT.FormInstID = JFI.FormInstID
+		WHERE 1=1
+		<choose>
+			<when test="parentFormInstID != null and parentFormInstID != ''">
+				AND GMT.FormInstID = #{parentFormInstID}
+			</when>
+			<otherwise>
+				AND GMT.FormInstID = #{formInstID}
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectOrgProductInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			RD.FormInstID AS "FormInstID",
+			RD.RecordSeq AS "RecordSeq"
+		FROM gov_record_doc RD
+		INNER JOIN jwf_record_doc_info RDI ON RD.FormInstID = RDI.FormInstID
+		WHERE RDI.FORMINSTID = #{formInstID} AND RDI.PROCESSID = #{processID}
+		AND RD.DivisionType = 'COMPLETE'
+	</select>
+	
+	<select id="selectDocSubCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM ${subTable1}
+		WHERE FormInstID = #{formInstID}
+	</select>
+	
+	<select id="selectDocSubInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			MG.ROWSEQ AS "ROWSEQ",
+			MG.MULTI_DOC_TYPE AS "MULTI_DOC_TYPE",
+			MG.MULTI_BODY_CONTEXT_HWP AS "MULTI_BODY_CONTEXT_HWP",
+			MG.MULTI_BODY_CONTEXT_HTML AS "MULTI_BODY_CONTEXT_HTML",
+			MG.MULTI_RECEIVER_TYPE AS "MULTI_RECEIVER_TYPE",
+			MG.MULTI_RECEIVENAMES AS "MULTI_RECEIVENAMES",
+			MG.MULTI_RECEIPTLIST AS "MULTI_RECEIPTLIST",
+			MG.MULTI_TITLE AS "MULTI_TITLE",
+			MG.MULTI_ATTACH_FILE AS "MULTI_ATTACH_FILE",
+			MG.MULTI_LINK_DOC AS "MULTI_LINK_DOC",
+			<choose>
+				<when test="parentFormInstID != null and parentFormInstID != ''">
+					GT.ADDRESS AS "MULTI_ADDRESS",			
+					GT.REGISTCHECK AS "MULTI_REGIST_CHECK",
+					GT.KEEPPERIOD AS "MULTI_KEEP_PERIOD",
+					GT.SECURELEVEL AS "MULTI_SECURE_LEVEL",
+					GT.RELEASECHECK AS "MULTI_RELEASE_CHECK",
+					GT.RELEASERESTRICTION AS "MULTI_RELEASE_RESTRICTION",
+					GT.SPECIALRECORD AS "MULTI_SPECIAL_RECORD",
+					GT.RECORDCLASSNUM AS "MULTI_RECORD_CLASS_NUM",
+					GT.RECORDSUBJECT AS "MULTI_RECORD_SUBJECT",
+					GT.FORMINSTID AS "MULTI_FORM_INST_ID"
+				</when>
+				<otherwise>
+					MG.MULTI_ADDRESS AS "MULTI_ADDRESS",			
+					MG.MULTI_REGIST_CHECK AS "MULTI_REGIST_CHECK",
+					MG.MULTI_KEEP_PERIOD AS "MULTI_KEEP_PERIOD",
+					MG.MULTI_SECURE_LEVEL AS "MULTI_SECURE_LEVEL",
+					MG.MULTI_RELEASE_CHECK AS "MULTI_RELEASE_CHECK",
+					MG.MULTI_RELEASE_RESTRICTION AS "MULTI_RELEASE_RESTRICTION",
+					MG.MULTI_SPECIAL_RECORD AS "MULTI_SPECIAL_RECORD",
+					MG.MULTI_RECORD_CLASS_NUM AS "MULTI_RECORD_CLASS_NUM",
+					MG.MULTI_RECORD_SUBJECT AS "MULTI_RECORD_SUBJECT",
+					MG.MULTI_FORM_INST_ID AS "MULTI_FORM_INST_ID"
+				</otherwise>
+			</choose>
+		FROM ${subTable1} MG
+		<choose>
+			<when test="parentFormInstID != null and parentFormInstID != ''">
+				LEFT JOIN GOV_RECORD_DOC_TEMP GT ON MG.MULTI_FORM_INST_ID = GT.FORMINSTID
+				WHERE MG.FormInstID = #{parentFormInstID} AND GT.PROCESSID = #{processID}
+			</when>
+			<otherwise>
+				WHERE MG.FORMINSTID = #{formInstID}
+			</otherwise>
+		</choose>
+		ORDER BY RowSeq ASC
+	</select>
+    
+ 	<insert id="insertGovRecordSerial" parameterType="hashmap"> 		
+		MERGE INTO GOV_RECORD_SERIAL A
+	    USING DUAL
+	    	ON (
+	    		A.FiscalYear = #{fiscalYear}
+	            AND A.DeptCode = #{deptCode}
+	            AND A.RegistCheck = #{registCheck}
+	        )
+	    WHEN MATCHED THEN
+	        UPDATE SET A.SerialNumber = A.SerialNumber+1
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+				RegistCheck,
+				FiscalYear,
+				SerialNumber,
+				DeptCode
+			)
+			VALUES
+			(
+				#{registCheck},
+				#{fiscalYear},
+				1,
+				#{deptCode}
+			)
+			
+		<selectKey keyProperty="SerialNumber" resultType="Integer" order="AFTER">
+			<![CDATA[ 
+			SELECT SerialNumber AS "SerialNumber" 
+			FROM GOV_RECORD_SERIAL
+			WHERE DeptCode = #{deptCode}
+			AND RegistCheck = #{registCheck}
+			AND FiscalYear = #{fiscalYear}
+			]]>
+		</selectKey>
+	</insert>
+	
+	<insert id="insertRecordDoc" parameterType="cmap">
+		INSERT INTO GOV_RECORD_DOC (
+			RecordDeptCode,
+			RecordProductName,
+			RegistCheck,
+			ProductDate,
+			ProductNum,
+			OldProductNum,
+			AttachNum,
+			RecordSubject,
+			RecordPageCount,
+			ApprovalName,
+			ProposalName,
+			CompleteDate,
+			ReceiptName,
+			DistNum,
+			RecordSeq,
+			RecordCheck,
+			RecordClassNum,
+			SpecialRecord,
+			ReleaseCheck,
+			ReleaseRestriction,
+			SecureLevel,
+			KeepPeriod,
+			ContentSummary,
+			RecordType,
+			RecordClass,
+			ModifyCheck,
+			RejectCheck,
+			ApprovalDocLink,
+			RecordFilePath,
+			DivisionType,
+			FormInstID,
+			ParentFormInstID,
+			RowSeq,
+			RegisterID,
+			RegistDate
+		) VALUES (
+			#{DrafterDeptID},
+			#{DrafterDeptName},
+			#{RegistCheck},
+			#{ProductDate},
+			#{ProductNum},
+			#{OldProductNum},
+			#{AttachNum},
+			#{RecordSubject},
+			#{RecordPageCount},
+			#{ApprovalName},
+			#{ProposalName},
+			#{CompleteDate},
+			#{ReceiptName},
+			#{DistNum},
+			#{RecordSeq},
+			#{RecordCheck},
+			#{RecordClassNum},
+			#{SpecialRecord},
+			#{ReleaseCheck},
+			#{ReleaseRestriction},
+			#{SecureLevel},
+			#{KeepPeriod},
+			#{ContentSummary},
+			#{RecordType},
+			#{RecordClass},
+			#{ModifyCheck},
+			#{RejectCheck},
+			#{ApprovalDocLink},
+			#{RecordFilePath},
+			#{DivisionType},
+			#{formInstID},
+			#{parentFormInstID},
+			#{RowSeq},
+			#{RegisterID},
+			SYSDATE
+		)
+	</insert>
+	
+	<select id="selectBaseCodeForRecordDoc" parameterType="cmap" resultType="cmap">
+		SELECT
+			Code AS "optionValue",
+			CodeName AS "optionText"
+		FROM sys_base_code
+		WHERE CodeGroup = #{CodeGroup}			
+		AND ISUSE = 'Y'
+		ORDER BY SortKey ASC
+	</select>
+	
+	<select id="checkGovRecord" parameterType="hashmap" resultType="int">
+        SELECT COUNT(*) FROM gov_record_serial
+        WHERE RegistCheck = #{registCheck}
+        AND FiscalYear = #{fiscalYear}
+        AND DeptCode = #{deptCode}
+    </select>
+
+    <update id="updateGovRecordSerial" parameterType="hashmap">
+        UPDATE gov_record_serial
+        SET SerialNumber = SerialNumber + 1
+        WHERE RegistCheck = #{registCheck}
+        AND FiscalYear = #{fiscalYear}
+        AND DeptCode = #{deptCode}
+        <selectKey keyProperty="SerialNumber" resultType="Integer" order="AFTER">
+            <![CDATA[ 
+            SELECT SerialNumber as "SerialNumber" 
+            FROM gov_record_serial
+            WHERE RegistCheck = #{registCheck}
+            AND FiscalYear = #{fiscalYear}
+            AND DeptCode = #{deptCode}
+            ]]>
+        </selectKey>
+    </update>
+	
+	<select id="selectGFileListForRecordDoc" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DISTINCT 
+			<choose>
+				<when test='columnCode.equalsIgnoreCase("ProductYear")'>ProductYear</when>
+				<otherwise>RecordDeptCode</otherwise>
+			</choose> AS "optionValue",
+			<choose>
+				<when test='columnName.equalsIgnoreCase("ProductYear")'>ProductYear</when>
+				<otherwise>RecordProductName</otherwise>
+			</choose> AS "optionText"
+		FROM GOV_RECORD_GFILE
+			<if test="columnCode.equalsIgnoreCase('ProductYear')">
+				WHERE ProductYear >= TO_CHAR(SYSDATE, 'YYYY')-10
+			</if>
+		ORDER BY 
+		<choose>
+			<when test='columnCode.equalsIgnoreCase("ProductYear")'>ProductYear</when>
+			<otherwise>RecordDeptCode</otherwise>
+		</choose> ASC
+	</select>
+	
+	<!-- 단위업무 -->
+	<select id="selectRecordSeriesForRecordDoc" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DISTINCT 
+			SERIESCODE AS "optionValue",
+			SERIESNAME AS "optionText"
+		FROM GOV_SERIES
+		WHERE 1=1
+		<if test="DeptId != '' and DeptId != null">
+			AND BASEGROUPCODE = #{DeptId}
+		</if>
+		<choose>
+			<when test="BaseYear != '' and BaseYear != null">
+				AND #{BaseYear} = BaseYear
+			</when>
+			<otherwise>
+				AND BaseYear = TO_CHAR(SYSDATE, 'YYYY')
+			</otherwise>
+		</choose>
+	</select>
+	
+	<!-- 기록물철 -->
+	<select id="selectRecordListForRecordDoc" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DISTINCT 
+			RecordClassNum AS "optionValue",
+			RECORDSUBJECT AS "optionText"
+		FROM GOV_RECORD_GFILE
+		WHERE 1=1
+		AND (RECORDDEPTCODE = #{DeptId} OR RECORDDEPTCODE = 'Total' OR RECORDDEPTCODE = '001')
+		AND SERIESCODE = #{SeriesCode}
+		<choose>
+			<when test="BaseYear != '' and BaseYear != null">
+				AND #{BaseYear} = ProductYear
+			</when>
+			<otherwise>
+				AND ProductYear = TO_CHAR(SYSDATE, 'YYYY')
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectRecordDocList" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		SELECT 
+		    A.RecordDocumentID AS "RecordDocumentID",
+		    A.FormInstID AS "FormInstID",
+		    A.RecordSubject AS "RecordSubject",
+		    A.ProductYear AS "ProductYear",
+		    A.RegistCheck AS "RegistCheck",
+		    A.RecordCheckName AS "RecordCheckName",
+		    A.DivisionType AS "DivisionType",
+		    A.DocSubject AS "DocSubject",
+		    A.ProductDate AS "ProductDate",
+		    A.ProductNum AS "ProductNum",
+		    A.OldProductNum AS "OldProductNum",
+		    A.RecordProductName AS "RecordProductName",
+		    A.ApprovalName AS "ApprovalName",
+		    A.ProposalName AS "ProposalName",
+		    A.ReceiptName AS "ReceiptName", 
+		    A.SeriesName AS "SeriesName",
+		    A.SeriesCode AS "SeriesCode",
+		    A.FunctionName AS "FunctionName",
+		    A.RecordClassNum AS "RecordClassNum"
+		FROM (
+		    SELECT 
+		        GRD.RecordDocumentID,
+		        GRD.FormInstID,
+		        GRF.RecordSubject,
+		        GRF.ProductYear,
+		        GRD.RegistCheck,
+		        (SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RegistCheck' AND Code = GRD.RegistCheck) AS RecordCheckName,
+		    	GRD.DivisionType,
+		        GRD.RecordSubject AS DocSubject,
+		        TO_CHAR(TO_DATE(GRD.ProductDate, 'YYYYMMDDHH24MI'), 'YYYY.MM.DD HH24:MI') AS ProductDate,
+		        GRD.ProductNum,
+		        GRD.OldProductNum,
+		        GRD.RecordProductName,
+		        GRD.ApprovalName,
+		        GRD.ProposalName,
+		        GRD.ReceiptName, 
+		        GRF.SeriesName, 
+		        GRF.SeriesCode,
+		        GSF.FunctionName,
+		        GRD.RecordClassNum
+		    FROM GOV_RECORD_DOC GRD
+		    INNER JOIN GOV_RECORD_GFILE GRF ON GRD.RecordClassNum = GRF.RecordClassNum
+		    INNER JOIN GOV_SERIES GS ON GRF.SeriesCode = GS.SeriesCode AND GRF.ProductYear = GS.BaseYear
+			INNER JOIN GOV_SERIES_FUNC GSF ON GS.SFCODE = GSF.FunctionCode
+		    WHERE GRD.DeleteDate IS NULL
+		    <if test="productYear != '' and productYear != null">
+			    AND GRF.ProductYear = #{productYear}
+		    </if>
+		    <if test="recordDeptCode != '' and recordDeptCode != null">
+		    	AND (GRF.RecordDeptCode = #{recordDeptCode} OR GRF.RecordDeptCode = 'Total' OR GRF.RecordDeptCode = '001')
+		    </if>
+		    <if test="registCheck != '' and registCheck != null">
+		    	AND GRD.RegistCheck = #{registCheck}
+		    </if>
+		    <if test="releaseCheck != '' and releaseCheck != null">
+		    	AND SUBSTR(GRD.ReleaseCheck, 1, 1) = #{releaseCheck}
+		    </if>
+		    <if test="recordSeries != '' and recordSeries != null">
+		    	AND GRF.SeriesCode= #{recordSeries}
+		    </if>
+		    <if test="recordList != '' and recordList != null">
+		    	AND GRD.RecordClassNum= #{recordList}
+		    </if>
+		    <if test="functionCode != '' and functionCode != null">
+		    	<choose>
+					<when test='functionLevel.equalsIgnoreCase("1")'>
+						AND GRF.SERIESCODE = #{functionCode}
+					</when>
+					<when test='functionLevel.equalsIgnoreCase("2")'>
+						AND GRF.RecordClassNum = #{functionCode}
+					</when>
+					<otherwise>
+						AND GSF.FunctionCode = #{functionCode}
+					</otherwise>
+				</choose>
+		    </if>
+		) A
+		WHERE 1=1
+		<if test="searchType != '' and searchType != null and searchText != '' and searchText != null">
+			<choose>
+				<when test="searchType == 'all'">
+					AND (
+						A.RecordSubject LIKE '%'||#{searchText}||'%' OR
+						A.SeriesName LIKE '%'||#{searchText}||'%' OR
+						A.DocSubject LIKE '%'||#{searchText}||'%' OR
+						A.ProposalName LIKE '%'||#{searchText}||'%'
+					)
+				</when>
+				<otherwise>
+					AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("RecordSubject")'>A.RecordSubject</when>
+						<when test='searchType.equalsIgnoreCase("SeriesName")'>A.SeriesName</when>
+						<when test='searchType.equalsIgnoreCase("DocSubject")'>A.DocSubject</when>
+						<when test='searchType.equalsIgnoreCase("ProposalName")'>A.ProposalName</when>
+						<when test='searchType.equalsIgnoreCase("ProductNum")'>A.ProductNum</when>
+						<when test='searchType.equalsIgnoreCase("ApprovalName")'>A.ApprovalName</when>
+					</choose> 
+					LIKE '%'||#{searchText}||'%'
+				</otherwise>
+			</choose>
+		</if>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, ProductDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("RecordDocumentID")'>RecordDocumentID</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordSubject")'>RecordSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordCheckName")'>RecordCheckName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocSubject")'>DocSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("ProductNum")'>ProductNum</when>
+					<when test='sortColumn.equalsIgnoreCase("OldProductNum")'>OldProductNum</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordProductName")'>RecordProductName</when>
+					<when test='sortColumn.equalsIgnoreCase("ProposalName")'>ProposalName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalName")'>ApprovalName</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptName")'>ReceiptName</when>							
+					<otherwise>ProductDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectRecordDocListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+		    SELECT 
+		        GRD.RecordDocumentID,
+		        GRD.FormInstID,
+		        GRF.RecordSubject,
+		        GRF.ProductYear,
+		        GRD.RegistCheck,
+		    	GRD.DivisionType,
+		        GRD.RecordSubject AS DocSubject,
+		        GRD.ProductDate,
+		        GRD.ProductNum,
+		        GRD.OldProductNum,
+		        GRD.RecordProductName,
+		        GRD.ApprovalName,
+		        GRD.ProposalName,
+		        GRD.ReceiptName, 
+		        GRF.SeriesName, 
+		        GRF.SeriesCode,
+		        GSF.FunctionName,
+		    	GRD.RecordClassNum
+		    FROM GOV_RECORD_DOC GRD
+		    INNER JOIN GOV_RECORD_GFILE GRF ON GRD.RecordClassNum = GRF.RecordClassNum
+		    INNER JOIN GOV_SERIES GS ON GRF.SeriesCode = GS.SeriesCode AND GRF.ProductYear = GS.BaseYear
+			INNER JOIN GOV_SERIES_FUNC GSF ON GS.SFCODE = GSF.FunctionCode
+		    WHERE GRD.DeleteDate IS NULL
+		    <if test="productYear != '' and productYear != null">
+		    	AND GRF.ProductYear = #{productYear}
+		    </if>
+		    <if test="recordDeptCode != '' and recordDeptCode != null">
+		    	AND (GRF.RecordDeptCode = #{recordDeptCode} OR GRF.RecordDeptCode = 'Total' OR GRF.RecordDeptCode = '001')
+		    </if>
+		    <if test="registCheck != '' and registCheck != null">
+		    	AND GRD.RegistCheck = #{registCheck}
+		    </if>
+		    <if test="recordSeries != '' and recordSeries != null">
+		    	AND GRF.SeriesCode = #{recordSeries}
+		    </if>
+		    <if test="recordList != '' and recordList != null">
+		    	AND GRD.RecordClassNum= #{recordList}
+		    </if>
+		    <if test="releaseCheck != '' and releaseCheck != null">
+		    	AND SUBSTR(GRD.ReleaseCheck, 1, 1) = #{releaseCheck}
+		    </if>
+		    <if test="functionCode != '' and functionCode != null">
+			    <choose>
+			    	<when test='functionLevel.equalsIgnoreCase("1")'>
+						AND GRF.SERIESCODE = #{functionCode}
+					</when>
+					<when test='functionLevel.equalsIgnoreCase("2")'>
+						AND GRF.RecordClassNum = #{functionCode}
+					</when>
+					<otherwise>
+						AND GSF.FunctionCode = #{functionCode}
+					</otherwise>
+				</choose>
+		    </if>
+		) A
+		WHERE 1=1
+		<if test="searchType != '' and searchType != null and searchText != '' and searchText != null">
+			<choose>
+				<when test="searchType == 'all'">
+					AND (
+						A.RecordSubject LIKE '%'||#{searchText}||'%' OR
+						A.SeriesName LIKE '%'||#{searchText}||'%' OR
+						A.DocSubject LIKE '%'||#{searchText}||'%' OR
+						A.ProposalName LIKE '%'||#{searchText}||'%'
+					)
+				</when>
+				<otherwise>
+					AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("RecordSubject")'>A.RecordSubject</when>
+						<when test='searchType.equalsIgnoreCase("SeriesName")'>A.SeriesName</when>
+						<when test='searchType.equalsIgnoreCase("DocSubject")'>A.DocSubject</when>
+						<when test='searchType.equalsIgnoreCase("ProposalName")'>A.ProposalName</when>
+						<when test='searchType.equalsIgnoreCase("ProductNum")'>A.ProductNum</when>
+						<when test='searchType.equalsIgnoreCase("ApprovalName")'>A.ApprovalName</when>
+					</choose> 
+					LIKE '%'||#{searchText}||'%'
+				</otherwise>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="selectRecordDocListExcel" parameterType="cmap" resultType="cmap">
+		SELECT 
+		    A.RecordDocumentID AS "RecordDocumentID",
+		    A.FormInstID AS "FormInstID",
+		    A.RecordSubject AS "RecordSubject",
+		    A.ProductYear AS "ProductYear",
+		    (SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RegistCheck' AND Code = A.RegistCheck) AS "RecordCheckName",
+		    A.DivisionType AS "DivisionType",
+		    A.DocSubject AS "DocSubject",
+		    A.ProductDate AS "ProductDate",
+		    A.ProductNum AS "ProductNum",
+		    A.OldProductNum AS "OldProductNum",
+		    A.RecordProductName AS "RecordProductName",
+		    Fn_BaseGetDictionary_S(#{lang},A.ApprovalName) AS "ApprovalName",
+		    A.ProposalName AS "ProposalName",
+		    A.ReceiptName AS "ReceiptName", 
+		    A.SeriesName AS "SeriesName",
+		    A.SeriesCode AS "SeriesCode",
+		    A.FunctionName AS "FunctionName",
+		    A.RecordClassNum AS "RecordClassNum"
+		FROM (
+		    SELECT 
+		        GRD.RecordDocumentID,
+		        GRD.FormInstID,
+		        GRF.RecordSubject,
+		        GRF.ProductYear,
+		        GRD.RegistCheck,
+		    	GRD.DivisionType,
+		        GRD.RecordSubject AS DocSubject,
+		        TO_CHAR(TO_DATE(GRD.ProductDate, 'YYYYMMDDHH24MI'), 'YYYY.MM.DD HH24:MI') AS ProductDate,
+		        GRD.ProductNum,
+		        GRD.OldProductNum,
+		        GRD.RecordProductName,
+		        GRD.ApprovalName,
+		        GRD.ProposalName,
+		        GRD.ReceiptName, 
+		        GRF.SeriesName, 
+		        GRF.SeriesCode,
+		        GSF.FunctionName,
+		    	GRD.RecordClassNum
+		    FROM GOV_RECORD_DOC GRD
+		    INNER JOIN GOV_RECORD_GFILE GRF ON GRD.RecordClassNum = GRF.RecordClassNum
+		    INNER JOIN GOV_SERIES GS ON GRF.SeriesCode = GS.SeriesCode AND GRF.ProductYear = GS.BaseYear
+			INNER JOIN GOV_SERIES_FUNC GSF ON GS.SFCODE = GSF.FunctionCode
+		    WHERE GRD.DeleteDate IS NULL
+		    <if test="productYear != '' and productYear != null">
+			    AND GRF.ProductYear = #{productYear}
+		    </if>
+		    <if test="recordDeptCode != '' and recordDeptCode != null">
+		    	AND (GRF.RecordDeptCode = #{recordDeptCode} OR GRF.RecordDeptCode = 'Total' OR GRF.RecordDeptCode = '001')
+		    </if>
+		    <if test="registCheck != '' and registCheck != null">
+		    	AND GRD.RegistCheck = #{registCheck}
+		    </if>
+		    <if test="releaseCheck != '' and releaseCheck != null">
+		    	AND SUBSTR(GRD.ReleaseCheck, 1, 1) = #{releaseCheck}
+		    </if>
+		    <if test="functionCode != '' and functionCode != null">
+		    	<choose>
+					<when test='functionLevel.equalsIgnoreCase("4")'>
+						AND GRF.RecordClassNum = #{functionCode}
+					</when>
+					<otherwise>
+						AND GSF.FunctionCode = #{functionCode}
+					</otherwise>
+				</choose>
+		    </if>
+		) A
+		WHERE 1=1
+		<if test="searchType != '' and searchType != null and searchText != '' and searchText != null">
+			<choose>
+				<when test="searchType == 'all'">
+					AND (
+						A.RecordSubject LIKE '%'||#{searchText}||'%' OR
+						A.SeriesName LIKE '%'||#{searchText}||'%' OR
+						A.DocSubject LIKE '%'||#{searchText}||'%' OR
+						A.ProposalName LIKE '%'||#{searchText}||'%'
+					)
+				</when>
+				<otherwise>
+					AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("RecordSubject")'>A.RecordSubject</when>
+						<when test='searchType.equalsIgnoreCase("SeriesName")'>A.SeriesName</when>
+						<when test='searchType.equalsIgnoreCase("DocSubject")'>A.DocSubject</when>
+						<when test='searchType.equalsIgnoreCase("ProposalName")'>A.ProposalName</when>
+						<when test='searchType.equalsIgnoreCase("ProductNum")'>A.ProductNum</when>
+						<when test='searchType.equalsIgnoreCase("ApprovalName")'>A.ApprovalName</when>
+					</choose> 
+					LIKE '%'||#{searchText}||'%'
+				</otherwise>
+			</choose>
+		</if>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, ProductDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+	 			<choose>
+					<when test='sortColumn.equalsIgnoreCase("RecordDocumentID")'>RecordDocumentID</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordSubject")'>RecordSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordCheckName")'>RecordCheckName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocSubject")'>DocSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("ProductNum")'>ProductNum</when>
+					<when test='sortColumn.equalsIgnoreCase("OldProductNum")'>OldProductNum</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordProductName")'>RecordProductName</when>
+					<when test='sortColumn.equalsIgnoreCase("ProposalName")'>ProposalName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalName")'>ApprovalName</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptName")'>ReceiptName</when>							
+					<otherwise>ProductDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<update id="deleteRecordDoc" parameterType="cmap">
+		UPDATE GOV_RECORD_DOC
+		SET DeleteDate = SYSDATE
+		WHERE RecordDocumentID IN 
+		<foreach collection="RecordDocumentIDs" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</update>
+	
+	<update id="changeFileOfRecordDoc" parameterType="cmap">
+		UPDATE GOV_RECORD_DOC
+		SET RecordClassNum = #{RecordClassNum}
+			, KeepPeriod = #{KeepPeriod}
+		WHERE RecordDocumentID IN 
+		<foreach collection="RecordDocumentIDs" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</update>
+	
+	<select id="selectDocTempInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+            FI.FormInstID AS "MULTI_FORM_INST_ID",
+			FI.Subject AS "MULTI_TITLE",
+			GRDT.RegistCheck AS "MULTI_REGIST_CHECK",
+			GRDT.RecordClassNum AS "MULTI_RECORD_CLASS_NUM",
+			GRDT.RecordSubject AS "MULTI_RECORD_SUBJECT",
+			GRDT.Address AS "MULTI_ADDRESS",
+			GRDT.SpecialRecord AS "MULTI_SPECIAL_RECORD",
+			GRDT.ReleaseCheck AS "MULTI_RELEASE_CHECK",
+			GRDT.ReleaseRestriction AS "MULTI_RELEASE_RESTRICTION",
+			GRDT.KeepPeriod AS "MULTI_KEEP_PERIOD",
+			GRDT.SecureLevel AS "MULTI_SECURE_LEVEL"
+		FROM GOV_RECORD_DOC_TEMP GRDT
+		LEFT OUTER JOIN jwf_forminstance FI
+		ON GRDT.FormInstID = FI.FormInstID
+		WHERE GRDT.ProcessID = #{processID}
+	</select>
+	
+	<select id="selectDocTempCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM GOV_RECORD_DOC_TEMP
+		WHERE FormInstID = #{formInstID}
+		AND ProcessID = #{processID}
+		AND DeptCode = #{deptCode}
+	</select>
+	
+	<update id="updateDocTempInfo" parameterType="cmap">
+		UPDATE GOV_RECORD_DOC_TEMP
+		SET 
+			RegistCheck = #{REGIST_CHECK},
+			RecordClassNum = #{RECORD_CLASS_NUM},
+			RecordSubject = #{RECORD_SUBJECT},
+			Address = #{ADDRESS},
+			SpecialRecord = #{SPECIAL_RECORD},
+			ReleaseCheck = #{RELEASE_CHECK},
+			ReleaseRestriction = #{RELEASE_RESTRICTION},
+			KeepPeriod = #{KEEP_PERIOD},
+			SecureLevel = #{SECURE_LEVEL}
+		WHERE FormInstID = #{formInstID}
+		AND ProcessID = #{processID}
+		AND DeptCode = #{deptCode}
+	</update>
+	
+	<insert id="insertDocTempInfo" parameterType="cmap">
+		INSERT INTO GOV_RECORD_DOC_TEMP
+		(
+			FormInstID,
+			ProcessID,
+			DeptCode,
+			RegistCheck,
+			RecordClassNum,
+			RecordSubject,
+			Address,
+			SpecialRecord,
+			ReleaseCheck,
+			ReleaseRestriction,
+			KeepPeriod,
+			SecureLevel
+		) VALUES (
+			#{formInstID},
+			#{processID},
+			#{deptCode},
+			#{REGIST_CHECK},
+			#{RECORD_CLASS_NUM},
+			#{RECORD_SUBJECT},
+			#{ADDRESS},
+			#{SPECIAL_RECORD},
+			#{RELEASE_CHECK},
+			#{RELEASE_RESTRICTION},
+			#{KEEP_PERIOD},
+			#{SECURE_LEVEL}
+		)
+	</insert>
+	
+	<select id="selectRecordDocInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			RECORDDEPTCODE AS "RECORDDEPTCODE",
+			RECORDPRODUCTNAME AS "RECORDPRODUCTNAME",
+			REGISTCHECK AS "REGISTCHECK",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RegistCheck' AND Code = A.REGISTCHECK) AS "REGISTCHECK_NAME",
+			PRODUCTDATE AS "PRODUCTDATE",
+			PRODUCTNUM AS "PRODUCTNUM",
+			OLDPRODUCTNUM AS "OLDPRODUCTNUM",
+			ATTACHNUM AS "ATTACHNUM",
+			TITLE AS "TITLE",
+			RECORDPAGECOUNT AS "RECORDPAGECOUNT",
+			APPROVALNAME AS "APPROVALNAME",
+			PROPOSALNAME AS "PROPOSALNAME",
+			COMPLETEDATE AS "COMPLETEDATE",
+			RECEIPTNAME AS "RECEIPTNAME",
+			DISTNUM AS "DISTNUM",
+			RECORDSEQ AS "RECORDSEQ",
+			RECORDCHECK AS "RECORDCHECK",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RecordCheck' AND Code = A.RECORDCHECK) AS "RECORDCHECK_NAME",
+			RECORDCLASSNUM AS "RECORDCLASSNUM",
+            GFILESUBJECT AS "RECORDSUBJECT",
+			SPECIALRECORD AS "SPECIALRECORD",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'SpecialRecord' AND Code = TRIM(A.SPECIALRECORD)) AS "SPECIALRECORD_NAME",
+			RELEASECHECK AS "RELEASECHECK",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'ReleaseCheck' AND Code = SUBSTR(A.RELEASECHECK, 1, 1)) AS "RELEASECHECK_NAME",
+			RELEASERESTRICTION AS "RELEASERESTRICTION",
+			KEEPPERIOD AS "KEEPPERIOD",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'KeepPeriod' AND Code = A.KEEPPERIOD) AS "KEEPPERIOD_NAME",
+			CONTENTSUMMARY AS "CONTENTSUMMARY",
+			RECORDTYPE AS "RECORDTYPE",
+			RECORDCLASS AS "RECORDCLASS",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RecordClass' AND Code = A.RECORDCLASS) AS "RECORDCLASS_NAME",
+			MODIFYCHECK AS "MODIFYCHECK",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'ModifyCheck' AND Code = A.MODIFYCHECK) AS "MODIFYCHECK_NAME",
+			REJECTCHECK AS "REJECTCHECK",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'RejectCheck' AND Code = A.REJECTCHECK) AS "REJECTCHECK_NAME",
+			APPROVALDOCLINK AS "APPROVALDOCLINK",
+			RECORDFILEPATH AS "RECORDFILEPATH",
+			SECURELEVEL AS "SECURELEVEL",
+			(SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'SecureLevel' AND Code = A.SECURELEVEL) AS "SECURELEVEL_NAME",
+			DIVISIONTYPE AS "DIVISIONTYPE",
+			FORMINSTID AS "FORMINSTID",
+			PARENTFORMINSTID AS "PARENTFORMINSTID",
+			DELETEDATE AS "DELETEDATE"
+		FROM (
+			SELECT GRD.*, GRD.RecordSubject AS "TITLE", GRG.RecordSubject AS "GFILESUBJECT"
+			FROM GOV_RECORD_DOC GRD
+            INNER JOIN GOV_RECORD_GFILE GRG
+            ON GRD.RecordClassNum = GRG.RecordClassNum
+			WHERE RecordDocumentID = #{RecordDocumentID}
+		) A
+	</select>
+	
+	
+	<select id="selectRecordDocCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM GOV_RECORD_DOC
+		WHERE RecordDocumentID = #{RecordDocumentID}
+	</select>
+	
+	<update id="updateRecordDocInfo" parameterType="cmap">
+		UPDATE GOV_RECORD_DOC
+		SET 
+			RecordDeptCode = #{RECORDDEPTCODE},
+			RecordProductName = #{RECORDPRODUCTNAME},
+			RegistCheck = #{REGISTCHECK},
+			RecordClassNum = #{RECORDCLASSNUM},
+			RecordSubject = #{TITLE},
+			AttachNum = #{ATTACHNUM},
+			RecordPageCount = #{RECORDPAGECOUNT},
+			RecordCheck = #{RECORDCHECK},
+			RecordClass = #{RECORDCLASS},
+			SpecialRecord = #{SPECIALRECORD},
+			ReleaseCheck = #{RELEASECHECK},
+			KeepPeriod = #{KEEPPERIOD},
+			SecureLevel = #{SECURELEVEL},
+			ContentSummary = #{CONTENTSUMMARY},
+			RecordType = #{RECORDTYPE},
+			ApprovalDocLink = #{APPROVALDOCLINK},
+			RecordFilePath = #{RECORDFILEPATH},
+			ModifyCheck = 1,
+			ModifyDate = SYSDATE
+		WHERE RecordDocumentID = #{RecordDocumentID}
+	</update>
+	
+	<insert id="insertRecordDocInfo" parameterType="cmap">
+		INSERT INTO GOV_RECORD_DOC (
+			RecordDeptCode,
+			RecordProductName,
+			RegistCheck,
+			ProductDate,
+			ProductNum,
+			OldProductNum,
+			AttachNum,
+			RecordSubject,
+			RecordPageCount,
+			ApprovalName,
+			ProposalName,
+			CompleteDate,
+			ReceiptName,
+			DistNum,
+			RecordSeq,
+			RecordCheck,
+			RecordClassNum,
+			SpecialRecord,
+			ReleaseCheck,
+			ReleaseRestriction,
+			SecureLevel,
+			KeepPeriod,
+			ContentSummary,
+			RecordType,
+			RecordClass,
+			ModifyCheck,
+			RejectCheck,
+			ApprovalDocLink,
+			RecordFilePath,
+			DivisionType,
+			FormInstID,
+			ParentFormInstID,
+			RowSeq
+		) VALUES (
+			#{RECORDDEPTCODE},
+			#{RECORDPRODUCTNAME},
+			#{REGISTCHECK},
+			#{PRODUCTDATE},
+			#{PRODUCTNUM},
+			#{OLDPRODUCTNUM},
+			#{ATTACHNUM},
+			#{TITLE},
+			#{RECORDPAGECOUNT},
+			#{APPROVALNAME},
+			#{PROPOSALNAME},
+			#{COMPLETEDATE},
+			#{RECEIPTNAME},
+			#{DISTNUM},
+			#{RECORDSEQ},
+			#{RECORDCHECK},
+			#{RECORDCLASSNUM},
+			#{SPECIALRECORD},
+			#{RELEASECHECK},
+			NULL,
+			#{SECURELEVEL},
+			#{KEEPPERIOD},
+			#{CONTENTSUMMARY},
+			#{RECORDTYPE},
+			#{RECORDCLASS},
+			#{MODIFYCHECK},
+			#{REJECTCHECK},
+			#{APPROVALDOCLINK},
+			#{RECORDFILEPATH},
+			#{DIVISIONTYPE},
+			NULL,
+			NULL,
+			#{RowSeq}
+		)
+	</insert>
+	
+	<select id="selectGovApvReceiveExcel" parameterType="cmap" resultType="cmap">
+				SELECT  A.PROCESSSUBJECT AS PROCESS_SUBJECT
+						,A.DOCNUMBER        AS DOC_NUMBER
+						,TO_CHAR(A.LINKURL) AS LINKURL
+						,A.ACCEPTDATE          AS ACCEPT_DATE
+						,A.INITIATORNAME 		   AS INITIATORNAME
+                        ,A.Bodycontext         AS BODY_CONTEXT
+                        ,A.ApprovalContext     AS APPROVAL_CONTEXT
+                        ,A.ARRIVEDDATE		   AS ARRIVED_DATE
+                        ,A.DISTRIBDATE         AS DISTRIBDATE
+                        ,B.PUBDOC_HEAD_ORGAN   AS RECEIVERNAME
+                        ,B.SEND_ID             AS SEND_ID
+                        ,B.PUBDOC_HEAD_RECEIPT AS PUBDOC_HEAD_RECEIPT
+                        ,B.SEND_NAME           AS SEND_NAME
+                        ,B.PUBDOC_FOOT_ZIPCODE AS PUBDOC_FOOT_ZIPCODE
+                        ,B.PUBDOC_FOOT_ADDR    AS PUBDOC_FOOT_ADDR
+                        ,B.PUBDOC_FOOT_HOMEURL AS PUBDOC_FOOT_HOMEURL
+                        ,B.PUBDOC_FOOT_TELEPHONE AS PUBDOC_FOOT_TELEPHONE
+                        ,B.PUBDOC_FOOT_FAX      AS PUBDOC_FOOT_FAX
+                        ,B.PUBDOC_FOOT_EMAIL    AS PUBDOC_FOOT_EMAIL
+                        ,B.PUBDOC_FOOT_PUBLICATIONCODE AS PUBDOC_FOOT_PUBLICATIONCODE
+                        ,B.PUBDOC_FOOT_PUBLICATION AS PUBDOC_FOOT_PUBLICATION
+                        , (SELECT LISTAGG(f.filename, ',') WITHIN GROUP(ORDER BY f.messageid)                   FROM sys_file f where f.servicetype='Approval' and f.messageid=A.forminstid ) AS FILE_NAME
+				FROM JWF_PROCESSGOV_RECEIVE A
+				JOIN JWF_PROCESSGOV_RECEIVE_TEMP B ON a.UNIQUEID = b.UNIQUE_ID
+				<trim prefix="WHERE DOCTYPE IN">
+					<choose>
+						<when test=' govDocs.equals("receiveWait") or govDocs.equals("receiveGov24Wait") '>			('send','resend','accept','deny','req-resend')	</when>
+						<when test=' govDocs.equals("receiveProcess") '>		('distribute')	</when>
+					</choose>				
+				</trim>
+				<if test=" keyword != null and !keyword.equals('') ">
+					<if test=" fieldName.equals('title') "> 	AND	PROCESSSUBJECT 	LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('writer') "> 	AND	DOCUSER 			LIKE '%' || #{keyword} || '%' </if>
+					<if test=" fieldName.equals('sent') "> 		AND	DISPLAYSENDNAME 	LIKE '%' || #{keyword} || '%' </if>							
+				</if>
+				<if test=" fromDate != null and !fromDate.equals('') ">
+					<![CDATA[
+						AND	INSERTED >= #{fromDate}
+						AND	INSERTED <= #{toDate}
+					]]>	
+				</if>
+				<choose>
+			        <when test="receiveStatus.equals('send')">
+						AND DOCTYPE in ('send','resend') 
+			        </when>
+			        <when test="receiveStatus.equals('accept')">
+						AND DOCTYPE in ('accept') 
+			        </when>
+			        <when test="receiveStatus.equals('fail')">
+						AND DOCTYPE in ('fail') 
+			        </when>
+			    </choose> 
+			    <choose>
+					<when test='govDocs.equals("receiveWait")'> AND SENDTYPE = '1' </when>
+					<otherwise> AND SENDTYPE IN ('2','3') </otherwise>
+				</choose>  
+	</select>
+	
+	 <select id="selectGovSendHistory" parameterType="cmap" resultType="cmap">
+ 		WITH HIS AS (
+			SELECT 	UNIQUE_ID, PROCESSID PROCESS_ID, FORMINSTID  FORM_INST_ID
+                        , SEND_ID 
+                        , MIN(PROCESS_DT) FIRST_SEND_DT
+                        , MAX(PROCESS_DT) LAST_SEND_DT
+                        , SUM(CASE WHEN STATUS='req-resend' then 1 else 0 end) RESEND_REQ_CNT
+                        , SUM(CASE WHEN STATUS='resend' then 1 else 0 end) RESEND_PROC_CNT
+                        , max(seq) LAST_SEQ
+					,COUNT(1) OVER() TOTAL_COUNT
+			FROM	JWF_PROCESSGOV_HISTORY	JPH
+			LEFT OUTER JOIN JWF_PROCESSGOV JP			ON JPH.UNIQUE_ID = JP.UNIQUEID
+			WHERE JPH.UNIQUE_ID = #{uniqueId}
+			<if test="sendID != null and !sendID.equals('')" > AND SEND_ID = #{sendID} </if>	
+			GROUP BY UNIQUE_ID, PROCESSID , FORMINSTID, SEND_ID 	
+		)			
+		SELECT A.*
+				,case when RESEND_REQ_CNT>RESEND_PROC_CNT then 'Y' else 'N' end RESEND_FLAG
+				, LAST_HIS.STATUS
+				,( SELECT UCCHIEFTITLE FROM JWF_PROCESSGOV_LDAP WHERE OUCODE = A.SEND_ID ) ORG_NM
+		FROM (
+			SELECT 	ROWNUM R_NUM
+					,HIS.*			
+			FROM HIS
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		 LEFT JOIN JWF_PROCESSGOV_HISTORY LAST_HIS ON A.UNIQUE_ID= LAST_HIS.UNIQUE_ID AND A.SEND_ID = LAST_HIS.SEND_ID and  A.LAST_SEQ = LAST_HIS.SEQ
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+		ORDER BY ORG_NM	 	
+	 </select>	
+	
+	
+	<select id="selectTaskRecordInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+		      A.PROCESSID AS "PROCESSID"
+		    , B.BUSINESSDATA9 AS "BUSINESSDATA9"
+		    , B.BUSINESSDATA10 AS "BUSINESSDATA10"
+		FROM JWF_PROCESS A
+		INNER JOIN JWF_PROCESSDESCRIPTION B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+		WHERE A.PROCESSID = #{ProcessID}
+	</select>
+	
+	<select id="CheckGovReceiveDoc" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM JWF_PROCESSGOV_RECEIVE 
+		WHERE FORMINSTID = #{FormInstID}
+	</select>
+	
+	<update id="updateReplyFlag" parameterType="cmap">
+		UPDATE 	JWF_PROCESSGOV_RECEIVE
+		SET		REPLYFLAG = 'Y' 
+			   ,REPLYFORMINSTID = (SELECT decode(REPLYFORMINSTID, NULL, '', REPLYFORMINSTID||',') FROM JWF_PROCESSGOV_RECEIVE WHERE FORMINSTID = #{govFormInstID}) || #{formInstID}
+		WHERE	FORMINSTID = #{govFormInstID}	
+	</update>
+	
+	<update id="updateRecordDocSeparation" parameterType="cmap">
+		UPDATE GOV_RECORD_DOC
+			SET RecordClassNum = #{RecordClassNum}
+		WHERE RecordDocumentID IN 
+		<foreach collection="RecordDocumentID" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</update>
+	
+	<select id="selectGovSenderMasterList" parameterType="cmap" resultType="cmap">
+		WITH SENDER_MASTER AS
+		(
+			SELECT 	SEND_ID
+				,SENDER_TYPE
+				,DEPT_NAME
+				,DISPLAY_NAME
+				,OUNAME
+				,NAME
+				,CAMPAIGN_T
+				,CAMPAIGN_F
+				,HOMEPAGE
+				,EMAIL
+				,TEL
+				,FAX
+				,ZIP_CODE
+				,ADDRESS
+				,LOGO
+				,SYMBOL
+				,STAMP
+				,USAGE_STATE
+				,CREATE_DATE
+				,COUNT(*) OVER() TOTAL_COUNT
+			FROM GWUSER.GOV_SENDER_MASTER SM
+			WHERE DELETE_DATE IS NULL
+			<if  test= " senderID != null and !senderID.equals('') "> 
+				AND SEND_ID = #{senderID}
+			</if>
+			<if test=" keyword != null and !keyword.equals('') ">
+				<if test=" fieldName.equals('displayName') "> 	AND	DISPLAY_NAME 	LIKE '%' || #{keyword} || '%' </if>
+				<if test=" fieldName.equals('comDeptName') "> 	AND	DEPT_NAME		LIKE '%' || #{keyword} || '%' </if>
+				<if test=" fieldName.equals('ouName') "> 		AND	OUNAME 			LIKE '%' || #{keyword} || '%' </if>
+				<if test=" fieldName.equals('name') "> 			AND	NAME 			LIKE '%' || #{keyword} || '%' </if>
+			</if>
+				<if test="sortBy != null and !sortBy.equals('') ">			     
+					ORDER BY 
+			   		<choose>
+						<when test='sortBy.equalsIgnoreCase("SENDER_TYPE")'>SENDER_TYPE</when>		   		
+						<when test='sortBy.equalsIgnoreCase("DEPT_NAME")'>DEPT_NAME</when>
+						<when test='sortBy.equalsIgnoreCase("DISPLAY_NAME")'>DISPLAY_NAME</when>
+						<when test='sortBy.equalsIgnoreCase("OUNAME")'>OUNAME</when>
+						<when test='sortBy.equalsIgnoreCase("NAME")'>NAME</when>
+						<when test='sortBy.equalsIgnoreCase("CAMPAIGN_T")'>CAMPAIGN_T</when>
+						<when test='sortBy.equalsIgnoreCase("CAMPAIGN_F")'>CAMPAIGN_F</when>
+						<when test='sortBy.equalsIgnoreCase("HOMEPAGE")'>HOMEPAGE</when>
+						<when test='sortBy.equalsIgnoreCase("EMAIL")'>EMAIL</when>
+						<when test='sortBy.equalsIgnoreCase("TEL")'>TEL</when>
+						<when test='sortBy.equalsIgnoreCase("FAX")'>FAX</when>
+						<when test='sortBy.equalsIgnoreCase("ZIP_CODE")'>ZIP_CODE</when>
+						<when test='sortBy.equalsIgnoreCase("ADDRESS")'>ADDRESS</when>
+						<when test='sortBy.equalsIgnoreCase("LOGO")'>LOGO</when>
+						<when test='sortBy.equalsIgnoreCase("SYMBOL")'>SYMBOL</when>
+						<when test='sortBy.equalsIgnoreCase("STAMP")'>STAMP</when>
+						<when test='sortBy.equalsIgnoreCase("USAGE_STATE")'>USAGE_STATE</when>
+						<when test='sortBy.equalsIgnoreCase("CREATE_DATE")'>CREATE_DATE</when>
+						<otherwise>CREATE_DATE</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("DESC")'> DESC</when>
+						<otherwise> ASC</otherwise>
+					</choose>  
+		     	</if>
+		)
+			
+		SELECT * 
+		FROM (
+			SELECT 	ROWNUM R_NUM
+					,SM.*
+			FROM 	SENDER_MASTER SM
+			<![CDATA[ WHERE ROWNUM <= #{pageNo} * #{pageSize} ]]>
+		) A
+		<![CDATA[ WHERE R_NUM > ( #{pageNo} - 1 ) * #{pageSize} ]]>
+	</select>
+	
+	<select id="selectGovSenderMaster" parameterType="cmap" resultType="cmap">
+		SELECT 	SEND_ID
+			,SENDER_TYPE
+			,DEPT_NAME
+			,DEPT_CODE
+			,DISPLAY_NAME
+			,OUNAME
+			,NAME
+			,CAMPAIGN_T
+			,CAMPAIGN_F
+			,HOMEPAGE
+			,EMAIL
+			,TEL
+			,FAX
+			,ZIP_CODE
+			,ADDRESS
+			,LOGO
+			,SYMBOL
+			,STAMP
+			,USAGE_STATE
+			,CREATE_DATE
+		FROM GWUSER.GOV_SENDER_MASTER
+		WHERE DELETE_DATE IS NULL
+		<if  test= " senderID != null and !senderID.equals('') "> 
+			AND SEND_ID = #{senderID}
+		</if>
+	</select>
+	
+	<select id="getGovSenderMasterUpper" parameterType="cmap" resultType="cmap">
+		WITH 
+		UPPER_MEMBER AS (
+			SELECT GROUPCODE, ROWNUM
+			FROM SYS_OBJECT_GROUP
+			START WITH GROUPCODE = #{deptCode}
+			CONNECT BY PRIOR MEMBEROF = GROUPCODE
+		)
+		
+		SELECT DISTINCT SM.*, SUBSTR(SS.FILEPATH, INSTR(SS.FILEPATH, '/'))  || SF.SAVEDNAME AS STAMP_PATH
+		FROM GOV_SENDER_MASTER SM
+		JOIN UPPER_MEMBER UM ON SM.DEPT_CODE = UM.GROUPCODE
+		LEFT JOIN SYS_FILE SF ON SM.STAMP = SF.FILEID
+		LEFT JOIN SYS_STORAGE SS ON SF.STORAGEID = SS.STORAGEID 
+		WHERE 	SM.DELETE_DATE IS NULL
+		AND		SM.USAGE_STATE = 'Y'
+	</select>
+	
+	<insert id="insertSenderMasterData" parameterType="cmap">
+		INSERT INTO GWUSER.GOV_SENDER_MASTER
+		(
+			  COMPANYCODE
+			  , SENDER_TYPE
+			  , DEPT_NAME
+			  , DEPT_CODE
+			  , DISPLAY_NAME
+			  , USAGE_STATE
+			  , OUNAME
+			  , NAME
+			  , TEL
+			  , FAX
+			  , HOMEPAGE
+			  , EMAIL
+			  , ZIP_CODE
+			  , ADDRESS
+			  , CAMPAIGN_T
+			  , CAMPAIGN_F
+			  , LOGO
+			  , SYMBOL
+			  , STAMP
+			  , CREATE_DATE
+		)
+		VALUES
+		(
+			  #{COMPANYCODE}
+			  , #{SENDER_TYPE}
+			  , #{DEPT_NAME}
+			  , #{DEPT_CODE}
+			  , #{DISPLAY_NAME}
+			  , #{USAGE_STATE}
+			  , #{OUNAME}
+			  , #{NAME}
+			  , #{TEL}
+			  , #{FAX}
+			  , #{HOMEPAGE}
+			  , #{EMAIL}
+			  , #{ZIP_CODE}
+			  , #{ADDRESS}
+			  , #{CAMPAIGN_T}
+			  , #{CAMPAIGN_F}
+			  , #{LOGO}
+			  , #{SYMBOL}
+			  , #{STAMP}
+			  , SYSDATE
+		)
+	</insert>
+	
+	<update id="updateSenderMasterData" parameterType="cmap">
+		UPDATE GWUSER.GOV_SENDER_MASTER
+		SET	  SENDER_TYPE = #{SENDER_TYPE}
+			, DEPT_NAME = #{DEPT_NAME}
+			, DEPT_CODE = #{DEPT_CODE}
+			, DISPLAY_NAME = #{DISPLAY_NAME}
+			, USAGE_STATE = #{USAGE_STATE}
+			, OUNAME = #{OUNAME}
+			, NAME = #{NAME}
+			, TEL = #{TEL}
+			, FAX = #{FAX}
+			, HOMEPAGE = #{HOMEPAGE}
+			, EMAIL = #{EMAIL}
+			, ZIP_CODE = #{ZIP_CODE}
+			, ADDRESS = #{ADDRESS}
+			, CAMPAIGN_T = #{CAMPAIGN_T}
+			, CAMPAIGN_F = #{CAMPAIGN_F}
+			, LOGO = #{LOGO}
+			, SYMBOL = #{SYMBOL}
+			, STAMP = #{STAMP}
+		WHERE 1 = 1
+		AND SEND_ID = #{senderID}
+	</update> 
+	
+	<update id="deleteSenderMasterData" parameterType="cmap">
+		UPDATE GWUSER.GOV_SENDER_MASTER
+		SET	  DELETE_DATE = SYSDATE
+		WHERE 1 = 1
+		AND SEND_ID = #{senderID}
+	</update> 
+	
+	<update id="updateSenderMasterImgData" parameterType="cmap">
+		UPDATE GWUSER.GOV_SENDER_MASTER
+		SET	   ${type} = #{FileInfo}
+		WHERE 1 = 1
+		AND SEND_ID = #{senderID}
+	</update>
+	
+		
+	<select id="selectRecordAdmin" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) AS "CNT"
+		FROM SYS_OBJECT_GROUP_MEMBER
+		WHERE GROUPCODE = 'RecordAdmin'
+		AND USERCODE = #{UserId}
+	</select>
+	 
+	<!-- 
+	<insert id="insertImgUploadData" parameterType="cmap">
+		INSERT INTO GWUSER.GOV_STAMP
+		(
+			StampID
+			,EntCode
+			,EntName
+			,StampName
+			,FileInfo
+			,OrderNo
+			,UserYN
+			,DelYn
+			,CreateDate
+			,CreateID
+		)
+		VALUES 
+		(
+			GWUSER.GOV_STAMP_SEQ.NEXTVAL
+			,#{EntCode}
+			,#{EntName}
+			,#{StampName}
+			,#{FileInfo}
+			,#{OrderNo}
+			,'Y'
+			,'N'
+			,SYSDATE
+			,#{CreateID}		
+		)
+	</insert>
+	
+	<delete id="deleteImgUploadData" parameterType="cmap">
+		DELETE FROM GWUSER.GOV_STAMP
+		WHERE  AUTHORITYID = #{authorityID}
+	</delete>
+	 -->
+</mapper>

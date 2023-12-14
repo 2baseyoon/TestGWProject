@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.storeCategory">
+	<select id="getStoreCategoryManageListCnt" resultType="java.lang.Long">
+		SELECT	
+			COUNT(*)
+		FROM 	
+			act_store_category A
+		LEFT JOIN	
+			act_standard_brief B
+		ON		
+			A.StandardBriefID =	B.StandardBriefID
+		WHERE	
+			1 = 1
+			<if test ="CompanyCode != null and CompanyCode !=''">
+				AND	A.CompanyCode LIKE '%' || #{CompanyCode} || '%' 
+			</if>
+			<if test ="CategoryName != null and CategoryName !=''">
+				AND	A.CategoryName LIKE '%' || #{CategoryName} || '%'  
+			</if>
+			<if test ="StandardBriefName != null and StandardBriefName !=''">
+				AND	B.StandardBriefName	LIKE '%' || #{StandardBriefName} || '%'
+			</if>
+			<if test ="CategoryID != null and CategoryID !=''">
+				AND	A.CategoryID LIKE '%' || #{CategoryID} || '%' 
+			</if>
+			<if test ="CategoryCode != null and CategoryCode !=''">
+				AND	A.CategoryCode LIKE '%' || #{CategoryCode} || '%' 
+			</if>
+	</select>
+	
+	<select id="getStoreCategoryManageList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			A.CompanyCode AS "CompanyCode",	
+			FN_GETACTBASECODENAME('CompanyCode', A.CompanyCode, #{CompanyCode}) AS "CompanyName",	
+			A.CategoryID AS "CategoryID",
+			A.CategoryCode AS "CategoryCode",
+			A.CategoryName AS "CategoryName",
+			A.StandardBriefID AS "StandardBriefID",
+			A.AccountCode AS "AccountCode",
+			A.Reserved1 AS "Reserved1",
+			A.Reserved2 AS "Reserved2",
+			A.Reserved3 AS "Reserved3",
+			B.StandardBriefName AS "StandardBriefName"
+		FROM 	
+			act_store_category A
+		LEFT JOIN	
+			act_standard_brief B
+		ON	
+			A.StandardBriefID =	B.StandardBriefID
+		WHERE
+			1 = 1
+			<if test ="CompanyCode != null and CompanyCode !=''">
+				AND	A.CompanyCode LIKE '%' || #{CompanyCode} || '%'  
+			</if>
+			<if test ="CategoryName != null and CategoryName !=''">
+				AND	A.CategoryName LIKE '%' || #{CategoryName} || '%' 
+			</if>
+			<if test ="StandardBriefName != null and StandardBriefName !=''">
+				AND	B.StandardBriefName	LIKE '%' || #{StandardBriefName} || '%'  
+			</if>
+			<if test ="CategoryID != null and CategoryID !=''">
+				AND	A.CategoryID LIKE '%' || #{CategoryID} || '%' 
+			</if>
+			<if test ="CategoryCode != null and CategoryCode !=''">
+				AND	A.CategoryCode LIKE '%' || #{CategoryCode} || '%'  
+			</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, A.CategoryCode ASC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CategoryCode")'>"CategoryCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CategoryName")'>"CategoryName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<insert id="insertStoreCategoryManageInfo" parameterType="cmap">
+	    INSERT INTO act_store_category (
+				CompanyCode
+			,	CategoryCode
+			,	CategoryName
+			,	StandardBriefID
+			,	AccountCode
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{CompanyCode}
+			,	#{CategoryCode}
+			,	#{CategoryName}
+			,	#{StandardBriefID}
+			,	#{AccountCode}
+			,	#{UserID}
+			,	now()
+			,	#{UserID}
+			,	now()
+	    )
+ 	</insert>
+ 	
+	
+	<update id="updateStoreCategoryManageInfo" parameterType="cmap" >
+ 		UPDATE	act_store_category
+		SET		CompanyCode		=#{CompanyCode}
+			,	CategoryCode	=#{CategoryCode}
+			,	CategoryName    =#{CategoryName}
+			,	StandardBriefID =#{StandardBriefID}
+			,	AccountCode 	=#{AccountCode}
+			,	ModifierID      =#{UserID}
+			,	ModifyDate      =now()
+		WHERE	CategoryID		= #{CategoryID}
+ 	</update>
+ 	
+	
+	<delete id="deleteStoreCategoryManageInfo">
+	    DELETE FROM act_store_category	
+		WHERE	CategoryID =#{CategoryID}
+	</delete>
+</mapper>

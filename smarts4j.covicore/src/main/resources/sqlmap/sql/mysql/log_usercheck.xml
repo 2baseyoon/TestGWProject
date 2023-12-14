@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogUserCheck">
+    <select id="selectUserCheck" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT AuthKey
+					, AuthType
+					, LogonID
+					, AuthStatus
+					, AuthEQ_Info
+					, EQ_AuthKind
+					, DATE_FORMAT(ReqDate, '%Y-%m-%d %H:%i:%s') AS ReqTime
+					, DATE_FORMAT(SuccessDate, '%Y-%m-%d %H:%i:%s') AS SuccessTime
+					, DATE_FORMAT(CheckDate, '%Y-%m-%d %H:%i:%s') CheckTime
+					, DATE_FORMAT(ReqDate, '%Y-%m-%d %H:%i:%s') AS ReqDay
+			FROM covi_smart4j.sys_base_fido
+	    ]]>
+	     <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	     	<if test="authType != null and authType != '' and authType != 'FidoAuthType' ">AuthType = #{authType}</if>
+			<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">AND ReqDate BETWEEN #{startDate} AND #{endDate}</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'LogonID'">
+				      AND LogonID LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+			    </choose>
+			</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("AuthType")'>AuthType</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<when test='sortColumn.equalsIgnoreCase("AuthStatus")'>AuthStatus</when>
+					<when test='sortColumn.equalsIgnoreCase("AuthEQ_Info")'>AuthEQ_Info</when>
+					<when test='sortColumn.equalsIgnoreCase("EQ_AuthKind")'>EQ_AuthKind</when>
+					<when test='sortColumn.equalsIgnoreCase("ReqTime")'>ReqTime</when>
+					<when test='sortColumn.equalsIgnoreCase("SuccessTime")'>SuccessTime</when>
+					<when test='sortColumn.equalsIgnoreCase("CheckTime")'>CheckTime</when>
+					<when test='sortColumn.equalsIgnoreCase("ReqDay")'>ReqDay</when>
+					<otherwise>AuthKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+    </select>
+    
+    
+ 	<select id="selectUserCheckCount" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM covi_smart4j.sys_base_fido
+	    ]]>
+	     <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	     	<if test="authType != null and authType != '' and authType != 'FidoAuthType' ">AuthType = #{authType}</if>
+			<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">AND ReqDate BETWEEN #{startDate} AND #{endDate}</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+				    <when test="searchType == 'LogonID'">
+				      AND LogonID LIKE CONCAT('%',#{searchWord},'%')
+				    </when>
+			    </choose>
+			</if>
+		</trim>
+	</select>
+</mapper>

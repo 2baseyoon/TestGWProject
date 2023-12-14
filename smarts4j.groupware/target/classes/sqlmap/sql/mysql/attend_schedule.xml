@@ -1,0 +1,727 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.schedule">
+
+	<select id="getAttendScheduleListCnt"  parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : attend.schedule.getAttendScheduleListCnt */
+		SELECT count(*)
+		FROM (
+			SELECT ams.AttSeq,
+				ams.SchName,
+				ams.SchSeq,
+				ams.WorkZone,
+				ams.AttDayStartTime,
+				ams.AttDayEndTime,
+				ams.AssYn,
+				ams.Memo,
+				ams.BaseYn,
+				(SELECT COUNT(*) FROM attendance_mng_schedule_member amm WHERE amm.SchSeq = ams.SchSeq) MemberCnt,
+				(SELECT GROUP_CONCAT(ur.DisplayName SEPARATOR ',') FROM attendance_mng_schedule_member mem, sys_object_user ur WHERE mem.SchSeq = ams.SchSeq AND mem.UserCode = ur.UserCode) MemberList,
+				(SELECT COUNT(*) FROM attendance_mng_schedule_alloc ama WHERE ama.SchSeq = ams.SchSeq)  AllocCnt
+				,CONCAT(ams.WorkZone,',', wpinfo.wplist ) as WorkPlace
+			FROM covi_smart4j.attendance_mng_schedule ams
+			LEFT JOIN (SELECT swp.SchSeq, GROUP_CONCAT(wp.WorkZone SEPARATOR ',') as wplist
+				FROM attendance_mng_schedule_workplace swp, attendance_workplace wp
+				WHERE swp.LocationSeq = wp.LocationSeq
+				GROUP BY swp.SchSeq
+			) wpinfo ON wpinfo.SchSeq = ams.SchSeq
+			WHERE ams.CompanyCode = #{CompanyCode}
+			<if test="ValidCheck != null and ValidCheck != ''">
+			AND ams.ValidYn = #{ValidCheck}
+			</if>
+			<if test="SchSeq != null and SchSeq != ''">
+			AND ams.SchSeq = #{SchSeq}
+			</if>
+		) tbl
+		<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+			WHERE
+			<choose>
+				<when test='schTypeSel == "allSearch"'>
+					SchName LIKE CONCAT('%', #{schTxt}, '%')
+					OR WorkPlace LIKE CONCAT('%', #{schTxt}, '%')
+					OR MemberList LIKE CONCAT('%', #{schTxt}, '%')
+					OR Memo LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "templateName"'>
+					SchName LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "workPlaceName"'>
+					WorkPlace LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "user"'>
+					MemberList LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "memo"'>
+					Memo LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getAttendScheduleList"  parameterType="cmap" resultType="cmap">
+		/* attend.schedule.getAttendScheduleList*/
+		SELECT *
+		FROM(
+			SELECT
+				ams.AttSeq
+				,ams.SchName
+				,ams.SchSeq
+				,ams.WorkZone
+				,ams.AttDayStartTime
+				,ams.AttDayEndTime
+				, concat(ams.StartSunHour,':',StartSunMin,'~',EndSunHour,':',EndSunMin) WorkTimeSun
+				, concat(ams.StartMonHour,':',StartMonMin,'~',EndMonHour,':',EndMonMin) WorkTimeMon
+				, concat(ams.StartTueHour,':',StartTueMin,'~',EndTueHour,':',EndTueMin) WorkTimeTue
+				, concat(ams.StartWedHour,':',StartWedMin,'~',EndWedHour,':',EndWedMin) WorkTimeWed
+				, concat(ams.StartThuHour,':',StartThuMin,'~',EndThuHour,':',EndThuMin) WorkTimeThe
+				, concat(ams.StartFriHour,':',StartFriMin,'~',EndFriHour,':',EndFriMin) WorkTimeFri
+				, concat(ams.StartSatHour,':',StartSatMin,'~',EndSatHour,':',EndSatMin) WorkTimeSat
+				,ams.NextDayYnSun
+				,ams.NextDayYnMon
+				,ams.NextDayYnTue
+				,ams.NextDayYnWed
+				,ams.NextDayYnThu
+				,ams.NextDayYnFri
+				,ams.NextDayYnSat
+				,ams.AssYn
+				,ams.Memo
+				,ams.BaseYn
+				,ams.ValidYn
+				,(SELECT COUNT(*) FROM attendance_mng_schedule_member amm WHERE amm.SchSeq = ams.SchSeq)  MemberCnt
+				,(SELECT GROUP_CONCAT(ur.DisplayName SEPARATOR ',') FROM attendance_mng_schedule_member mem, sys_object_user ur WHERE mem.SchSeq = ams.SchSeq AND mem.UserCode = ur.UserCode) MemberList
+				,(SELECT COUNT(*) FROM attendance_mng_schedule_alloc ama WHERE ama.SchSeq = ams.SchSeq)  AllocCnt
+				,CONCAT(ams.WorkZone,',', wpinfo.wplist ) as WorkPlace
+			 FROM covi_smart4j.attendance_mng_schedule ams
+			 LEFT JOIN (SELECT swp.SchSeq, GROUP_CONCAT(wp.WorkZone SEPARATOR ',') as wplist
+				FROM attendance_mng_schedule_workplace swp, attendance_workplace wp
+				WHERE swp.LocationSeq = wp.LocationSeq
+				GROUP BY swp.SchSeq
+			 ) wpinfo ON wpinfo.SchSeq = ams.SchSeq
+			WHERE ams.CompanyCode = #{CompanyCode}
+			<if test="ValidCheck != null and ValidCheck != ''">
+					AND ams.ValidYn = #{ValidCheck}
+			</if>
+			<if test="SchSeq != null and SchSeq != ''">
+				AND ams.SchSeq = #{SchSeq}
+			</if>
+		) tbl
+		<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+			WHERE
+			<choose>
+				<when test='schTypeSel == "allSearch"'>
+					SchName LIKE CONCAT('%', #{schTxt}, '%')
+					OR WorkPlace LIKE CONCAT('%', #{schTxt}, '%')
+					OR MemberList LIKE CONCAT('%', #{schTxt}, '%')
+					OR Memo LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "templateName"'>
+					SchName LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "workPlaceName"'>
+					WorkPlace LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "user"'>
+					MemberList LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<when test='schTypeSel == "memo"'>
+					Memo LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+			</choose>
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AttSeq , BaseYn desc, SchSeq
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, <choose>
+						<when test='sortColumn.equalsIgnoreCase("BaseYn")'>BaseYn</when>
+						<when test='sortColumn.equalsIgnoreCase("SchName")'>SchName</when>
+						<when test='sortColumn.equalsIgnoreCase("WorkZone")'>WorkZone</when>
+						<when test='sortColumn.equalsIgnoreCase("WorkTimeMon")'>WorkTimeMon</when>
+						<when test='sortColumn.equalsIgnoreCase("AssYn")'>AssYn</when>
+						<when test='sortColumn.equalsIgnoreCase("MemberCnt")'>MemberCnt</when>
+						<when test='sortColumn.equalsIgnoreCase("AllocCnt")'>AllocCnt</when>
+						<when test='sortColumn.equalsIgnoreCase("Memo")'>Memo</when>
+						<otherwise>AttSeq, BaseYn desc, SchSeq</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getAttendScheduleDetail"  parameterType="cmap" resultType="cmap">
+	/* attend.schedule.getAttendScheduleDetail */
+		SELECT 
+			ams.AttSeq      
+			,ams.SchName 
+			,ams.SchSeq
+			,ams.AttDayStartTime      
+			,ams.AttDayEndTime
+			,ams.AssYn
+			,ams.AssSeq
+			,ams.SelfCommYn
+			,ams.AttDayAC
+			,ams.AttDayIdle
+			,ams.Memo
+			,ams.NextDayYn
+			,StartSunHour, StartSunMin, EndSunHour, EndSunMin, NextDayYnSun
+			,StartMonHour, StartMonMin, EndMonHour, EndMonMin, NextDayYnMon
+			,StartTueHour, StartTueMin, EndTueHour, EndTueMin, NextDayYnTue
+			,StartWedHour, StartWedMin, EndWedHour, EndWedMin, NextDayYnWed
+			,StartThuHour, StartThuMin, EndThuHour, EndThuMin, NextDayYnThu
+			,StartFriHour, StartFriMin, EndFriHour, EndFriMin, NextDayYnFri
+			,StartSatHour, StartSatMin, EndSatHour, EndSatMin, NextDayYnSat
+			,AcSun, AcMon, AcTue, AcWed, AcThu, AcFri, AcSat
+			,IdleSun, IdleMon, IdleTue, IdleWed, IdleThu, IdleFri, IdleSat
+			,WorkZone, WorkAddr, WorkPointX, WorkPointY, AllowRadius
+			,AutoExtenYn, AutoExtenMinTime, AutoExtenMaxTime
+			,WorkingSystemType
+			,CoreTimeYn, ifnull(CoreStartTimeHour, '00') CoreStartTimeHour, ifnull(CoreStartTimeMin, '00') CoreStartTimeMin, ifnull(CoreEndTimeHour, '00') CoreEndTimeHour, ifnull(CoreEndTimeMin, '00') CoreEndTimeMin
+			,GoWorkTimeYn, ifnull(GoWorkStartTimeHour, '00') GoWorkStartTimeHour, ifnull(GoWorkStartTimeMin, '00') GoWorkStartTimeMin, ifnull(GoWorkEndTimeHour, '00') GoWorkEndTimeHour, ifnull(GoWorkEndTimeMin, '00') GoWorkEndTimeMin
+			,OffWorkTimeYn, ifnull(OffWorkStartTimeHour, '00') OffWorkStartTimeHour, ifnull(OffWorkStartTimeMin, '00') OffWorkStartTimeMin, ifnull(OffWorkEndTimeHour, '00') OffWorkEndTimeHour, ifnull(OffWorkEndTimeMin, '00') OffWorkEndTimeMin
+		FROM covi_smart4j.attendance_mng_schedule ams
+		WHERE ams.CompanyCode = #{CompanyCode}
+      	  AND ams.SchSeq = #{SchSeq}			
+		  AND ams.ValidYn = 'Y'
+	</select>
+	
+	<insert id="insertAttendSchedule"  parameterType="cmap">
+		INSERT INTO covi_smart4j.attendance_mng_schedule 
+		(      
+			AttSeq  
+			,CompanyCode   
+			,SchName    
+			,AttDayStartTime   
+			,AttDayEndTime   
+			,NextDayYn
+			,AssYn   
+			,AssSeq
+			,SelfCommYn
+			,AttDayAC
+			,AttDayIdle
+			,ValidYn
+			,Memo
+			,StartSunHour, StartSunMin, EndSunHour, EndSunMin, NextDayYnSun
+			,StartMonHour, StartMonMin, EndMonHour, EndMonMin, NextDayYnMon
+			,StartTueHour, StartTueMin, EndTueHour, EndTueMin, NextDayYnTue
+			,StartWedHour, StartWedMin, EndWedHour, EndWedMin, NextDayYnWed
+			,StartThuHour, StartThuMin, EndThuHour, EndThuMin, NextDayYnThu
+			,StartFriHour, StartFriMin, EndFriHour, EndFriMin, NextDayYnFri
+			,StartSatHour, StartSatMin, EndSatHour, EndSatMin, NextDayYnSat
+			,AcSun, AcMon, AcTue, AcWed, AcThu, AcFri, AcSat
+			,IdleSun, IdleMon, IdleTue, IdleWed, IdleThu, IdleFri, IdleSat
+			,WorkZone, WorkAddr, WorkPointX, WorkPointY, AllowRadius
+			,AutoExtenYn, AutoExtenMinTime, AutoExtenMaxTime
+			,WorkingSystemType
+			,CoreTimeYn, CoreStartTimeHour, CoreStartTimeMin, CoreEndTimeHour, CoreEndTimeMin
+			,GoWorkTimeYn, GoWorkStartTimeHour, GoWorkStartTimeMin, GoWorkEndTimeHour, GoWorkEndTimeMin
+			,OffWorkTimeYn, OffWorkStartTimeHour, OffWorkStartTimeMin, OffWorkEndTimeHour, OffWorkEndTimeMin
+			,RegisterCode
+			,RegistDate  
+			,ModifyerCode
+			,ModifyDate 
+		)
+		VALUES
+		(       
+			#{AttSeq}
+			,#{CompanyCode}
+			,#{SchName}  
+			,#{AttDayStartTime}    
+			,#{AttDayEndTime}    
+			,#{NextDayYn}    
+			,#{AssYn}    
+			,#{AssSeq}
+			,#{SelfCommYn}
+			,#{AttDayAC}
+			,#{AttDayIdle}
+			,'Y'
+			,#{Memo}
+			,#{StartSunHour}, #{StartSunMin}, #{EndSunHour}, #{EndSunMin}, #{NextDayYnSun}
+			,#{StartMonHour}, #{StartMonMin}, #{EndMonHour}, #{EndMonMin}, #{NextDayYnMon}
+			,#{StartTueHour}, #{StartTueMin}, #{EndTueHour}, #{EndTueMin}, #{NextDayYnTue}
+			,#{StartWedHour}, #{StartWedMin}, #{EndWedHour}, #{EndWedMin}, #{NextDayYnWed}
+			,#{StartThuHour}, #{StartThuMin}, #{EndThuHour}, #{EndThuMin}, #{NextDayYnThu}
+			,#{StartFriHour}, #{StartFriMin}, #{EndFriHour}, #{EndFriMin}, #{NextDayYnFri}
+			,#{StartSatHour}, #{StartSatMin}, #{EndSatHour}, #{EndSatMin}, #{NextDayYnSat}
+			,#{AcSun}, #{AcMon}, #{AcTue}, #{AcWed}, #{AcThu}, #{AcFri}, #{AcSat}
+			,#{IdleSun}, #{IdleMon}, #{IdleTue}, #{IdleWed}, #{IdleThu}, #{IdleFri}, #{IdleSat}
+			,#{WorkZone}, #{WorkAddr}, #{WorkPointX}, #{WorkPointY}, #{AllowRadius}
+			,#{AutoExtenYn}, #{AutoExtenMinTime}, #{AutoExtenMaxTime}
+			,#{WorkingSystemType}
+			,#{CoreTimeYn}, #{CoreStartTimeHour}, #{CoreStartTimeMin}, #{CoreEndTimeHour}, #{CoreEndTimeMin}
+			,#{GoWorkTimeYn}, #{GoWorkStartTimeHour}, #{GoWorkStartTimeMin}, #{GoWorkEndTimeHour}, #{GoWorkEndTimeMin}
+			,#{OffWorkTimeYn}, #{OffWorkStartTimeHour}, #{OffWorkStartTimeMin}, #{OffWorkEndTimeHour}, #{OffWorkEndTimeMin}
+			,#{UserCode}
+			,NOW()
+			,#{UserCode}
+			,NOW() 
+		)	;
+		
+			
+		<selectKey keyProperty="SchSeq" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateAttendSchedule"  parameterType="cmap">
+		UPDATE covi_smart4j.attendance_mng_schedule
+		   SET SchName      = #{SchName}  
+				,AttDayStartTime= #{AttDayStartTime}       
+				,AttDayEndTime  = #{AttDayEndTime}    
+				,NextDayYn      = #{NextDayYn}   
+				,AssYn          = #{AssYn}  
+				,AssSeq			= #{AssSeq}  
+				,SelfCommYn		= #{SelfCommYn}  
+				,AttDayAC		= #{AttDayAC}  
+				,AttDayIdle		= #{AttDayIdle}  
+				,Memo           = #{Memo}
+				,StartSunHour   = #{StartSunHour}, StartSunMin  = #{StartSunMin}, EndSunHour = #{EndSunHour}, EndSunMin = #{EndSunMin}, NextDayYnSun = #{NextDayYnSun}
+				,StartMonHour   = #{StartMonHour}, StartMonMin  = #{StartMonMin}, EndMonHour = #{EndMonHour}, EndMonMin = #{EndMonMin}, NextDayYnMon = #{NextDayYnMon}
+				,StartTueHour   = #{StartTueHour}, StartTueMin  = #{StartTueMin}, EndTueHour = #{EndTueHour}, EndTueMin = #{EndTueMin}, NextDayYnTue = #{NextDayYnTue}
+				,StartWedHour   = #{StartWedHour}, StartWedMin  = #{StartWedMin}, EndWedHour = #{EndWedHour}, EndWedMin = #{EndWedMin}, NextDayYnWed = #{NextDayYnWed}
+				,StartThuHour   = #{StartThuHour}, StartThuMin  = #{StartThuMin}, EndThuHour = #{EndThuHour}, EndThuMin = #{EndThuMin}, NextDayYnThu = #{NextDayYnThu}
+				,StartFriHour   = #{StartFriHour}, StartFriMin  = #{StartFriMin}, EndFriHour = #{EndFriHour}, EndFriMin = #{EndFriMin}, NextDayYnFri = #{NextDayYnFri}
+				,StartSatHour   = #{StartSatHour}, StartSatMin  = #{StartSatMin}, EndSatHour = #{EndSatHour}, EndSatMin = #{EndSatMin}, NextDayYnSat = #{NextDayYnSat}
+				,AcSun = #{AcSun}, AcMon = #{AcMon}, AcTue = #{AcTue}, AcWed = #{AcWed}, AcThu = #{AcThu}, AcFri = #{AcFri}, AcSat = #{AcSat}
+				,IdleSun = #{IdleSun}, IdleMon = #{IdleMon}, IdleTue = #{IdleTue}, IdleWed = #{IdleWed}, IdleThu = #{IdleThu}, IdleFri = #{IdleFri}, IdleSat = #{IdleSat}
+				,WorkZone       = #{WorkZone}
+				,WorkAddr       = #{WorkAddr}
+				,WorkPointX	    = #{WorkPointX}
+				,WorkPointY     = #{WorkPointY}
+				,AllowRadius    = #{AllowRadius}
+				,AutoExtenYn    = #{AutoExtenYn}, AutoExtenMinTime = #{AutoExtenMinTime}, AutoExtenMaxTime = #{AutoExtenMaxTime}
+				,WorkingSystemType = #{WorkingSystemType}
+				,CoreTimeYn = #{CoreTimeYn}, CoreStartTimeHour = #{CoreStartTimeHour}, CoreStartTimeMin = #{CoreStartTimeMin}, CoreEndTimeHour = #{CoreEndTimeHour}, CoreEndTimeMin = #{CoreEndTimeMin}
+				,GoWorkTimeYn = #{GoWorkTimeYn}, GoWorkStartTimeHour = #{GoWorkStartTimeHour}, GoWorkStartTimeMin = #{GoWorkStartTimeMin}, GoWorkEndTimeHour = #{GoWorkEndTimeHour}, GoWorkEndTimeMin = #{GoWorkEndTimeMin}
+				,OffWorkTimeYn = #{OffWorkTimeYn}, OffWorkStartTimeHour = #{OffWorkStartTimeHour}, OffWorkStartTimeMin = #{OffWorkStartTimeMin}, OffWorkEndTimeHour = #{OffWorkEndTimeHour}, OffWorkEndTimeMin = #{OffWorkEndTimeMin}
+				,ModifyerCode   = #{UserCode}
+				,ModifyDate     =  now()
+		WHERE SchSeq = #{SchSeq}	
+	</update>
+	
+	<delete id="deleteAttendSchedule"  parameterType="java.util.Map">
+		DELETE FROM covi_smart4j.attendance_mng_schedule
+		WHERE SchSeq = #{SchSeq}	
+	</delete>
+	
+	<update id="updateAttendScheduleBase"  parameterType="cmap">
+		UPDATE covi_smart4j.attendance_mng_schedule
+		   SET BaseYn      = CASE WHEN SchSeq = #{SchSeq} then 'Y' else 'N' end  
+		 WHERE CompanyCode = #{CompanyCode}
+		   AND  ValidYn = 'Y'
+	</update>
+	
+	<update id="updateAttendScheduleValid"  parameterType="cmap">
+		UPDATE covi_smart4j.attendance_mng_schedule
+		   SET ValidYn      = #{ValidYn}
+		 WHERE CompanyCode = #{CompanyCode}
+		   AND SchSeq = #{SchSeq}
+	</update>
+	
+	<select id="getAttSchMemberInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			IFNULL(COUNT(1),0) CNT			
+		FROM
+		(
+			SELECT 
+					amm.AttSeq
+					,amm.CompanyCode
+					,ams.SchSeq
+					,amsm.ScMemSeq
+					,ams.SchName
+					,ams.MultiDisplayName
+					,Fn_BaseGetDictionary_S(#{lang},ams.MultiDisplayName) schMulti
+					,sou.DisplayName AS UserName
+					,Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) userMulti
+					,Fn_BaseGetDictionary_S(#{lang},sou.MultiDeptName) TransChargeBusiness
+					,amsm.UserCode
+					,amsm.StartDtm
+					,amsm.EndDtm
+					,amsm.ValidYn
+					,#{UR_TimeZone} AS NowDate
+				FROM covi_smart4j.attendance_mng_schedule_member amsm
+				LEFT JOIN (
+					SELECT ur.*,bg.MultiDeptName,bg.DeptCode,bg.JobType FROM covi_smart4j.sys_object_user_basegroup bg
+					LEFT JOIN covi_smart4j.sys_object_user AS ur ON ur.UserCode = bg.UserCode
+				) sou
+				ON sou.UserCode = amsm.UserCode
+				AND sou.JobType = 'Origin'
+				LEFT JOIN covi_smart4j.attendance_mng_schedule ams
+				ON ams.SchSeq = amsm.SchSeq
+				LEFT JOIN covi_smart4j.attendance_mng_mst amm
+				ON ams.AttSeq = amm.AttSeq
+			WHERE
+				1=1
+				AND sou.IsUse = 'Y'
+				AND ams.ValidYn = 'Y'
+				AND amm.ValidYn = 'Y'
+				AND amm.CompanyCode = #{CompanyCode}
+			<if test="AttYn != null and AttYn != ''">
+				/*근무제 사용여부*/
+				AND amm.AttYn = #{AttYn}  
+			</if>
+			<if test="ValidCheck != null and ValidCheck != ''">
+				/*근무제 활성여부*/
+				AND amsm.ValidYn = #{ValidCheck}
+			</if>
+			<if test="p_UserCode != null and p_UserCode != ''">
+				/*특정고객조회시*/
+				AND amsm.UserCode = #{p_UserCode}
+			</if>
+			<if test="SchSeq != null and SchSeq != ''">
+				/*근무제 조회*/
+				AND amsm.SchSeq = #{SchSeq}
+			</if>
+			<if test="ScMemSeq != null and ScMemSeq != ''">
+				/*근무제 지정자 번호 조회*/
+				AND amsm.ScMemSeq = #{ScMemSeq}
+			</if>
+			<if test="S_StartDate != null and S_StartDate != ''">
+				/*날자검색 추가*/
+				AND amsm.StartDtm BETWEEN DATE_FORMAT(#{S_StartDate},'%Y.%m.%d') AND DATE_FORMAT(#{S_EndDate},'%Y.%m.%d')
+			</if>
+			<if test="S_Specifier != null and S_Specifier != ''">
+				/*지정자명 검색 추가*/
+				AND sou.DisplayName LIKE CONCAT('%', #{S_Specifier}, '%')
+			</if>
+		) m
+			WHERE 1=1
+		<if test='nowYn eq "Y" '>	
+			/*당일기준 */
+			AND m.NowDate BETWEEN m.StartDtm AND m.EndDtm
+		</if>
+		<if test='nowYn eq "D" '>	
+			/*저장일 기준 */
+			AND (
+				m.StartDtm BETWEEN DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') AND DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d')
+				OR m.EndDtm BETWEEN DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') AND DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d')
+				OR	DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm 
+				OR	DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm
+				)
+		</if>
+		<if test="S_TargetDate != null and S_TargetDate != ''">
+			/*지정일기준 */
+			AND DATE_FORMAT(#{S_TargetDate},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm
+		</if>
+	</select>
+	
+	<select id="getAttSchMemberInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			 m.AttSeq
+			,m.CompanyCode
+			,m.SchSeq
+			,m.ScMemSeq
+			,m.SchName
+			,m.MultiDisplayName
+			,m.schMulti
+			,m.UserName
+			,m.userMulti
+			,m.TransChargeBusiness
+			,m.UserCode
+			,m.StartDtm
+			,m.EndDtm
+			,m.ValidYn
+			,m.NowDate
+			,m.PcUseYn
+			,m.MobileUseYn
+			,CASE
+				WHEN m.NowDate <![CDATA[ <  ]]> m.StartDtm THEN 'A1'
+				WHEN m.NowDate <![CDATA[ <= ]]> m.EndDtm THEN 'A2'
+				WHEN m.NowDate <![CDATA[ >  ]]> m.EndDtm THEN 'A3'
+			END Sts
+			,CASE
+				WHEN m.NowDate <![CDATA[ >= ]]> m.EndDtm THEN 'N'
+				ELSE ValidYn
+			END Valid
+		FROM
+		(
+			SELECT 
+					amm.AttSeq
+					,amm.CompanyCode
+					,ams.SchSeq
+					,amsm.ScMemSeq
+					,ams.SchName
+					,ams.MultiDisplayName
+					,Fn_BaseGetDictionary_S(#{lang},ams.MultiDisplayName) schMulti
+					,sou.DisplayName AS UserName
+					,Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) userMulti
+					,Fn_BaseGetDictionary_S(#{lang},sou.MultiDeptName) TransChargeBusiness
+					,amsm.UserCode
+					,amsm.StartDtm
+					,amsm.EndDtm
+					,amsm.ValidYn
+					,#{UR_TimeZone} AS NowDate
+					,amm.PcUseYn
+					,amm.MobileUseYn
+				FROM covi_smart4j.attendance_mng_schedule_member amsm
+				LEFT JOIN (
+					SELECT ur.*,bg.MultiDeptName,bg.DeptCode,bg.JobType FROM covi_smart4j.sys_object_user_basegroup bg
+					LEFT JOIN covi_smart4j.sys_object_user AS ur ON ur.UserCode = bg.UserCode
+				) sou
+				ON sou.UserCode = amsm.UserCode
+				AND sou.JobType = 'Origin'
+				LEFT JOIN covi_smart4j.attendance_mng_schedule ams
+				ON ams.SchSeq = amsm.SchSeq
+				LEFT JOIN covi_smart4j.attendance_mng_mst amm
+				ON ams.AttSeq = amm.AttSeq
+			WHERE
+				1=1
+				AND sou.IsUse = 'Y'
+				AND ams.ValidYn = 'Y'
+				AND amm.ValidYn = 'Y'
+				AND amm.CompanyCode = #{CompanyCode}
+			<if test="AttYn != null and AttYn != ''">
+				/*근무제 사용여부*/
+				AND amm.AttYn = #{AttYn}  
+			</if>
+			<if test="ValidCheck != null and ValidCheck != ''">
+				/*근무제 활성여부*/
+				AND amsm.ValidYn = #{ValidCheck}
+			</if>
+			<if test="p_UserCode != null and p_UserCode != ''">
+				/*특정고객조회시*/
+				AND amsm.UserCode = #{p_UserCode}
+			</if>
+			<if test="SchSeq != null and SchSeq != ''">
+				/*근무제 조회*/
+				AND amsm.SchSeq = #{SchSeq}
+			</if>
+			<if test="ScMemSeq != null and ScMemSeq != ''">
+				/*근무제 지정자 번호 조회*/
+				AND amsm.ScMemSeq = #{ScMemSeq}
+			</if>
+			<if test="S_StartDate != null and S_StartDate != ''">
+				/*날자검색 추가*/
+				AND amsm.StartDtm BETWEEN DATE_FORMAT(#{S_StartDate},'%Y.%m.%d') AND DATE_FORMAT(#{S_EndDate},'%Y.%m.%d')
+			</if>
+			<if test="S_Specifier != null and S_Specifier != ''">
+				/*지정자명 검색 추가*/
+				AND sou.DisplayName LIKE CONCAT('%', #{S_Specifier}, '%')
+			</if>
+		) m
+			WHERE 1=1
+		<if test='nowYn eq "Y" '>	
+			/*당일기준 */
+			AND m.NowDate BETWEEN m.StartDtm AND m.EndDtm
+		</if>
+		<if test='nowYn eq "D" '>	
+			/*저장일 기준 */
+			AND (
+				m.StartDtm BETWEEN DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') AND DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d')
+				OR m.EndDtm BETWEEN DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') AND DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d')
+				OR	DATE_FORMAT(#{P_StartDtm},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm 
+				OR	DATE_FORMAT(#{P_EndDtm},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm
+				)
+		</if>
+		<if test="S_TargetDate != null and S_TargetDate != ''">
+			/*지정일기준 */
+			AND DATE_FORMAT(#{S_TargetDate},'%Y.%m.%d') BETWEEN m.StartDtm AND m.EndDtm
+		</if>
+		ORDER BY Valid ,StartDtm 
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+	<insert id="setAttSchMember" parameterType="cmap">
+		<if test="ScMemSeq == null ">
+			INSERT INTO covi_smart4j.attendance_mng_schedule_member
+			(SchSeq
+				,UserCode
+				,StartDtm
+				,EndDtm
+				,ValidYn
+				,CompanyCode
+				,RegisterCode
+				,RegistDate
+				,ModifyerCode
+				,ModifyDate
+			)
+			VALUES
+			(#{SchSeq}
+				,#{p_UserCode}
+				,DATE_FORMAT(#{StartDtm},'%Y.%m.%d')
+				,DATE_FORMAT(#{EndDtm},'%Y.%m.%d')
+				,#{ValidYn}
+				,#{CompanyCode}
+				,#{UserCode}
+				,now()
+				,#{UserCode}
+				,now()
+			)	
+		</if>	
+		<if test="ScMemSeq != null">
+		UPDATE covi_smart4j.attendance_mng_schedule_member
+		SET
+		    ModifyerCode   = #{UserCode}    
+		    ,ModifyDate     = NOW()      
+			<if test="StartDtm != null and StartDtm != ''">
+		    ,StartDtm        = DATE_FORMAT(#{StartDtm},'%Y.%m.%d')
+			</if>    
+			<if test="EndDtm != null and EndDtm != ''">
+		    ,EndDtm          = DATE_FORMAT(#{EndDtm},'%Y.%m.%d')    
+			</if>
+			<if test="ValidYn != null and ValidYn != ''">
+			,ValidYn        = #{ValidYn}     
+			</if>
+		WHERE 	ScMemSeq = #{ScMemSeq}
+		</if>	
+	</insert>
+	
+	<update id="delAttSchMember" parameterType="cmap">
+		DELETE FROM covi_smart4j.attendance_mng_schedule_member
+		WHERE ScMemSeq = #{ScMemSeq}
+	</update>
+	
+	<select id="getAttSchAllocInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(AllocSeq)
+		FROM  (
+			SELECT AllocSeq, AllocType, AllocID
+			  FROM covi_smart4j.attendance_mng_schedule_alloc amsm
+			 INNER JOIN covi_smart4j.sys_object_user AS u ON u.UserCode = amsm.AllocID
+  			 WHERE amsm.SchSeq = #{SchSeq}
+			   AND amsm.AllocType = 'UR'
+		   UNION 
+			 SELECT AllocSeq, AllocType, AllocID
+			  FROM covi_smart4j.attendance_mng_schedule_alloc amsm
+			 INNER JOIN covi_smart4j.sys_object_group AS g ON g.GroupCode = amsm.AllocID
+			WHERE  amsm.SchSeq = #{SchSeq}
+			 AND amsm.AllocType != 'UR') a
+	</select>	
+	<select id="getAttSchAllocInfo" parameterType="cmap" resultType="cmap">
+		SELECT AllocSeq, AllocType, AllocID, DisplayName AllocName
+		  FROM covi_smart4j.attendance_mng_schedule_alloc amsm
+	INNER JOIN covi_smart4j.sys_object_user AS u ON u.UserCode = amsm.AllocID
+		 WHERE  amsm.SchSeq = #{SchSeq}
+		   AND amsm.AllocType = 'UR'
+		 UNION 
+		 SELECT AllocSeq, AllocType, AllocID, DisplayName
+		  FROM covi_smart4j.attendance_mng_schedule_alloc amsm
+    INNER JOIN covi_smart4j.sys_object_group AS g ON g.GroupCode = amsm.AllocID
+	  	 WHERE  amsm.SchSeq = #{SchSeq}
+		   AND amsm.AllocType != 'UR'
+	  ORDER BY AllocType ,AllocID 
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+	<insert id="setAttSchAlloc" parameterType="cmap">
+		INSERT INTO covi_smart4j.attendance_mng_schedule_alloc
+		(
+			SchSeq
+			,AllocType
+			,AllocID
+			,RegisterCode
+			,RegistDate
+			,ModifyerCode
+			,ModifyDate
+		)
+		VALUES
+		(
+			#{SchSeq}
+			,#{AllocType}
+			,#{AllocID}
+			,#{UserCode}
+			,now()
+			,#{UserCode}
+			,now()
+		)	
+	</insert>
+	
+	<update id="delAttSchAlloc" parameterType="cmap">
+		DELETE FROM covi_smart4j.attendance_mng_schedule_alloc
+		WHERE AllocSeq = #{AllocSeq}
+	</update>
+
+	<select id="getWorkPlaceList" parameterType="cmap" resultType="cmap">
+		SELECT
+		LocationSeq
+		, WorkZoneGroupNm
+		, WorkZone
+		, ValidYn
+		FROM covi_smart4j.attendance_workplace
+		WHERE
+		CompanyCode IN ('ORGROOT', #{CompanyCode})
+		<if test="SchSeq != null and SchSeq != ''">
+			AND LocationSeq NOT IN (
+			SELECT
+			LocationSeq
+			FROM covi_smart4j.attendance_mng_schedule_workplace
+			WHERE
+			SchSeq = #{SchSeq}
+			AND WorkPlaceType = #{WorkPlaceType}
+			)
+		</if>
+		<if test="validYn != null and validYn != ''">
+			AND ValidYn = #{validYn}
+		</if>
+	</select>
+
+	<select id="getAddWorkPlaceList" parameterType="cmap" resultType="cmap">
+		SELECT
+		b.LocationSeq as LocationSeq
+		, b.WorkZone as WorkZone
+		, b.WorkZoneGroupNm as WorkZoneGroupNm
+		, b.WorkAddr AS WorkAddr
+		, b.AllowRadius AS AllowRadius
+		, b.WorkPointX AS WorkPointX
+		, b.WorkPointY AS WorkPointY
+		FROM covi_smart4j.attendance_mng_schedule_workplace a
+		INNER JOIN covi_smart4j.attendance_workplace b on a.LocationSeq = b.LocationSeq
+		WHERE
+		a.SchSeq = #{SchSeq}
+		and a.WorkPlaceType = #{WorkPlaceType}
+	</select>
+
+	<insert id="insertAttSchWorkPlace" parameterType="cmap">
+		INSERT INTO covi_smart4j.attendance_mng_schedule_workplace
+		(
+		SchSeq
+		, WorkPlaceType
+		, LocationSeq
+		) value (
+		#{SchSeq}
+		, #{WorkPlaceType}
+		, #{LocationSeq}
+		)
+	</insert>
+
+	<delete id="deleteAttSchWorkPlace" parameterType="cmap">
+		DELETE
+		FROM covi_smart4j.attendance_mng_schedule_workplace
+		WHERE
+		SchSeq = #{SchSeq}
+		AND WorkPlaceType = #{WorkPlaceType}
+	</delete>
+	
+	<select id="getBaseSchedule" parameterType="cmap" resultType="cmap">
+		SELECT	  SchSeq
+				, SchName
+				, AttDayStartTime AS StartTime
+				, AttDayEndTime AS EndTime
+				, DATE_FORMAT(STR_TO_DATE(CONCAT(REPLACE(#{SetDate}, '-',''), AttDayStartTime, '00'), '%Y%m%d%H%i%s'), '%Y-%m-%d %H:%i:%s') AS AttDayStartTime
+				, DATE_FORMAT(STR_TO_DATE(CONCAT(REPLACE(#{SetDate}, '-',''), AttDayEndTime, '00'), '%Y%m%d%H%i%s'), '%Y-%m-%d %H:%i:%s') AS AttDayEndTime
+		FROM attendance_mng_schedule
+		WHERE CompanyCode = #{CompanyCode}
+		AND ValidYn = 'Y'
+		AND BaseYn = 'Y'
+	</select>
+	
+	<delete id="deleteAttSchWorkPlaceBySchSeq" parameterType="java.util.Map">
+		/* attend.schedule.deleteAttSchWorkPlaceBySchSeq */
+		DELETE FROM covi_smart4j.attendance_mng_schedule_workplace
+		WHERE SchSeq = #{SchSeq}
+	</delete>
+	<delete id="delAttSchAllocBySchSeq" parameterType="java.util.Map">	
+		/* attend.schedule.delAttSchAllocBySchSeq */
+		DELETE FROM covi_smart4j.attendance_mng_schedule_alloc
+		WHERE SchSeq = #{SchSeq}
+	</delete>
+</mapper>
+

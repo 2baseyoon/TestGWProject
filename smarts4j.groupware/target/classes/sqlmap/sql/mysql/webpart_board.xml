@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.board">
+    <!-- 좋아요가 가장 많은 게시글 조회 -->
+    <select id="selecMostLikeBoardMessage" parameterType="cmap" resultType="cmap">
+		SELECT a.MessageID
+				, a.Version
+				, a.FolderID
+				, a.Subject
+				, COUNT(b.LikeID) AS LikeCnt 
+		FROM covi_smart4j.board_message AS a
+		LEFT JOIN covi_smart4j.sys_like AS b ON a.MessageID = SUBSTRING_INDEX(b.TargetID,'_',1) AND b.TargetServiceType = 'Board'
+		WHERE a.DeleteDate IS NULL
+		GROUP BY a.MessageID
+		-- HAVING COUNT(b.LikeID) > 0 
+		ORDER BY LikeCnt DESC, a.RegistDate
+		LIMIT 1
+	</select>
+	
+     <!-- 댓글 개수가 가장 많은 게시글 조회 (최다 댓글 게시글 조회)  -->
+     <select id="selectMaxCommentBoardMessage" parameterType="cmap" resultType="cmap">
+			SELECT a.MessageID
+					, a.Version
+					, a.FolderID
+					, a.Subject
+					, (COUNT(b.CommentID) + SUM(b.ReplyCount)) AS CommentCnt
+			FROM covi_smart4j.board_message AS a
+			LEFT JOIN covi_smart4j.sys_comment AS b ON a.MessageID = SUBSTRING_INDEX(b.TargetID,'_',1) AND b.TargetServiceType = 'Board' AND b.MemberOf = 0 
+			WHERE a.DeleteDate IS NULL
+			AND b.DeleteDate IS NULL
+			GROUP BY a.MessageID
+			--  HAVING COUNT(b.CommentID) > 0
+			ORDER BY CommentCnt DESC
+			LIMIT 1
+	</select>
+    
+    
+      <!-- 조회수가 가장 많은 게시글 조회  -->
+     <select id="selectMaxReadBoardMessage" parameterType="cmap" resultType="cmap">
+		  SELECT   a.MessageID
+					, a.Version
+					, a.FolderID
+					, a.Subject
+					,a.ReadCnt 
+					, (SELECT COUNT(*) FROM sys_like AS b WHERE b.TargetServiceType = 'Board' AND b.TargetID = SUBSTRING_INDEX(a.MessageID,'_',1) ) AS LikeCnt
+		  FROM covi_smart4j.board_message AS a
+		  WHERE a.DeleteDate IS NULL
+		  ORDER BY a.ReadCnt DESC, a.RegistDate DESC
+		  LIMIT 1
+	</select>
+	
+      <!-- 태그 목록 조회  -->
+     <select id="selectBoardTag" parameterType="cmap" resultType="cmap">
+		  select Tag, COUNT(TAG) AS Cnt from board_message_tag
+		  GROUP BY Tag
+		  ORDER BY Cnt DESC
+		  LIMIT #{limitCnt}
+	</select>
+     
+    <select id="selectMultipleBoardMessageList" parameterType="cmap" resultType="cmap">
+        SELECT 
+        	SOF.MenuID
+        	, SOF.FolderID
+        	, BM.MessageID
+        	, BM.Version
+        	, BM.Subject
+        	, BM.CreatorCode
+        	, Fn_BaseGetDictionary_S(#{lang}, CreatorName) AS CreatorName
+        	, DATE_FORMAT(BM.RegistDate,'%Y.%m.%d') AS RegistDate
+        FROM board_message AS BM
+        INNER JOIN sys_object_folder AS SOF ON (BM.FolderID = SOF.FolderID)
+        WHERE 1=1
+        AND SOF.FolderID = #{folderID}
+        AND SOF.DeleteDate IS NULL
+        AND SOF.IsUse = 'Y'
+        AND BM.MsgType NOT IN ('N', 'B')
+        AND BM.MsgState IN ('C', 'A')
+        AND BM.DeleteDate IS NULL
+        AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND CreatorCode = #{userCode}))
+		AND (BM.ExpiredDate IS NULL OR  BM.ExpiredDate >= NOW() ) 
+        ORDER BY IF(BM.ParentID = 0, BM.MessageID, BM.Seq) desc, depth,step ASC
+    </select>
+    
+    <select id="selectPopupNoticeList" parameterType="cmap" resultType="cmap">
+    	SELECT FD.MenuID
+			 , FD.FolderID
+			 , FD.OwnerCode AS FolderOwnerCode
+			 , FD.FolderType
+			 , BM.Version
+			 , BM.MessageID
+			 , BM.Subject
+			 , BM.CreatorCode
+			 , IFNULL(BM.OwnerCode, '') AS OwnerCode
+			 , IFNULL(BM.RegistDept, '') AS RegistDept
+			 , IFNULL(BM.UseMessageReadAuth, 'N') AS UseMessageReadAuth
+		 	 , IFNULL(FG.UseMessageAuth,'N') AS UseMessageAuth
+		FROM covi_smart4j.board_message AS BM 
+		INNER JOIN covi_smart4j.sys_object_folder AS FD ON BM.FolderID = FD.FolderID
+		INNER JOIN covi_smart4j.board_config AS FG ON FD.FolderID = FG.FolderID AND FG.UsePopNotice = 'Y'
+		WHERE FD.IsUse = 'Y' 
+		AND FD.IsDisplay = 'Y'
+		AND FD.DeleteDate IS NULL
+		AND BM.DeleteDate IS NULL
+		AND BM.IsCurrent = 'Y'
+		AND BM.IsPopup = 'Y'
+		AND BM.MsgType IN ('O', 'M')
+		AND BM.MsgState IN ('C', 'A')
+		AND NOW() BETWEEN BM.PopupStartDate AND BM.PopupEndDate
+		AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= NOW(3))
+		<if test='folderACLArr != null and folderACLArr.length != 0'>
+			AND FD.FolderID IN  
+			<foreach collection="folderACLArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+    </select>
+    
+    <!-- MY 도메인 정보 조회 -->
+    <select id="selectDomain" parameterType="cmap" resultType="cmap">
+		/* queryId : webpart.board.selectDomain */
+		SELECT   DomainID
+			   , DomainCode
+			   , DomainURL
+			   , DisplayName
+			   , MultiDisplayName
+			   , MemberOf
+			   , DomainPath
+			   , SortKey
+			   , SortPath
+			   , IsUse
+			   , ServiceUser
+			   , Description
+			   , DATE_FORMAT(RegistDate, '%Y-%m-%d') AS RegistDate
+			   , DATE_FORMAT(ServiceStart, '%Y-%m-%d') AS ServiceStart
+			   , DATE_FORMAT(ServiceEnd, '%Y-%m-%d') AS ServiceEnd
+			   , SubDomain
+			   , OrgSyncType
+			   , DomainRepName
+			   , DomainRepTel
+			   , DomainCorpTel
+			   , DomainImagePath
+			   , DomainZipcode
+			   , DomainAddress
+			   , Memo
+			   , DomainBannerPath
+			   , DomainBannerLink
+			   , ChargerName
+			   , ChargerTel
+			   , ChargerID
+			   , ChargerEmail
+			   , IsUseGoogleSchedule
+		 FROM sys_object_domain sod
+		 WHERE DomainID = #{DomainID}
+	</select>
+	
+	<!-- 팝업/웹파트 임직원 소식 조회  -->
+	<select id="selectEmployeesNotice" parameterType="cmap" resultType="cmap">
+	 /* webpart.board.selectEmployeesNotice */
+	 SELECT * FROM (
+		SELECT 
+			  Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS UserName
+			, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobLevelName ) AS JobLevelName
+			, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobTitleName ) AS JobTitleName
+			, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobPositionName ) AS JobPositionName
+			, ur.MailAddress AS MailAddress	
+			, ur.PhotoPath
+			, gr.SortKey AS SortKey
+			, gr.JobTitleSortKey AS JobTitleSortKey
+			, gr.JobPositionSortKey AS JobPositionSortKey
+			, gr.JobLevelSortKey AS JobLevelSortKey
+			, notice.* 
+		FROM (
+		<trim prefixOverrides ="UNION ALL">		
+			<if test="selMode == 'ALL'">
+				<if test='Birth == "Y"'>
+					UNION ALL (
+						SELECT a.UserCode
+							, 'Birth' AS Type
+							, a.BirthDiv AS DateDiv
+							, DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AS Date
+							, 0 AS isVac
+							, DATE_FORMAT(a.BirthDate, '%Y-%m-%d') AS DateSort
+							, 'off' AS offFlag
+						FROM sys_object_user AS a
+						WHERE 
+					<if test='birthMode == "D"'>	
+						(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m%d') = DATE_FORMAT(#{localCurrentDate}, '%m%d'))
+						OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m%d') = (
+							SELECT DATE_FORMAT(LunarDate, '%m%d') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AND DN_ID = 0
+						))
+					</if>
+					<if test='birthMode == "M"'>
+						(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m') = DATE_FORMAT(#{localCurrentDate}, '%m'))
+						OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m') = (
+							SELECT DATE_FORMAT(LunarDate, '%m') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m') AND DN_ID = 0
+						))
+					</if>
+					)
+				</if>
+				<if test='NewJoin == "Y"'>
+					UNION ALL (
+					<![CDATA[
+						SELECT a.UserCode
+							, 'Enter' AS Type
+							, 'S' AS DateDiv
+							, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS Date
+							, 0 AS isVac
+							, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS DateSort
+							, 'off' AS offFlag
+						FROM sys_object_user AS a
+						WHERE a.EnterDate IS NOT NULL AND a.EnterDate != ''
+							AND a.EnterDate > (#{localCurrentDate} - INTERVAL  #{enterInterval} day) 
+					]]>
+					)
+				</if>
+				<if test='Condolence == "Y"'>
+					UNION ALL (
+						SELECT EventOwner AS UserCode
+							, EventType AS Type
+							, 'S' AS DateDiv
+							, DATE_FORMAT(EventDate, '%Y-%m-%d') AS Date
+							, 0 AS isVac
+							, DATE_FORMAT(EventDate, '%Y-%m-%d') AS DateSort
+							, 'off' AS offFlag
+						FROM board_message_event
+						WHERE EventDate IS NOT NULL
+						AND EventDate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')
+						ORDER BY EventType, RegistDate DESC
+					)
+				</if>
+				<if test='Vacation == "Y"'>
+					UNION ALL (
+					<![CDATA[
+						SELECT
+							Apply.UR_Code as UserCode
+							, Apply.Type
+							, Apply.DateDiv
+							, Apply.Date 
+							, 1 AS isVac
+							, DATE_FORMAT(date_sub(Apply.Date,interval datediff(Apply.Date,DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d')) *2 day),'%Y-%m-%d') as DateSort
+							, Apply.offFlag
+						FROM (
+							SELECT 
+								a.UR_Code, a.VacFlag AS Type, 'S' AS DateDiv, b.VacDate as Date, b.VacDay, a.VacOffFlag AS offFlag
+							FROM covi_smart4j.vm_vacationinfo AS a
+						    JOIN covi_smart4j.vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+							WHERE a.GUBUN = 'VACATION_APPLY' 
+						    AND b.vacdate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')							
+						) AS Apply
+					]]>
+					)
+				</if>
+			</if>
+		</trim>
+		<if test="selMode == 'Birth'">
+				(
+					SELECT a.UserCode
+						, 'Birth' AS Type
+						, a.BirthDiv AS DateDiv
+						, DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AS Date
+						, 0 AS isVac
+						, DATE_FORMAT(a.BirthDate, '%Y-%m-%d') AS DateSort
+						, 'off' AS offFlag
+					FROM sys_object_user AS a
+					WHERE 
+				<if test='birthMode == "D"'>	
+					(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m%d') = DATE_FORMAT(#{localCurrentDate}, '%m%d'))
+					OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m%d') = (
+						SELECT DATE_FORMAT(LunarDate, '%m%d') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AND DN_ID = 0
+					))
+				</if>
+				<if test='birthMode == "M"'>
+					(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m') = DATE_FORMAT(#{localCurrentDate}, '%m'))
+					OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m') = (
+						SELECT DATE_FORMAT(LunarDate, '%m') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m') AND DN_ID = 0
+					))
+				</if>
+				)
+		</if>
+		<if test="selMode == 'NewJoin'">
+				(
+				<![CDATA[
+				SELECT a.UserCode
+						, 'Enter' AS Type
+						, 'S' AS DateDiv
+						, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS Date
+						, 0 AS isVac
+						, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS DateSort
+						, 'off' AS offFlag
+					FROM sys_object_user AS a
+					WHERE a.EnterDate IS NOT NULL AND a.EnterDate != ''
+						AND a.EnterDate > (#{localCurrentDate} - INTERVAL  #{enterInterval} day)
+				]]>
+				)
+		</if>
+		<if test="selMode == 'Condolence'">
+				(
+					SELECT EventOwner AS UserCode
+						, EventType AS Type
+						, 'S' AS DateDiv
+						, DATE_FORMAT(EventDate, '%Y-%m-%d') AS Date
+						, 0 AS isVac
+						, DATE_FORMAT(EventDate, '%Y-%m-%d') AS DateSort
+						, 'off' AS offFlag
+					FROM board_message_event
+					WHERE EventDate IS NOT NULL
+					AND EventDate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')
+					ORDER BY EventType, RegistDate DESC
+				)
+		</if>
+		<if test="selMode == 'Vacation'">
+				(
+				<![CDATA[
+					SELECT Apply.UR_Code as UserCode
+						, Apply.Type, Apply.DateDiv
+						, Apply.Date 
+						, 1 AS isVac
+						, DATE_FORMAT(date_sub(Apply.Date,interval datediff(Apply.Date,DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d')) *2 day),'%Y-%m-%d') as DateSort
+						, Apply.offFlag
+					FROM (
+						SELECT 
+							a.UR_Code, a.VacFlag AS Type, 'S' AS DateDiv, b.VacDate as Date, b.VacDay, a.VacOffFlag AS offFlag
+						FROM covi_smart4j.vm_vacationinfo AS a
+					    JOIN covi_smart4j.vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+						WHERE a.GUBUN = 'VACATION_APPLY' 
+					    AND b.vacdate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')							
+					) AS Apply
+				]]>
+				)
+		</if>
+	
+			) AS notice
+			INNER JOIN sys_object_user AS ur ON notice.UserCode = ur.UserCode
+			INNER JOIN sys_object_user_basegroup AS gr ON notice.UserCode = gr.UserCode AND gr.JobType = 'Origin'
+			WHERE ur.IsUse = 'Y' AND ur.IsDisplay = 'Y' AND gr.CompanyCode = #{DN_Code}
+			<if test="searchName != null and searchName != '' and searchName.length() gt 0">
+				AND ur.MultiDisplayName LIKE CONCAT('%',#{searchName},'%')
+			</if>
+		) a		
+		ORDER BY isVac ASC, DateSort DESC, 
+		<choose>
+			<when test="orgOrders != null and orgOrders != '' ">
+			  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+			  		<if test="orgOrder == 'JobTitle'">
+			  			JobTitleSortKey ASC
+			  		</if>
+			  		<if test="orgOrder == 'JobLevel'">
+			  			JobLevelSortKey ASC
+			  		</if>
+			  		<if test="orgOrder == 'JobPosition'">
+			  			JobPositionSortKey ASC
+			  		</if>
+	  				<if test="orgOrder == 'DN'">
+			  			UserName ASC
+			  		</if>
+			  	</foreach>
+			  	, SortKey ASC
+		  	</when>
+		  	<otherwise>
+		  		<![CDATA[ SortKey ASC, JobTitleSortKey ASC, JobLevelSortKey ASC, JobPositionSortKey ASC, UserName ASC ]]>
+		  	</otherwise>
+		</choose>
+		<if test='paging == "portal"'>
+			LIMIT #{page, jdbcType=INTEGER}, #{count}
+		</if>
+		<if test='paging == "popup"'>
+			LIMIT #{page, jdbcType=INTEGER}, 20
+		</if>
+	</select>  
+	
+	<!-- 팝업/웹파트 임직원 소식 조회 카운트 -->
+	<select id="selectEmployeesNoticeCount" parameterType="cmap" resultType="cmap">
+	/* webpart.board.selectEmployeesNoticeCount */
+		SELECT COUNT(*) AS Cnt 
+		FROM (
+			SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS UserName
+				, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobLevelName ) AS JobLevelName
+				, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobTitleName ) AS JobTitleName
+				, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobPositionName ) AS JobPositionName
+				, ur.MailAddress AS MailAddress	
+				, ur.PhotoPath 
+				, notice.* 
+			FROM  (
+		<trim prefixOverrides ="UNION ALL">			
+			<if test="selMode == 'ALL'">
+				<if test='Birth == "Y"'>
+					UNION ALL (		
+						SELECT a.UserCode
+							, 'Birth' AS Type
+							, a.BirthDiv AS DateDiv
+							, DATE_FORMAT(a.BirthDate, '%Y-%m-%d') AS Date
+							, 'off' AS offFlag
+						FROM sys_object_user AS a  
+						WHERE
+					<if test='birthMode == "D"'>	
+						(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m%d') = DATE_FORMAT(#{localCurrentDate}, '%m%d'))
+						OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m%d') = (
+							SELECT DATE_FORMAT(LunarDate, '%m%d') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AND DN_ID = 0
+						))
+					</if>
+					<if test='birthMode == "M"'>
+						(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m') = DATE_FORMAT(#{localCurrentDate}, '%m'))
+						OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m') = (
+							SELECT DATE_FORMAT(LunarDate, '%m') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m') AND DN_ID = 0
+						))
+					</if>
+					)
+				</if>
+				<if test='NewJoin == "Y"'>
+					UNION ALL (
+					<![CDATA[
+						SELECT a.UserCode
+							, 'Enter' AS Type
+							, 'S' AS DateDiv
+							, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS Date
+							, 'off' AS offFlag
+						FROM sys_object_user AS a
+						WHERE a.EnterDate IS NOT NULL AND a.EnterDate != ''
+							AND a.EnterDate > (#{localCurrentDate} - INTERVAL  #{enterInterval} day)
+					]]>
+					)
+				</if>
+				<if test='Condolence == "Y"'>
+					UNION ALL (
+						SELECT EventOwner AS UserCode
+							, EventType AS Type
+							, 'S' AS DateDiv
+							, DATE_FORMAT(EventDate, '%Y-%m-%d') AS Date
+							, 'off' AS offFlag
+						FROM board_message_event
+						WHERE EventDate IS NOT NULL
+						AND EventDate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')
+						ORDER BY EventType, RegistDate DESC
+					)
+				</if>
+				<if test='Vacation == "Y"'>
+					UNION ALL (
+					<![CDATA[
+						SELECT
+							Apply.UR_Code as UserCode, Apply.Type, Apply.DateDiv, Apply.Date , Apply.offFlag
+						FROM (
+							SELECT 
+								a.UR_Code, a.VacFlag AS Type, 'S' AS DateDiv, b.VacDate as Date, b.VacDay, a.VacOffFlag AS offFlag
+							FROM covi_smart4j.vm_vacationinfo AS a
+						    JOIN covi_smart4j.vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+							WHERE a.GUBUN = 'VACATION_APPLY' 
+						    AND b.vacdate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')							
+						) AS Apply
+					]]>
+					)
+				</if>
+			</if>
+		</trim>
+		<if test="selMode == 'Birth'">
+				(
+					SELECT a.UserCode
+						, 'Birth' AS Type
+						, a.BirthDiv AS DateDiv
+						, DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AS Date
+						, 'off' AS offFlag
+					FROM sys_object_user AS a
+					WHERE 
+				<if test='birthMode == "D"'>	
+					(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m%d') = DATE_FORMAT(#{localCurrentDate}, '%m%d'))
+					OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m%d') = (
+						SELECT DATE_FORMAT(LunarDate, '%m%d') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m-%d') AND DN_ID = 0
+					))
+				</if>
+				<if test='birthMode == "M"'>
+					(a.BirthDiv = 'S' and  DATE_FORMAT(a.BirthDate, '%m') = DATE_FORMAT(#{localCurrentDate}, '%m'))
+					OR (a.BirthDiv = 'L' AND DATE_FORMAT(a.BirthDate, '%m') = (
+						SELECT DATE_FORMAT(LunarDate, '%m') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = DATE_FORMAT(#{localCurrentDate}, '%Y-%m') AND DN_ID = 0
+					))
+				</if>
+				)
+			</if>
+			<if test="selMode == 'NewJoin'">
+				(
+				<![CDATA[
+					SELECT a.UserCode
+						, 'Enter' AS Type
+						, 'S' AS DateDiv
+						, DATE_FORMAT(a.EnterDate, '%Y-%m-%d') AS Date
+						, 'off' AS offFlag
+					FROM sys_object_user AS a
+					WHERE a.EnterDate IS NOT NULL AND a.EnterDate != ''
+						AND a.EnterDate > (#{localCurrentDate} - INTERVAL  #{enterInterval} day)
+				]]>
+				)
+			</if>
+			<if test="selMode == 'Condolence'">
+				(
+					SELECT EventOwner AS UserCode
+						, EventType AS Type
+						, 'S' AS DateDiv
+						, DATE_FORMAT(EventDate, '%Y-%m-%d') AS Date
+						, 'off' AS offFlag
+					FROM board_message_event
+					WHERE EventDate IS NOT NULL
+					AND EventDate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')
+					ORDER BY EventType, RegistDate DESC
+				)
+			</if>
+			<if test="selMode == 'Vacation'">
+				(
+				<![CDATA[
+					SELECT
+						Apply.UR_Code as UserCode, Apply.Type, Apply.DateDiv, Apply.Date , Apply.offFlag
+					FROM (
+						SELECT 
+							a.UR_Code, a.VacFlag AS Type, 'S' AS DateDiv, b.VacDate as Date, b.VacDay, a.VacOffFlag AS offFlag
+						FROM covi_smart4j.vm_vacationinfo AS a
+					    JOIN covi_smart4j.vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+						WHERE a.GUBUN = 'VACATION_APPLY' 
+					    AND b.vacdate BETWEEN DATE_FORMAT(#{localCurrentDate},'%Y-%m-%d') AND DATE_FORMAT(date_add(#{localCurrentDate},interval 1+#{addinterval} day),'%Y-%m-%d')							
+					) AS Apply
+				]]>
+				)
+			</if>
+				) AS notice
+				INNER JOIN sys_object_user AS ur ON notice.UserCode = ur.UserCode
+				INNER JOIN sys_object_user_basegroup AS gr ON notice.UserCode = gr.UserCode AND gr.JobType = 'Origin'
+				WHERE ur.IsUse = 'Y' AND ur.IsDisplay = 'Y' AND gr.CompanyCode = #{DN_Code}
+			)a	
+	 </select>
+	 
+	 <!-- 인라인 이미지 파일 조회 -->
+	 <select id="selectExchFile" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	FileID, SaveType, FileName, SavedName
+	    	, ServiceType, FilePath, Extention
+	    FROM sys_file
+	    WHERE MessageID = #{MessageID}
+	    AND IFNULL(IsDeleted, 'N') = 'N'
+	    AND SaveType = 'INLINE'
+		and ServiceType = 'Board'
+	 </select>
+
+	 <!-- 웹파트 동영상 게시판 조회 -->
+	<select id="selectMovieBoardList" parameterType="cmap" resultType="cmap">
+	/* webpart.board.selectMovieBoardList */
+		SELECT
+			BM.MessageID 
+			, BM.Version
+			, BM.FolderID 
+			, A.MenuID
+			, BM.Subject
+			, DATE_FORMAT(BM.RegistDate,'%Y.%m.%d') AS RegistDate
+			, BM.ReadCnt 
+			, BM.CreatorCode 
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorLevel) AS CreatorLevel
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorPosition) AS CreatorPosition
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorTitle) AS CreatorTitle
+			, IF(BM.UsePubDeptName = 'Y', Fn_BaseGetDictionary_S(#{lang},BM.CreatorDept), Fn_BaseGetDictionary_S(#{lang},BM.CreatorName)) AS CreatorName
+			, SF.ServiceType
+			, SF.FilePath
+			, SF.SavedName
+			, CONCAT(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath, SF.SavedName) AS FullPath
+			, SF.FileID
+			, SF.Extention
+		FROM covi_smart4j.board_message AS BM
+		INNER JOIN covi_smart4j.sys_object_folder AS A on BM.FolderID= A.FolderID
+		INNER JOIN covi_smart4j.sys_file AS SF ON SF.ServiceType = 'Board' AND SF.ObjectID = BM.FolderID AND SF.ObjectType = 'FD' AND SF.MessageID = BM.MessageID AND SF.SaveType != 'INLINE' AND SF.Version = BM.Version AND IFNULL(SF.IsDeleted, 'N') = 'N'
+		INNER JOIN covi_smart4j.sys_storage AS ST ON ST.StorageID = SF.StorageID
+		WHERE 1=1
+		AND BM.DeleteDate IS NULL
+		AND BM.MsgType != 'S' 
+		AND (BM.UseSecurity != 'Y' OR (BM.UseSecurity = 'Y' AND BM.CreatorCode = #{userCode}))
+		AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= #{localCurrentDate} ) 
+		AND (BM.ReservationDate IS NULL OR BM.ReservationDate <![CDATA[<]]> #{localCurrentDate} )
+		AND BM.MsgState IN ('C', 'A') 
+		AND BM.IsCurrent = 'Y'
+		AND BM.FolderID = #{folderID}
+		ORDER BY BM.RegistDate DESC	
+		LIMIT 1;
+	</select>
+	<!-- 웹파트 앨범 게시판 조회 -->
+	<select id="selectAlbumBoardList" parameterType="cmap" resultType="cmap">
+	/* webpart.board.selectAlbumBoardList */
+	SELECT
+		  BM.MessageID
+		, BM.FolderID
+		, BM.MenuID
+		, BM.FolderPath
+		, (SELECT MAX(FileID) FROM covi_smart4j.sys_file WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID
+	FROM ( 
+		SELECT 
+			  BM.MessageID
+			, BM.Seq
+			, BM.Step
+			, BM.FolderID
+			, A.MenuID, A.FolderPath
+			, (CASE IsTop WHEN 'N' THEN 'Z' ELSE (CASE WHEN NOW() BETWEEN TopStartDate AND TopEndDate THEN 'A' ELSE 'Z' END) END) AS ListTop
+		FROM covi_smart4j.board_message BM
+		JOIN covi_smart4j.sys_object_folder A on BM.FolderID= A.FolderID
+		LEFT OUTER JOIN covi_smart4j.board_category BC ON BM.CategoryID = BC.CategoryID AND BC.FolderID = BM.FolderID
+		LEFT OUTER JOIN covi_smart4j.board_message_acl BMA ON BMA.MessageID = BM.MessageID AND BMA.Version = BM.Version
+		WHERE 1=1
+		AND BM.DeleteDate IS NULL
+		AND BM.MsgState IN ('C', 'A') 
+		AND BM.MsgType != 'S' 
+		AND UseSecurity != 'Y'
+		AND (ExpiredDate IS NULL OR ExpiredDate >= NOW() ) 
+		AND (ReservationDate IS NULL OR ReservationDate <![CDATA[<]]> NOW())
+		AND BM.IsCurrent = 'Y'
+		AND BM.FolderID = #{folderId}
+	) BM
+	ORDER BY ListTop ASC, Seq DESC, Step ASC
+	LIMIT 4 OFFSET 0
+	</select>
+</mapper>

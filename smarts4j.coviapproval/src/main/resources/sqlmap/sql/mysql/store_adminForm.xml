@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="store.adminForm">
+	<select id="selectFormsCategoryList" parameterType="cmap" resultType="cmap">
+		SELECT
+			C.CategoryID, 
+			MAX(C.CategoryName) AS CategoryName, 
+			SUM(case when I.StoreItemID is null then 0 else 1 end) AS FormsCnt
+		FROM covi_approval4j.jwf_store_formscategory C  
+			LEFT OUTER JOIN covi_approval4j.jwf_store_forms F 
+			ON F.CategoryID = C.CategoryID
+			<if test="filterIsUse != null and filterIsUse != ''">
+				AND F.IsUse = #{filterIsUse}
+			</if>
+			<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormName")'>
+						AND F.FormName LIKE CONCAT('%', #{searchKeyword}, '%')
+					</when>
+					<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+						AND F.FormPrefix LIKE CONCAT('%', #{searchKeyword}, '%')
+					</when>
+				</choose>
+			</if>
+			LEFT OUTER JOIN covi_smart4j.sys_store_items I 
+			ON F.StoreItemID =I.StoreItemID  
+			<if test="filterIsFree != null and filterIsFree != ''">
+				AND I.IsFree = #{filterIsFree}
+			</if>
+			LEFT OUTER JOIN covi_approval4j.jwf_store_forms_rev R 
+			ON R.StoredFormRevID = F.StoredFormRevID  
+		WHERE 1 = 1
+		GROUP BY C.CategoryID
+		ORDER BY C.seq
+	</select>
+
+	<select id="selectStoreFormList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			F.StoredFormID,
+			F.StoredFormRevID,
+			covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, C.CategoryName) AS CategoryName,
+			covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, F.FormName) AS FormName,
+			R.RevisionNo,
+			R.ThumbnailFileID,
+			IFNULL(F.ModifyDate, F.RegistDate) AS ModifyDate,
+			F.PurchasedCnt AS PurchasedCnt,
+			F.IsUse AS IsUse,
+			I.IsFree AS IsFree
+		FROM covi_approval4j.jwf_store_forms F
+		INNER JOIN covi_approval4j.jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+		INNER JOIN covi_smart4j.sys_store_items I ON F.StoreItemID =I.StoreItemID  
+		INNER JOIN covi_approval4j.jwf_store_forms_rev R ON R.StoredFormRevID = F.StoredFormRevID  
+		WHERE 1=1
+		<if test="filterIsUse != null and filterIsUse != ''">
+			AND F.IsUse = #{filterIsUse}
+		</if>
+		<if test="filterIsFree != null and filterIsFree != ''">
+			AND I.IsFree = #{filterIsFree}
+		</if>
+		<if test="filterCategoryID != null and filterCategoryID != ''">
+			AND F.CategoryID = #{filterCategoryID}
+		</if>
+		<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormName")'>
+					AND F.FormName LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+					AND F.FormPrefix LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("CategoryName")'>
+					AND C.CategoryName LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("RevisionNo")'>
+					AND R.RevisionNo LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+			</choose>
+		</if>
+		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				F.FormName ASC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+	    		<choose>
+	    			<when test='sortColumn.equalsIgnoreCase("CategoryName")'>CategoryName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("RevisionNo")'>R.RevisionNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<when test='sortColumn.equalsIgnoreCase("PurchasedCnt")'>PurchasedCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFree")'>IsFree</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+ 	<select id="selectStoreFormListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_approval4j.jwf_store_forms F
+		INNER JOIN covi_approval4j.jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+		INNER JOIN covi_smart4j.sys_store_items I ON F.StoreItemID =I.StoreItemID  
+		INNER JOIN covi_approval4j.jwf_store_forms_rev R ON R.StoredFormRevID = F.StoredFormRevID  
+		WHERE 1=1
+		<if test="filterIsUse != null and filterIsUse != ''">
+			AND F.IsUse = #{filterIsUse}
+		</if>
+		<if test="filterIsFree != null and filterIsFree != ''">
+			AND I.IsFree = #{filterIsFree}
+		</if>
+		<if test="filterCategoryID != null and filterCategoryID != ''">
+			AND F.CategoryID = #{filterCategoryID}
+		</if>
+		<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormName")'>
+					AND F.FormName LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+					AND F.FormPrefix LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("CategoryName")'>
+					AND C.CategoryName LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+				<when test='searchType.equalsIgnoreCase("RevisionNo")'>
+					AND R.RevisionNo LIKE CONCAT('%', #{searchKeyword}, '%')
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getStoreCategorySelectbox" parameterType="cmap" resultType="cmap">
+		SELECT
+			CategoryID AS optionValue,
+			CategoryName AS optionText
+		FROM covi_approval4j.jwf_store_formscategory
+		ORDER BY Seq
+	</select>
+
+	<select id="StoreAdminPurchaseListDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(P.StoredFormRevID)
+		FROM  covi_approval4j.jwf_store_forms_rev R
+		LEFT OUTER JOIN covi_approval4j.jwf_store_purchase P ON R.StoredFormRevID = P.StoredFormRevID
+		INNER JOIN covi_smart4j.sys_object_user U ON P.RegisterCode = U.UserCode 
+		WHERE R.StoredFormID = #{StoredFormID} 
+		AND P.StoredFormRevID IS NOT NULL
+	</select>
+	
+	<select id="StoreAdminPurchaseListData" parameterType="cmap" resultType="cmap">
+		SELECT
+			FORMAT(@ROWNUM:=@ROWNUM+1,0) AS ROWNUM, 
+			P.CompanyCode, covi_smart4j.Fn_ENTNAME_S(P.CompanyCode) AS CompanyName,
+			P.RegisterCode AS PurchaseUserCode, U.DisplayName PurchaseUserName,
+			R.RevisionNo, P.IsFree, P.PurchaseDate
+		FROM  covi_approval4j.jwf_store_forms_rev R
+		LEFT OUTER JOIN covi_approval4j.jwf_store_purchase P ON R.StoredFormRevID = P.StoredFormRevID
+		INNER JOIN covi_smart4j.sys_object_user U ON P.RegisterCode = U.UserCode 
+		JOIN (SELECT @ROWNUM:=0) A
+		WHERE R.StoredFormID = #{StoredFormID} 
+		AND P.StoredFormRevID IS NOT NULL
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				P.PurchaseDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+	    		<choose>
+	    			<when test='sortColumn.equalsIgnoreCase("ROWNUM")'>ROWNUM</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("PurchaseUserName")'>PurchaseUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("RevisionNo")'>RevisionNo</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFree")'>IsFree</when>
+					<when test='sortColumn.equalsIgnoreCase("PurchaseDate")'>PurchaseDate</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+	<insert id="insertStoreItemsData" parameterType="cmap">	
+		INSERT INTO covi_smart4j.sys_store_items (
+			ItemType,
+			ItemName,
+			Price,
+			IsFree,
+			RegistDate,
+			RegisterCode
+		) VALUES (
+			#{ItemType}
+			,#{ItemName}
+			,#{Price}
+			,#{IsFree}
+			,now(3)
+			,#{RegisterCode}
+		)
+		<selectKey keyProperty="StoreItemID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateStoreItemsData" parameterType="cmap">	
+		UPDATE covi_smart4j.sys_store_items
+			SET Price = #{Price},
+			IsFree = #{IsFree},
+			ModifyDate = now(3),
+			ModifierCode = #{ModifierCode}
+		WHERE StoreItemID = #{StoreItemID}
+	</update>
+	
+	<insert id="insertFormData" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_store_forms (
+			CategoryID,
+			StoreItemID,
+			FormPrefix,
+			FormName,
+			FormDescription,
+			RegistDate,
+			RegisterCode,
+			MobileFormYN
+		) VALUES (
+			#{CategoryID}
+			,#{StoreItemID}
+			,#{FormPrefix}
+			,#{FormName}
+			,#{FormDescription}
+			,now(3)
+			,#{RegisterCode}
+			,#{MobileFormYN}
+		)
+		<selectKey keyProperty="StoredFormID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateFormData" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_store_forms 
+			SET CategoryID = #{CategoryID}
+				,FormName = #{FormName}
+				,FormDescription = #{FormDescription}
+				,ModifyDate = now(3)
+				,ModifierCode = #{ModifierCode}
+				,MobileFormYN = #{MobileFormYN}
+		WHERE StoredFormID = #{StoredFormID}
+	</update>
+	
+	<update id="updateIsUseForm" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_store_forms 
+			SET IsUse = #{IsUse}
+				,ModifyDate = now(3)
+				,ModifierCode = #{ModifierCode}
+		WHERE StoredFormID = #{StoredFormID}
+	</update>
+	
+	<insert id="insertStoreFormRevData" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_store_forms_rev (
+			StoredFormID,
+			RevisionNo,
+			FormHtmlFileID,
+			FormJsFileID,
+			ThumbnailFileID
+			<if test="MobileFormHtmlFileID != null and !''.equalsIgnoreCase(MobileFormHtmlFileID)">
+				,MobileFormHtmlFileID
+			</if>
+			<if test="MobileFormJsFileID != null and !''.equalsIgnoreCase(MobileFormJsFileID)">
+				,MobileFormJsFileID
+			</if>
+		) VALUES (
+			#{StoredFormID}
+			,#{RevisionNo}
+			,#{FormHtmlFileID}
+			,#{FormJsFileID}
+			,#{ThumbnailFileID}
+			<if test="MobileFormHtmlFileID != null and !''.equalsIgnoreCase(MobileFormHtmlFileID)">
+				,#{MobileFormHtmlFileID}
+			</if>
+			<if test="MobileFormJsFileID != null and !''.equalsIgnoreCase(MobileFormJsFileID)">
+				,#{MobileFormJsFileID}
+			</if>
+		)
+		<selectKey keyProperty="StoredFormRevID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateStoreFormRevData" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_store_forms_rev
+			SET 
+				RevisionNo = RevisionNo
+				<if test="FormHtmlFileID != null and !''.equalsIgnoreCase(FormHtmlFileID)">
+				, FormHtmlFileID = #{FormHtmlFileID}
+				</if>
+				<if test="FormJsFileID != null and !''.equalsIgnoreCase(FormJsFileID)">
+				, FormJsFileID = #{FormJsFileID}
+				</if>
+				<if test="ThumbnailFileID != null and !''.equalsIgnoreCase(ThumbnailFileID)">
+				, ThumbnailFileID = #{ThumbnailFileID}
+				</if>
+				<if test="MobileFormHtmlFileID != null and !''.equalsIgnoreCase(MobileFormHtmlFileID)">
+				, MobileFormHtmlFileID = #{MobileFormHtmlFileID}
+				</if>
+				<if test="MobileFormJsFileID != null and !''.equalsIgnoreCase(MobileFormJsFileID)">
+				, MobileFormJsFileID = #{MobileFormJsFileID}
+				</if>
+		WHERE StoredFormRevID = #{StoredFormRevID}
+	</update>
+	
+	<update id="updateStoredFormRevID" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_store_forms
+		SET StoredFormRevID = #{StoredFormRevID} 
+		WHERE StoredFormID = #{StoredFormID}
+	</update>
+	
+	 <select id="storeFormDuplicateCheck" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM covi_approval4j.jwf_store_forms 
+		WHERE FormPrefix = #{FormPrefix}
+	</select>
+	
+	<select id="getStoreFormData" parameterType="cmap" resultType="cmap">
+		SELECT
+			F.FormPrefix,
+			F.StoredFormID,
+			R.StoredFormRevID,
+			F.StoredFormRevID AS CurrentFormRevID,
+			F.FormName,
+			C.CategoryID, 
+			covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, C.CategoryName) AS CategoryName, 
+			I.StoreItemID,
+			I.IsFree,
+			I.Price,
+			F.FormDescription,
+			R.FormHtmlFileID, 
+			R.FormJsFileID, 
+			R.MobileFormHtmlFileID, 
+			R.MobileFormJsFileID, 
+			R.ThumbnailFileID,
+			R.RevisionNo,
+			F.PurchasedCnt,
+			F.MobileFormYN
+		FROM covi_approval4j.jwf_store_forms F
+		INNER JOIN covi_smart4j.sys_store_items I ON F.StoreItemID = I.StoreItemID 
+		INNER JOIN covi_approval4j.jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+		INNER JOIN covi_approval4j.jwf_store_forms_rev R ON F.StoredFormID = R.StoredFormID
+		WHERE R.StoredFormRevID = #{StoredFormRevID}
+	</select>
+	
+	<select id="getStoreFormRevList" parameterType="cmap" resultType="cmap">
+		SELECT
+			R.StoredFormRevID
+			,R.RevisionNo
+		FROM covi_approval4j.jwf_store_forms_rev R 
+		WHERE 	R.StoredFormID = #{StoredFormID}
+	</select>
+</mapper>

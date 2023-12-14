@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.schema">
+	<select id="select" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT FS.SchemaID AS "SCHEMA_ID"
+				,FS.SchemaName AS "SCHEMA_NAME"
+				,FS.SchemaDesc AS "SCHEMA_DESC"
+				,FS.SchemaContext AS "SCHEMA_CONTEXT"
+				,FS.DomainID AS "DOMAIN_ID"
+				,NVL(BOD.DisplayName, '') AS "DOMAIN_NAME"
+			FROM jwf_formsschema FS
+			LEFT JOIN sys_object_domain BOD
+			ON FS.DomainID = BOD.DomainID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+					FS.DomainId = #{DomainID}
+				</if>
+				<if test='isSaaS =="Y" and (DomainID == null or DomainID == "" and EntCode != null)'> <!-- 간편관리자에선 미사용 -->
+					FS.DomainId IN 
+				<foreach collection="EntCode" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				</if>
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("SchemaDesc")'>SchemaDesc</when>
+						<otherwise>SchemaName</otherwise>
+					</choose> 
+					LIKE '%'||#{search}||'%'
+				</if>		
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						SchemaDesc LIKE '%'||#{icoSearch}||'%' 			OR 
+						SchemaName LIKE '%'||#{icoSearch}||'%'    
+					)
+				</if>		
+			</trim>
+	    	<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					"SchemaName" ASC 
+			    </if>
+			  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("SCHEMA_NAME")'>SCHEMA_NAME</when>
+						<when test='sortColumn.equalsIgnoreCase("SCHEMA_DESC")'>SCHEMA_DESC</when>
+						<otherwise>SCHEMA_NAME</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+	    <include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    <select id="selectOne" parameterType="cmap" resultType="cmap">
+			SELECT SchemaID AS "SCHEMA_ID"
+				,SchemaName AS "SCHEMA_NAME"
+				,SchemaDesc AS "SCHEMA_DESC"
+				,SchemaContext AS "SCHEMA_CONTEXT"
+				,DomainID AS "DOMAIN_ID"
+			FROM jwf_formsschema
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  <if test="SCHEMA_ID != null">AND SchemaID = #{SCHEMA_ID}</if>
+			</trim>
+	</select>	
+	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM jwf_formsschema
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+				DomainId = #{DomainID}
+			</if>
+			<if test='isSaaS =="Y" and (DomainID == null or DomainID == "") and EntCode != null'> <!-- 간편관리자에선 미사용 -->
+				DomainId IN 
+				<foreach collection="EntCode" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("SchemaDesc")'>SchemaDesc</when>
+					<otherwise>SchemaName</otherwise>
+				</choose> 
+				LIKE '%'||#{search}||'%'
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					SchemaDesc LIKE '%'||#{icoSearch}||'%' 			OR 
+					SchemaName LIKE '%'||#{icoSearch}||'%'    
+				)
+			</if>
+		</trim>
+	</select>	
+	
+	<insert id="insert" parameterType="cmap" keyProperty="SCHEMA_ID">	
+		INSERT INTO jwf_formsschema
+		(
+			SchemaName
+			,SchemaDesc
+			,SchemaContext
+			,DomainID
+		)
+		VALUES 
+		( 
+			#{SCHEMA_NAME}
+			,#{SCHEMA_DESC}
+			,#{SCHEMA_CONTEXT}
+			,#{DOMAIN_ID}
+		)
+		<selectKey keyProperty="SchemaID" resultType="Integer" order="AFTER">
+		   	SELECT JWF_FORMSSCHEMA_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>	
+	
+	<update id="update" parameterType="cmap">			
+		UPDATE jwf_formsschema
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="SCHEMA_NAME != null">SchemaName=#{SCHEMA_NAME},</if>
+			<if test="SCHEMA_DESC != null">SchemaDesc=#{SCHEMA_DESC},</if>
+			<if test="SCHEMA_CONTEXT != null">SchemaContext=#{SCHEMA_CONTEXT},</if>
+			<if test="DOMAIN_ID != null">DomainID=#{DOMAIN_ID},</if>
+		</trim>		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  <if test="SCHEMA_ID != null">AND SchemaID = #{SCHEMA_ID}</if>
+		</trim>		
+	</update>	
+	
+	<delete id="delete" parameterType="cmap">
+        DELETE FROM jwf_formsschema
+        WHERE SchemaID = #{SchemaID}
+	</delete>
+	
+	<select id="selectForm"  parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*) AS CNT
+	    FROM jwf_forms
+	    WHERE SchemaID = #{SchemaID}
+	</select>
+</mapper>

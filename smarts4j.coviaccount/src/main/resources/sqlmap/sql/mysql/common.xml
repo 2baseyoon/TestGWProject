@@ -1,0 +1,2612 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.common">
+
+    <select id="getBaseCodeCombo" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeCombo
+        */
+        SELECT	Code
+             ,	CodeName
+             ,	CodeGroup
+             ,	BaseCodeID
+        FROM	covi_account4j_si.act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+          AND		IsGroup		= 'N'
+          AND		IsUse		= 'Y'
+          AND	CompanyCode = (
+            CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+                     THEN #{companyCode}
+                 ELSE 'ALL'
+                END
+            )
+        <if test="codeGroup == 'CompanyCode'">
+		  AND	Code = ( 
+			CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND (CompanyCode = #{companyCode} OR CompanyCode = 'ALL') AND Code = #{companyCode})
+					THEN Code
+				 ELSE 'ALL'
+			    END
+		    )	
+		</if>
+        ORDER BY SortKey,Code
+    </select>
+
+    <select id="getBaseCodeComboMulti" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeComboMulti
+        */
+        SELECT	Code
+             ,	CodeName
+             ,	CodeGroup
+             ,	BaseCodeID
+        FROM	covi_account4j_si.act_base_code
+        WHERE	
+        	<choose>
+				<when test="codeGroups != null">
+					<foreach collection="codeGroups" item="item" index="index" separator="," open="CodeGroup IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+          AND		IsGroup		= 'N'
+          AND		IsUse		= 'Y'
+        ORDER BY CodeGroup,SortKey,Code
+    </select>
+
+    <select id="getBaseCodeData" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getBaseCodeData
+        공통코드 예약필드 포함
+        */
+        SELECT	Code
+        ,	CodeName
+        ,	CodeGroup
+        ,	BaseCodeID
+        , Reserved1
+        , Reserved2
+        , Reserved3
+        , Reserved4
+        , ReservedInt
+        , ReservedFloat
+        FROM	covi_account4j_si.act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND	IsGroup	= 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        AND		IsGroup		= 'N'
+        <if test="chkIsUse == 'Y'.toString()">
+            AND		IsUse		= #{chkIsUse}
+        </if>
+        ORDER BY SortKey,Code
+    </select>
+
+    <select id="getBaseCodeSubSet" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeSubSet
+            부가세버튼 추가를 위한
+        */
+        SELECT AC.AccountID, AC.AccountCode, AC.AccountName, ASB.StandardBriefID,  ASB.StandardBriefName
+        FROM covi_account4j_si.act_base_code AS BC
+                 INNER JOIN covi_account4j_si.act_standard_brief AS ASB
+                            ON BC.CodeName = ASB.StandardBriefID
+                 INNER JOIN covi_account4j_si.act_account AS AC
+                            ON ASB.AccountID = AC.AccountID
+        WHERE BC.Code = #{codeGroup}
+          AND BC.CompanyCode = (
+            CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE Code = #{codeGroup} AND CompanyCode = #{companyCode})
+                     THEN #{companyCode}
+                 ELSE 'ALL'
+                END
+            )
+    </select>
+
+    <select id="getBaseGrpCodeCombo" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getBaseGrpCodeCombo
+        */
+        SELECT	Code
+        ,	CodeName
+        FROM	covi_account4j_si.act_base_code
+        WHERE	IsGroup		= 'Y'
+        AND		IsUse		= 'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND CompanyCode = #{companyCode}
+        </if>
+        <if test="companyCode == null or companyCode == ''">
+            AND CompanyCode = 'ALL'
+        </if>
+        ORDER BY CodeName
+    </select>
+
+    <select id="selectBaseCodeList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectBaseCodeList
+        */
+        SELECT BaseCodeID
+        , CompanyCode
+        , covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CompanyCode, #{companyCode}) AS CompanyName
+        , Code
+        , CodeName
+        , SortKey
+        FROM	covi_account4j_si.act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		IsGroup		= 'N'
+        AND		IsUse		= 'Y'
+        AND 	CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        <if test="searchText != null and searchText != ''">
+            AND (
+            UPPER(CodeName) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            OR UPPER(Code) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            )
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,SortKey,Code DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("BaseCodeID")'>BaseCodeID</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>Code</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeName")'>CodeName</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	      
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="selectBaseCodeListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectBaseCodeListCnt
+        */
+        SELECT COUNT(*)
+        FROM	covi_account4j_si.act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		IsGroup		= 'N'
+        AND		IsUse		= 'Y'
+        AND 	CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        <if test="searchText != null and searchText != ''">
+            AND (
+            UPPER(CodeName) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            OR UPPER(Code) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            )
+        </if>
+    </select>
+
+    <select id="getAccountSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getAccountSearchPopup
+        */
+        SELECT	AC.AccountID
+        ,	AC.CompanyCode
+        ,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AC.CompanyCode, #{companyCode})	AS CompanyName
+        ,	AC.AccountCode
+        ,	AC.AccountName
+        FROM	covi_account4j_si.act_account AC
+        WHERE	1=1
+        <if test="accountClass != null and accountClass != ''">
+            AND AC.accountClass = #{accountClass}
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="amSearchTypePop == null or amSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="amSearchTypePop == 'GLCP'.toString()">
+                        AND		AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="amSearchTypePop == 'GLNP'.toString()">
+                        AND		AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.companyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AC.AccountID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountID")'>AccountID</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getAccountSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getAccountSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	covi_account4j_si.act_account AC
+        WHERE	1=1
+        <if test="accountClass != null and accountClass != ''">
+            AND AC.accountClass = #{accountClass}
+        </if>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="amSearchTypePop == null or amSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="amSearchTypePop == 'GLCP'.toString()">
+                        AND		AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="amSearchTypePop == 'GLNP'.toString()">
+                        AND		AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+
+    <select id="getFavoriteAccountSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteAccountSearchPopup
+        */
+        SELECT AUA.UserAccountID
+        , AC.AccountID
+        , AUA.CompanyCode
+        , covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',AUA.CompanyCode,#{companyCode})	AS CompanyName
+        , AUA.UserCode
+        , AUA.AccountCode
+        , AUA.AccountName
+        , 'Y' IsFavorite
+        from covi_account4j_si.act_user_account AUA
+        inner join covi_account4j_si.act_account AC on AUA.CompanyCode = AC.CompanyCode and AUA.AccountCode = AC.AccountCode
+        WHERE 1=1
+        AND AUA.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND AUA.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AUA.UserAccountID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountID")'>AccountID</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getFavoriteAccountSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteAccountSearchPopupCnt
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_user_account AUA
+        WHERE 1=1
+        AND AUA.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND AUA.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteAccountSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteAccountSearchPopupList
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_user_account AUA
+        WHERE 1=1
+          AND AUA.UserCode = #{UR_Code}
+          AND AUA.AccountCode = #{AccountCode}
+    </select>
+
+    <insert id="insertFavoriteAccountSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteAccountSearchPopupList
+        */
+        INSERT INTO covi_account4j_si.act_user_account
+        (
+            CompanyCode
+        , UserCode
+        , AccountCode
+        , AccountName
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{CompanyCode}
+            , #{UR_Code}
+            , #{AccountCode}
+            , #{AccountName}
+            , #{UR_Code}
+            , now(3)
+            )
+    </insert>
+
+    <delete id="deleteFavoriteAccountSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteAccountSearchPopupList
+        */
+        DELETE FROM covi_account4j_si.act_user_account
+        WHERE UserCode = #{UR_Code}
+          AND AccountCode = #{AccountCode}
+    </delete>
+
+    <select id="selectVendorPopupList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectVendorPopupList
+        거래처 목록 조회
+        */
+        SELECT
+        VD.VendorID
+        , VD.CompanyCode
+        , covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VD.CompanyCode, #{companyCode}) CompanyName
+        , VD.VendorType
+        , covi_account4j_si.Fn_GetBaseCodeName('VendorType', VD.VendorType, #{companyCode}) VendorTypeName
+        , VD.VendorNo
+        , VD.CorporateNo
+        , VD.VendorName
+        , VD.CEOName
+        , VD.Industry
+        , VD.Sector
+        , VD.Address
+        , VD.BankName AS BankCode
+        , covi_account4j_si.Fn_GetBaseCodeName('Bank', VD.BankName, #{companyCode}) BankName
+        , VD.BankAccountNo
+        , VD.BankAccountName
+        , VD.PaymentCondition
+        , covi_account4j_si.Fn_GetBaseCodeName('PayType', VD.PaymentCondition, #{companyCode}) PaymentConditionName
+
+        , VD.PaymentMethod
+        , VD.VendorStatus
+        , covi_account4j_si.Fn_GetBaseCodeName('vendorStatus', VD.VendorStatus, #{companyCode}) VendorStatusName
+        , VD.ModifyDate AS ModifyDate
+        , VD.RegistDate AS RegistDate
+        , VD.BusinessNumber
+        FROM covi_account4j_si.act_vendor VD
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND (UPPER(VD.VendorName) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            OR 	UPPER(VD.BusinessNumber) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+            )
+        </if>
+        <if test="isPE == 'Y'.toString()">
+            AND VD.VendorType = 'PE'
+        </if>
+        <if test="companyCode != null and companyCode != ''">
+            AND VD.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,VD.VendorID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("VendorTypeName")'>VendorTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("CorporateNo")'>CorporateNo</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessNumber")'>BusinessNumber</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorNo")'>VendorNo</when>
+					<when test='sortColumn.equalsIgnoreCase("PaymentConditionName")'>PaymentConditionName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="selectCopyPopupList" parameterType="cmap" resultType="cmap">
+	/*
+		account.common.selectCopyPopupList
+		거래처 목록 조회
+	*/
+        SELECT AEA.ApplicationTitle
+        , VendorName
+        , VendorNo
+        , CASE ProofCode WHEN 'PaperBill' THEN '수기계산서' WHEN 'TaxBill' THEN '전자세금계산서' ELSE '계산서' END AS ProofCode
+        , TotalAmount
+        , USR.DisplayName
+        , ProofDate
+        , AEAL.ExpenceApplicationListID
+        FROM covi_account4j_si.act_expence_application AEA
+        INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+        ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        INNER JOIN covi_smart4j.sys_object_user	USR
+        ON USR.UserCode = AEA.RegisterID
+        WHERE 1=1
+        AND VendorName LIKE CONCAT('%',#{vendorName},'%') 
+        <if test ="SDate != null and SDate !=''">
+            AND AEAL.ProofDate <![CDATA[>=]]> #{SDate}
+        </if>
+        <if test ="EDate != null and EDate !=''">
+            AND AEAL.ProofDate <![CDATA[<]]> #{EDate}
+        </if>
+        <if test ="companyCode != null and companyCode !=''">
+            AND AEA.CompanyCode = #{companyCode}
+        </if>
+        AND AEAL.ProofCode = #{proofCode}
+        AND AEAL.VendorNo = #{vendorNo}
+    </select>
+
+    <select id="selectVendorPopupListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectVendorPopupListCnt
+        거래처 목록 조회
+        */
+        SELECT 	COUNT(*)
+        FROM covi_account4j_si.act_vendor VD
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND UPPER(VD.VendorName) LIKE  UPPER(CONCAT('%' , #{searchText} , '%'))
+        </if>
+        <if test="isPE == 'Y'.toString()">
+            AND VD.VendorType = 'PE'
+        </if>
+        <if test="companyCode != null and companyCode != ''">
+            AND VD.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="selectCopyPopupListCnt" parameterType="cmap" resultType="java.lang.Long">
+	/*
+		account.common.selectCopyPopupListCnt
+		거래처 목록 조회
+	*/
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_expence_application AEA
+        INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+        ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        INNER JOIN covi_smart4j.sys_object_user	USR
+        ON USR.UserCode = AEA.RegisterID
+        WHERE 1=1
+        AND VendorName LIKE CONCAT('%',#{vendorName},'%')  
+        <if test ="SDate != null and SDate !=''">
+            AND AEAL.ProofDate <![CDATA[>=]]> #{SDate}
+        </if>
+        <if test ="EDate != null and EDate !=''">
+            AND AEAL.ProofDate <![CDATA[<]]> #{EDate}
+        </if>
+        <if test ="companyCode != null and companyCode !=''">
+            AND AEA.CompanyCode = #{companyCode}
+        </if>
+        AND AEAL.ProofCode = #{proofCode}
+        AND AEAL.VendorNo = #{vendorNo}
+    </select>
+
+    <select id="getStandardBriefSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getStandardBriefSearchPopup
+        */
+        SELECT	AC.AccountCode AS AccountCode
+        ,	AC.AccountName AS AccountName
+        , 	AC.TaxType AS TaxType
+        , 	AC.TaxCode AS TaxCode
+        ,	SB.StandardBriefName
+        ,	SB.StandardBriefDesc
+        ,	SB.StandardBriefID
+        ,	SB.CtrlCode
+        FROM	covi_account4j_si.act_standard_brief SB
+        LEFT OUTER JOIN covi_account4j_si.act_account		AC
+        ON	AC.AccountID	= SB.AccountID
+        WHERE	1=1
+        AND		SB.IsUse	= 'Y'
+        AND		AC.IsUse	= 'Y'
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="SB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="sbSearchTypePop == null or sbSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        SB.StandardBriefName		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        AC.Description 		LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="sbSearchTypePop == 'ACC'.toString()">
+                        AND		AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'ACN'.toString()">
+                        AND		AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'SBN'.toString()">
+                        AND		SB.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'SBD'.toString()">
+                        AND 	SB.StandardBriefDesc 		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AC.AccountName, SB.StandardBriefName
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefDesc")'>StandardBriefDesc</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getStandardBriefSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getStandardBriefSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	covi_account4j_si.act_standard_brief SB
+        LEFT OUTER JOIN covi_account4j_si.act_account		AC
+        ON	AC.AccountID	= SB.AccountID
+        WHERE	1=1
+        AND		SB.IsUse	= 'Y'
+        AND		AC.IsUse	= 'Y'
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="SB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="sbSearchTypePop == null or sbSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        SB.StandardBriefName		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        AC.Description 		LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="sbSearchTypePop == 'ACC'.toString()">
+                        AND		AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'ACN'.toString()">
+                        AND		AccountName		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'SBN'.toString()">
+                        AND		SB.StandardBriefName		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="sbSearchTypePop == 'SBD'.toString()">
+                        AND 	SB.StandardBriefDesc 		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="getFavoriteStandardBriefSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteStandardBriefSearchPopup
+        */
+        SELECT AUSB.UserStandardBriefID
+        , AUSB.UserCode
+        , AUSB.StandardBriefID
+        , AUSB.StandardBriefName
+        , AUSB.StandardBriefDesc
+        , AC.AccountCode
+        , AC.AccountName
+        , AC.TaxType
+        , AC.TaxCode
+        , 'Y' IsFavorite
+        , ASB.CtrlCode
+        FROM covi_account4j_si.act_user_standard_brief AUSB
+        INNER JOIN covi_account4j_si.act_standard_brief ASB
+        ON AUSB.StandardBriefID = ASB.StandardBriefID
+        LEFT OUTER JOIN covi_account4j_si.act_account AC
+        ON ASB.AccountID = AC.AccountID
+        WHERE 1=1
+        AND AUSB.UserCode = #{UR_Code}
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="AUSB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AUSB.UserStandardBriefID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefDesc")'>StandardBriefDesc</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getFavoriteStandardBriefSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteStandardBriefSearchPopupCnt
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_user_standard_brief AUSB
+        INNER JOIN covi_account4j_si.act_standard_brief ASB
+        ON AUSB.StandardBriefID = ASB.StandardBriefID
+        LEFT OUTER JOIN covi_account4j_si.act_account AC
+        ON ASB.AccountID = AC.AccountID
+        WHERE 1=1
+        AND AUSB.UserCode = #{UR_Code}
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="AUSB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteStandardBriefSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteStandardBriefSearchPopupList
+        */
+        SELECT COUNT(*)
+        from covi_account4j_si.act_user_standard_brief AUSB
+        WHERE
+            1=1
+          AND AUSB.UserCode = #{UR_Code}
+          AND AUSB.StandardBriefID = #{StandardBriefID}
+    </select>
+
+    <insert id="insertFavoriteStandardBriefSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteStandardBriefSearchPopupList
+        */
+        INSERT INTO covi_account4j_si.act_user_standard_brief
+        (
+            UserCode
+        , StandardBriefID
+        , StandardBriefName
+        , StandardBriefDesc
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{UR_Code}
+            , #{StandardBriefID}
+            , #{StandardBriefName}
+            , #{StandardBriefDesc}
+            , #{UR_Code}
+            , now(3)
+            )
+    </insert>
+
+    <delete id="deleteFavoriteStandardBriefSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteStandardBriefSearchPopupList
+        */
+        DELETE FROM covi_account4j_si.act_user_standard_brief
+        WHERE UserCode = #{UR_Code}
+          AND StandardBriefID = #{StandardBriefID}
+    </delete>
+
+    <select id="getCostCenterSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCostCenterSearchPopup
+        */
+        SELECT CC.CostCenterID
+        ,	CC.CompanyCode
+        ,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CC.CompanyCode, #{companyCode}) AS CompanyName
+        ,	CC.CostCenterType
+        ,	CC.CostCenterCode
+        ,	CC.CostCenterName
+        ,	CC.NameCode
+        ,	CC.UsePeriodStart
+        ,	CC.UsePeriodFinish
+        ,	CC.IsPermanent
+        ,	CC.IsUse
+        ,	CC.Description
+        FROM	(	SELECT	COST.CostCenterID
+        ,	COST.CompanyCode
+        ,	COST.CostCenterType
+        ,	COST.CostCenterCode
+        ,	COST.CostCenterName
+        ,	COST.NameCode
+        ,	COST.UsePeriodStart
+        ,	COST.UsePeriodFinish
+        ,	COST.IsPermanent
+        ,	COST.IsUse
+        ,	COST.Description
+        FROM	covi_account4j_si.act_cost_center	COST
+        WHERE	1=1
+        AND		COST.IsUse	=  'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND		COST.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		COST.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		COST.CostCenterType != 'PROJECT'
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="searchTypePop == null or searchTypePop ==''">
+                        AND		(	COST.CostCenterCode	LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        COST.CostCenterName	LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="searchTypePop == 'CCN'.toString()">
+                        AND		COST.CostCenterName	LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="searchTypePop == 'CCC'.toString()">
+                        <choose>
+                            <when test="popupType != null and popupType != '' and popupType == 'IO'">
+                                AND		COST.NameCode	LIKE CONCAT('%',#{searchStr},'%')
+                            </when>
+                            <when test="popupType == null or popupType == '' or popupType == 'CC'">
+                                AND		COST.CostCenterCode	LIKE CONCAT('%',#{searchStr},'%')
+                            </when>
+                        </choose>
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,COST.CostCenterID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ViewNum")'>ViewNum</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterCode")'>CostCenterCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("NameCode")'>NameCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        ) CC
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getCostCenterSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCostCenterSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	covi_account4j_si.act_cost_center COST
+        WHERE	1=1
+        AND		COST.IsUse	=  'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND		COST.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		COST.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		COST.CostCenterType != 'PROJECT'
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="searchType == null or searchType ==''">
+                        AND		(	COST.CostCenterCode	LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        COST.CostCenterName	LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="searchType == 'CCN'.toString()">
+                        AND		COST.CostCenterName	LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="searchType == 'CCC'.toString()">
+                        <choose>
+                            <when test="popupType != null and popupType != '' and popupType == 'IO'">
+                                AND		COST.NameCode	LIKE CONCAT('%',#{searchStr},'%')
+                            </when>
+                            <when test="popupType == null or popupType == '' or popupType == 'CC'">
+                                AND		COST.CostCenterCode	LIKE CONCAT('%',#{searchStr},'%')
+                            </when>
+                        </choose>
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+
+    <select id="getFavoriteCCSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteCCSearchPopup
+        */
+        SELECT UFCC.UserFavoriteCostCenterID
+        , UFCC.CompanyCode
+        , covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',UFCC.CompanyCode, #{companyCode})	AS CompanyName
+        , UFCC.CostCenterCode
+        , UFCC.CostCenterName
+        , CC.CostCenterID
+        , CC.CostCenterType
+        , CC.NameCode
+        , CC.UsePeriodStart
+        , CC.UsePeriodFinish
+        , CC.IsPermanent
+        , CC.IsUse
+        , CC.Description
+        FROM covi_account4j_si.act_user_favorite_cost_center UFCC
+        LEFT OUTER JOIN covi_account4j_si.act_cost_center CC
+        ON UFCC.CostCenterCode = CC.CostCenterCode
+        AND UFCC.CompanyCode = CC.CompanyCode
+        AND CC.IsUse	=  'Y'
+        WHERE UFCC.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND		CC.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		CC.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		CC.CostCenterType != 'PROJECT'
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,UFCC.UserFavoriteCostCenterID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ViewNum")'>ViewNum</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterCode")'>CostCenterCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("NameCode")'>NameCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getFavoriteCCSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteCCSearchPopupCnt
+        */
+
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_user_favorite_cost_center UFCC
+        LEFT OUTER JOIN covi_account4j_si.act_cost_center CC
+        ON UFCC.CostCenterCode = CC.CostCenterCode
+        AND UFCC.CompanyCode = CC.CompanyCode
+        AND CC.IsUse	=  'Y'
+        WHERE UFCC.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND		CC.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		CC.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		CC.CostCenterType != 'PROJECT'
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteCCSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteCCSearchPopupList
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_user_favorite_cost_center UFCC
+        WHERE
+            1=1
+          AND UFCC.UserCode = #{UR_Code}
+          AND UFCC.CostCenterCode = #{CostCenterCode}
+    </select>
+
+
+    <insert id="insertFavoriteCCSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteCCSearchPopupList
+        */
+        INSERT INTO covi_account4j_si.act_user_favorite_cost_center
+        (
+            CompanyCode
+        , UserCode
+        , CostCenterCode
+        , CostCenterName
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{CompanyCode}
+            , #{UR_Code}
+            , #{CostCenterCode}
+            , #{CostCenterName}
+            , #{UR_Code}
+            , now(3)
+            )
+    </insert>
+
+    <delete id="deleteFavoriteCCSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteCCSearchPopupList
+        */
+        DELETE FROM covi_account4j_si.act_user_favorite_cost_center
+        WHERE UserCode = #{UR_Code}
+          AND CostCenterCode = #{CostCenterCode}
+    </delete>
+    <select id="getCardReceiptPopup" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getCardReceiptPopup
+        */
+        SELECT	CONCAT('**********',	SUBSTRING(ACR.CardNo,11))										AS CardNo
+             ,	ACR.ApproveNo
+             ,	CASE	WHEN ACR.InfoIndex = 'A'
+                              THEN CASE	WHEN IFNULL(NULLIF(ACR.ApproveDate,''),'NODATA') = 'NODATA'
+                                               THEN ''
+                                           ELSE DATE_FORMAT(ACR.ApproveDate,'%Y.%m.%d')
+                END
+                          ELSE CASE	WHEN IFNULL(NULLIF(ACR.UseDate,''),'NODATA') = 'NODATA'
+                                           THEN ''
+                                       ELSE DATE_FORMAT(ACR.UseDate,'%Y.%m.%d')
+                              END
+            END																						AS UseDate
+             ,	CASE	WHEN IFNULL(NULLIF(ACR.ApproveTime,''),'NODATA') = 'NODATA'
+                              THEN ''
+                          ELSE TIME_FORMAT(ACR.ApproveTime, '%H:%i:%s')
+            END																						AS UseTime
+             ,	ACR.StoreName
+             ,	ACR.StoreNo
+             ,	ACR.StoreRepresentative
+             ,	ACR.StoreRegNo
+             ,	ACR.StoreTel
+             ,	ACR.StoreAddress1
+             ,	ACR.StoreAddress2
+             ,	ACR.UsageText
+             ,	ACR.StandardBriefID
+             ,	FORMAT(ACR.RepAmount,0)																	AS RepAmount
+             ,	FORMAT(ACR.TaxAmount,0)																	AS TaxAmount
+             ,	FORMAT(ACR.ServiceAmount,0)																AS ServiceAmount
+             ,	FORMAT(ACR.AmountWon,0)																	AS AmountWon
+             ,	IFNULL(NULLIF(covi_account4j_si.Fn_GetBaseCodeName('InfoIndex', ACR.InfoIndex, #{companyCode}),''),'')	AS InfoIndexName
+        FROM	covi_account4j_si.act_card_receipt	ACR
+                    LEFT OUTER JOIN
+                covi_account4j_si.act_corp_card		ACC
+                ON	ACR.CardNo	= ACC.CardNo
+                    LEFT OUTER JOIN
+                covi_smart4j.sys_object_user		USR
+                ON	ACR.CardUserCode	= USR.UserCode
+        WHERE	ACR.ReceiptID	= #{receiptID}
+    </select>
+
+    <select id="getCardReceiptSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCardReceiptSearchPopup
+        */
+        SELECT	ACR.ReceiptID
+        ,	CONCAT(	'**********',	SUBSTRING(ACR.CardNo,11))			AS CardNo
+        ,	ACR.ApproveNo
+        ,	ACR.StoreName
+        ,	FORMAT(ACR.AmountWon,0)	AS TotalAmount
+        ,	FORMAT(ACR.AmountWon,0)	AS AmountWon
+        ,	FORMAT(ACR.RepAmount,0)	AS RepAmount
+        ,	FORMAT(ACR.TaxAmount,0)	AS TaxAmount
+        ,	CONCAT(DATE_FORMAT(ACR.ApproveDate,'%Y.%m.%d'), ' ', TIME_FORMAT(ACR.ApproveTime, '%H:%i:%s')) AS ApproveDate
+        ,	ACR.InfoType
+        ,	IFNULL(ACR.UsageText, '') AS UsageText
+        FROM	covi_account4j_si.act_card_receipt	ACR /*! USE INDEX(ApproveDate)*/
+        JOIN
+        covi_account4j_si.act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM 	covi_account4j_si.act_expence_application AEA
+        JOIN
+        covi_account4j_si.act_expence_application_list AEAL
+        ON 		AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE 	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND 	AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )X ON ACR.ReceiptID = X.ApproveNo
+        LEFT OUTER JOIN
+        covi_smart4j.sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT
+        JOIN	covi_account4j_si.act_corp_card_return RET
+        ON		ACC.CardNo = RET.CardNo
+        AND		CONCAT(ACR.UseDate,ACR.APPROVETIME)<![CDATA[>=]]> DATE_FORMAT( RET.ReleaseDate, '%Y%m%d%H%i%s' )
+        AND		CONCAT(ACR.UseDate,ACR.APPROVETIME)<![CDATA[<=]]> CASE WHEN RET.ReturnDate IS NULL THEN '29991231235959' ELSE DATE_FORMAT( RET.ReturnDate, '%Y%m%d%H%i%s' )  END
+        WHERE 1=1
+        <if test ="cardID != null and cardID !=''">
+            AND ACC.CorpCardID =#{cardID}
+        </if>
+        AND 	X.ApproveNo IS NULL
+        AND		ACR.Active = 'N'
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B', 'C', 'D')
+        AND ( (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (RET.ReleaseUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+        FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+    	    	AND ACR.ApproveDate <= #{endDD}
+    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+    	    	AND ACR.ApproveDate >= #{startDD}
+    	    ]]>
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE CONCAT('%',#{storeName},'%') 
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE CONCAT('%',#{cardNo},'%')
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE CONCAT('%',#{approveNo},'%')
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , ACR.ApproveDate ASC, ACR.ApproveTime ASC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>ApproveDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>AmountWon</when>
+					<when test='sortColumn.equalsIgnoreCase("RepAmount")'>RepAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxAmount")'>TaxAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoType")'>InfoType</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptID")'>ReceiptID</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+				                
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getCardReceiptSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCardReceiptSearchPopupCnt
+        */
+
+        SELECT	COUNT(*)
+        FROM	covi_account4j_si.act_card_receipt	ACR
+        JOIN
+        covi_account4j_si.act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM 	covi_account4j_si.act_expence_application AEA
+        JOIN
+        covi_account4j_si.act_expence_application_list AEAL
+        ON 		AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE 	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND 	AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )X ON ACR.ReceiptID = X.ApproveNo
+        LEFT OUTER JOIN
+        covi_smart4j.sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT
+        JOIN	covi_account4j_si.act_corp_card_return RET
+        ON		ACC.CardNo = RET.CardNo
+        AND		CONCAT(ACR.UseDate,ACR.APPROVETIME)<![CDATA[>=]]> DATE_FORMAT( RET.ReleaseDate, '%Y%m%d%H%i%s' )
+        AND		CONCAT(ACR.UseDate,ACR.APPROVETIME)<![CDATA[<=]]> CASE WHEN RET.ReturnDate IS NULL THEN '29991231235959' ELSE DATE_FORMAT( RET.ReturnDate, '%Y%m%d%H%i%s' )  END
+        WHERE 1=1
+        <if test ="cardID != null and cardID !=''">
+            AND ACC.CorpCardID =#{cardID}
+        </if>
+        AND 	X.ApproveNo IS NULL
+        AND		ACR.Active = 'N'
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B', 'C', 'D')
+        AND ( (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (RET.ReleaseUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+        FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+    	    	AND ACR.ApproveDate <= #{endDD}
+    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+    	    	AND ACR.ApproveDate >= #{startDD}
+    	    ]]>
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE CONCAT('%',#{storeName},'%') 
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE CONCAT('%',#{cardNo},'%') 
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE CONCAT('%',#{approveNo},'%')
+        </if>
+    </select>
+
+
+    <select id="getTaxInvoicePopup" parameterType="cmap" resultType="cmap">
+        SELECT	ATI.NTSConfirmNum
+             ,	ATI.CONVERSATION_ID
+             ,	ATI.SerialNum
+             ,	ATI.InvoiceType
+             ,	ATI.InvoicerCorpNum
+             ,	ATI.InvoiceeCorpNum
+             ,	ATI.InvoicerCorpName
+             ,	ATI.InvoiceeCorpName
+             ,	ATI.InvoicerCEOName
+             ,	ATI.InvoiceeCEOName
+             ,	ATI.InvoicerAddr
+             ,	ATI.InvoiceeAddr
+             ,	ATI.InvoicerBizType
+             ,	ATI.InvoiceeBizType
+             ,	ATI.InvoicerTaxRegID
+             ,	ATI.InvoiceeTaxRegID
+             ,	ATI.InvoicerBizClass
+             ,	ATI.InvoiceeBizClass
+             ,	ATI.InvoicerDeptName
+             ,	ATI.InvoiceeDeptName1
+             ,	ATI.InvoicerContactName
+             ,	ATI.InvoiceeContactName1
+             ,	ATI.InvoicerTel
+             ,	ATI.InvoiceeTel1
+             ,	ATI.InvoicerEmail
+             ,	ATI.InvoiceeEmail1
+             ,	ATI.InvoiceEmail2
+             ,	ATI.PurposeType
+             ,	DATE_FORMAT(ATI.WriteDate,'%Y') 	AS WriteDate1
+             ,	DATE_FORMAT(ATI.WriteDate,'%m') 	AS WriteDate2
+             ,	DATE_FORMAT(ATI.WriteDate,'%d') 	AS WriteDate3
+             ,	FORMAT(ATI.SupplyCostTotal,0)		AS SupplyCostTotal
+             ,	FORMAT(ATI.TaxTotal,0)				AS TaxTotal
+             ,	ATI.Remark1
+             ,	FORMAT(ATI.TotalAmount,0)			AS TotalAmount
+             ,	FORMAT(ATI.Cash,0)					AS Cash
+             ,	FORMAT(ATI.ChkBill,0)				AS ChkBill
+             ,	FORMAT(ATI.Credit,0)				AS Credit
+             ,	FORMAT(ATI.Note,0)					AS Note
+             ,	DATE_FORMAT(ATII.PurchaseDT,'%m')	AS PurchaseMM
+             ,	DATE_FORMAT(ATII.PurchaseDT,'%d')	AS PurchaseDD
+             ,	ATII.ItemName
+             ,	ATII.Spec
+             ,	ATII.Qty
+             ,	FORMAT(ATII.UnitCost,0)				AS UnitCost
+             ,	FORMAT(ATII.SupplyCost,0)			AS SupplyCost
+             ,	FORMAT(ATII.Tax,0)					AS Tax
+             ,	ATII.Remark
+             ,	COUNT(ATII.TaxInvoiceItemID)		AS TaxInvoiceItemCnt
+        FROM	covi_account4j_si.act_taxinvoice		ATI
+                    LEFT OUTER JOIN
+                covi_account4j_si.act_taxinvoice_item	ATII
+                ON	ATI.TaxInvoiceID=ATII.TaxInvoiceID
+        WHERE	ATI.TaxInvoiceID = #{taxInvoiceID}
+        GROUP BY ATII.TaxInvoiceItemID
+    </select>
+
+
+    <select id="selectCashBillList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectCashBillList
+        */
+
+        SELECT
+        NTSConfirmNum
+        , NTSConfirmNum AS CashNTSConfirmNum
+        , TradeDT
+        , TradeType
+        , SupplyCost
+        , Tax
+        , ServiceFree
+        , TotalAmount
+        , FranchiseCorpName
+        , CashBillID
+        FROM covi_account4j_si.act_cashbill CB
+        LEFT OUTER JOIN (
+        SELECT MAX(AEAL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AEAL.CashUID
+        , AEAL.ExpenceApplicationID
+        FROM covi_account4j_si.act_expence_application_list AEAL
+        INNER JOIN covi_account4j_si.act_expence_application AEA
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY  AEAL.CashUID
+        ) AL
+        ON CB.CashBillID = AL.CashUID
+        WHERE 1=1
+
+        AND (AL.ExpenceApplicationListID IS NULL
+        OR AL.ExpenceApplicationID = #{ExpAppID})
+		<choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="CB.CashBillID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="confirmNum != null and confirmNum != ''">
+            AND UPPER(CB.NTSConfirmNum) LIKE  UPPER(CONCAT('%',#{confirmNum},'%')) 
+        </if>
+        <if test="franchiseCorpName != null and franchiseCorpName != ''">
+            AND UPPER(CB.FranchiseCorpName) LIKE  UPPER(CONCAT('%',#{franchiseCorpName},'%')) 
+        </if>
+        <if test="franchiseCorpNum != null and franchiseCorpNum != ''">
+            AND UPPER(CB.franchiseCorpNum) LIKE  UPPER(CONCAT('%',#{franchiseCorpNum},'%')) 
+        </if>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND TradeDT <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND TradeDT >= #{startDD}
+	    	    ]]>
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,CashBillID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>NTSConfirmNum</when>
+					<when test='sortColumn.equalsIgnoreCase("FranchiseCorpName")'>FranchiseCorpName</when>
+					<when test='sortColumn.equalsIgnoreCase("TradeType")'>TradeType</when>
+					<when test='sortColumn.equalsIgnoreCase("SupplyCost")'>SupplyCost</when>
+					<when test='sortColumn.equalsIgnoreCase("Tax")'>Tax</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>TotalAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("TradeDT")'>TradeDT</when>
+					<when test='sortColumn.equalsIgnoreCase("CashBillID")'>CashBillID</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+    </select>
+
+
+    <select id="selectCashBillListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectCashBillListCnt
+        */
+
+        SELECT
+        Count(*)
+        FROM covi_account4j_si.act_cashbill CB
+        LEFT OUTER JOIN (
+        SELECT MAX(AEAL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AEAL.CashUID
+        , AEAL.ExpenceApplicationID
+        FROM covi_account4j_si.act_expence_application_list AEAL
+        INNER JOIN covi_account4j_si.act_expence_application AEA
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY  AEAL.CashUID
+        ) AL
+        ON CB.CashBillID = AL.CashUID
+        WHERE 1=1
+
+        AND (AL.ExpenceApplicationListID IS NULL
+        OR AL.ExpenceApplicationID = #{ExpAppID})
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="CB.CashBillID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="confirmNum != null and confirmNum != ''">
+            AND UPPER(CB.NTSConfirmNum) LIKE  UPPER(CONCAT('%',#{confirmNum},'%')) 
+        </if>
+        <if test="franchiseCorpName != null and franchiseCorpName != ''">
+            AND UPPER(CB.FranchiseCorpName) LIKE  UPPER(CONCAT('%',#{franchiseCorpName},'%')) 
+        </if>
+        <if test="franchiseCorpNum != null and franchiseCorpNum != ''">
+            AND UPPER(CB.franchiseCorpNum) LIKE  UPPER(CONCAT('%',#{franchiseCorpNum},'%')) 
+        </if>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND TradeDT <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND TradeDT >= #{startDD}
+	    	    ]]>
+        </if>
+    </select>
+
+    <select id="getTaxinvoiceSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getTaxinvoiceSearchPopup
+        */
+        SELECT	ATI.TaxInvoiceID
+        ,	ATI.NTSConfirmNum
+        ,	ATI.NTSConfirmNum TaxNTSConfirmNum
+        ,	ATI.CONVERSATION_ID
+        ,	ATI.InvoiceType
+        ,	ATI.WriteDate
+        ,	ATI.InvoicerCorpNum
+        ,	ATI.InvoicerCorpName
+        ,	ATI.TotalAmount
+        ,	ATI.TaxTotal
+        ,	ATI.SupplyCostTotal
+        ,	DATE_FORMAT(ATI.WriteDate,'%Y.%m.%d')	AS FormatWriteDate
+        ,	FORMAT(ATI.TotalAmount,0)				AS FormatTotalAmount
+        ,	FORMAT(ATI.TaxTotal,0)					AS FormatTaxTotal
+        ,	FORMAT(ATI.SupplyCostTotal,0)			AS FormatSupplyCostTotal
+        ,	GROUP_CONCAT(ATII.ItemName)				AS ItemNameList
+        FROM	covi_account4j_si.act_taxinvoice ATI
+        INNER JOIN covi_account4j_si.act_taxinvoice_item ATII
+        ON ATI.TaxInvoiceID = ATII.TaxInvoiceID
+        LEFT OUTER JOIN (SELECT AEAL.TaxUID
+        FROM	covi_account4j_si.act_expence_application		AEA
+        JOIN	covi_account4j_si.act_expence_application_list	AEAL
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.ProofCode = 'TaxBill'
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        ) X ON ATI.TaxInvoiceID = X.TaxUID
+        WHERE 1=1
+        AND X.TaxUID IS NULL
+        AND ATI.ApproveStatus = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ATI.TaxInvoiceID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        AND		ATI.DataIndex				= 'BUY'
+        AND (
+        (
+	        ATI.InvoiceeEmail1 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM covi_account4j_si.act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM covi_smart4j.sys_object_user SOU
+	        	WHERE SOU.UserCode = #{SessionUser}
+	        ) OR
+	        ATI.InvoiceEmail2 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM covi_account4j_si.act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM covi_smart4j.sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+        )
+        OR
+        ATI.TossUserCode = #{SessionUser}
+        )
+        AND ATI.IsOffset != 'Y'
+        <if test ="writeDateS != null and writeDateS !=''">
+            AND		ATI.WriteDate <![CDATA[>=]]> #{writeDateS}
+        </if>
+        <if test ="writeDateE != null and writeDateE !=''">
+            AND		ATI.WriteDate <![CDATA[<=]]> #{writeDateE}
+        </if>
+        <if test ="invoiceeEmail1 != null and invoiceeEmail1 !=''">
+            AND	(
+            		ATI.InvoiceeEmail1 LIKE CONCAT('%',#{invoiceeEmail1},'%') OR
+            		ATI.InvoiceEmail2  LIKE CONCAT('%',#{invoiceeEmail1},'%')
+            	)
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="tiSearchTypePop == null or tiSearchTypePop ==''">
+                        AND		(	ATI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')	OR 
+                        ATI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATII.ItemName			LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATII.Remark				LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATI.Remark1				LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNUM'.toString()">
+                        AND		ATI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNAME'.toString()">
+                        AND		ATI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'ITEMNAME'.toString()">
+                        AND		ATII.ItemName			LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'Remark'.toString()">
+                        AND		(
+                        ATII.Remark	LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATI.Remark1 LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        GROUP BY ATI.TaxInvoiceID
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , ATI.WriteDate DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>NTSConfirmNum</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatWriteDate")'>FormatWriteDate</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>InvoicerCorpNum</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>InvoicerCorpName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatTotalAmount")'>FormatTotalAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatSupplyCostTotal")'>FormatSupplyCostTotal</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatTaxTotal")'>FormatTaxTotal</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxInvoiceID")'>TaxInvoiceID</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getTaxinvoiceSearchPopupCnt" resultType="java.lang.Long">
+        SELECT	COUNT(DISTINCT(ATI.TaxInvoiceID))
+        FROM	covi_account4j_si.act_taxinvoice ATI
+        INNER JOIN covi_account4j_si.act_taxinvoice_item ATII
+        ON ATI.TaxInvoiceID = ATII.TaxInvoiceID
+        LEFT OUTER JOIN (
+        SELECT AEAL.TaxUID
+        FROM	covi_account4j_si.act_expence_application		AEA
+        JOIN	covi_account4j_si.act_expence_application_list	AEAL
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.ProofCode = 'TaxBill'
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        ) X ON ATI.TaxInvoiceID = X.TaxUID
+        WHERE 1=1
+        AND X.TaxUID IS NULL
+        AND ATI.ApproveStatus = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ATI.TaxInvoiceID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        AND		ATI.DataIndex				= 'BUY'
+        AND (
+        (
+	        ATI.InvoiceeEmail1 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM covi_account4j_si.act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM covi_smart4j.sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	        OR
+	        ATI.InvoiceEmail2 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM covi_account4j_si.act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM covi_smart4j.sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	    )
+	    OR
+	    ATI.TossUserCode = #{SessionUser}
+        )
+        AND ATI.IsOffset != 'Y'
+        <if test ="writeDateS != null and writeDateS !=''">
+            AND		ATI.WriteDate <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+        </if>
+        <if test ="writeDateE != null and writeDateE !=''">
+            AND		ATI.WriteDate <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+        </if>
+        <if test ="invoiceeEmail1 != null and invoiceeEmail1 !=''">
+            AND	(
+            		ATI.InvoiceeEmail1 LIKE CONCAT('%',#{invoiceeEmail1},'%') OR
+            		ATI.InvoiceEmail2  LIKE CONCAT('%',#{invoiceeEmail1},'%')
+            	)
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="tiSearchTypePop == null or tiSearchTypePop ==''">
+                        AND		(	ATI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATII.ItemName			LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATII.Remark				LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATI.Remark1				LIKE CONCAT('%',#{searchStr},'%')
+                        )
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNUM'.toString()">
+                        AND		ATI.InvoicerCorpNum		LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNAME'.toString()">
+                        AND		ATI.InvoicerCorpName	LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'ITEMNAME'.toString()">
+                        AND		ATII.ItemName			LIKE CONCAT('%',#{searchStr},'%')
+                    </when>
+                    <when test="tiSearchTypePop == 'Remark'.toString()">
+                        AND		(
+                        ATII.Remark	LIKE CONCAT('%',#{searchStr},'%')	OR
+                        ATI.Remark1 LIKE CONCAT('%',#{searchStr},'%')
+                        )
+
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+    <select id="getLeftMenuList" parameterType="cmap" resultType="cmap">
+        SELECT	T.MenuID
+             ,	T.MemberOf
+             ,	T.SortPath
+             ,	T.DisplayName
+             ,	T.URL
+             ,	T.IsUse
+             ,	T.IsAdmin
+             ,	T.IconClass
+             ,	T.MenuType
+             ,	T.ChildCnt
+        FROM	(	SELECT	B.MenuID
+                          ,	B.MemberOf
+                          ,	B.SortPath
+                          ,	B.DisplayName
+                          ,	B.URL
+                          ,	B.IsUse
+                          ,	B.IsAdmin
+                          ,	B.IconClass
+                          ,	B.MenuType
+                          ,	(	SELECT	COUNT(*)
+                                    FROM	covi_smart4j.sys_object_menu CNT
+                                                JOIN	(	SELECT	AC.ObjectID
+                                                             FROM	covi_smart4j.sys_object_acl		AC
+                                                                         JOIN	(	SELECT	GP.GroupCode
+                                                                                           ,	GP.MemberOf
+                                                                                      FROM	covi_smart4j.sys_object_group			GP
+                                                                                                  JOIN	covi_smart4j.sys_object_group_member	GM
+                                                                                                          ON	GP.GroupCode = GM.GroupCode
+                                                                                                              AND	GM.UserCode = #{UR_Code}
+                                                             )	GR
+                                                                                 ON		AC.SubjectCode	= GR.GroupCode
+                                                                                     AND		AC.SubjectType	= 'GR'
+                                                             WHERE	GR.MemberOf		= 'EAccounting'
+                                                             GROUP BY AC.ObjectID
+                                    ) CNTD
+                                                        ON	CNT.MenuID = CNTD.ObjectID
+                                    WHERE	CNT.MemberOf	 = B.MenuID
+                                      AND		CNT.IsUse		 = 'Y'
+                                      AND		CNT.IsAdmin		 = 'N'
+                                      AND		CNT.MenuTyPe	!= 'Hidden'
+        ) AS ChildCnt
+            FROM	covi_smart4j.sys_object_menu B
+					JOIN	(	SELECT	MenuID
+								FROM	(	SELECT	MenuID
+											FROM	covi_smart4j.sys_object_menu A
+											WHERE	FIND_IN_SET(MenuID,	(	SELECT	CONCAT(GROUP_CONCAT(Level SEPARATOR ','))
+																			FROM	(	SELECT	@Ids	:=	(	SELECT	GROUP_CONCAT(MenuID SEPARATOR ',')
+																												FROM	covi_smart4j.sys_object_menu
+																												WHERE	FIND_IN_SET(MemberOf,	@Ids)
+																											)	Level
+																						FROM	covi_smart4j.sys_object_menu
+																						JOIN	(SELECT	@Ids := #{menuID}) temp1
+            WHERE	FIND_IN_SET(MemberOf, @Ids)
+            )	temp2
+            )
+            )
+            ) temp3
+            )C
+        ON	B.MenuID = C.MenuID
+            JOIN	(	SELECT	AC.ObjectID
+            FROM	covi_smart4j.sys_object_acl		AC
+            JOIN	(	SELECT	GP.GroupCode
+            ,	GP.MemberOf
+            FROM	covi_smart4j.sys_object_group			GP
+            JOIN	covi_smart4j.sys_object_group_member	GM
+            ON	GP.GroupCode = GM.GroupCode
+            AND	GM.UserCode = #{UR_Code}
+            )	GR
+            ON		AC.SubjectCode	= GR.GroupCode
+            AND		AC.SubjectType	= 'GR'
+            WHERE	GR.MemberOf		= 'EAccounting'
+            GROUP BY AC.ObjectID
+            ) D
+            ON	B.MenuID = D.ObjectID
+        WHERE	B.IsUse		= 'Y'
+          AND		B.IsAdmin	= 'N'
+          AND		B.MenuTyPe != 'Hidden'
+            ) T
+        WHERE 1=1
+        ORDER BY T.SortPath
+    </select>
+
+    <select id="getExpAppDocList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getExpAppDocList
+        */
+        SELECT		ExpenceApplicationID
+        , CompanyCode
+        , ApplicationTitle
+        , ApplicationType
+        , ApplicationStatus
+        , covi_account4j_si.Fn_GetBaseCodeName('ExpAppType',ApplicationType, #{companyCode})	AS ApplicationTypeName
+        , covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus',ApplicationStatus, #{companyCode})	AS ApplicationStatusName
+        , RegisterID
+        FROM covi_account4j_si.act_expence_application
+        WHERE 1=1
+        AND ApplicationStatus != 'T'
+        <if test="ApplicationTitle != null and ApplicationTitle != ''">
+            AND UPPER(ApplicationTitle) LIKE  UPPER(CONCAT('%',#{ApplicationTitle},'%')) 
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,ExpenceApplicationID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>ApplicationTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>ApplicationTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>ApplicationStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterID")'>RegisterID</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+
+    <select id="getExpAppDocListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getExpAppDocListCnt
+        */
+        SELECT	COUNT(*)
+        FROM covi_account4j_si.act_expence_application
+        WHERE ApplicationStatus != 'T'
+        <if test="ApplicationTitle != null and ApplicationTitle != ''">
+            AND UPPER(ApplicationTitle) LIKE  UPPER(CONCAT('%',#{ApplicationTitle},'%'))
+        </if>
+    </select>
+
+
+    <select id="selectMobileReceipt" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectMobileReceipt
+        */
+        SELECT
+        AR.ReceiptID
+        , AR.CompanyCode
+        , AR.ExpenceMgmtCode
+        , 'Receipt' AS ProofCode
+        , DATE_FORMAT( AR.PhotoDate, '%Y%m%d') PhotoDate
+        , DATE_FORMAT( AR.PhotoDate, '%Y.%m.%d') PhotoDateYMD
+        , DATE_FORMAT( AR.PhotoDate, '%Y.%m.%d') PhotoDateStr
+        , DATE_FORMAT( AR.PhotoDate, '%T') PhotoDateHMS
+        , AR.ReceiptType
+        , AR.ReceiptFileID
+        , AR.Active
+        , covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName
+        , AR.RegisterID
+        , DATE_FORMAT(AR.RegistDate, '%Y%m%d') AS RegistDate
+        , DATE_FORMAT(AR.RegistDate, '%Y.%m.%d %H:%i') AS RegistDateStr
+        , SF.FileID
+        , SF.SavedName
+        , SF.FilePath
+        , SF.FileName
+        , CONCAT(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath, SF.SavedName) FullPath
+
+        , AR.TotalAmount
+        , AR.StoreName
+        , AR.StoreAddress
+        , DATE_FORMAT(AR.UseDate, '%Y.%m.%d') AS UseDate
+        , AR.UsageText
+        , AR.Amount
+        , AR.AccountCode
+        , (SELECT AccountName FROM covi_account4j_si.act_account AA WHERE AA.AccountCode = AR.AccountCode) AS AccountName
+        , AR.StandardBriefID
+        , (SELECT StandardBriefName FROM covi_account4j_si.act_standard_brief ASB WHERE ASB.StandardBriefID = AR.StandardBriefID) AS StandardBriefName
+        , AR.CostCenterCode
+        , (SELECT CostCenterName FROM covi_account4j_si.act_cost_center ACC WHERE ACC.CostCenterCode = AR.CostCenterCode) AS CostCenterName
+        , AL.ExpenceApplicationListID
+        FROM covi_account4j_si.act_receipt AR
+        INNER JOIN covi_smart4j.sys_file SF ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID, AL.ReceiptID, AL.ExpenceApplicationID
+        FROM covi_account4j_si.act_expence_application_list AL
+        INNER JOIN covi_account4j_si.act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY AL.ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        WHERE 1=1
+        AND (
+        AL.ExpenceApplicationListID IS NULL
+        <if test ="ExpenceApplicationID != null and ExpenceApplicationID !=''">
+            OR AL.ExpenceApplicationID = #{ExpenceApplicationID}
+        </if>
+        )
+        AND AR.Active = 'N' 
+        <choose>
+			<when test="addPageList != null">
+				AND 
+				<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test ="UR_Code != null and UR_Code !=''">
+            AND AR.RegisterID = #{UR_Code}
+        </if>
+        ORDER BY AR.ReceiptID ASC
+    </select>
+
+
+    <select id="getFileURLInfo" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getFileURLInfo
+        */
+        SELECT SF.FileID
+             , SF.FileName
+             , SF.SavedName
+             , SF.FilePath
+             , SF.FileName
+             , CONCAT(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath, SF.SavedName) URLPath
+        FROM covi_smart4j.sys_file SF
+        INNER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+        WHERE SF.FileID = #{FileID}
+    </select>
+
+
+    <delete id="deleteFileDbByID" parameterType="cmap">
+        /*
+            account.common.deleteFileDbByID
+            파일db삭제
+        */
+		<![CDATA[
+        DELETE FROM covi_smart4j.sys_file
+        WHERE FileID = #{FileID};
+        ]]>
+    </delete>
+
+    <select id="getManagerCk" resultType="java.lang.Long">
+        /*
+            account.common.getManagerCk
+        */
+        SELECT A.M_CNT + A.T_CNT + A.E_CNT AS CNT
+        FROM
+            (
+                SELECT
+                    (
+                        SELECT	COUNT(ManagerUserCode)
+                        FROM covi_account4j_si.act_manager
+                        WHERE ManagerUserCode = #{SessionUser}
+                    ) AS M_CNT,
+                    (
+                        SELECT COUNT(TossUserCode)
+                        FROM covi_account4j_si.act_taxinvoice
+                        WHERE TossUserCode = #{SessionUser}
+                    ) AS T_CNT,
+                    (
+                        SELECT COUNT(InvoiceeEmail1)
+                        FROM covi_account4j_si.act_taxinvoice
+                        WHERE (
+                        	InvoiceeEmail1 = (SELECT MailAddress FROM covi_smart4j.sys_object_user WHERE UserCode = #{SessionUser}) OR
+                        	InvoiceEmail2  = (SELECT MailAddress FROM covi_smart4j.sys_object_user WHERE UserCode = #{SessionUser})
+                        )
+                    ) AS E_CNT
+                FROM DUAL
+            ) A
+    </select>
+
+
+
+    <select id="selectPrivateCardPopupList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectPrivateCardPopupList
+        개인카드 목록 조회
+        */
+        SELECT CC.CorpCardID
+        , CONCAT('**********',	SUBSTRING(CC.CardNo,11))										AS CardNoView
+        , CC.CardNo
+        , CC.CardCompany
+        , covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CC.CardCompany, #{companyCode}) CardCompanyName
+        , USR.DisplayName OwnerUserName
+        FROM covi_account4j_si.act_corp_card CC
+        LEFT OUTER JOIN covi_smart4j.sys_object_user USR
+        ON CC.OwnerUserCode	= USR.UserCode
+        WHERE 1=1
+        AND CC.CardClass = 'CCL01'
+        AND CC.OwnerUserCode = #{SessionUser}
+        <if test="companyCode != null and companyCode != ''">
+            AND	CC.CompanyCode = #{companyCode}
+        </if>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+    <select id="selectPrivateCardPopupListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectPrivateCardPopupListCnt
+        개인카드 목록 조회
+        */
+        SELECT Count(*)
+        FROM covi_account4j_si.act_corp_card CC
+        LEFT OUTER JOIN covi_smart4j.sys_object_user USR
+        ON CC.OwnerUserCode	= USR.UserCode
+        WHERE 1=1
+        AND CC.CardClass = 'CCL01'
+        AND CC.OwnerUserCode = #{SessionUser}
+        <if test="companyCode != null and companyCode != ''">
+            AND	CC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="getInterfaceLogViewList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getInterfaceLogViewList
+        */
+        SELECT	LogID
+        ,	CompanyCode
+        ,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',	CompanyCode, #{companyCode})		AS CompanyName
+        ,	IfTargetType
+        ,	IfMethodName
+        ,	IfRecvType
+        ,	IfType
+        ,	IfCnt
+        ,	IfStatus
+        ,	ErrorLog
+        ,	DATE_FORMAT(InterfaceDate, '%Y.%m.%d %T') InterfaceDate
+        ,	covi_account4j_si.Fn_GetBaseCodeName('InterfaceRecvType',	IfRecvType, #{companyCode})	AS IfRecvTypeName
+        ,	covi_account4j_si.Fn_GetBaseCodeName('InterfaceStatus',		IfStatus, #{companyCode})	AS IfStatusName
+        ,	covi_account4j_si.Fn_GetBaseCodeName('InterfaceType',		IfType, #{companyCode})		AS IfTypeName
+        FROM	covi_account4j_si.act_if_status_log
+        WHERE	1=1
+        <if test="companyCode != '' and companyCode != null">
+            AND		CompanyCode	= #{companyCode}
+        </if>
+        <if test="ifTargetType != '' and ifTargetType != null">
+            AND		IfTargetType	LIKE CONCAT('%',#{ifTargetType},'%') 
+        </if>
+        <if test="ifMethodName != '' and ifMethodName != null">
+            AND		IfMethodName	LIKE CONCAT('%',#{ifMethodName},'%') 
+        </if>
+        <if test="interfaceRecvType != '' and interfaceRecvType != null">
+            AND		IfRecvType	= #{interfaceRecvType}
+        </if>
+        <if test="interfaceStatus != '' and interfaceStatus != null">
+            AND		IfStatus	= #{interfaceStatus}
+        </if>
+        <if test="interfaceType != '' and interfaceType != null">
+            AND		IfType		= #{interfaceType}
+        </if>
+        <trim prefix="ORDER BY">
+            <if test='sortColumn != null and sortDirection != null'>
+                <choose>
+                    <when test='sortColumn.equalsIgnoreCase("IfTargetType")'>IfTargetType</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfMethodName")'>IfMethodName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfRecvTypeName")'>IfRecvTypeName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfTypeName")'>IfTypeName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfCnt")'>IfCnt</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfStatusName")'>IfStatusName</when>
+                    <when test='sortColumn.equalsIgnoreCase("ErrorLog")'>ErrorLog</when>
+                    <when test='sortColumn.equalsIgnoreCase("InterfaceDate")'>InterfaceDate</when>
+                    <otherwise>
+                        LogID
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+                    <otherwise> DESC</otherwise>
+                </choose>
+            </if>
+        </trim>
+        LIMIT #{pageSize} OFFSET #{pageOffset}
+    </select>
+
+    <select id="getInterfaceLogViewListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getInterfaceLogViewListCnt
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_if_status_log
+        WHERE	1=1
+        <if test="companyCode != '' and companyCode != null">
+            AND		CompanyCode	= #{companyCode}
+        </if>
+        <if test="ifTargetType != '' and ifTargetType != null">
+            AND		IfTargetType	LIKE CONCAT('%',#{ifTargetType},'%') 
+        </if>
+        <if test="ifMethodName != '' and ifMethodName != null">
+            AND		IfMethodName	LIKE CONCAT('%',#{ifMethodName},'%') 
+        </if>
+        <if test="interfaceRecvType != '' and interfaceRecvType != null">
+            AND		IfRecvType	= #{interfaceRecvType}
+        </if>
+        <if test="interfaceStatus != '' and interfaceStatus != null">
+            AND		IfStatus	= #{interfaceStatus}
+        </if>
+        <if test="interfaceType != '' and interfaceType != null">
+            AND		IfType		= #{interfaceType}
+        </if>
+    </select>
+
+    <select id="getApplicationStatus" parameterType="cmap" resultType="cmap">
+        SELECT ApplicationStatus
+        FROM covi_account4j_si.act_expence_application
+        WHERE ExpenceApplicationID = #{expenceApplicationID}
+    </select>
+
+    <select id="getCorpCardAndReceiptList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCorpCardAndReceiptList
+        */
+        SELECT * FROM
+        (
+        SELECT
+        AR.ReceiptID,
+        AR.CompanyCode,
+        AR.ExpenceMgmtCode,
+        IFNULL(AR.UsageText, '') AS UsageText,
+        'Receipt' AS ProofCode,
+        DATE_FORMAT(AR.PhotoDate, '%Y%m%d') AS PhotoDate,
+        DATE_FORMAT(AR.PhotoDate, '%Y.%m.%d') AS PhotoDateYMD,
+        DATE_FORMAT(AR.PhotoDate, '%T') AS PhotoDateHMS,
+        DATE_FORMAT(AR.PhotoDate, '%Y.%m.%d %H:%i') AS PhotoDateStr,
+        AR.ReceiptType,
+        AR.ReceiptFileID,
+        AR.Active,
+        covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName,
+        AR.RegisterID,
+        DATE_FORMAT(AR.RegistDate, '%Y.%m.%d %H:%i') AS RegistDate,
+        SF.FileID,
+        SF.SavedName,
+        SF.FilePath,
+        SF.FileName,
+        CONCAT(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath, SF.SavedName) AS FullPath,
+        SB.StandardBriefID,
+        SB.StandardBriefName,
+        '' AS CardNo,
+        '' AS ApproveNo,
+        IFNULL(AR.StoreName, '') AS StoreName,
+        FORMAT(AR.TotalAmount,0) AS TotalAmount,
+        '' AS RepAmount,
+        '' AS TaxAmount,
+        '' AS ApproveDate,
+        '' AS InfoType,
+        AR.RegistDate AS OrderByDate
+        FROM covi_account4j_si.act_receipt AR
+        INNER JOIN covi_smart4j.sys_file SF
+        ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN covi_account4j_si.act_standard_brief SB
+        ON AR.StandardBriefID = SB.StandardBriefID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AL.ReceiptID
+        , AL.ExpenceApplicationID
+        FROM covi_account4j_si.act_expence_application_list AL
+        INNER JOIN covi_account4j_si.act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            AND (
+            AL.ExpenceApplicationListID IS NULL
+            <if test ="ExpenceApplicationID != null and ExpenceApplicationID !=''">
+                OR AL.ExpenceApplicationID = #{ExpenceApplicationID}
+            </if>
+            )
+            <choose>
+				<when test="addPageList != null">
+					AND 
+					<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+            <if test ="SDate != null and SDate !=''">
+                AND AR.RegistDate <![CDATA[>=]]> #{SDate}
+            </if>
+            <if test ="EDate != null and EDate !=''">
+                AND AR.RegistDate <![CDATA[<=]]> #{EDate}
+            </if>
+            <if test ="UR_Code != null and UR_Code !=''">
+                AND AR.RegisterID = #{UR_Code}
+            </if>
+        </trim>
+
+        UNION
+
+        SELECT
+        ACR.ReceiptID
+        ,	'' AS CompanyCode
+        ,	'' AS ExpenceMgmtCode
+        ,	IFNULL(ACR.UsageText, '') AS UsageText
+        ,	'CorpCard' AS ProofCode
+        ,	'' AS PhotoDate
+        ,	'' AS PhotoDateYMD
+        ,	'' AS PhotoDateHMS
+        ,	'' AS PhotoDateStr
+        ,	'' AS ReceiptType
+        ,	'' AS ReceiptFileID
+        ,	ACR.Active
+        ,	covi_account4j_si.Fn_GetBaseCodeName('Active', ACR.Active, #{companyCode}) AS ActiveName
+        ,	'' AS RegisterID
+        ,	'' AS RegistDate
+        ,	'' AS FileID
+        ,	'' AS SavedName
+        ,	'' AS FilePath
+        ,	'' AS FileName
+        ,	'' AS FullPath
+        ,	SB.StandardBriefID
+        ,	SB.StandardBriefName
+        ,	CONCAT('**********', SUBSTRING(ACR.CardNo,11,6))			AS CardNo
+        ,	ACR.ApproveNo
+        ,	ACR.StoreName
+        ,   FORMAT(ACR.AmountWon,0) AS TotalAmount
+        ,   FORMAT(ACR.RepAmount,0) AS RepAmount
+        ,   FORMAT(ACR.TaxAmount,0) AS TaxAmount
+        ,	CONCAT(DATE_FORMAT(ACR.ApproveDate, '%Y.%m.%d'), ' ', LEFT(ACR.ApproveTime,2), ':', SUBSTRING(ACR.ApproveTime,3,2)) AS ApproveDate
+        ,	ACR.InfoType
+        ,	CONCAT(DATE_FORMAT(ACR.ApproveDate, '%Y.%m.%d'), ' ', LEFT(ACR.ApproveTime,2), ':', SUBSTRING(ACR.ApproveTime,3,2), ':', RIGHT(ACR.ApproveTime,2)) AS OrderByDate
+        FROM	covi_account4j_si.act_card_receipt	ACR
+        JOIN	covi_account4j_si.act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN covi_smart4j.sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT OUTER JOIN covi_account4j_si.act_standard_brief SB
+        ON ACR.StandardBriefID = SB.StandardBriefID
+        WHERE 1=1
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B')
+        AND (
+        (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (
+        SELECT	ACCSU.CorpCardID
+        FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        AND		ACR.ReceiptID	NOT IN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM	covi_account4j_si.act_expence_application AEA
+        JOIN	covi_account4j_si.act_expence_application_list AEAL
+        ON		AEA.ExpenceApplicationID	= AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            AND ACR.ApproveDate <![CDATA[<=]]> #{endDD}
+        </if>
+        <if test="startDD != null and startDD !=''">
+            AND ACR.ApproveDate <![CDATA[>=]]> #{startDD}
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE CONCAT('%',#{storeName},'%') 
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE CONCAT('%',#{cardNo},'%') 
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE CONCAT('%',#{approveNo},'%') 
+        </if>
+        ) AS A
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,A.OrderByDate DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ProofCode")'>ProofCode</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>ApproveDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptID")'>ReceiptID</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptFileID")'>ReceiptFileID</when>
+					<when test='sortColumn.equalsIgnoreCase("Active")'>Active</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>TotalAmount</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	     
+            </if>
+        </trim>
+        <!-- paging query
+           LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+        -->
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+
+    <select id="getCorpCardAndReceiptListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCorpCardAndReceiptListCnt
+        */
+        SELECT COUNT(*) FROM
+        (
+        SELECT
+        AR.ReceiptID
+        FROM covi_account4j_si.act_receipt AR
+        INNER JOIN covi_smart4j.sys_file SF
+		ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN covi_account4j_si.act_standard_brief SB
+        ON AR.StandardBriefID = SB.StandardBriefID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AL.ReceiptID
+        , AL.ExpenceApplicationID
+        FROM covi_account4j_si.act_expence_application_list AL
+        INNER JOIN covi_account4j_si.act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            AND (
+            AL.ExpenceApplicationListID IS NULL
+            <if test ="ExpAppID != null and ExpAppID !=''">
+                OR AL.ExpenceApplicationID = #{ExpAppID}
+            </if>
+            )
+            <choose>
+				<when test="addPageList != null">
+					AND 
+					<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+            <if test ="SDate != null and SDate !=''">
+                AND AR.RegistDate <![CDATA[>=]]> #{SDate}
+            </if>
+            <if test ="EDate != null and EDate !=''">
+                AND AR.RegistDate <![CDATA[<=]]> #{EDate}
+            </if>
+            <if test ="UR_Code != null and UR_Code !=''">
+                AND AR.RegisterID = #{UR_Code}
+            </if>
+        </trim>
+
+        UNION
+
+        SELECT
+        ACR.ReceiptID
+        FROM	covi_account4j_si.act_card_receipt	ACR
+        JOIN	covi_account4j_si.act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN covi_smart4j.sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT OUTER JOIN covi_account4j_si.act_standard_brief SB
+        ON ACR.StandardBriefID = SB.StandardBriefID
+        WHERE 1=1
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B')
+        AND (
+        (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (
+        SELECT	ACCSU.CorpCardID
+        FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        <if test ="cardNo != null and cardNo !='' and approveNo != null and approveNo !=''">
+            OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        </if>
+        )
+        AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        AND		ACR.ReceiptID	NOT IN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM	covi_account4j_si.act_expence_application AEA
+        JOIN	covi_account4j_si.act_expence_application_list AEAL
+        ON		AEA.ExpenceApplicationID	= AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            AND ACR.ApproveDate <![CDATA[<=]]> #{endDD}
+        </if>
+        <if test="startDD != null and startDD !=''">
+            AND ACR.ApproveDate <![CDATA[>=]]> #{startDD}
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE CONCAT('%',#{storeName},'%') 
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE CONCAT('%',#{cardNo},'%') 
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE CONCAT('%',#{approveNo},'%')
+        </if>
+        ) AS A
+    </select>
+
+    <select id="selectUserInfo" parameterType="cmap" resultType="cmap">
+        SELECT
+            SOU.UserCode AS UserCode,
+            SOU.DisplayName AS UserName,
+            SOUB.DeptCode AS DeptCode,
+            SOUB.DeptName AS DeptName
+        FROM covi_smart4j.sys_object_user SOU
+                 INNER JOIN covi_smart4j.sys_object_user_basegroup SOUB
+                            ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+        WHERE SOU.UserCode = #{UR_Code}
+            LIMIT 1
+    </select>
+
+    <select id="selectCompanyCodeOfUser" parameterType="cmap" resultType="java.lang.String">
+        SELECT
+            CASE WHEN #{AssignedDomain} LIKE '%ORGROOT%' THEN 'ALL'
+                 ELSE
+                     IFNULL(CC.CompanyCode, IFNULL((SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = 'CompanyCode' AND Code = SOUB.CompanyCode AND CompanyCode = SOUB.CompanyCode), 'ALL'))
+                END AS CompanyCode
+        FROM covi_account4j_si.act_cost_center CC
+                 INNER JOIN covi_account4j_si.act_user_cost_center UCC
+                            ON CC.CostCenterCode = UCC.CostCenterCode
+                 RIGHT JOIN covi_smart4j.sys_object_user_basegroup SOUB
+                            ON UCC.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+        WHERE SOUB.UserCode = #{SessionUser}
+            LIMIT 1
+    </select>
+
+    <select id="searchUsageTextData" parameterType="cmap" resultType="cmap">
+    	<!-- 변경 전 -->
+        <!-- SELECT
+        UsageText,
+        AccountCode,
+        (SELECT AccountName FROM covi_account4j_si.act_account AC WHERE AC.AccountCode = A.AccountCode) AS AccountName,
+        StandardBriefID,
+        (SELECT StandardBriefName FROM covi_account4j_si.act_standard_brief SB WHERE SB.StandardBriefID = A.StandardBriefID) AS StandardBriefName
+        <if test="ProofCode == 'CorpCard'">
+            FROM covi_account4j_si.act_card_receipt A
+        </if>
+        <if test="ProofCode == 'Receipt'">
+            FROM covi_account4j_si.act_receipt A
+        </if>
+        WHERE ReceiptID = #{ReceiptID} -->
+        <!-- 변경 후 -->
+        SELECT
+        	A.UsageText,
+        	A.AccountCode,
+        	B.AccountName,
+        	A.StandardBriefID,
+        	B.StandardBriefName
+        FROM
+        <if test="ProofCode == 'CorpCard'">
+        	covi_account4j_si.act_card_receipt A
+        </if>
+        <if test="ProofCode == 'Receipt'">
+        	covi_account4j_si.act_receipt A
+        </if>
+        LEFT OUTER JOIN (
+        	SELECT
+        		AC.AccountCode,
+        		AC.AccountName,
+        		SB.StandardBriefID,
+        		SB.StandardBriefName
+        	FROM
+        		covi_account4j_si.act_account AC
+        	LEFT OUTER JOIN
+        		covi_account4j_si.act_standard_brief SB
+        	ON
+        		AC.AccountID = SB.AccountID
+        	WHERE
+        		AC.CompanyCode = #{companyCode}
+        ) B
+        ON
+        	A.AccountCode = B.AccountCode
+        	AND A.StandardBriefID = B.StandardBriefID
+        WHERE
+        	A.ReceiptID = #{ReceiptID}
+    </select>
+
+    <update id="updateUsageTextData" parameterType="cmap">
+        UPDATE
+        <if test="ProofCode == 'CorpCard'">
+            covi_account4j_si.act_card_receipt
+        </if>
+        <if test="ProofCode == 'Receipt'">
+            covi_account4j_si.act_receipt
+        </if>
+        SET
+        UsageText = #{UsageText},
+        AccountCode = #{AccountCode},
+        StandardBriefID = #{StandardBriefID}
+        WHERE ReceiptID = #{ReceiptID}
+    </update>
+
+    <insert id="insertKakaoApprovalList" parameterType="cmap">
+        /*
+            account.common.insertKakaoApprovalList
+        */
+        INSERT INTO covi_account4j_si.act_kakao_card_receipt
+        (
+            ID
+        ,PAYMENT_ITEM_ID
+        ,AMOUNT
+        ,PAY_TYPE
+        ,APPROVAL_NO
+        ,ORG_DATE_TIME
+        ,CARD_NUMBER
+        ,REGISTDATE
+        )
+        VALUES
+            (
+                #{Id}
+            ,#{PaymentItemId}
+            ,#{Amount}
+            ,#{PayType}
+            ,#{ApprovalNo}
+            ,#{OrgDateTime}
+            ,#{CardNumber}
+            ,now(3)
+            )
+    </insert>
+
+    <select id="selectKakaoApprovalListCnt" resultType="java.lang.Long">
+        SELECT COUNT(ID) AS CNT
+        FROM covi_account4j_si.act_kakao_card_receipt
+        WHERE ID = #{Id}
+    </select>
+
+    <select id="selectApprovalNo" parameterType="cmap" resultType="java.lang.String">
+        SELECT APPROVAL_NO
+        FROM covi_account4j_si.act_kakao_card_receipt
+        WHERE payment_item_id = #{paymentItemId}
+    </select>
+    
+    <!-- domaincode as option value -->
+    <select id="selectEntInfoList" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainCode AS optionValue ,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as optionText, DomainCode as defaultVal
+			FROM covi_smart4j.sys_object_group AS gr
+			INNER JOIN covi_smart4j.sys_object_domain AS dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND date(dn.ServiceStart)  <![CDATA[ <= ]]>   now(3) 
+		AND date(dn.ServiceEnd) <![CDATA[ >= ]]> date_format(now(3), '%Y-%m-%d 00:00:00')
+		
+		ORDER BY gr.SortKey ASC
+	</select>
+	
+	<!-- domainid as option value -->
+    <select id="selectEntInfoListId" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainID AS optionValue ,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as optionText, DomainCode as defaultVal
+			FROM covi_smart4j.sys_object_group AS gr
+			INNER JOIN covi_smart4j.sys_object_domain AS dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND date(dn.ServiceStart)  <![CDATA[ <= ]]>   now(3) 
+		AND date(dn.ServiceEnd) <![CDATA[ >= ]]> date_format(now(3), '%Y-%m-%d 00:00:00')
+		
+		ORDER BY gr.SortKey ASC
+	</select>
+</mapper>

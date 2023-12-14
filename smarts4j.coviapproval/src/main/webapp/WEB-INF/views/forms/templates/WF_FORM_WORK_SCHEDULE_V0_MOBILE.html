@@ -1,0 +1,122 @@
+
+<!-- HIDDEN FIELD -->
+<input type="hidden" data-type="mField" id="HID_WORK_SCHEDULE_FIID" />
+<!-- HIDDEN COMPANYCODE -->
+<input type="hidden" data-type="mField" id="HID_COMPANTYCODE" />
+<!-- HIDDEN PROCESSID -->
+<input type="hidden" data-type="mField" id="HID_PROCESSID" />
+
+<!--실 결재양식 내용 부분 시작 -->
+<div class="appforms_wrap" id="vacationForm">
+	<div class="appforms_cont">
+		<table class="appforms_table multi-row-table" id="tblWorkScheduleInfo">
+			<colgroup>
+				<col style="width:41px;">
+				<col style="width:91px;">
+				<col style="width:*;">
+			</colgroup>
+			<tbody>
+		    	<tr>
+					<td colspan="3" class="multi-row-control">
+						<div class="appforms_tit" data-mode="writeOnly">
+							<span>
+								<a href="#" class="multi-row-add btn_add_n ui-link">추가</a>
+								<a href="#" class="multi-row-del btn_del_n ui-link">삭제</a>
+							</span>
+						</div>
+					</td>
+				</tr>
+				<tr>	
+			        <th class="appforms_table_th" style="text-align: left;">
+			        	<label for="tblWorkScheduleInfo_select_all"></label>
+			            <input type="checkbox" id="tblWorkScheduleInfo_select_all" class="multi-row-select-all" onchange="mobile_approval_multiRowSelectAll(this);">
+			        </th>
+			        <th data-mode="readOnly" class="appforms_table_th">
+			        	순번
+			        </th>
+					<th class="appforms_table_th" colspan="2">
+						신청 내용
+					</th>
+				</tr>
+				<!-- multi row table이 들어 올 곳-->
+				<tr class="multi-row-template">
+					<td colspan="3">
+						<table style="width:100%">
+							<colgroup>
+								<col style="width:41px;">
+								<col style="width:91px;">
+								<col style="width:*;">
+							</colgroup>
+							<tr>
+						        <th rowspan="5" class="appforms_table_th">
+						        	<label for="mrs"></label>
+						            <input type="checkbox" id="mrs" class="multi-row-selector">
+						        </th>
+						        <td rowspan="5" data-mode="readOnly" class="appforms_table_td" style="text-align: center; border-left:1px solid #c3d7df;">
+						            <span class="multi-row-seq" data-type="rField">1</span>
+						        </td>
+								<th class="appforms_table_th">템플릿</th>
+								<td class="appforms_table_td" colspan="3">
+									<select data-type="rField" name="WORK_TYPE" data-element-type="sel_d_t" class="appforms_table_selectbox" title="근무 유형" onchange="displayTime(this)"></select>
+								</td>
+							</tr>
+							
+							<tr>
+								<th class="appforms_table_th">시작일자</th>
+						    	<td class="appforms_table_td" colspan="3">
+						    		<input type="text" class="appforms_table_input" name="_MULTI_SCHEDULE_SDT" data-type="rField" data-pattern="date" title="날짜" onchange="calSDATEEDATE(this);" required="required">
+						    	</td>
+							</tr>
+							<tr>
+								<th class="appforms_table_th">종료일자</th>
+						    	<td class="appforms_table_td" colspan="3">
+						    		<input type="text" class="appforms_table_input" name="_MULTI_SCHEDULE_EDT" data-type="rField" data-pattern="date" title="날짜" onchange="calSDATEEDATE(this);" required="required">
+						    	</td>
+							</tr>
+							<tr>
+								<th class="appforms_table_th">휴무일제외</th>
+						    	<td class="appforms_table_td" colspan="3">
+			                        <label class="chkHolidayLabel" for="CHK_COMPANY_HOLIDAY"></label>
+									<input type="checkbox" class="chkHoliday" data-face-for="opt" id="CHK_COMPANY_HOLIDAY" name="CHK_COMPANY_HOLIDAY" text="Y" value="Y" data-type="rField" onclick="clickHolidayLabel(this);">&nbsp;회사휴무일 제외
+									<input type="text" name="opt" data-face-real="y" data-type="rField" style="display: none;">
+									<input type="text" name="companyHoliday" data-type="rField" style="display: none;">
+						    	</td>
+							</tr>
+							<tr>
+								<th class="appforms_table_th">근무시간</th>
+								<td class="appforms_table_td" colspan="3">
+									<input type="text" name="_MULTI_WORK_TIME" data-type="rField" readonly="readonly" style="border:0px;">
+								</td>
+							</tr>
+							<tr style="display:none;">
+								<th class="appforms_table_th">근무시간</th>
+								<td class="appforms_table_td" colspan="3" style="padding-top:5px;padding-bottom:5px;">
+									<div name="div_manual" style="display:none;">
+										<input type="text" name="_MULTI_WORK_START_H" data-type="rField" readonly="" data-pattern="time" data-time-format="H" data-time-step="60" title="시작시간" style="width:42px;">
+										:
+										<input type="text" name="_MULTI_WORK_START_M" data-type="rField" data-pattern="numeric"  data-range="00, 60" maxlength="2" title="시작시간" style="width:42px;">
+										-
+										<input type="text" name="_MULTI_WORK_END_H" data-type="rField" readonly="" data-pattern="time" data-time-format="H" data-time-step="60" title="종료시간" style="width:42px;">
+										:
+										<input type="text" name="_MULTI_WORK_END_M" data-type="rField" data-pattern="numeric"  data-range="00, 60" maxlength="2" title="종료시간" style="width:42px;">
+										
+										<label for="CHK_NEXT_DAY"></label>
+										<input type="checkbox" data-face-for="bNextDay" id="CHK_NEXT_DAY" name="CHK_NEXT_DAY" text="Y" value="Y" data-type="rField" >&nbsp;익일
+									</div>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<th class="appforms_table_th">사유</th>
+					<td class="appforms_table_td" colspan="2">
+						<textarea data-type="mField" id="SCHEDULE_REASON" data-binding="pre" rows="5" title="사유" required="required" style="width: 98%;" class="appforms_table_textarea">{{ doc.BodyContext.SCHEDULE_REASON }}</textarea>
+					</td>
+				</tr>
+
+			</tbody>
+		</table>
+	</div>
+</div>
+<!--실 결재양식 내용 부분 끝 -->

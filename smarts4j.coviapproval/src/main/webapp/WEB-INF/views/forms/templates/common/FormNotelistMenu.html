@@ -1,0 +1,33 @@
+﻿﻿<div class="wordTop">
+	<div class="topWrap" style="min-height: 50px;">
+		<!-- 문서정보 접기/펼치기 --><input type="button" class="AXButton" id="btDocInfo" onclick="displayDocInfo();" value="<spring:message code='Cache.lbl_apv_doc_infomation'/>"   style="display:none;">
+		<!-- 전자문서발송웹서비스테스트 --><input type="button" class="AXButton"id="btGovDocsTest" name="cbBTN" onclick="doButtonAction(this);" value="웹서비스테스트" style="display:none;" >
+		<!-- 전자문서발송 --><input type="button" class="AXButton"id="btGovDocsSend" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_govdocs_send'/>" style="display:none;" >
+		<!-- 발송취소 --><input type="button" class="AXButton"id="btGovSendCancel" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_sendcancel'/>" style="display:none;" >
+		<!-- offline문서 --><input type="button" class="AXButton"id="btGovDocsOffline" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_govdocs_offline'/>" style="display:none;" >
+		<!-- 배부 --><input type="button" class="AXButton"id="btGovDocsDist" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_govdocs_dist'/>" style="display:none;" >
+		<!-- 배부완료 --><input type="button" class="AXButton"id="btGovDocsDistCom" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_govdocs_dist'/>" style="display:none;" >
+		<!-- 접수 --><input type="button" class="AXButton"id="btGovDocsReceipt" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_receipt'/>" style="display:none;" >		
+		<!-- 재발송 --><input type="button" class="AXButton"id="btGovDocsReSend" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_govdocs_resend'/>" style="display:none;" >
+		<!-- 반송 --><input type="button" class="AXButton"id="btGovDocsReject" name="cbBTN" onclick="doButtonAction(this);" value="반송" style="display:none;" >
+		<!-- 반송 --><input type="button" class="AXButton"id="btGovDocsDeny" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_govdocs_deny'/>" style="display:none;" >
+		<!-- 거부 --> <!-- <input type="button" class="AXButton"id="btGovDocsDeny" name="cbBTN" onclick="doButtonAction(this);" value="deny" style="display:none;" > -->
+		<!-- 재발송요청 --><input type="button" class="AXButton"id="btGovDocsReqReSend" name="cbBTN" onclick="doButtonAction(this);" value="재발송요청" style="display:none;" >
+		<!-- 배부 --><input type="button" class="AXButton"id="btGovDocsManager" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_govdoc_recv'/>" style="display:none;" >
+		<!-- 담당반려 --><input type="button" class="AXButton"id="btGovDocsManagerReturn" name="cbBTN" onclick="doButtonAction(this);" value="담당반려" style="display:none;" >
+		<!-- 저장 --><input type="button" class="AXButton"id="btDocListSave" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_save'/>" style="display:none;" >
+		<!-- 문서연결 --><input type="button" class="AXButton"id="btDocLinked" onclick="DocLink();" value="<spring:message code='Cache.btn_apv_doclink'/>" style="display:none;">      
+        <!-- 대외공문 --><input type="button" class="AXButton" id="btOTrans" name="cbBTN" onclick="doButtonAction(this);" style="display:none;" value="<spring:message code='Cache.lbl_apv_OTrans'/>" >        
+        <!-- 미리보기 --><input type="button" class="AXButton"id="btGovPreView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_preview'/>"   style="display:none;">
+        <!-- 닫기(preview) --><input type="button" class="AXButton"id="btExitPreView" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_close'/>"   style="display:none;">
+		<!-- 인쇄 --><input type="button" class="AXButton"id="btPrint" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_print'/>"   style="display:none;">
+        <!-- 인쇄미리보기 --><input type="button" class="AXButton"id="btPrintView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_printview'/>"   style="display:none;">
+        <!-- 미리보기 --><input type="button" class="AXButton"id="btPreView" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.btn_apv_preview'/>"   style="display:none;">        
+        <!-- 배부이력 --><input type="button" class="AXButton"id="btGovDocsDistInfo" name="cbBTN" onclick="doButtonAction(this);" value="<spring:message code='Cache.lbl_apv_govdoc_distributionList'/>"   style="display:none;">
+        <!-- 공문 미리보기 --><input type="button" class="AXButton"id="btOTransView" name="cbBTN" onclick="doButtonAction(this);" value="공문 미리보기" style="display:none;" >
+        <span class="wordCheck">
+            <!--긴급--><span id="urgent" style="display:none; cursor:default;"><input type="checkbox" name="chk_urgent" id="chk_urgent" onclick="chk_urgent_onclick();" value="0" class="input_check" /><span class="txt_gn11"><spring:message code='Cache.lbl_apv_urgent_aprv'/></span></span>
+            <!--기밀--><span id="secrecy" style="display:none;"><input type="checkbox" name="chk_secrecy" id="chk_secrecy" onclick="chk_secrecy_onclick();" value="0" class="input_check" /><span class="txt_gn11"><spring:message code='Cache.lbl_apv_secret_doc'/></span></span>
+        </span>
+    </div>
+</div>

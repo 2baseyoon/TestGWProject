@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.timelinemessaging">
+    <!-- <select id="selectTargetList" parameterType="cmap" resultType="cmap">
+        SELECT
+		  	WorkItemID AS "WorkItemID"
+		  	, UserCode AS "UserCode"
+		  	, UserName AS "UserName"
+		  FROM (SELECT A.*
+		  			   		  , B.ParentProcessID
+				   FROM jwf_workitem A
+				   LEFT JOIN jwf_process B ON A.ProcessID = B.ProcessID ) A
+		  WHERE A.ParentProcessID = (SELECT ProcessID
+												  FROM jwf_process
+								  				  WHERE FormInstID = #{formInstId}
+											  	  AND ParentProcessID = '0'
+											 	  )
+		   AND A.State = '528'
+		   AND A.Name <> 'preview'
+		   ORDER BY A.Created ASC
+	</select> -->
+	<select id="selectTargetList" parameterType="cmap" resultType="cmap">
+        SELECT
+        	A.ProcessID AS "ProcessID"
+        	, WorkItemID AS "WorkItemID"
+        	, UserCode AS "UserCode"
+        	, UserName AS "UserName"
+		FROM jwf_workitem A
+		LEFT JOIN jwf_process B ON A.ProcessID = B.ProcessID
+		WHERE B.FormInstID = #{formInstId}
+		AND A.State = '528'
+		AND A.Name <![CDATA[<>]]> 'preview'
+		ORDER BY A.Created ASC
+	</select>
+	
+    <!-- <select id="selectDistributionTargetList" parameterType="cmap" resultType="cmap">
+        SELECT
+		  	WorkItemID AS "WorkItemID"
+		  	, UserCode AS "UserCode"
+		  	, UserName AS "UserName"
+		  FROM (SELECT A.*
+		  			   		  , B.ParentProcessID
+				   FROM jwf_workitem A
+				   LEFT JOIN jwf_process B ON A.ProcessID = B.ProcessID ) A
+		  WHERE A.ProcessID = #{processID}
+		   AND A.State = '528'
+		   AND A.Name <> 'preview'
+		   ORDER BY A.Created ASC
+	</select> -->
+	<select id="selectDistributionTargetList" parameterType="cmap" resultType="cmap">
+        SELECT
+        	ProcessID AS "ProcessID"
+		  	, WorkItemID AS "WorkItemID"
+		  	, UserCode AS "UserCode"
+		  	, UserName AS "UserName"
+		  FROM jwf_workitem
+		  WHERE ProcessID = #{processID}
+		   AND State = '528'
+		   AND Name <![CDATA[<>]]> 'preview'
+		   ORDER BY Created ASC
+	</select>
+	    
+    <select id="selectFormData" parameterType="cmap" resultType="cmap">
+        SELECT
+        	A.ProcessID AS "ProcessID"
+        	, A.FormInstID AS "FormInstID"
+        	, B.FormName AS "FormName"
+        	, A.Subject AS "Subject"
+        	, A.InitiatorID AS "InitiatorID"
+        FROM jwf_forminstance A
+        LEFT JOIN jwf_forms B  ON A.FormID = B.FormID
+        WHERE 1 = 1
+       <if test="formInstId != null and formInstId != ''">
+			AND A.FormInstID = #{formInstId}
+       </if>
+       <if test="processId != null and processId != ''">
+	       	 	AND A.ProcessID = #{processId}
+       </if>
+	</select>
+	    
+	<insert id="insertMessage" parameterType="cmap">	
+		INSERT  INTO jwf_timelinemessaging (ServiceType, MessageType, ObjectID, ProcessID, FormSubject, Subject,  Context, GotoURL, RecipientCode, RegistDate, RegisterCode )
+	    VALUES (#{serviceType}, #{messageType}, #{objectId}, #{processID}, #{formSubject}, #{subject}, #{context}, #{gotoUrl}, #{recipientCode}, SYSDATE, #{registerCode}  )
+	</insert>
+	
+    <select id="selectAlarmDates" parameterType="cmap" resultType="cmap">
+        SELECT LISTAGG(A.substrRegDate, ',') WITHIN GROUP(ORDER BY A.RegistDateOrder DESC) AS "dates"
+        FROM (
+        	SELECT DECODE(RegistDate, NULL, '', Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, RegistDate,'YYYY-MM-DD')) AS substrRegDate
+         	 , MAX(RegistDateOrder) AS RegistDateOrder
+        	FROM (
+        		SELECT TO_CHAR(RegistDate, 'YYYY/fmMM/DD') AS RegistDate
+        		  , TO_CHAR(RegistDate, 'YYYY/MM/DD') AS RegistDateOrder
+        		FROM  jwf_timelinemessaging A
+        		INNER JOIN jwf_process B
+        			<!-- ON A.ObjectID = B.forminstid and B.parentprocessid = 0 -->
+        			ON A.ProcessID = B.ProcessID 
+				INNER JOIN jwf_processdescription E
+					ON B.ProcessDescriptionID = E.ProcessDescriptionID
+        		WHERE RecipientCode = #{userId}
+        		<if test="term != null and term != ''">
+					AND RegistDate > ADD_MONTHS(SYSDATE, - TO_NUMBER(#{term}))
+			   	 </if>
+        		AND A.DeleteDate IS NULL
+        		AND B.DeleteDate IS NULL        		
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (E.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR E.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND E.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+        		<if test="count != null and count != ''">
+					AND ROWNUM <![CDATA[<=]]> #{count}
+			   	</if>
+        	)
+        	GROUP BY RegistDate
+        	ORDER BY RegistDate DESC
+        ) A
+	</select>
+		
+    <select id="selectAlarmList" parameterType="cmap" resultType="cmap">
+		SELECT
+			MessagingID AS "MessagingID"
+			, MessageType AS "MessageType"
+			, ObjectID AS "ObjectID"
+			, A.FormSubject AS "FormSubject"
+			, D.FormPrefix AS "FormPrefix"
+			, A.Subject AS "Subject"
+			, Context AS "Context"
+			, GotoURL AS "GotoURL"
+			, RegistDate AS "RegistDate"
+			, LOWER(TO_CHAR(RegistDate, 'YYYY.MM.DD HH12:MI AM','NLS_DATE_LANGUAGE = AMERICAN')) AS "viewRegDate"
+			, TO_CHAR(RegistDate, 'YYYY/fmMM/DD') AS "substrRegDate"
+			, B.ProcessState AS "State"
+			, E.BusinessData1 AS "BusinessData1"
+			, E.BusinessData2 AS "BusinessData2"
+			, F.TaskID AS "TaskID"
+			, D.FormID AS "FormID"
+         FROM jwf_timelinemessaging A
+         INNER JOIN jwf_process B
+       		<!-- ON A.ObjectID = B.forminstid and B.parentprocessid = 0 -->
+       		ON A.ProcessID = B.ProcessID 
+		 INNER JOIN jwf_forminstance C
+       		ON B.forminstid = C.forminstid
+		 INNER JOIN jwf_forms D
+        	ON C.formid = D.formid        	
+		 INNER JOIN jwf_processdescription E
+			ON B.ProcessDescriptionID = E.ProcessDescriptionID
+		 LEFT OUTER JOIN jwf_workitem F
+			ON B.processid = F.processid AND F.UserCode = A.RecipientCode AND F.state = '288'
+         WHERE RecipientCode = #{userId}
+         <if test="term != null and term != ''">
+			AND RegistDate > ADD_MONTHS(SYSDATE, - TO_NUMBER(#{term}))
+	   	 </if>
+         AND A.DeleteDate IS NULL
+         AND B.DeleteDate IS NULL
+		 <choose>
+			<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+				AND (E.BusinessData1 IS NULL
+					<if test='bizDataList != null'>
+						OR E.BusinessData1 IN 
+						<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+							#{item}
+						</foreach>
+					</if>
+				)
+			</when>
+			<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+				AND E.BusinessData1 = #{businessData1}
+			</when>
+		</choose>
+         <if test="count != null and count != ''">
+			AND ROWNUM <![CDATA[<=]]> #{count}
+	   	 </if>
+         ORDER BY RegistDate DESC
+	</select>
+
+    <select id="selectUser" parameterType="cmap" resultType="cmap">
+         SELECT UserCode AS "UR_Code"
+     			   , MultiDisplayName AS "UR_Name"
+		FROM sys_object_user
+		WHERE UserCode = #{userId}
+	</select>
+</mapper>

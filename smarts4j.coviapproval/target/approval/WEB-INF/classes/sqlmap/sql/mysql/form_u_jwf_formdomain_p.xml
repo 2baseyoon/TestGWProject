@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.formdomaindata">
+	<update id="updateFromDomainData" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_domaindata
+		SET DomainDataContext = #{DomainDataContext}
+		WHERE ProcessID = #{ProcessID}
+	</update>
+	<update id="updateDomainDataIN" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_domaindata
+		SET DomainDataContext = #{DomainDataContext}
+		WHERE ProcessID IN 
+		<foreach collection="processIDs" item="processID" index="index"  open="(" close=")" separator=",">
+           #{processID}
+        </foreach>
+	</update>
+	<select id="selectDomaindata" parameterType="cmap" resultType="cmap">
+		select DomainDataContext
+		from covi_approval4j.jwf_domaindata
+		where ProcessID = #{processID};
+	</select>
+	<select id="selectBatchDomaindata" parameterType="cmap" resultType="cmap">
+		select ProcessID, DomainDataContext
+		from covi_approval4j.jwf_domaindata
+		where ProcessID IN
+		<foreach collection="processIDs" item="processID" index="index"  open="(" close=")" separator=",">
+           #{processID}
+        </foreach>
+	</select>
+</mapper>

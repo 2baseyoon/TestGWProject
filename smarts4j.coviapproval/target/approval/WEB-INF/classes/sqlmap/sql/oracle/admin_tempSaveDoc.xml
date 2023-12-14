@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.tempSaveDoc">
+    <select id="selectgrid" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+	        SELECT A.FormTempInstBoxID AS "FormTempInstBoxID"
+					, A.FormInstID AS "FormInstID"
+					, A.FormID AS "FormID"
+					, A.SchemaID AS "SchemaID"
+					, A.FormPrefix AS "FormPrefix"
+					, A.FormName AS "FormName"
+					, A.Revision AS "Revision"
+					, A.FileName AS "FileName"
+					, A.FormInstTableName AS "FormInstTableName"
+					, A.UserCode AS "UserCode"
+					, A.CreatedDate AS "CREATED"
+					, A.Subject AS "Subject"				 
+					, A.CreatedDate AS "WORKDT"
+					, A.Kind AS "Kind"
+					, A.UR_Name AS "UR_Name"
+					, A.DEPT_Name AS "DEPT_Name"
+			FROM (
+			  SELECT ft.FormTempInstBoxID
+						, ft.FormInstID
+						, ft.FormID
+						, ft.SchemaID
+						, f.FormPrefix
+						, f.FormName
+						, f.Revision
+						, f.FileName
+						, ft.FormInstTableName
+						, ft.UserCode
+						, ft.CreatedDate
+						, ft.Subject
+						, (CASE ft.Kind
+							WHEN 'T' THEN '임시'
+							WHEN 'W' THEN '회수'
+							ELSE ft.Kind 
+						  END) AS Kind
+						, u.DisplayName AS UR_Name
+						, d.DeptName AS DEPT_Name
+				FROM jwf_formstempinstbox ft
+				INNER JOIN jwf_forms f ON ft.FormID = f.FormID
+				INNER JOIN sys_object_user u ON ft.UserCode = u.UserCode
+				INNER JOIN sys_object_user_basegroup d ON u.UserCode  = d.UserCode and d.JobType = 'Origin'
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				  	<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+					 	Kind = #{sel_State}
+					</if>		
+					<if test="startDate != '' or endDate != ''">
+					    AND ft.CreatedDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),'0')+1
+					</if>
+					<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+					    AND Exists (
+					    	select 'x' from jwf_forminstance fi
+					    	where fi.forminstid = ft.forminstid
+					    	and fi.EntCode = #{selectEntinfoListData}
+					    )
+					</if>
+				</trim>
+			) A
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+		    		<choose>
+						<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+						<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+						<when test='sel_Search.equalsIgnoreCase("FormName")'>FormName</when>
+						<otherwise>Subject</otherwise>
+					</choose>				
+					LIKE '%'||#{search}||'%'
+				</if>		
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						Subject LIKE '%'||#{icoSearch}||'%' 			OR 
+						DEPT_Name LIKE '%'||#{icoSearch}||'%' 	OR
+						UR_Name LIKE '%'||#{icoSearch}||'%' 	OR  
+						FormName LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+						<when test='sortColumn.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+						<when test='sortColumn.equalsIgnoreCase("WORKDT")'>WORKDT</when>
+						<when test='sortColumn.equalsIgnoreCase("Kind")'>Kind</when>
+						<otherwise>FormName</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+        <include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+			SELECT ft.FormTempInstBoxID
+					, ft.FormInstID
+					, ft.FormID
+					, ft.SchemaID
+					, f.FormPrefix
+					, f.FormName
+					, f.Revision
+					, f.FileName
+					, ft.FormInstTableName
+					, ft.UserCode
+					, ft.CreatedDate
+					, ft.Subject
+					, (CASE ft.Kind
+						WHEN 'T' THEN '임시'
+						WHEN 'W' THEN '회수'
+						ELSE ft.Kind 
+					  END) AS Kind
+					, u.DisplayName AS UR_Name
+					, d.DeptName AS DEPT_Name
+			FROM jwf_formstempinstbox ft
+			INNER JOIN jwf_forms f ON ft.FormID = f.FormID
+			INNER JOIN sys_object_user u ON ft.UserCode = u.UserCode
+			INNER JOIN sys_object_user_basegroup d ON u.UserCode  = d.UserCode and d.JobType = 'Origin'
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+				 	Kind = #{sel_State}
+				</if>		
+				<if test="startDate != '' or endDate != ''">
+				    AND ft.CreatedDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND ADD_MONTHS(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'),'0')+1
+				</if>
+				<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+				    AND Exists (
+				    	select 'x' from jwf_forminstance fi
+				    	where fi.forminstid = ft.forminstid
+				    	and fi.EntCode = #{selectEntinfoListData}
+				    )
+				</if>
+			</trim>	
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+	    		<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>DEPT_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>Subject</otherwise>
+				</choose>				
+				LIKE '%'||#{search}||'%'
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					Subject LIKE '%'||#{icoSearch}||'%' 			OR 
+					DEPT_Name LIKE '%'||#{icoSearch}||'%' 	OR
+					UR_Name LIKE '%'||#{icoSearch}||'%' 	OR  
+					FormName LIKE '%'||#{icoSearch}||'%'		   
+				)
+			</if>
+		</trim>
+	</select>
+	
+</mapper>
+

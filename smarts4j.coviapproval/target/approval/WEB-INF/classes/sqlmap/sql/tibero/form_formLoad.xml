@@ -1,0 +1,1248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="form.formLoad">
+    <select id="selectProcess" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT Process.ProcessID AS "ProcessID",
+					Process.ProcessDescriptionID AS "ProcessDescriptionID",
+					Process.FormInstID AS "FormInstID",
+					Workitem.State AS "State",
+					Process.ProcessState AS "ProcessState",
+					Process.ParentProcessID AS "ParentProcessID",
+					Workitem.UserCode AS "UserCode",
+					Process.DocSubject AS "DocSubject",
+					NVL(Workitem.DeputyID,'') AS "DeputyID",
+					Process.BusinessState AS "BusinessState",
+					Process.ProcessName AS "ProcessName",
+					Workitem.TaskID AS "TaskID",
+					Performer.SubKind AS "SubKind"
+			FROM jwf_process Process
+			INNER JOIN jwf_workitem Workitem ON Process.ProcessID = Workitem.ProcessID
+			INNER JOIN jwf_performer Performer ON Workitem.PerformerID = Performer.PerformerID
+			WHERE Workitem.WorkitemID = #{workitemID}
+		]]>
+	</select>
+	
+	<select id="selectOnlyProcess" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessID AS "ProcessID",
+				    	ProcessDescriptionID AS "ProcessDescriptionID",
+				    	FormInstID AS "FormInstID",
+				    	'' AS "State",
+				    	ProcessState AS "ProcessState", 
+				    	ParentProcessID AS "ParentProcessID", 
+				    	'' AS "UserCode",
+				    	DocSubject AS "DocSubject",
+				    	'' AS "DeputyID",
+				    	BusinessState AS "BusinessState",
+	    				ProcessName AS "ProcessName"
+			FROM jwf_process
+			WHERE ProcessID = #{processID}
+	    ]]>
+	</select>
+	
+    <select id="selectProcessArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT  Process.ProcessID AS "ProcessID",
+						Process.ProcessDescriptionID AS "ProcessDescriptionID",
+						Process.FormInstID AS "FormInstID",
+						'528' AS "State",
+						'528' AS "ProcessState",
+						Process.ParentProcessID AS "ParentProcessID",
+						Workitem.UserCode AS "UserCode",
+						Process.DocSubject AS "DocSubject",
+						NVL(Workitem.DeputyID,'') AS "DeputyID",
+						Process.BusinessState AS "BusinessState",
+						Process.ProcessName AS "ProcessName",
+						Workitem.TaskID AS "TaskID",
+						Performer.SubKind AS "SubKind"
+			FROM jwf_process Process
+			INNER JOIN jwf_workitem Workitem ON Process.ProcessID = Workitem.ProcessID
+			INNER JOIN jwf_performer Performer ON Workitem.PerformerID = Performer.PerformerID
+			WHERE Workitem.WorkitemID = #{workitemID}
+		]]>
+	</select>
+    
+    <select id="selectOnlyProcessArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessID AS "ProcessID",
+				    	ProcessDescriptionID AS "ProcessDescriptionID",
+				    	FormInstID AS "FormInstID",
+				    	'' AS "State",
+				    	ProcessState AS "ProcessState", 
+				    	ParentProcessID AS "ParentProcessID", 
+				    	'' AS "UserCode",
+				    	DocSubject AS "DocSubject",
+				    	'' AS "DeputyID",
+				    	BusinessState AS "BusinessState",
+	    				ProcessName AS "ProcessName"
+			FROM jwf_process
+			WHERE ProcessID = #{processID}
+	    ]]>
+	</select>
+    
+	<select id="selectProcessDes" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionID AS "ProcessDescriptionID",
+			FormInstID AS "FormInstID",
+			FormID AS "FormID",
+			FormName AS "FormName",
+			FormSubject AS "FormSubject",
+			IsSecureDoc AS "IsSecureDoc",
+			IsFile AS "IsFile",
+			FileExt AS "FileExt",
+			IsComment AS "IsComment",
+			ApproverCode AS "ApproverCode",
+			ApproverName AS "ApproverName",
+			ApprovalStep AS "ApprovalStep",
+			ApproverSIPAddress AS "ApproverSIPAddress",
+			IsReserved AS "IsReserved",
+			ReservedGubun AS "ReservedGubun",
+			ReservedTime AS "ReservedTime",
+			Priority AS "Priority",
+			IsModify AS "IsModify",
+			Reserved1 AS "Reserved1",
+			Reserved2 AS "Reserved2",
+			BusinessData1 AS "BusinessData1",
+			BusinessData2 AS "BusinessData2",
+			BusinessData3 AS "BusinessData3",
+			BusinessData4 AS "BusinessData4",
+			BusinessData5 AS "BusinessData5",
+			BusinessData6 AS "BusinessData6",
+			BusinessData7 AS "BusinessData7",
+			BusinessData8 AS "BusinessData8",
+			BusinessData9 AS "BusinessData9",
+			BusinessData10 AS "BusinessData10"
+			FROM jwf_processdescription
+			WHERE ProcessDescriptionID = #{processDescID}
+		]]>
+	</select>
+	
+	<select id="selectProcessDesArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionID AS "ProcessDescriptionID",
+					FormInstID AS "FormInstID",
+					FormID AS "FormID",
+					FormName AS "FormName",
+					FormSubject AS "FormSubject",
+					IsSecureDoc AS "IsSecureDoc",
+					IsFile AS "IsFile",
+					FileExt AS "FileExt",
+					IsComment AS "IsComment",
+					ApproverCode AS "ApproverCode",
+					ApproverName AS "ApproverName",
+					ApprovalStep AS "ApprovalStep",
+					ApproverSIPAddress AS "ApproverSIPAddress",
+					IsReserved AS "IsReserved",
+					ReservedGubun AS "ReservedGubun",
+					ReservedTime AS "ReservedTime",
+					Priority AS "Priority",
+					IsModify AS "IsModify",
+					Reserved1 AS "Reserved1",
+					Reserved2 AS "Reserved2",
+					BusinessData1 AS "BusinessData1",
+					BusinessData2 AS "BusinessData2",
+					BusinessData3 AS "BusinessData3",
+					BusinessData4 AS "BusinessData4",
+					BusinessData5 AS "BusinessData5",
+					BusinessData6 AS "BusinessData6",
+					BusinessData7 AS "BusinessData7",
+					BusinessData8 AS "BusinessData8",
+					BusinessData9 AS "BusinessData9",
+					BusinessData10 AS "BusinessData10"
+			FROM jwf_processdescription
+			WHERE ProcessDescriptionID = #{processDescID}
+		]]>
+	</select>
+	
+	<select id="selectForm" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			SELECT ROWNUM AS RNUM,
+						F.FormID AS "FormID",
+						F.FormClassID AS "FormClassID",
+						F.SchemaID AS "SchemaID",
+						F.IsUse AS "IsUse",
+						F.Revision AS "Revision",
+						F.SortKey AS "SortKey",
+						F.FormName AS "FormName",
+						F.FormPrefix AS "FormPrefix",
+						F.FormDesc AS "FormDesc",
+						F.FileName AS "FileName",
+						F.BodyDefault AS "BodyDefault",
+						F.EntCode AS "EntCode",
+						F.ExtInfo AS "ExtInfo",
+						F.AutoApprovalLine AS "AutoApprovalLine",
+						F.BodyType AS "BodyType",
+						F.SubTableInfo AS "SubTableInfo",
+						F.RegID AS "RegID",
+						F.RegDate AS "RegDate",
+						F.ModID AS "ModID",
+						F.ModDate AS "ModDate",
+						F.FormHelperContext AS "FormHelperContext",
+						F.FormNoticeContext AS "FormNoticeContext",
+						CASE WHEN UF.CreateDate IS NOT NULL THEN 'Y' ELSE 'N' END AS "IsFavorite",
+						F.CompanyCode AS "CompanyCode",
+						CASE WHEN F.CompanyCode = #{DN_CODE} THEN 1
+							WHEN F.CompanyCode = 'ORGROOT' THEN 2
+							ELSE 3 END AS Companysort
+						<if test="'Y'.toString() eq isSaaS">
+							, SOD.DomainID AS "DomainID"
+						</if>
+			FROM jwf_forms F
+			<if test="'Y'.toString() eq isSaaS">
+				JOIN sys_object_domain SOD ON SOD.DomainCode = F.CompanyCode
+			</if>
+			LEFT OUTER JOIN jwf_userforms UF ON F.FormID = UF.FormID AND UF.UserCode = #{userID}
+			<if test="formPrefix != null and formPrefix != '' ">
+				INNER JOIN jwf_formclass jfc ON F.FormPrefix = #{formPrefix} and F.FormClassID = jfc.FormClassID
+			</if>
+			WHERE 
+			<if test="formID != null and formID != '' ">
+				F.FormID = #{formID}
+			</if>
+			<if test="formPrefix != null and formPrefix != '' ">
+				F.FormPrefix = #{formPrefix}
+				AND(
+				( jfc.AclAllYN = 'Y' and jfc.EntCode IN ('ORGROOT',  #{DN_CODE}) )
+				OR exists 
+				(
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = jfc.FormClassID and jfa.ObjectType = 'CLASS'
+					and 
+					(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{DN_CODE}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{GR_CODE}
+					)
+				)
+				)
+				AND 
+				(
+					(
+						F.AclAllYN = 'Y'
+						<if test='isSaaS == "Y"'>
+							AND	F.CompanyCode IN ('ORGROOT',  #{DN_CODE})
+						</if>
+					)
+					OR exists 
+					( 
+						select 1 from jwf_forms_acl jfa 
+						where jfa.TargetID = F.FormID and jfa.ObjectType = 'FORM'
+						and 
+						(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{DN_CODE}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{GR_CODE}
+						)
+					)
+				)
+			</if>
+			ORDER BY Companysort, Revision desc
+		) A
+		WHERE RNUM = 1	
+	</select>
+	
+	<select id="selectFormAll" parameterType="cmap" resultType="cmap">
+		SELECT F.FormID AS "FormID",
+				F.FormClassID AS "FormClassID",
+				F.SchemaID AS "SchemaID",
+				F.IsUse AS "IsUse",
+				F.Revision AS "Revision",
+				F.SortKey AS "SortKey",
+				F.FormName AS "FormName",
+				F.FormPrefix AS "FormPrefix",
+				F.FormDesc AS "FormDesc",
+				F.FileName AS "FileName",
+				F.BodyDefault AS "BodyDefault",
+				F.EntCode AS "EntCode",
+				F.ExtInfo AS "ExtInfo",
+				F.CompanyCode AS "CompanyCode"
+		FROM jwf_forms F
+		JOIN (SELECT FormPrefix,MAX(Revision) AS Revision FROM jwf_forms GROUP BY FormPrefix) RF
+				ON F.FormPrefix = RF.FormPrefix and F.Revision = RF.Revision
+	</select>
+	
+	<select id="selectFormInstance" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID AS "FormInstID",
+						ProcessID AS "ProcessID",
+						FormID AS "FormID",
+						SchemaID AS "SchemaID",
+						Subject AS "Subject",
+						InitiatorID AS "InitiatorID",
+						InitiatorName AS "InitiatorName",
+						InitiatorUnitID AS "InitiatorUnitID",
+						InitiatorUnitName AS "InitiatorUnitName",
+						TO_CHAR(InitiatedDate,'YYYY-MM-DD HH24:MI:SS') AS "InitiatedDate",
+						CompletedDate AS "CompletedDate",
+						DeletedDate AS "DeletedDate",
+						LastModifiedDate AS "LastModifiedDate",
+						LastModifierID AS "LastModifierID",
+						EntCode AS "EntCode",
+						EntName AS "EntName",
+						DocNo AS "DocNo",
+						DocLevel AS "DocLevel",
+						DocClassID AS "DocClassID",
+						DocClassName AS "DocClassName",
+						DocSummary AS "DocSummary",
+						IsPublic AS "IsPublic",
+						SaveTerm AS "SaveTerm",
+						AttachFileInfo AS "AttachFileInfo",
+						AppliedDate AS "AppliedDate",
+						AppliedTerm AS "AppliedTerm",
+						ReceiveNo AS "ReceiveNo",
+						ReceiveNames AS "ReceiveNames",
+						ReceiptList AS "ReceiptList",
+						BodyType AS "BodyType",
+						BodyContext AS "BodyContext",
+						DocLinks AS "DocLinks" ,  
+						EDMSDocLinks AS "EDMSDocLinks",
+						RuleItemInfo AS "RuleItemInfo"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{formInstID}
+		]]>
+	</select>
+	
+	<select id="selectDomainData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DomainDataID AS "DomainDataID",
+			DomainDataName AS "DomainDataName",
+			ProcessID AS "ProcessID",
+			DomainDataContext AS "DomainDataContext" 
+			FROM jwf_domaindata
+			WHERE ProcessID = #{processID}
+		]]>
+	</select>
+	
+	<select id="selectDomainDataArchive" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DomainDataID AS "DomainDataID",
+			DomainDataName AS "DomainDataName",
+			ProcessID AS "ProcessID",
+			DomainDataContext AS "DomainDataContext" 
+			FROM jwf_domaindata
+			WHERE ProcessID = #{processID}
+		]]>
+	</select>
+	
+	<select id="selectFormSchema" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT SchemaID AS "SchemaID",
+			SchemaName AS "SchemaName",
+			SchemaDesc AS "SchemaDesc",
+			SchemaContext AS "SchemaContext"
+			FROM jwf_formsschema
+			WHERE SchemaID = #{schemaID}
+		]]>
+	</select>
+	
+	<select id="selectPravateDomainData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+			SELECT
+			PrivateDomainDataID AS "PrivateDomainDataID",
+			CustomCategory AS "CustomCategory",
+			DefaultYN AS "DefaultYN",
+			DisplayName AS "DisplayName",
+			OwnerID AS "OwnerID",
+			Abstract AS "Abstract",
+			Description AS "Description",
+			PrivateContext AS "PrivateContext"
+			FROM jwf_privatedomaindata
+			WHERE OwnerID = #{OwnerID} ]]>
+			<if test="DefaultYN != null">
+				AND DefaultYN = #{DefaultYN}
+			</if>
+			 AND ROWNUM = 1
+	</select>
+	
+	<select id="selectDocReadHistory" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT"
+	    FROM jwf_docreadhistory  
+	    WHERE  FormInstID = #{FormInstID}
+	    AND ProcessID = #{ProcessID}
+	    AND UserID = #{UserID}
+	    AND AdminYN = #{AdminYN}
+	</select>
+	
+	<insert id="insertDocReadHistory" parameterType="cmap" >
+	        INSERT INTO jwf_docreadhistory (
+		    	UserID,
+		    	UserName,
+		    	JobTitle,
+		    	JobLevel,
+		    	ReadDate,
+		    	ProcessID,
+		    	FormInstID,
+		    	AdminYN
+		    )
+		    VALUES (
+		    	#{UserID},
+		    	#{UserName},
+		    	#{JobTitle},
+		    	#{JobLevel},
+		    	SYSDATE,
+		    	#{ProcessID},
+		    	#{FormInstID},
+		    	#{AdminYN}
+		    )
+	</insert>
+	
+	<select id="selectTCInfoDocReadHistory" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT"
+	    FROM jwf_circulationread readTable
+	    INNER JOIN jwf_circulationbox boxTable
+	    ON readTable.CirculationBoxID = boxTable.CirculationBoxID AND boxTable.ReceiptID = #{ReceiptID}
+	    WHERE  boxTable.FormInstID = #{FormInstID}
+	    AND readTable.UserCode = #{UserCode}
+	    AND readTable.DeptCode = #{DeptCode}
+	    AND Kind = #{Kind}
+	</select>
+	
+	<insert id="insertTCInfoDocReadHistory" parameterType="cmap" >
+	<![CDATA[
+	 	INSERT INTO jwf_circulationread (
+	 		CirculationBoxID,
+	 		UserCode,
+	 		UserName,
+	 		DeptCode,
+	 		DeptName,
+	 		ReceiptDate
+	 	)
+ 	 	SELECT 
+	 		CirculationBoxID,
+	 		#{UserCode},
+	 		#{UserName},
+	 		#{DeptCode},
+	 		#{DeptName},
+	 		SYSDATE
+	 	FROM jwf_circulationbox 
+	 	WHERE FormInstID = #{FormInstID} 
+	 	AND ReceiptID = #{ReceiptID} 
+	 	AND Kind = #{Kind}
+	    AND DataState <> 'D'
+		AND DeletedDate is null
+	]]>
+	</insert>
+	
+	<update id="updateTCInfoDocReadHistory" parameterType="cmap" >
+	    UPDATE jwf_circulationbox
+	    SET ReadDate = SYSDATE
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND ReadDate IS NULL
+	    AND Kind = #{Kind}
+	</update>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<select id="selectTCInfoDocReadHistoryStore" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT"
+	    FROM jwf_circulationread readTable
+	    INNER JOIN jwf_circulationbox boxTable
+	    ON readTable.CirculationBoxID = boxTable.CirculationBoxID AND boxTable.ReceiptID = #{ReceiptID}
+	    WHERE  boxTable.FormInstID = #{FormInstID}
+	    AND readTable.UserCode = #{UserCode}
+	    AND readTable.DeptCode = #{DeptCode}
+	    AND Kind = #{Kind}
+	</select>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<update id="updateTCInfoDocReadHistoryStore" parameterType="cmap" >
+	    UPDATE jwf_circulationbox
+	    SET ReadDate = SYSDATE
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND ReadDate IS NULL
+	    AND Kind = #{Kind}
+	</update>
+	
+	<!-- 20210126 이관문서 참조/회람 문서 읽음처리 -->
+	<insert id="insertTCInfoDocReadHistoryStore" parameterType="cmap" >
+	 	INSERT INTO jwf_circulationread (
+	 		CirculationBoxID,
+	 		UserCode,
+	 		UserName,
+	 		DeptCode,
+	 		DeptName,
+	 		ReceiptDate
+	 	)
+	 	VALUES (
+	 		(SELECT CirculationBoxID FROM jwf_circulationbox WHERE FormInstID = #{FormInstID} AND ReceiptID = #{ReceiptID} AND Kind = #{Kind} AND ROWNUM = 1),
+	 		#{UserCode},
+	 		#{UserName},
+	 		#{DeptCode},
+	 		#{DeptName},
+	 		SYSDATE
+	 	)
+	</insert>
+	
+	<select id="selectFile" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	F.FileID AS "FileID"
+	    	,F.StorageID AS "StorageID"
+	    	,F.ServiceType AS "ServiceType"
+	    	,F.ObjectID AS "ObjectID"
+	    	,F.ObjectType AS "ObjectType"
+	    	,F.MessageID AS "MessageID"
+	    	,F.SaveType AS "SaveType"
+	    	,F.LastSeq AS "LastSeq"
+	    	,F.Seq AS "Seq"
+	    	,F.FilePath AS "FilePath"
+	    	,F.FileName AS "FileName"
+	    	,F.SavedName AS "SavedName"
+	    	,F.Extention AS "Extention"
+	    	,F.Size_ AS "Size"
+	    	,TO_CHAR(F.RegistDate, 'YYYY-MM-DD HH24:MI:SS')AS "RegistDate"
+	    	,F.RegisterCode AS "RegisterCode"
+	    	,F.CompanyCode AS "CompanyCode"
+	    	,F.Encrypted AS "Encrypted"
+	    	,S.LastSeq AS "StorageLastSeq"
+			,S.FilePath AS "StorageFilePath"
+			,S.InlinePath AS "InlinePath"
+			,S.IsActive AS "IsActive"
+	    FROM sys_file F
+	    INNER JOIN sys_storage S ON S.StorageID = F.StorageID
+	    WHERE F.MessageID = #{FormInstID}
+	    AND F.ServiceType = #{ServiceType}
+	    AND F.SaveType != 'INLINE' 
+	    AND F.ObjectType != 'PDF' 
+	    AND NVL(F.IsDeleted, 'N') = 'N'
+	    ORDER BY F.Seq ASC 
+	</select>
+	
+	<select id="selectFormCompanyCode" parameterType="cmap" resultType="cmap">
+		SELECT F.CompanyCode AS "FormCompanyCode" 
+		FROM jwf_forms F
+		LEFT OUTER JOIN jwf_forminstance A ON A.FormID = F.FormID 
+		LEFT OUTER JOIN jwf_process B ON A.FormInstID = B.FormInstID   
+		WHERE 1=1
+		<choose>
+			<when test="FormID != null and FormID != '' ">
+				AND F.FormID = #{FormID}
+			</when>
+			<when test="FormPrefix != null and FormPrefix != '' ">
+				AND F.FormPrefix = #{FormPrefix}
+			</when>
+			<otherwise>
+				AND B.ProcessID =#{ProcessID}
+			</otherwise>
+		</choose>
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="selectStoreFormCompanyCode" parameterType="cmap" resultType="cmap">
+		SELECT F.CompanyCode AS "FormCompanyCode" 
+		FROM jwf_forms F
+		LEFT OUTER JOIN jwf_forminstance A ON A.FormID = F.FormID 
+		LEFT OUTER JOIN jwf_processarchive B ON A.FormInstID = B.FormInstID   
+		WHERE 1=1 
+		<choose>
+			<when test="FormID != null and FormID != '' ">
+				AND F.FormID = #{FormID}
+			</when>
+			<when test="FormPrefix != null and FormPrefix != '' ">
+				AND F.FormPrefix = #{FormPrefix}
+			</when>
+			<otherwise>
+				AND B.ProcessArchiveID =#{ProcessID}
+			</otherwise>
+		</choose>
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="selectUsingSignImage" parameterType="java.lang.String" resultType="cmap">
+	    SELECT FilePath AS "FilePath"
+	    FROM jwf_signimage
+	    WHERE UserCode = #{UserCode} AND IsUse = 'Y'
+	    ORDER BY InsertDate DESC
+	</select>
+	
+	<select id="selectUsingSignImageId" parameterType="java.lang.String" resultType="java.lang.String">
+	    SELECT FileID AS "FileID" 
+	    FROM jwf_signimage
+	    WHERE UserCode = #{UserCode} AND IsUse = 'Y'
+	    ORDER BY InsertDate DESC
+	</select>
+	
+	<select id="selectFormInstanceIsArchived" parameterType="cmap" resultType="cmap">
+		SELECT CASE WHEN COUNT(*) > 0 THEN 'false' ELSE 'true' END AS "isArchive"
+		FROM jwf_process
+		WHERE FormInstID = #{FormInstID}
+		AND ProcessState = 288
+	</select>
+	
+	<select id="selectFormInstanceID" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID AS "FormInstID"
+	    FROM jwf_process
+	    WHERE ProcessID = #{ProcessID}
+	    AND ROWNUM=1
+	</select>
+	<select id="selectFormInstanceIDArchive" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID AS "FormInstID"
+	    FROM jwf_process
+	    WHERE ProcessID = #{ProcessID}
+	    AND ROWNUM=1
+	</select>
+	<select id="selectFormInstanceIDStore" parameterType="cmap" resultType="cmap">
+	    SELECT FormInstID AS "FormInstID"
+	    FROM jwf_processarchive
+	    WHERE ProcessArchiveID = #{ProcessID}
+	    AND ROWNUM=1
+	</select>
+	
+	<select id="selectPerformerData" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+				    SELECT WI.PerformerID AS "PerformerID"
+				    FROM jwf_workitem WI
+					INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+					INNER JOIN jwf_performer PF ON WI.PerformerID = PF.PerformerID
+					WHERE P.FormInstID = #{FormInstID}
+					AND WI.UserCode IN (#{UserID}, #{DeptID})
+					AND PF.State = '1'
+					ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectPerformerDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			    SELECT WI.PerformerID AS "PerformerID" FROM jwf_workitem WI
+				INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+				WHERE P.FormInstID = #{FormInstID}
+				AND P.ProcessState = 528
+				AND  WI.UserCode IN (#{UserID}, #{DeptID})
+				AND WI.Deleted IS NULL
+				ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectPerformerDataStore" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			    SELECT WI.UserCode AS "PerformerID" FROM jwf_workitemArchive WI
+				INNER JOIN jwf_processArchive P ON WI.ProcessArchiveID = P.ProcessArchiveID
+				WHERE P.FormInstID = #{FormInstID}
+				AND WI.UserCode IN (#{UserID}, #{DeptID})
+				AND WI.Deleted IS NULL
+				ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectPerformerDeputyData" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			    SELECT WI.PerformerID AS "PerformerID"
+			    FROM jwf_workitem WI
+				INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+				INNER JOIN jwf_performer PF ON WI.PerformerID = PF.PerformerID
+				WHERE P.FormInstID = #{FormInstID}
+				AND WI.DeputyID = #{UserID}
+				AND PF.State = '1'
+				ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectPerformerDeputyDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			    SELECT WI.PerformerID AS "PerformerID"
+			    FROM jwf_workitem WI
+				INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+				WHERE P.FormInstID = #{FormInstID}
+				AND P.ProcessState = 528
+				AND WI.DeputyID = #{UserID}
+				AND WI.Deleted IS NULL
+				ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectJobFunctionData" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+				    SELECT WI.PerformerID AS "PerformerID" FROM jwf_workitem WI
+					JOIN jwf_jobfunction B ON WI.UserCode=B.JobFunctionCode AND B.EntCode = #{entCode}
+					JOIN jwf_jobfunctionmember C ON B.JobFunctionID=C.JobFunctionID
+					INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+					INNER JOIN jwf_performer PF ON WI.PerformerID = PF.PerformerID
+					WHERE P.FormInstID = #{FormInstID}
+					AND C.UserCode = #{UserID}
+					AND PF.State = '1'
+					ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectJobFunctionDataArchive" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+				    SELECT WI.PerformerID AS "PerformerID" FROM jwf_workitem WI
+					JOIN jwf_jobfunction B ON WI.UserCode=B.JobFunctionCode AND B.EntCode = #{entCode}
+					JOIN jwf_jobfunctionmember C ON B.JobFunctionID=C.JobFunctionID
+					INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+					WHERE P.FormInstID = #{FormInstID}
+					AND P.ProcessState = 528
+					AND C.UserCode = #{UserID}
+					AND WI.Deleted IS NULL
+					ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectJFManagerByCode" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+				    SELECT B.UserCode AS "UserCode" FROM jwf_jobfunction A
+				    JOIN jwf_jobfunctionmember B ON A.JobFunctionID=B.JobFunctionID
+				    WHERE A.JobFunctionCode = #{JFCode}
+				    AND A.EntCode = #{entCode}
+				    AND B.UserCode = #{UserID}
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectDeptReceiveData" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+				    SELECT WI.PerformerID AS "PerformerID" FROM jwf_workitem WI
+					INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+					INNER JOIN jwf_performer PF ON WI.PerformerID = PF.PerformerID
+					WHERE P.FormInstID =#{FormInstID}
+					AND WI.UserCode = #{DeptID}
+					AND PF.State = '1'
+					AND PF.SubKind IN ('R','C','AD','AS','AE') -- 2015.12 수정 합의함등도 추가 AND PF_SUB_KIND = 'R'
+					ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectDeptReceiveDataArchive" parameterType="cmap" resultType="cmap">
+	   	SELECT * FROM (
+				    SELECT WI.PerformerID AS "PerformerID" FROM jwf_workitem WI
+					INNER JOIN jwf_process P ON WI.ProcessID = P.ProcessID
+					WHERE P.FormInstID = #{FormInstID}
+					AND P.ProcessState = 528
+					AND WI.UserCode = #{DeptID}
+					AND WI.Deleted IS NULL
+					AND WI.SubKind = 'REQCMP'
+					ORDER BY WI.Created DESC
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectFormPrefixData" parameterType="cmap" resultType="cmap">
+	    SELECT F.FormPrefix  AS "FormPrefix"
+	    FROM jwf_forminstance FI
+		INNER JOIN jwf_forms F ON F.FormID = FI.FormID
+		WHERE FormInstID = #{FormInstID}
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="selectBizDocData" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT" 
+	    FROM jwf_bizdocform A
+		JOIN jwf_bizdocmember B ON A.BizDocID = B.BizDocID
+		WHERE A.FormPrefix = #{FormPreFix}
+		AND B.UserCode = #{UserID}
+	</select>
+	
+	<select id="selectTCInfoData" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT" 
+	    FROM jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID IN ( #{UserID}, #{DeptID})
+	</select>
+	
+	<select id="selectTCInfoDataStore" parameterType="cmap" resultType="cmap">
+	    SELECT COUNT(*) AS "CNT" 
+	    FROM jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID IN ( #{UserID}, #{DeptID})
+	</select>
+	
+	<select id="selectFormAfterDomainData" parameterType="cmap" resultType="cmap">
+	    SELECT d.DomainDataContext AS "DomainDataContext" FROM jwf_domaindata d
+		LEFT JOIN jwf_process p ON p.ProcessID = d.ProcessID
+		WHERE p.FormInstID = #{FormInstID}
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="selectOnlyProcessStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT 	ProcessArchiveID AS "ProcessID",
+	    	ProcessDescriptionArchiveID AS "ProcessDescriptionID",
+	    	FormInstID AS "FormInstID",
+	    	'' AS "State",
+	    	ProcessState AS "ProcessState", 
+	    	ParentProcessID AS "ParentProcessID", 
+	    	'' AS "UserCode",
+	    	DocSubject AS "DocSubject",
+	    	'' AS "DeputyID",
+	    	BusinessState AS "BusinessState",
+	    	ProcessName AS "ProcessName"
+			FROM jwf_processarchive
+			WHERE ProcessArchiveID = #{processID}
+	    ]]>
+	</select>
+	
+	<select id="selectProcessStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			Process.ProcessArchiveID AS "ProcessID",
+			Process.ProcessDescriptionArchiveID AS "ProcessDescriptionID",
+			Process.FormInstID AS "FormInstID",
+			'528' AS "State",
+			'528' AS "ProcessState",
+			Process.ParentProcessID AS "ParentProcessID",
+			Workitem.UserCode AS "UserCode",
+			Process.DocSubject AS "DocSubject",
+			NVL(Workitem.DeputyID,'') AS "DeputyID",
+			Process.BusinessState AS "BusinessState",
+			Process.ProcessName AS "ProcessName",
+			Workitem.TaskID AS "TaskID",
+			Workitem.SubKind AS "SubKind"
+			FROM jwf_processArchive Process
+			INNER JOIN jwf_workitemArchive Workitem ON Process.ProcessArchiveID = Workitem.ProcessArchiveID
+			WHERE Workitem.WorkitemArchiveID = #{workitemID}
+		]]>
+	</select>
+	
+	<select id="selectProcessDesStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessDescriptionArchiveID AS "ProcessDescriptionID",
+			FormInstID AS "FormInstID",
+			FormID AS "FormID",
+			FormName AS "FormName",
+			FormSubject AS "FormSubject",
+			IsSecureDoc AS "IsSecureDoc",
+			IsFile AS "IsFile",
+			FileExt AS "FileExt",
+			IsComment AS "IsComment",
+			ApproverCode AS "ApproverCode",
+			ApproverName AS "ApproverName",
+			ApprovalStep AS "ApprovalStep",
+			ApproverSIPAddress AS "ApproverSIPAddress",
+			IsReserved AS "IsReserved",
+			ReservedGubun AS "ReservedGubun",
+			ReservedTime AS "ReservedTime",
+			Priority AS "Priority",
+			IsModify AS "IsModify",
+			Reserved1 AS "Reserved1",
+			Reserved2 AS "Reserved2",
+			BusinessData1 AS "BusinessData1",
+			BusinessData2 AS "BusinessData2",
+			BusinessData3 AS "BusinessData3",
+			BusinessData4 AS "BusinessData4",
+			BusinessData5 AS "BusinessData5",
+			BusinessData6 AS "BusinessData6",
+			BusinessData7 AS "BusinessData7",
+			BusinessData8 AS "BusinessData8",
+			BusinessData9 AS "BusinessData9",
+			BusinessData10 AS "BusinessData10"
+			FROM jwf_processdescriptionarchive
+			WHERE ProcessDescriptionArchiveID = #{processDescID}
+		]]>
+	</select>
+	
+	<select id="selectFormInstanceStore" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID AS "FormInstID",
+			ProcessID AS "ProcessID",
+			FormID AS "FormID",
+			SchemaID AS "SchemaID",
+			Subject AS "Subject",
+			InitiatorID AS "InitiatorID",
+			InitiatorName AS "InitiatorName",
+			InitiatorUnitID AS "InitiatorUnitID",
+			InitiatorUnitName AS "InitiatorUnitName",
+			TO_CHAR(InitiatedDate,'YYYY-MM-DD HH24:MI:SS') AS "InitiatedDate",
+			CompletedDate AS "CompletedDate",
+			DeletedDate AS "DeletedDate",
+			LastModifiedDate AS "LastModifiedDate",
+			LastModifierID AS "LastModifierID",
+			EntCode AS "EntCode",
+			EntName AS "EntName",
+			DocNo AS "DocNo",
+			DocLevel AS "DocLevel",
+			DocClassID AS "DocClassID",
+			DocClassName AS "DocClassName",
+			DocSummary AS "DocSummary",
+			IsPublic AS "IsPublic",
+			SaveTerm AS "SaveTerm",
+			AttachFileInfo AS "AttachFileInfo",
+			AppliedDate AS "AppliedDate",
+			AppliedTerm AS "AppliedTerm",
+			ReceiveNo AS "ReceiveNo",
+			ReceiveNames AS "ReceiveNames",
+			ReceiptList AS "ReceiptList",
+			BodyType AS "BodyType",
+			BodyContext AS "BodyContext",
+			DocLinks AS "DocLinks", 
+			EDMSDocLinks AS "EDMSDocLinks", 
+			RuleItemInfo AS "RuleItemInfo",
+			IsArchive AS "IsArchive"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{formInstID}
+		]]>
+		<!-- IsArchive : Migration 문서외 시스템 이관된 결재문서여부 -->
+	</select>
+	
+	<select id="selectFileStore" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	F.FileID AS "FileID"
+	    	,F.StorageID AS "StorageID"
+	    	,F.ServiceType AS "ServiceType"
+	    	,F.ObjectID AS "ObjectID"
+	    	,F.ObjectType AS "ObjectType"
+	    	,F.MessageID AS "MessageID"
+	    	,F.SaveType AS "SaveType"
+	    	,F.LastSeq AS "LastSeq"
+	    	,F.Seq AS "Seq"
+	    	,F.FilePath AS "FilePath"
+	    	,F.FileName AS "FileName"
+	    	,F.SavedName AS "SavedName"
+	    	,F.Extention AS "Extention"
+	    	,F.Size_ AS "Size"
+	    	,TO_CHAR(F.RegistDate) AS "RegistDate"
+	    	,F.RegisterCode AS "RegisterCode"
+	    	,F.CompanyCode AS "CompanyCode"
+	    	,F.Encrypted AS "Encrypted"
+	    	,S.LastSeq AS "StorageLastSeq"
+			,S.FilePath AS "StorageFilePath"
+			,S.InlinePath AS "InlinePath"
+			,S.IsActive AS "IsActive"
+	    FROM sys_file F
+	    INNER JOIN sys_storage S ON S.StorageID = F.StorageID
+	    WHERE F.MessageID = #{FormInstID}
+	    AND F.ServiceType = 'APPROVALMIG'
+	 	ORDER BY F.Seq ASC
+	</select>
+	
+	<select id="selectAuditDocData" parameterType="cmap" resultType="cmap">
+		SELECT MenuID as "MenuID", DomainCode as "DomainCode" FROM sys_object_acl A
+		INNER JOIN sys_object_menu M ON (A.ObjectType = 'MN' AND A.ObjectID = M.MenuID)
+		INNER JOIN sys_object_domain D ON M.DomainID = D.DomainID
+		WHERE M.BizSection = 'Approval'
+		AND M.Reserved1 = 'Audit'
+	 </select>  
+	 
+	<select id="selectAuditDocDataStore" parameterType="cmap" resultType="cmap">
+		SELECT MenuID as "MenuID", DomainCode as "DomainCode" FROM sys_object_acl A
+		INNER JOIN sys_object_menu M ON (A.ObjectType = 'MN' AND A.ObjectID = M.MenuID)
+		INNER JOIN sys_object_domain D ON M.DomainID = D.DomainID
+		WHERE M.BizSection = 'Approval'
+		AND M.Reserved1 = 'AuditStore'
+ 	</select>
+	 
+	 <select id="selectParentDeptData" parameterType="cmap" resultType="cmap">
+	 	SELECT
+	 		A.GroupCode AS "GroupCode", 
+	 		A.DisplayName AS "DisplayName", 
+	 		NVL(A.MemberOf, '') AS "Reserved1",
+	 		NVL(B.DisplayName, '') AS "Reserved2"
+	 	FROM sys_object_group A
+	 	INNER JOIN sys_object_group B
+	 	ON A.MemberOf = B.GroupCode
+	 	WHERE A.GroupType = 'Dept'
+	 	AND A.GroupCode = #{DeptID}
+	 	AND ROWNUM = 1
+	 </select>
+	 
+	 <select id="selectDomainCheck" parameterType="cmap" resultType="cmap">
+	    SELECT FI.FormInstID AS "FormInstID"
+	    FROM jwf_forminstance FI
+		WHERE FI.FormInstID = #{FormInstID}
+		AND FI.EntCode IN 
+        <foreach item="item" index="index" collection="EntCodeList" open="(" close=")" separator=",">
+           	#{item.optionValue}
+   		</foreach>
+	 	AND ROWNUM = 1
+	</select>
+	
+	<select id="selectManageTarget" parameterType="cmap" resultType="cmap">
+		SELECT 'P' TARGETTYPE, mem.TARGETCODE, mem.VIEWSTARTDATE, mem.VIEWENDDATE
+		FROM JWF_PERSONDIRECTOR p
+		INNER JOIN JWF_PERSONDIRECTORMEMBER mem ON p.USERCODE = mem.USERCODE
+		WHERE p.USERCODE = #{UserID}
+    	AND (p.AUTHENDDATE IS NULL OR TO_CHAR(AUTHENDDATE, 'YYYY-MM-DD') = '0000-00-00' OR TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN TO_CHAR(p.AUTHSTARTDATE, 'YYYYMMDD') AND TO_CHAR(p.AUTHENDDATE, 'YYYYMMDD'))
+		
+		UNION
+		
+		SELECT 'P' TARGETTYPE, jdmem.UnitCode TARGETCODE, jdmem.VIEWSTARTDATE, jdmem.VIEWENDDATE
+		FROM jwf_director jd
+		INNER JOIN jwf_directormember jdmem ON jd.USERCODE = jdmem.USERCODE
+		WHERE jd.UserCode = #{UserID}
+		AND (jd.AUTHENDDATE IS NULL OR TO_CHAR(jd.AUTHENDDATE, 'YYYY-MM-DD') = '0000-00-00' OR TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN TO_CHAR(jd.AUTHSTARTDATE, 'YYYYMMDD') AND TO_CHAR(jd.AUTHENDDATE, 'YYYYMMDD'))
+		
+		UNION
+		
+		SELECT 'U' TARGETTYPE, TargetUnitCode TARGETCODE, umem.VIEWSTARTDATE, umem.VIEWENDDATE
+		FROM jwf_unitdirector unit
+		INNER JOIN jwf_unitdirectormember umem ON unit.UnitCode = umem.UnitCode
+		WHERE unit.UnitCode = #{DeptID}
+		AND (unit.AuthEndDate IS NULL OR TO_CHAR(unit.AUTHENDDATE, 'YYYY-MM-DD') = '0000-00-00' OR TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN TO_CHAR(unit.AUTHSTARTDATE, 'YYYYMMDD') AND TO_CHAR(unit.AUTHENDDATE, 'YYYYMMDD'))
+	</select> 
+	 
+	<select id="selectManageDocDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS "CNT" FROM jwf_process wp
+		INNER JOIN jwf_workitem ww ON wp.ProcessID = ww.ProcessID
+		INNER JOIN jwf_performer wpf ON ww.WorkItemID = wpf.WorkitemID
+		WHERE formInstID = #{FormInstID}
+		AND ww.State = 528 AND wp.ProcessState = 528
+		AND wpf.UserCode = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and wp.StartDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1)
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and wp.StartDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		OR
+		(wp.StartDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1 and wp.StartDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		)
+	</select>
+	
+	<select id="selectManageDocStoreDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS "CNT" FROM jwf_processarchive wp
+		INNER JOIN jwf_workitemarchive ww ON wp.ProcessArchiveID = ww.ProcessArchiveID
+		WHERE formInstID = #{FormInstID}
+		AND ww.UserCode = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and wp.StartDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1)
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and wp.StartDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		OR
+		(wp.StartDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1 and wp.StartDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		)
+	</select>
+
+	<select id="selectManageDocTcInfoDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS "CNT" FROM jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID  = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and ReceiptDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1)
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and ReceiptDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		OR
+		(ReceiptDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1 and ReceiptDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		)
+	</select>
+	
+	<select id="selectManageDocTcInfoStoreDataCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS "CNT" FROM jwf_circulationbox
+		WHERE FormInstID = #{FormInstID}
+		AND ReceiptID  = #{TargetCode}
+		AND 
+		(
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') AND (#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00'))
+		OR
+		((#{ViewStartDate} IS NULL OR #{ViewStartDate} = '' OR #{ViewStartDate} = '0000-00-00 00:00:00') and ReceiptDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1)
+		OR
+		((#{ViewEndDate} IS NULL OR #{ViewEndDate} = '' OR #{ViewEndDate} = '0000-00-00 00:00:00') and ReceiptDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		OR
+		(ReceiptDate &lt;= TO_DATE(#{ViewEndDate}, 'YYYYMMDD HH24:MI:SS') + 1 and ReceiptDate &gt;= TO_DATE(#{ViewStartDate}, 'YYYYMMDD HH24:MI:SS'))
+		)
+	</select> 
+	
+	<select id="selectIsLinkedDocData" parameterType="cmap" resultType="cmap">
+		SELECT SUM(CNT) AS "CNT"
+		FROM
+		(
+		  	SELECT COUNT(*) AS CNT FROM jwf_forminstance fi
+			INNER JOIN jwf_process wp ON fi.FormInstID = wp.FormInstID
+			INNER JOIN jwf_processdescription wpd ON wp.ProcessDescriptionID = wpd.ProcessDescriptionID
+			WHERE 
+			wp.ProcessID = #{OwnerProcessId} AND wpd.IsSecureDoc = 'N' AND
+			(fi.DocLinks LIKE (#{ProcessID} || '@@@%') OR fi.DocLinks LIKE ('%^^^' || #{ProcessID} || '@@@%'))
+		) A
+	</select> 
+
+	<select id="selectIsLinkedDocDataStore" parameterType="cmap" resultType="cmap">
+	  	SELECT COUNT(*) AS "CNT" FROM jwf_forminstance fi
+		INNER JOIN jwf_processarchive wp ON fi.FormInstID = wp.FormInstID
+		INNER JOIN jwf_processdescriptionarchive wpd ON wp.ProcessDescriptionArchiveID = wpd.ProcessDescriptionArchiveID
+		WHERE 
+		wp.ProcessArchiveID = #{OwnerProcessId} AND wpd.IsSecureDoc = 'N' AND
+		(fi.DocLinks LIKE (#{ProcessID} || '@@@%') OR fi.DocLinks LIKE ('%^^^' || #{ProcessID} || '@@@%'))
+	</select> 
+	
+	<select id="selectIsLinkedDocExpData" parameterType="cmap" resultType="cmap">
+		SELECT SUM(CNT) AS "CNT"
+		FROM
+		(
+			SELECT COUNT(*) AS CNT FROM act_expence_application_list actList
+			INNER JOIN act_expence_application_ref actRef ON actRef.ExpenceApplicationListID = actList.ExpenceApplicationListID
+			INNER JOIN jwf_process wp ON actRef.ProcessID = wp.ProcessID
+			INNER JOIN jwf_processdescription wpd ON wp.ProcessDescriptionID = wpd.ProcessDescriptionID
+			WHERE 
+			actList.ExpenceApplicationID =  #{ExpAppID} AND actRef.ProcessID = #{ProcessID} AND wpd.IsSecureDoc = 'N' 
+		) A
+	</select> 
+	
+	<select id="selectIsLinkedDocExpDataStore" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(*) AS "CNT" FROM act_expence_application_list actList
+		INNER JOIN act_expence_application_ref actRef ON actRef.ExpenceApplicationListID = actList.ExpenceApplicationListID
+		INNER JOIN jwf_processarchive wp ON actRef.ProcessID = wp.ProcessArchiveID
+		INNER JOIN jwf_processdescriptionarchive wpd ON wp.ProcessDescriptionArchiveID = wpd.ProcessDescriptionArchiveID
+		WHERE 
+		actList.ExpenceApplicationID =  #{ExpAppID} AND actRef.ProcessID = #{ProcessID} AND wpd.IsSecureDoc = 'N'
+	</select> 
+	
+	<select id="selectPerformerDataGov" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+				    SELECT RD.RECORDDEPTCODE AS "PerformerID"
+				    FROM GOV_RECORD_DOC RD
+				    WHERE RD.FORMINSTID = #{FormInstID}
+				    AND RD.RECORDDOCUMENTID = #{GovDocID}
+		) A
+		WHERE ROWNUM = 1
+	</select>
+	
+	<select id="selectEntCode" parameterType="cmap" resultType="java.lang.String">
+	<![CDATA[
+		SELECT 
+		EntCode AS "EntCode"
+		FROM jwf_forminstance
+		WHERE FormInstID = #{FormInstID}
+	]]>
+	</select>
+	
+	<select id="selectEntCodeStore" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT 
+			EntCode AS "EntCode"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+	<select id="selectgov24DocLink" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.ProcessID AS "ProcessID", B.FormPrefix AS "FormPrefix", A.SUBJECT AS "FormSubject", 
+			A.FormInstID AS "FormInstID", B.BusinessData1 AS "BusinessData1", B.BusinessData2 AS "BusinessData2" 
+		FROM JWF_FORMINSTANCE A
+		INNER JOIN JWF_PROCESSDESCRIPTION B ON A.FORMINSTID = B.FORMINSTID 
+		WHERE A.FORMINSTID = #{FormInstID}
+	</select>
+	
+	<select id="selectCheckReplyDoc" resultType="java.lang.String">
+		SELECT NVL(REPLYFLAG, 'N') AS "ReplyFlag" FROM JWF_PROCESSGOV_RECEIVE 
+		WHERE FORMINSTID = #{FormInstID}
+	</select>
+	
+	<select id="selectFormExtInfo" parameterType="cmap" resultType="cmap">
+		SELECT SCHEMACONTEXT AS "SchemaContext" FROM JWF_FORMS F
+		INNER JOIN JWF_FORMSSCHEMA S ON F.SCHEMAID = S.SCHEMAID 
+		WHERE F.FORMID = #{formID}
+	</select> 
+	
+	<select id="existsFormAuth" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT COUNT(1)
+		FROM jwf_forms jf
+		INNER JOIN JWF_FormClass jfc on
+			<choose>
+				<when test="formId != null and formId != '' ">
+					jf.FormID = #{formId}
+				</when>
+				<when test="formPrefix != null and formPrefix != '' ">
+					jf.FormPrefix = #{formPrefix}
+				</when>
+			</choose>
+		and jf.FormClassID = jfc.FormClassID
+		where 
+		(
+			( jfc.AclAllYN = 'Y' and jfc.EntCode IN ('ORGROOT',  #{entCode}) )
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = jfc.FormClassID and jfa.ObjectType = 'CLASS'
+				and 
+				(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		AND 
+		(
+			(
+				jf.AclAllYN = 'Y'
+				<if test='isSaaS == "Y"'>
+				AND	jf.CompanyCode IN ('ORGROOT',  #{entCode})
+				</if>
+			)
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = jf.FormID and jfa.ObjectType = 'FORM'
+				and 
+				(
+				jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+				or
+				jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+	</select>
+	
+	<select id="selectCstfInfo" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			select sfr.StoredFormRevID AS "StoredFormRevID" 
+				,sf.StoredFormID AS "StoredFormID"
+				,sf.FormPrefix AS "FormPrefix"
+				,sf.FormName AS "FormName"
+				,sfr.FormHtmlFileID AS "FormHtmlFileID"
+				,f.FileName AS "FileName"
+				,f.SavedName AS "SavedName"
+				,f.CompanyCode AS "CompanyCode"
+				,(REPLACE(s.FilePath,'{0}',f.CompanyCode)||f.FilePath) AS "FullPath"
+			from jwf_store_forms sf
+				join jwf_store_forms_rev sfr on sf.StoredFormID = sfr.StoredFormID 
+				left outer join sys_file f on sfr.FormHtmlFileID = f.fileid
+				left outer join sys_storage s on s.StorageID = f.StorageID
+			where sfr.StoredFormRevID =#{StoredFormRevID} 
+		]]>
+	</select>
+	
+	<select id="selectGovRecordRowSeq" resultType="java.lang.String">
+		SELECT NVL(RowSeq, '') AS "RowSeq" FROM GOV_RECORD_DOC 
+		WHERE RecordDocumentID = #{RecordDocumentID}
+	</select>
+	
+	<select id="selectDomainID" parameterType="cmap" resultType="String">
+		SELECT DomainID AS "DomainID"
+		FROM sys_object_domain
+		WHERE DomainCode = #{domainCode}
+	</select>
+	
+	<select id="selectFormTempInstBox" parameterType="cmap" resultType="cmap">
+		SELECT FormTempInstBoxID
+			,FormInstID
+			,FormID
+			,SchemaID
+			,FormPrefix
+			,FormInstTableName
+			,UserCode
+			,CreatedDate
+			,Subject
+			,Kind
+		FROM covi_approval4j.jwf_formstempinstbox
+		WHERE 
+		<choose>
+			<when test="formTempInstID != null and formTempInstID != '' ">
+				FormTempInstBoxID = #{formTempInstID}
+			</when>
+			<when test="formInstID != null and formInstID != '' ">
+				FormInstID = #{formInstID}
+			</when>
+			<otherwise>
+				1 = 2
+			</otherwise>
+		</choose>
+	</select>
+	
+</mapper>

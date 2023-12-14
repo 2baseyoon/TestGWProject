@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="userlock">
+ 	<select id="getUserLockCnt" resultType="java.lang.Long">
+		SELECT 	 count(u.UserCode)
+		  	FROM sys_object_user u 
+         	 JOIN sys_object_user_basegroup bg ON u.UserCode = bg.UserCode AND JobType = 'Origin'
+		 	 JOIN sys_object_domain d on bg.Companycode = d.domainCode
+	      	WHERE u.IsUse ='Y'
+	     	 AND u.IsDisplay='Y'
+	     	 AND u.ACCOUT_LOCK='Y'
+		  	 AND d.DomainID = #{DomainID}
+		  <if test="searchText != null and searchText != '' ">
+		  	AND u.MultiDisplayName like '%'||#{searchText}||'%' 
+		  </if>
+	</select>
+
+	<select id="getUserLock" parameterType="cmap" resultType="cmap">
+	<include refid="oracle.include.pagingHeader" />
+    /* userlock.getUserLock */
+    	SELECT DisplayName AS "DisplayName"
+		, DeptName AS "DeptName"
+		, UpDeptName AS "UpDeptName"
+		, JobPositionName AS "JobPosition"
+		, JobTitle AS "JobTitle"
+		, JobLevel AS "JobLevel"
+		, UserCode AS "UserCode"
+		, login_fail_count AS "login_fail_count"
+		, password_change_date AS "password_change_date"
+		, latest_login_date AS "latest_login_date"
+		, DeptCode AS "DeptCode"
+		FROM (SELECT 	 Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang},  bg.MultiDeptName) AS DeptName
+				, (SELECT Fn_BaseGetDictionary_S(#{lang}, ug.MultiDisplayName) FROM sys_object_group g 
+						JOIN sys_object_group ug ON  ug.GroupType ='Dept' AND ug.GroupCode = g.MemberOf
+				 		WHERE g.GroupType ='Dept' AND g.GroupCode = bg.DeptCode) AS UpDeptName			
+				, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS JobPositionName
+				, Fn_BaseGetDictionary_S(#{lang}, bg.JOBTITLENAME) AS JobTitle
+				, Fn_BaseGetDictionary_S(#{lang}, bg.JOBLEVELNAME) AS JobLevel
+				, u.UserCode AS UserCode
+				, u.login_fail_count AS login_fail_count
+				, TO_CHAR(password_change_date,'YYYY-MM-DD HH24:MI:SS') AS password_change_date
+				, latest_login_date AS latest_login_date
+				, bg.DeptCode AS DeptCode
+		  FROM sys_object_user u 
+          JOIN sys_object_user_basegroup bg ON u.UserCode = bg.UserCode AND JobType = 'Origin'
+		  JOIN sys_object_domain d on bg.Companycode = d.domainCode
+	     WHERE u.IsUse ='Y'
+	       AND u.IsDisplay='Y'
+	       AND u.ACCOUT_LOCK='Y'
+		   AND d.DomainID = #{DomainID}
+		  <if test="searchText != null and searchText != '' ">
+		  	AND u.MultiDisplayName like '%'||#{searchText}||'%' 
+		  </if>
+		  ) B
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobPosition")'>JobPositionName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitle")'>JobTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevel")'>JobLevel</when>
+					<when test='sortColumn.equalsIgnoreCase("UserCode")'>UserCode</when>
+					<when test='sortColumn.equalsIgnoreCase("login_fail_count")'>login_fail_count</when>
+					<when test='sortColumn.equalsIgnoreCase("password_change_date")'>password_change_date</when>
+					<otherwise>latest_login_date</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	     <include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<insert id="insertUserLockHistory" parameterType="cmap">
+	    INSERT INTO sys_object_user_lock_history 
+	    		   (UserCode, ApprovalRemark, Result, RegisterCode	 ,  RegistDate, RegistIP, DomainID)
+   			VALUES(#{UserCode}, #{ApprovalRemark}, #{Result}, #{USERID}, SYSDATE, #{USERIP}, #{DN_ID})
+   	</insert>
+   	
+   	<select id="getUserLockHistory" parameterType="cmap" resultType="cmap">
+   	<include refid="oracle.include.pagingHeader" />
+    /* userlock.getUserLockHistory */
+		SELECT 	TO_CHAR( h.RegistDate,'YYYY-MM-DD HH24:MI:SS') AS "RegistDate", ApprovalRemark AS "ApprovalRemark", Result AS "Result"
+				, Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName) AS "DisplayName", u.UserCode AS "UserCode"
+		  FROM sys_object_user_lock_history h
+     LEFT JOIN sys_object_user u on h.RegisterCode = u.UserCode
+	     WHERE h.UserCode =#{UserCode}
+	  ORDER BY h.RegistDate DESC
+	<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+ 	<!-- 개수 조회 Grid 용 -->
+ 	<select id="getUserLockHistoryCnt" resultType="java.lang.Long">
+		SELECT count(h.HistoryID)
+		  FROM sys_object_user_lock_history h
+	     WHERE h.UserCode =#{UserCode}
+	</select>
+</mapper>

@@ -1,0 +1,65 @@
+<div id="TabBoard" class="webpart">
+    <div>
+        <div class="webpart-top" id="dBoardTab">           
+        </div>
+        <div class="webpart-content">
+            <!-- 리스트목록 시작 -->
+          	
+        </div>
+    </div>
+</div>
+										
+<script type="text/template" id="board">
+	<table border="0" cellspacing="0" cellpadding="0" id="tbBoard">               
+     </table>
+     <!-- 리스트목록 끝 -->
+     <!-- 조회목록없음 -->
+     <table border="0" cellspacing="0" cellpadding="0" style="display:none;" id="tbBoardNoContents">
+         <tbody>
+              <tr>
+                  <td class="wp_none"><spring:message code='Cache.msg_NoDataList'/></td>
+              </tr>
+          </tbody>
+    </table>
+</script>										
+
+<script type="text/template" id="board_list">
+	<tr>
+		<td class="{descriptionTopClass}">
+			<div class="{descriptionClass}">
+				<a href="#" onclick='{popupFuntion}'>{description}</a>
+			</div>
+		</td>
+		<td class="{createNameClass}" style="width: 80px;">{createName}</td>
+		<td class="{createDateClass}">{createDate}</td>
+	</tr>
+</script>
+
+<script type="text/template" id="Ptype05_board">
+	<div class="PN_tabCont active">
+		<div class="PN_TitleBox">
+			<a href="#" class="PN_More" id="aBoardMore">more</a>
+		</div>
+		<ul class="PN_boardList">
+			
+		</ul>
+     	<!-- 조회목록없음 -->
+		<ul class="PN_nolist PN_nolistW" style="display:none;">
+			<li class="list_none">
+				<p><spring:message code='Cache.msg_NoDataList'/></p>
+				<a href="#" class="PN_btnType01"><spring:message code='Cache.lbl_RegistPost'/></a>
+			</li>
+		</ul>
+	</div>
+</script>	
+
+<script type="text/template" id="Ptype05_board_list">
+	<li class='{firstClass}'>
+		<a href="#" onclick = '{event}'>
+			{fistImage}
+			<span class="boTitle {titleStyle}">{subject} {description}</span>
+			<span class="boName" >{name}</span>
+			<span class="boDate">{date} {time}</span>
+		</a>
+	</li>
+</script>

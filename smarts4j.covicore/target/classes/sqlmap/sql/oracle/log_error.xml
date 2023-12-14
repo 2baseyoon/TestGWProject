@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogErrorLog">    
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+		<include refid="oracle.include.pagingHeader"/>		
+		SELECT	  B.DeptName AS "DeptName"
+				, B.ErrorUserName AS "ErrorUserName"
+				, B.LogID AS "LogID"
+				, B.MachineName AS "MachineName"
+				, B.UserCode AS "UserCode"
+				, B.LogonID AS "LogonID"
+				, B.ErrorType AS "ErrorType"
+				, B.ProcessState AS "ProcessState"
+				, B.AlertMessage  AS "AlertMessage"
+				, B.ErrorMessage  AS "ErrorMessage"
+				, B.SiteName AS "SiteName"
+				, B.ServiceType AS "ServiceType"
+				, B.SubSystem AS "SubSystem"
+				, B.PageURL AS "PageURL"
+				, B.PageParam AS "PageParam"
+				, B.MethodName AS "MethodName"
+				, B.IPAddress AS "IPAddress"
+				, B.EventDate  AS "EventDate"
+	   	FROM (
+		   	SELECT	  A.*
+					, (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDeptName,'')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode AND JobType = 'Origin' ) AS DeptName
+			FROM (
+				SELECT	  LogID
+						, MachineName
+						, e.UserCode
+						, (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName,'')) FROM sys_object_user WHERE UserCode = e.LogonID) AS ErrorUserName
+						, e.LogonID
+						, ErrorType
+						, ProcessState
+						, AlertMessage
+						, ErrorMessage
+						, SiteName
+						, ServiceType
+						, SubSystem
+						, PageURL
+						, PageParam
+						, MethodName
+						, IPAddress
+						, EventDate
+				FROM LOG_ERROR e
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+						EventDate BETWEEN TO_DATE(#{startDate}, 'YY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YY-MM-DD HH24:MI:SS')
+					</if>
+				</trim>
+			)A
+		)B
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != '' ">
+				( B.ErrorUserName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  OR B.DeptName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  )
+			</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("EventDate")'>EventDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ErrorUserName")'>ErrorUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<otherwise>ErrorType</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectPage" parameterType="cmap" resultType="cmap">			
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT B.DeptName AS "DeptName"
+		     , B.ErrorUserName AS "ErrorUserName"
+		     , B.LogID AS "LogID"
+		     , B.MachineName AS "MachineName"
+		     , B.UserCode AS "UserCode"
+		     , B.LogonID AS "LogonID"
+		     , B.ErrorType AS "ErrorType"
+		     , B.ProcessState AS "ProcessState"
+		     , B.AlertMessage  AS "AlertMessage"
+		     , B.ErrorMessage  AS "ErrorMessage"
+		     , B.SiteName AS "SiteName"
+		     , B.ServiceType AS "ServiceType"
+		     , B.SubSystem AS "SubSystem"
+		     , B.PageURL AS "PageURL"
+		     , B.PageParam AS "PageParam"
+		     , B.MethodName AS "MethodName"
+		     , B.IPAddress AS "IPAddress"
+		     , B.EventDate  AS "EventDate"
+	   	FROM (
+		   	SELECT	   A.*
+		     	 	, (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDeptName,'')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode AND JobType = 'Origin' ) AS DeptName
+			FROM (
+				SELECT 	LogID
+					  , MachineName
+					  , e.UserCode
+					  , (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName,'')) FROM sys_object_user WHERE UserCode = e.LogonID) AS ErrorUserName
+					  , e.LogonID
+					  , ErrorType
+					  , ProcessState
+					  , AlertMessage
+					  , ErrorMessage
+					  , SiteName
+					  , ServiceType
+					  , SubSystem
+					  , PageURL
+					  , PageParam
+					  , MethodName
+					  , IPAddress
+					  , EventDate
+				FROM LOG_ERROR  e
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+						EventDate BETWEEN #{startDate} AND #{endDate}
+					</if>
+				</trim>
+			)A
+		)B
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != '' ">
+				( B.ErrorUserName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  OR B.DeptName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  )
+			</if>
+			<if test="pageText != null and pageText != '' ">
+				AND B.PageURL LIKE CONCAT('%', #{pageText}, '%')
+			</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("ErrorUserName")'>ErrorUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("MachineName")'>MachineName</when>
+					<when test='sortColumn.equalsIgnoreCase("UserCode")'>UserCode</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<when test='sortColumn.equalsIgnoreCase("ErrorType")'>ErrorType</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessState")'>ProcessState</when>
+					<when test='sortColumn.equalsIgnoreCase("AlertMessage")'>AlertMessage</when>
+					<when test='sortColumn.equalsIgnoreCase("ErrorMessage")'>ErrorMessage</when>
+					<when test='sortColumn.equalsIgnoreCase("SiteName")'>SiteName</when>
+					<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+					<when test='sortColumn.equalsIgnoreCase("SubSystem")'>SubSystem</when>
+					<when test='sortColumn.equalsIgnoreCase("PageURL")'>PageURL</when>
+					<when test='sortColumn.equalsIgnoreCase("PageParam")'>PageParam</when>
+					<when test='sortColumn.equalsIgnoreCase("MethodName")'>MethodName</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("EventDate")'>EventDate</when>
+					<otherwise>LogID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+ 	
+ 	<select id="selectCount" resultType="java.lang.Long">
+	SELECT COUNT(*) 
+	FROM (	
+		SELECT B.DeptName AS "DeptName"
+		     , B.ErrorUserName AS "ErrorUserName"
+		     , B.LogID AS "LogID"
+		     , B.MachineName AS "MachineName"
+		     , B.UserCode AS "UserCode"
+		     , B.LogonID AS "LogonID"
+		     , B.ErrorType AS "ErrorType"
+		     , B.ProcessState AS "ProcessState"
+		     , B.AlertMessage  AS "AlertMessage"
+		     , B.ErrorMessage  AS "ErrorMessage"
+		     , B.SiteName AS "SiteName"
+		     , B.ServiceType AS "ServiceType"
+		     , B.SubSystem AS "SubSystem"
+		     , B.PageURL AS "PageURL"
+		     , B.PageParam AS "PageParam"
+		     , B.MethodName AS "MethodName"
+		     , B.IPAddress AS "IPAddress"
+		     , B.EventDate  AS "EventDate"
+		   	FROM (
+			   	SELECT	   A.*
+			     	 	, (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDeptName,'')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode AND JobType = 'Origin' ) AS DeptName
+					FROM (
+						SELECT 	LogID
+							  , MachineName
+							  , e.UserCode
+							  , (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName,'')) FROM sys_object_user WHERE UserCode = e.LogonID) AS ErrorUserName
+							  , e.LogonID
+							  , ErrorType
+							  , ProcessState
+							  , AlertMessage
+							  , ErrorMessage
+							  , SiteName
+							  , ServiceType
+							  , SubSystem
+							  , PageURL
+							  , PageParam
+							  , MethodName
+							  , IPAddress
+							  , EventDate
+							FROM LOG_ERROR  e
+							 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+								  <if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+							        EventDate BETWEEN TO_DATE(#{startDate}, 'YY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YY-MM-DD HH24:MI:SS')
+							    </if>
+						    </trim>
+					)A
+				)B
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				    <if test="searchText != null and searchText != '' ">
+		  			   ( B.ErrorUserName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  OR B.DeptName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  )
+				    </if>
+				</trim>
+		 )C
+	</select>
+		
+</mapper>

@@ -1,0 +1,178 @@
+<table class="total_acooungting_table2" style="margin-top: 5px;">
+	<colgroup>
+		<col style="width: 10%">
+		<col style="width: 15%">
+		<col style="width: 10%">
+		<col style="width: 15%">
+		<col style="width: 10%">
+		<col style="width: 15%">
+		<col style="width: 10%">
+		<col style="width: 15%">
+	</colgroup>
+	<tbody>
+		<tr>
+			<td class="th">	
+				<!-- 거래처명 -->
+				**{ACC_lbl_vendorName}
+				<span class="star"></span>
+			</td>
+			<td>
+				<div class="searchBox02">
+					<span>
+						<input type="text" id='combiCostApp@@{ProofCode}_vendorName_@@{KeyNo}' disabled="true"
+							name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="VendorName"
+							value="@@{VendorName}" class="HtmlCheckXSS ScriptCheckXSS">
+						
+						<button type="button" class="btnSearchType01" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callVendorPopup('@@{ProofCode}','@@{KeyNo}')">**{ACC_btn_search}</button>
+					</span>
+				</div>
+				<div class="total_acooungting_table_btn">
+					<a href="#" class="btn_copy" onClick="CombineCostApplication@@{RequestType}.combiCostApp_SlipCopyPopup('@@{ProofCode}')">**{ACC_btn_copy}</a>
+				</div>
+			</td>
+			<td class="th">	
+				<!-- 사업자등록번호 -->
+				**{ACC_lbl_bizRegNo}
+			</td>
+			<td>
+				<div class="searchBox02">
+					<span>
+						<input type="text" id='combiCostApp@@{ProofCode}_vendorNo_@@{KeyNo}' disabled="true"
+							name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="VendorNo"
+							value="@@{VendorNo}" class="HtmlCheckXSS ScriptCheckXSS">
+					</span>
+				</div>
+			</td>
+			<td class="th">
+				<!-- 지급조건 -->
+				**{ACC_lbl_PayType}
+			</td>
+			<td>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_payType_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="PayType" value="@@{PayType}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'PayType')">
+					@@{PayTypeOptions}
+				</select>
+			</td>
+			<td class="th">
+				<!-- 지급방법 -->
+				**{ACC_lbl_pay}
+				<span class="star"></span>
+			</td>
+			<td colspan="3">
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_payMethod_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="PayMethod" value="@@{PayMethod}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'PayMethod')">
+					@@{PayMethodOptions}
+				</select>
+			</td>
+		</tr>
+		<tr>
+			<td class="th">
+				<!-- 세금유형 -->
+				**{ACC_lbl_taxClass}
+			</td>
+			<td>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_taxType_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TaxType" value="@@{TaxType}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TaxType')">
+					@@{TaxTypeOptions}
+				</select>		
+			</td>
+			<td class="th">
+				<!-- 세금코드 -->
+				**{ACC_lbl_tax}
+			</td>
+			<td>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_taxCode_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TaxCode" value="@@{TaxCode}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TaxCode')" style="width: 200px !important;">
+					<option value="">**{lbl_Choice}</option>
+				</select>
+			</td>
+			<td class="th">
+				<!-- 지급대상 -->
+				**{ACC_lbl_payTarget}
+			</td>
+			<td>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_payTarget_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="PayTarget" value="@@{PayTarget}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'PayTarget')">
+					@@{PayTargetOptions}
+				</select>		
+			</td>
+			<td class="th">	
+				<!-- 대체수취인 -->
+				**{ACC_lbl_alternativePayee}
+			</td>
+			<td>
+				<div class="searchBox02">
+					<span>
+						<input type="hidden" id='combiCostApp@@{ProofCode}_alterPayeeNo_@@{KeyNo}' disabled="true"
+							name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AlterPayeeNo"
+							value="@@{AlterPayeeNo}" class="HtmlCheckXSS ScriptCheckXSS">
+						<input type="text" id='combiCostApp@@{ProofCode}_alterPayeeName_@@{KeyNo}' disabled="true"
+							name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AlterPayeeName"
+							value="@@{AlterPayeeName}" class="HtmlCheckXSS ScriptCheckXSS">
+						
+						<button type="button" class="btnSearchType01" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callVendorPopup('@@{ProofCode}','@@{KeyNo}', undefined, true)">**{ACC_btn_search}</button>
+					</span>
+				</div>
+			</td>
+		</tr>			
+		<tr>
+			<td class="th">
+				<!-- 은행계좌 -->
+				**{ACC_lbl_BankAccount}
+			</td>
+			<td colspan="3">
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_accountInfo_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AccountInfo" value="@@{AccountInfo}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'AccountInfo')">
+					<option value="">**{ACC_lbl_choice}</option>
+					<option value="DirectInput">**{ACC_lbl_directInput}</option>
+				</select>
+				<input type="hidden" id='combiCostApp@@{ProofCode}_accountBank_@@{KeyNo}' disabled="true"
+					name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AccountBank"
+					value="@@{AccountBank}" class="HtmlCheckXSS ScriptCheckXSS">
+			</td>
+			<td colspan="2" name="BankInputArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" style="display: none;">
+				<div class="searchBox02" style="float: left; margin-right: 10px;">
+					<span>
+						<input type="text" id='combiCostApp@@{ProofCode}_accountBankName_@@{KeyNo}' disabled="true"
+							name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AccountBankName"
+							value="@@{AccountBankName}" class="HtmlCheckXSS ScriptCheckXSS" style="width: 120px !important;" 
+							placeholder="**{ACC_lbl_bankSelect}">	
+						<button type="button" class="btnSearchType01" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callBankPopup('@@{ProofCode}','@@{KeyNo}')">**{ACC_btn_search}</button>
+					</span>
+				</div>
+				<input type="text" id='combiCostApp@@{ProofCode}_accountInfo_@@{KeyNo}' class="size155"  
+					name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AccountInfo"
+					onkeyup="removeCharDash(this); CombineCostApplication@@{RequestType}.combiCostApp_InputValChange(this, '@@{ProofCode}', '@@{KeyNo}', 'AccountInfo');"
+					value="@@{AccountInfo}" class="HtmlCheckXSS ScriptCheckXSS" style="height: 33px;">
+			</td>
+			<td class="th">
+				<!-- 예금주 -->
+				**{ACC_lbl_BankAccountHolder}
+			</td>
+			<td colspan="3">
+				<input type="text" id='combiCostApp@@{ProofCode}_accountHolder_@@{KeyNo}' disabled="true" class="size155"  
+					name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="AccountHolder"
+					onkeyup="CombineCostApplication@@{RequestType}.combiCostApp_InputValChange(this, '@@{ProofCode}', '@@{KeyNo}', 'AccountHolder');"
+					value="@@{AccountHolder}" class="HtmlCheckXSS ScriptCheckXSS">
+			</td>
+			<!-- <td class="th">
+				대변계정
+				**{ACC_lbl_creditAccount}
+				<span class="star"></span>
+			</td>
+			<td>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_credit_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="Credit" value="@@{Credit}"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'Credit')">
+					@@{CreditOptions}
+				</select>		
+			</td> -->
+		</tr>
+	</tbody>
+</table>

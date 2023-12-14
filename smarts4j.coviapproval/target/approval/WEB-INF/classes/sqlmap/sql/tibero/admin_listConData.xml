@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.listConData">
+    <select id="selectConDataLogLegacyList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+		  	SELECT A.IDX AS "IDX"
+					 , A.DocID AS "DocID"
+					 , A.InterfaceID AS "InterfaceID"
+				 	 , A.InitiatorID AS "InitiatorID"
+				 	 , CASE WHEN NVL(A.ErrMsg, '') = '' THEN '' ELSE 'Y' END AS "exsistErr"
+					 , A.RegDate AS  "RegDate"
+		  	FROM jwf_tbconndata A
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Date.equalsIgnoreCase("DocID")'>DocID</when>
+						<when test='sel_Date.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+						<otherwise>ErrMsg</otherwise>
+					</choose> 
+					LIKE '%'||#{search}||'%'
+				</if>			
+				<if test="startDate != '' or endDate != ''">
+					AND A.RegDate BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+				</if>			
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("IDX")'>IDX</when>
+						<when test='sortColumn.equalsIgnoreCase("DocID")'>DocID</when>
+						<when test='sortColumn.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+						<when test='sortColumn.equalsIgnoreCase("RegDate")'>RegDate</when>
+						<otherwise>exsistErr</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					exsistErr DESC
+			   </if>
+			</trim>
+        <include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    <select id="selectConDataLogLegacyListCnt" resultType="java.lang.Long">
+	  	SELECT COUNT(*)
+		FROM jwf_tbconndata A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Date.equalsIgnoreCase("DocID")'>DocID</when>
+					<when test='sel_Date.equalsIgnoreCase("InterfaceID")'>InterfaceID</when>
+					<otherwise>ErrMsg</otherwise>
+				</choose> 
+				LIKE '%'||#{search}||'%'
+			</if>			
+			<if test="startDate != '' or endDate != ''">
+					AND A.RegDate BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+			</if>			
+		</trim>
+	</select>
+	
+</mapper>
+

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.signManager">
+    <select id="selectSignList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+        SELECT LIST.* FROM (
+			SELECT BOU.UserCode AS "UR_Code"
+			              ,CASE WHEN ((select COUNT(*) from jwf_signimage JS WHERE JS.UserCode = BOU.UserCode AND JS.IsUse = 'Y') > 0) THEN 'Y' ELSE 'N' END AS "USER_SIGN"
+			              ,BOU.DisplayName AS "UR_Name"
+			              ,BG.DeptName AS "DEPT_Name"			
+			              ,BG.JobLevelName AS "JobLevelName"
+			              ,BG.JobTitleName AS "JobTitleName"
+			              ,BG.JobPositionName	AS "JobPositionName"
+			              ,BG.DeptCode AS "DEPT_Code"			
+			              ,BG.CompanyCode AS "EntCode"
+			FROM sys_object_user BOU
+			INNER JOIN sys_object_user_basegroup BG ON BOU.UserCode = BG.UserCode
+			WHERE BOU.IsUse = 'Y'
+        ) LIST
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			   	"EntCode"=#{EntCode}
+			</if>		    		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0 ">
+			    AND 
+			    <choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>"DEPT_Name"</when>
+				</choose> 
+			    LIKE '%'||#{search}||'%'
+			</if>			
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					"UR_Code" LIKE '%'||#{icoSearch}||'%' 			OR 
+					"UR_Name" LIKE '%'||#{icoSearch}||'%' 	OR 
+					"DEPT_Name" LIKE '%'||#{icoSearch}||'%'		   
+				)
+			</if>						
+		</trim>	
+		 <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+					<when test='sortColumn.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitleName")'>"JobTitleName"</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevelName")'>"JobLevelName"</when>
+					<when test='sortColumn.equalsIgnoreCase("USER_SIGN")'>"USER_SIGN"</when>
+					<otherwise>"DEPT_Name"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectSignListCnt" resultType="java.lang.Long">
+		  SELECT COUNT(*) FROM (
+			SELECT BOU.UserCode AS "UR_Code"
+			              ,CASE WHEN ((select COUNT(*) from jwf_signimage JS WHERE JS.UserCode = BOU.UserCode) > 0) THEN 'Y' ELSE 'N' END AS "USER_SIGN"
+			              ,BOU.DisplayName AS "UR_Name"
+			              ,BG.DeptName AS "DEPT_Name"			
+			              ,BG.JobLevelName AS "JobLevelName"
+			              ,BG.JobTitleName AS "JobTitleName"
+			              ,BG.JobPositionName	AS "JobPositionName"
+			              ,BG.DeptCode AS "DEPT_Code"			
+			              ,BG.CompanyCode AS "EntCode"
+			FROM sys_object_user BOU
+			INNER JOIN sys_object_user_basegroup BG ON BOU.UserCode = BG.UserCode
+			WHERE BOU.IsUse = 'Y'
+        ) LIST
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			   	"EntCode"=#{EntCode}
+			</if>		    		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0 ">
+			    AND 
+			    <choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>"DEPT_Name"</when>
+				</choose> 
+			    LIKE '%'||#{search}||'%'
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					"UR_Code" LIKE '%'||#{icoSearch}||'%' 			OR 
+					"UR_Name" LIKE '%'||#{icoSearch}||'%' 	OR 
+					"DEPT_Name" LIKE '%'||#{icoSearch}||'%'		   
+				)
+			</if>									
+		</trim>	
+	</select>
+	
+    
+    <select id="selectSignData" parameterType="cmap" resultType="cmap">
+        SELECT A.* FROM
+			  (SELECT UserCode AS "UserCode"
+			  			 , Seq AS "Seq"
+			  			 , FileName AS "FileName"
+			  			 , IsUse AS "IsUse"
+			  			 , SortKey AS "SortKey"
+			  			 , TO_CHAR(InsertDate, 'YYYY-MM-DD HH24:MI:SS') AS "InsertDate"
+			  			 , FilePath  AS "FilePath"
+				FROM jwf_signimage
+					WHERE UserCode = #{UserCode}
+						AND IsUse = #{IsUse}
+					ORDER BY InsertDate
+				) A	
+        WHERE ROWNUM = 1
+	</select>
+	
+  
+
+	<insert id="insertSignData" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO jwf_signimage 
+		(
+		UserCode	
+		,FileName
+		,IsUse
+		,SortKey
+		,InsertDate
+		,FilePath
+		,FileID
+		)
+		VALUES 	
+		(
+		 #{UserCode}
+		,#{FileName}
+		,'Y'
+		,(SELECT NVL(MAX(SortKey),0) FROM jwf_signimage A)
+		,SYSDATE
+		,#{FilePath}
+		,#{FileID}
+		)
+	]]>
+	</insert>
+	
+	<delete id="deleteSignImage" parameterType="cmap">
+        DELETE
+        FROM jwf_signimage
+  		WHERE UserCode = #{UserCode} 
+  		AND FileID = #{FileID}
+	</delete>
+	
+	<update id="changeUseSign" parameterType="cmap">
+		UPDATE jwf_signimage
+		SET IsUse = #{IsUse}
+		WHERE UserCode = #{UserCode} AND FileName = #{FileName} 
+	</update>
+	
+	<update id="releaseUseSign" parameterType="cmap">
+		UPDATE jwf_signimage
+		SET IsUse = 'N'
+		WHERE UserCode = #{UserCode}
+	</update>
+	
+</mapper>
+

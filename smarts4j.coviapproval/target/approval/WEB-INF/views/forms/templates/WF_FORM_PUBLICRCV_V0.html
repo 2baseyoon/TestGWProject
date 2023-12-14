@@ -1,0 +1,41 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="tableStyle linePlus mt10" style="text-align: left;">
+<!-- class="table_10" -->
+    <colgroup>
+        <col style="width:12%">
+        <col style="width:38%">
+      	<col style="width:12%">
+      	<col style="width:38%">
+    </colgroup>
+    <tbody>
+    <tr style="cursor: default;">
+      <th style="text-align: center; width: 88px;">접수 유형</th>
+      <td style="width: 277px;">
+        <select data-type="smField" id="RECEIVE_TYPE" required="required" data-element-type="sel_d_t" style="width: 100px" data-node-name="RECEIVE_TYPE" title="접수 유형">
+          <option value="MAIL">메일 발송</option>
+          <option value="POST">우편 발송</option>
+          <option value="PROOF">내용 증명</option>
+        </select>
+      </td>
+      <th style="text-align: center; width: 88px;">공문 유형</th>
+      <td style="width: 278px;">
+        <select data-type="smField" id="LETTER_TYPE" required="required" data-element-type="sel_d_t" style="width: 100px" data-node-name="LETTER_TYPE" title="공문 유형" onchange="addTypeToSubject()">
+          <option value="GENERAL">일반 공문</option>
+          <option value="PROOF">내용 증명</option>
+        </select>
+      </td>
+    </tr>
+    <tr style="cursor: default;">
+    	<th style="width: 88px; text-align: center;">접수일</th>
+    	<td style="width: 645px;" colspan="3" rowspan="1">
+    		<input type="text" required="required" data-type="smField" data-model="" id="RcvDate" value="{{ doc.BodyData.MainTable.RcvDate }}" data-pattern="date" style="width:100px;text-align:center;" name="RcvDate" title="접수일"></td>
+    </tr>
+	<tr style="cursor: default;">
+      	<th style="text-align: center;">발송처</th>
+      	<td style="" colspan="3" rowspan="1">
+          	<input type="text" required="required" data-type="smField" data-model="" id="SenderName" value="{{ doc.BodyData.MainTable.SenderName }}" style="width:100%;" name="SenderName" title="발송처">
+     	</td>
+    </tr>
+</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

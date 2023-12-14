@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.alarm">
+	
+	<!-- 일일 요약-->
+	<select id="getSummDay"   parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	/* collab.collab.alarm.getSummDay */
+	with recursive cte (PrjSeq, PrjName, StartDate, EndDate, ProgRate, TotCnt, YesDayCnt
+						, WaitCnt, ProcCnt, HoldCnt, CompCnt, YesCompCnt, DelayCnt) AS
+						(SELECT p.PrjSeq,	p.prjName, p.StartDate, p.EndDate, p.ProgRate
+								, COUNT(*) TotCnt
+								, IFNULL(SUM(CASE WHEN DATE_FORMAT(b.RegisteDate,'%Y-%m-%d') < DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 2 DAY),'%Y-%m-%d') then 1 ELSE 0 END),0) YesDayCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus = 'W' then 1 ELSE 0 END),0) WaitCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus = 'P' then 1 ELSE 0 END),0) ProcCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus = 'H' then 1 ELSE 0 END),0) HoldCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus = 'C' then 1 ELSE 0 END),0) CompCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus = 'C' AND b.EndDate < DATE_FORMAT(DATE_SUB(NOW(), INTERVAL 2 DAY),'%Y%m%d') then 1 ELSE 0 END),0) YesCompCnt
+								, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND (b.EndDate is null or b.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))  then 1 ELSE 0 END),0) DelayCnt
+							 FROM collab_project p
+							 join collab_task_map a ON a.PrjType = 'P' AND p.PrjSeq = a.PrjSeq
+							 JOIN collab_task b ON a.taskSeq = b.TaskSeq AND b.parentkey=0
+							WHERE p.PrjStatus = 'P' ]]>
+							 <if test='isSaaS == "Y"'>
+							 	 AND p.CompanyCode = #{CompanyCode}
+							 </if>
+						GROUP BY p.prjSeq, p.prjName, p.StartDate, p.EndDate) 
+		SELECT u.UserCode, cte.PrjSeq, PrjName, StartDate, EndDate, ProgRate, TotCnt, YesDayCnt
+						, WaitCnt, ProcCnt, HoldCnt, CompCnt, YesCompCnt, DelayCnt,  DATE_FORMAT(NOW(),'%Y-%m-%d') Today 
+		 FROM CTE
+	  JOIN (
+			SELECT p.PrjSeq, pm.UserCode
+			 FROM collab_project p
+	         JOIN collab_project_manager pm on pm.prjSeq = p.prjSeq	
+	         JOIN collab_project_messaging m ON pm.prjSeq = m.prjSeq AND pm.UserCode = m.UserCode
+			WHERE p.PrjStatus = 'P' 
+			 <if test='isSaaS == "Y"'>
+			 	 AND p.CompanyCode = #{CompanyCode}
+			 </if>
+		    UNION       
+			SELECT p.PrjSeq, pme.UserCode
+			  FROM collab_project p
+			  JOIN collab_project_member pme on pme.prjSeq = p.prjSeq	
+	          JOIN collab_project_messaging m ON  pme.prjSeq = m.prjSeq AND pme.UserCode = m.UserCode
+			 WHERE p.PrjStatus = 'P'
+			 <if test='isSaaS == "Y"'>
+			 	 AND p.CompanyCode = #{CompanyCode}
+			 </if>
+			 UNION       
+			SELECT p.PrjSeq, pv.UserCode
+			 FROM collab_project p
+			 JOIN collab_project_viewer pv on pv.prjSeq = p.prjSeq	
+	         JOIN collab_project_messaging m ON  pv.prjSeq = m.prjSeq AND pv.UserCode = m.UserCode
+			WHERE p.PrjStatus = 'P' 
+			 <if test='isSaaS == "Y"'>
+			 	 AND p.CompanyCode = #{CompanyCode}
+			 </if>
+			  )  u ON cte.prjseq = u.prjseq
+     ORDER BY u.UserCode, cte.prjSeq
+	</select>
+	<select id="getTaskClose"   parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	/* collab.collab.alarm.getCloseTask */
+		SELECT A.AlarmStartDate, A.RepeatAlarmUse, A.RepeatAlarmTerm, RepeatAlarmType, TaskSeq, TaskName, StartDate, EndDate, TaskStatus, ProgRate, UserCode
+ 				,(SELECT concat(c.PrjType ,'^', case when c.prjType = 'P' then p.PrjName ELSE t.DisplayName END ,'^', PrjColor,'^', s.SectionName)
+	     	        FROM collab_task_map C 
+		            JOIN collab_section s on c.sectionseq = s.sectionseq
+	     	   LEFT JOIN collab_project P on c.PrjType='P' and p.PrjSeq = c.PrjSeq
+	     	   LEFT JOIN sys_object_group T on c.PrjType!='P' and t.GroupId = c.PrjSeq
+	     	       WHERE C.TaskSeq = a.TaskSeq limit 1) PrjDesc	
+	     	    , DATE_FORMAT(NOW(),'%Y%m%d') Today
+	     	    , DATEDIFF(NOW(), enddate) DDay
+		  FROM 	
+			(SELECT DATE_FORMAT(
+						case trm.Reserved2  
+							when 'day' then DATE_SUB(t.EndDate, INTERVAL trm.Reserved1 day )
+							when 'week' then DATE_SUB(t.EndDate, INTERVAL trm.Reserved1 week )
+							when 'month' then DATE_SUB(t.EndDate, INTERVAL trm.Reserved1 month )
+						END
+					,'%Y%m%d') AlarmStartDate
+					,u.RepeatAlarmUse, rpt.CodeName, rpt.Reserved1 RepeatAlarmTerm, rpt.Reserved2 RepeatAlarmType
+					,t.*, m.UserCode
+			  FROM collab_task t 
+			  JOIN collab_task_member m  ON t.TaskSeq = m.TaskSeq 
+			  JOIN collab_user_conf u ON m.UserCode = u.UserCode  AND DeadlineAlarmUse = 'Y'
+			  JOIN sys_object_user_basegroup b ON u.UserCode = b.UserCode AND JobType = 'Origin'
+		LEFT JOIN sys_base_code trm ON  trm.CodeGroup = 'AlarmSetep1' AND trm.DomainID='0' and u.DeadlineAlarm = trm.code
+		LEFT JOIN sys_base_code rpt ON  rpt.CodeGroup = 'AlarmSetep2' AND rpt.DomainID='0' and u.RepeatAlarm = rpt.code
+			 WHERE t.TaskStatus='P' 
+			   AND t.EndDate between DATE_FORMAT(NOW(),'%Y%m%d')	   AND DATE_FORMAT(DATE_ADD(NOW(), INTERVAL 1 MONTH ),'%Y%m%d')	   	
+		  ) a
+	   WHERE AlarmStartDate<DATE_FORMAT(NOW(),'%Y%m%d') 
+	]]>		   
+   		 <if test='isSaaS == "Y"'>
+		 	 AND b.CompanyCode = #{CompanyCode}
+		 </if>
+	   
+	ORDER BY a.UserCode, a.EndDate		  
+	</select>
+</mapper>
+

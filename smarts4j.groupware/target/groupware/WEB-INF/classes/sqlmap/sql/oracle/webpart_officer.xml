@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.officer">
+
+    <!-- 임원재실 매니저 권한 유무 -->
+    <select id="selectAuthority" parameterType="cmap" resultType="cmap">		 
+		SELECT 
+			CASE 
+				WHEN (
+					SELECT count(0) 
+					FROM portal_webpart_vip_absense 
+					WHERE Secretarys LIKE '%;'||#{UserCode}||';%'
+				) > 0 THEN 'Y' 
+				ELSE 'N'
+			END AS IsManager
+		FROM DUAL
+	</select>
+	
+	
+	<!-- 임원재실 임원 리스트 Count -->
+    <select id="selectOfficerListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM PORTAL_WEBPART_VIP_ABSENSE pv
+		INNER JOIN SYS_OBJECT_USER sou on pv.UserCode = sou.UserCode 
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP soub on pv.UserCode = soub.UserCode AND JobType = 'Origin'
+		INNER JOIN SYS_BASE_CODE sbc on pv.State = sbc.Code AND sbc.CodeGroup = 'AbsenceCode'		
+		ORDER BY pv.Sort
+    </select>
+	
+	<!-- 임원재실 임원 리스트 -->
+    <select id="selectOfficerList" parameterType="cmap" resultType="cmap">		'
+		SELECT 	
+			pv.UserCode, pv.State, pv.Sort, sou.PhotoPath, pv.IsUse,	
+			FN_SECRETARYSBYLANGGET_S(#{lang}, pv.Secretarys) AS Secretarys,	
+			Fn_BaseGetDictionary_S(#{lang}, pv.MultiDisplayName) AS DisplayName,
+			Fn_BaseGetDictionary_S(#{lang}, sbc.MultiCodeName) AS StateName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiDeptName) AS DeptName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobLevelName) AS JobLevelName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobTitleName) AS JobTitleName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobPositionName) AS JobPositionName
+		FROM PORTAL_WEBPART_VIP_ABSENSE pv
+		INNER JOIN SYS_OBJECT_USER sou on pv.UserCode = sou.UserCode 
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP soub on pv.UserCode = soub.UserCode AND JobType = 'Origin'
+		INNER JOIN SYS_BASE_CODE sbc on pv.State = sbc.Code AND sbc.CodeGroup = 'AbsenceCode'
+		WHERE pv.IsUse = 'Y'
+		ORDER BY pv.Sort
+	</select>
+	
+	<!-- 임원재실 임원 어드민 리스트 -->
+    <select id="selectOfficerListAdmin" parameterType="cmap" resultType="cmap">	
+    	<include refid="oracle.include.pagingHeader"/>	
+		SELECT 	
+			pv.UserCode, pv.State, pv.Sort, sou.PhotoPath, pv.IsUse, pv.RegistDate,	
+			FN_SECRETARYSBYLANGGET_S(#{lang}, pv.Secretarys) AS Secretarys,	
+			Fn_BaseGetDictionary_S(#{lang}, pv.MultiDisplayName) AS DisplayName,
+			Fn_BaseGetDictionary_S(#{lang}, sbc.MultiCodeName) AS StateName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiDeptName) AS DeptName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobLevelName) AS JobLevelName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobTitleName) AS JobTitleName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobPositionName) AS JobPositionName
+		FROM PORTAL_WEBPART_VIP_ABSENSE pv
+		INNER JOIN SYS_OBJECT_USER sou on pv.UserCode = sou.UserCode 
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP soub on pv.UserCode = soub.UserCode AND JobType = 'Origin'
+		INNER JOIN SYS_BASE_CODE sbc on pv.State = sbc.Code AND sbc.CodeGroup = 'AbsenceCode'
+		ORDER BY pv.Sort
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<!-- 담당 임원 리스트 -->
+    <select id="selectOfficerTargetList" parameterType="cmap" resultType="cmap">			
+		SELECT 	
+			pv.UserCode,  pv.State, pv.Sort, pv.IsUse, pv.RegistDate,				
+			FN_SECRETARYSBYLANGGET_S(#{lang}, pv.Secretarys) AS Secretarys,		 
+			Fn_BaseGetDictionary_S(#{lang}, pv.MultiDisplayName) AS DisplayName,
+			Fn_BaseGetDictionary_S(#{lang}, sbc.MultiCodeName) AS StateName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiDeptName) AS DeptName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobLevelName) AS JobLevelName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobTitleName) AS JobTitleName,
+			Fn_BaseGetDictionary_S(#{lang}, soub.MultiJobPositionName) AS JobPositionName
+		FROM PORTAL_WEBPART_VIP_ABSENSE pv
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP soub on pv.UserCode = soub.UserCode AND JobType = 'Origin'
+		INNER JOIN SYS_BASE_CODE sbc on pv.State = sbc.Code AND sbc.CodeGroup = 'AbsenceCode'
+		WHERE pv.IsUse  = 'Y' 
+		AND pv.Secretarys LIKE '%;'||#{UserCode}||';%'
+		ORDER BY pv.Sort
+	</select>
+	
+	<!-- 상태값 변경 -->
+	<update id="updateOfficerState" parameterType="cmap" >
+		/* queryID = webpart.officer.updateOfficerState */
+		UPDATE 	portal_webpart_vip_absense
+		SET		State = #{State}
+				, MODIFIERCODE = #{ModifierCode}
+				, MODIFYDATE = sysdate
+		WHERE 	UserCode = #{UserCode}
+	</update>
+	
+	<!-- 사용여부 변경 -->
+	<update id="updateOfficerUse" parameterType="cmap" >
+		/* queryID = webpart.officer.updateOfficerUse */
+		UPDATE 	portal_webpart_vip_absense
+		SET		IsUse = #{IsUse}
+				, MODIFIERCODE = #{ModifierCode}
+				, MODIFYDATE = sysdate
+		WHERE 	UserCode = #{UserCode}
+	</update>
+	
+	<!-- 임원 삭제 -->
+	<delete id="deleteOfficer" parameterType="cmap">
+		DELETE FROM portal_webpart_vip_absense
+		WHERE UserCode IN
+		<foreach collection="TargetIDs" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</delete>	
+	
+	<!-- 그룹 우선순위변경을 위한 sort 가져오기-->
+	<select id="selectOfficerSort" parameterType="cmap" resultType="cmap">
+ 	    SELECT 	Sort
+ 	    FROM 	portal_webpart_vip_absense
+ 	    WHERE 	UserCode = #{TargetCode}
+ 	</select>
+ 	
+ 	<!-- 그룹 우선순위변경 -->
+	<update id="updateOfficerSort" parameterType="cmap" >
+ 		UPDATE 	portal_webpart_vip_absense
+ 		SET		Sort 	= #{TargetSortKey}
+ 		WHERE 	UserCode = #{TargetCode}
+ 	</update> 
+ 	
+ 	<!-- 임원재실 매니저 권한 유무 -->
+    <select id="selectDuplicate" parameterType="cmap" resultType="cmap">		 
+		SELECT
+			CASE 
+				WHEN (
+					SELECT count(0) 
+					FROM portal_webpart_vip_absense 
+					WHERE UserCode = #{OfficerCode}
+				) > 0 THEN 'Y' 
+				ELSE 'N' 
+			END AS IsDuplicate
+		FROM DUAL
+	</select>
+	
+	<!-- 임원 추가 -->
+	<insert id="addOfficer" parameterType="cmap" >	
+	 	INSERT INTO portal_webpart_vip_absense (
+	 		UserCode, DisplayName, MultiDisplayName, Sort, Secretarys, IsUSe, RegistDate, RegisterCode, State
+	 	)
+	 	SELECT UserCode, DisplayName, MultiDisplayName, #{Sort}, #{SecretarysCode}, #{IsUse}, sysdate, #{RegisterCode}, 'ABSENCE'
+	 	FROM SYS_OBJECT_USER
+	 	WHERE UserCode =  #{OfficerCode}
+ 	</insert> 
+ 	
+ 	<!-- 선택 임원 정보 -->
+    <select id="selectOfficerTargetInfo" parameterType="cmap" resultType="cmap">			
+		SELECT 	pv.UserCode, pv.Sort, pv.IsUse, pv.Secretarys,
+				FN_SECRETARYSBYLANGGET_S(#{lang}, pv.Secretarys) AS SecretarysName,
+				Fn_BaseGetDictionary_S(#{lang}, pv.MultiDisplayName) AS DisplayName
+		FROM portal_webpart_vip_absense pv		 
+		WHERE pv.UserCode = #{UserCode}
+	</select>
+	
+	<!-- 임원정보 변경 -->
+	<update id="updateOfficerInfo" parameterType="cmap" >
+ 		UPDATE 	portal_webpart_vip_absense
+ 		SET		Secretarys = #{SecretarysCode}, 
+ 				Sort = #{Sort}, 
+ 				IsUse = #{IsUse},
+ 				MODIFIERCODE = #{RegisterCode}, 
+ 				MODIFYDATE = SYSDATE
+ 		WHERE 	UserCode = #{OfficerCode}
+ 	</update> 
+</mapper>
+

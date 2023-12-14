@@ -1,0 +1,1164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.req">
+	<!-- 요청 테이블 -->
+	<insert id="insertAttendRequest" parameterType="cmap" useGeneratedKeys="true" keyProperty="ReqSeq">
+		INSERT INTO ATTEND_REQUEST (
+			REQSEQ
+			, COMPANYCODE
+			, REQTITLE
+			, REQTYPE
+			, REQSTATUS
+			, REQMETHOD
+			, REQDATE
+			, REQDATA
+			, REQGUBUN
+			, PROCESSID
+			, UR_CODE
+			, "Comment"
+			, INTERFACEKEYID
+			, REGISTERCODE
+			, REGISTDATE
+			, MODIFYERCODE
+			, MODIFYDATE
+		) 
+		<choose>
+			<when test="ReqTargetList != null and ReqTargetList.size > 0">
+				SELECT    ATTEND_REQUEST_SEQ.NEXTVAL
+						, A.*
+				FROM (
+					<foreach collection="ReqTargetList" item="reqTarget" separator=" UNION ALL ">
+						SELECT	  #{CompanyCode} AS COMPANYCODE
+								, #{reqTarget.ReqTitle} AS REQTITLE
+								, #{ReqType} AS REQTYPE
+								, #{ReqStatus} AS REQSTATUS
+								, #{ReqMethod} AS REQMETHOD
+								, SYSDATE AS REQDATE
+								, REPLACE(#{reqTarget.ReqDataStr},'\','') AS REQDATA
+								, #{ReqGubun} AS REQGUBUN
+								, #{ProcessId} AS PROCESSID
+								, #{reqTarget.UserCode} AS UR_CODE
+								, #{Comment} AS "Comment"
+								, #{InterfaceKeyID} AS INTERFACEKEYID
+								, #{RegisterCode} AS REGISTERCODE
+								, SYSDATE AS REGISTDATE
+								, #{RegisterCode} AS MODIFYERCODE
+								, SYSDATE AS MODIFYDATE
+						FROM DUAL
+					</foreach>
+				) A
+			</when>
+			<otherwise>
+				VALUES (
+					ATTEND_REQUEST_SEQ.NEXTVAL
+					, #{CompanyCode}
+					, #{ReqTitle}
+					, #{ReqType}
+					, #{ReqStatus}
+					, #{ReqMethod}
+					, SYSDATE
+					, REPLACE(#{ReqDataStr},'\','')
+					, #{ReqGubun}
+					, #{ProcessId}
+					, #{UserCode}
+					, #{Comment}
+					, #{InterfaceKeyID}
+					, #{UserCode}
+					, SYSDATE
+					, #{UserCode}
+					, SYSDATE
+				)
+			</otherwise>
+		</choose>
+		<selectKey keyProperty="ReqSeq" resultType="Integer" order="AFTER">
+			SELECT ATTEND_REQUEST_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+
+	<select id="getExistAttendExtensionHoliday" parameterType="cmap" resultType= "java.lang.Long">
+		<![CDATA[
+		   	SELECT COUNT(EXHOSEQ) AS ExHoSeq
+			FROM ATTEND_EXTENSIONHOLIDAY
+			WHERE JOBSTSNAME =  #{JobStsName}
+				AND NVL(APPROVALSTS,'') <> 'N'
+		]]>
+		<foreach collection="ReqData" item="item" index="index" separator="OR" open=" AND (" close=")">
+			(USERCODE = #{item.UserCode} AND JOBDATE = #{item.WorkDate} AND TO_CHAR(TO_DATE(STARTTIME, 'YYYY-MM-DD HH24:MI:SS'), 'HH24MI') = #{item.StartTime})
+		</foreach>
+	</select>
+
+	<select id="getWorkDateTime" parameterType="cmap" resultType= "cmap">
+		SELECT
+			TO_CHAR(TO_DATE((#{JobDate} || #{StartTime}), 'YYYY-MM-DDHH24MI'), 'YYYY-MM-DD HH24:MI:SS') AS "oAttDayStartTime"
+			, TO_CHAR(
+				CASE
+					WHEN #{NextDayYn} = 'Y' THEN (TO_DATE((#{JobDate} || #{EndTime}), 'YYYY-MM-DDHH24MI') + INTERVAL '1' DAY)
+					ELSE
+						CASE
+							WHEN #{EndTime} = '2400' THEN (TO_DATE((#{JobDate} || '0000'), 'YYYY-MM-DDHH24MI') + INTERVAL '1' DAY)
+							ELSE TO_DATE((#{JobDate} || #{EndTime}), 'YYYY-MM-DDHH24MI')
+						END
+			END, 'YYYY-MM-DD HH24:MI:SS') AS "oAttDayEndTime"
+		FROM DUAL
+	</select>
+	
+	<select id="getExtensionWorkDateTime" parameterType="cmap" resultType= "cmap">
+		SELECT 
+			TO_DATE(TO_CHAR(ATTDAYENDTIME, 'YYYY-MM-DD') || #{StartTime}, 'YYYY-MM-DD HH24:MI:SS') AS "oAttDayStartTime",
+			TO_DATE(TO_CHAR(ATTDAYENDTIME, 'YYYY-MM-DD') || #{EndTime}, 'YYYY-MM-DD HH24:MI:SS') AS "oAttDayEndTime"
+		FROM ATTEND_JOB 
+		WHERE USERCODE =  #{UserCode}
+		AND JOBDATE = TO_DATE((#{JobDate} || '0000'), 'YYYY-MM-DDHH24MI')
+	</select>
+	
+	<select id="getWorkTimeCheck" parameterType="cmap" resultType= "String">
+		SELECT FN_ATTEND_WORKTIMECHECK(#{UserCode}, #{JobDate}, #{StartTime}, #{EndTime}, #{CompanyCode})
+		FROM DUAL
+	</select>
+	
+	<!-- 근태 변경 이력 -->
+	<insert id="setAttModifyHistory" parameterType="cmap" > 
+		INSERT INTO ATTEND_MODIFY_HISTORY
+		(
+			TARGETDATE,
+			BEFOREATTTIME,
+			ATTTIME,
+			DIVISION,
+			REQTYPE,
+			<if test="BillName != null and BillName != ''">
+			BILLNAME,
+			</if>
+			ETC,
+			USERCODE,
+			COMPANYCODE,
+			REGISTERCODE,
+			REGISTDATE
+		)
+		SELECT TargetDate,				
+		       <if test="Division != null and Division != '' and Division == 'StartSts'">			  
+		       ATTSTARTTIME AS BEFOREATTTIME,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'EndSts'">
+		       ATTENDTIME AS BEFOREATTTIME,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'StartSts'">
+		       #{StartDate} AS ATTTIME,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'EndSts'">
+		       #{EndDate} AS ATTTIME,
+		       </if>
+		       #{Division},
+		       #{HisReqType},
+		       <if test="BillName != null and BillName != ''">
+		       #{BillName},
+		       </if>
+		       #{Etc} AS Etc,
+		       USERCODE,
+		       COMPANYCODE,
+		       #{RegUserCode} AS REGISTERCODE,
+		       SYSDATE AS REGISTDATE
+		  FROM ATTEND_COMMUTING_MST 
+		 WHERE COMMUSEQ = #{CommuSeq}
+	</insert>
+
+	<!-- 출퇴근 마스터 -->
+	<insert id="insertAttendCommutingMst" statementType="CALLABLE" parameterType= "cmap"  >
+	 	{ CALL SP_ATTEND_SETCOMMUTEBYREQUEST(
+				#{UserCode}
+				, #{CompanyCode}
+				, #{WorkDate}
+				, #{ReqType}
+				, #{ReqGubun}
+				, TO_DATE(#{oAttDayStartTime}, 'YYYY-MM-DD HH24:MI:SS')
+				, TO_DATE(#{oAttDayEndTime}, 'YYYY-MM-DD HH24:MI:SS')
+				, #{AcTime}
+				, #{IdleTime}
+				, #{Etc}
+				, #{BillName}
+				, #{ProcessId}
+				, #{FormInstId}
+				, #{ExHoSeq}
+				, #{oStartAddr}
+				, #{oStartChannel}
+				, #{oEndAddr}
+				, #{oEndChannel}
+			)
+		}
+	</insert>
+	
+	<!-- 출퇴근 마스터 전자결재 휴가용-->
+	<delete id="insertAttendCommutingMstVcation" statementType="CALLABLE" parameterType= "cmap" >
+	 	{CALL SP_ATTEND_SETCOMMUTEBYAPPVAC(#{UserCode},  #{ReqType}, #{ReqGubun}, #{ProcessId})}
+	</delete>
+
+	<!-- 연장 휴일 근무 삭제-->
+	<delete id="deleteAttendExtensionholiday" statementType="CALLABLE" parameterType= "cmap" >
+		{CALL SP_ATTEND_SETCOMMUTEBYAPPROVAL(#{UserCode},#{ReqType}, #{ReqGubun}, #{orgProcessId})}
+	</delete>
+
+	<select id="getExistAttendJobHistory" parameterType="cmap"  resultType= "java.lang.Long">
+		SELECT COUNT(JOBSTSSEQ) AS "JobStsSeq"
+		FROM ATTEND_JOB_HISTORY
+		WHERE 1 = 1
+		 <foreach collection="ReqData" item="item" index="index" separator="OR" open=" AND  (" close=")">
+			 (USERCODE = #{item.UserCode} AND JOBDATE = #{item.WorkDate} AND #{item.StartTime} BETWEEN STARTTIME AND ENDTIME)
+		 </foreach>
+	</select>
+	
+	<!-- 근무상태 -->
+	<insert id="insertAttendJobHistory" parameterType="cmap">
+		INSERT INTO ATTEND_JOB_HISTORY (
+			JOBSTSHISSEQ, JOBSTSSEQ, USERCODE, JOBDATE, JOBSTSNAME, ETC, STARTTIME, ENDTIME
+			, BILLNAME, PROCESSID, FORMID, FORMPATH
+			, COMPANYCODE, REGISTERCODE, REGISTDATE, MODIFYERCODE, MODIFYDATE
+		) VALUES (
+			ATTEND_JOB_HISTORY_SEQ.NEXTVAL, #{JobStsSeq}, #{UserCode}, #{JobDate}, #{JobStsName}, #{Etc}, #{StartTime}, #{EndTime}
+			, #{BillName}, #{ProcessId}, #{FormId}, #{FormPath}
+			, #{CompanyCode}, #{RegisterCode}, SYSDATE, #{RegisterCode}, SYSDATE
+		)
+	</insert> 
+
+	<delete id="deleteAttendJobHistory" parameterType="cmap">
+		DELETE FROM ATTEND_JOB_HISTORY
+		WHERE 
+		<choose>
+			<when test='orgProcessId != null and orgProcessId != ""'>
+				PROCESSID = #{orgProcessId}
+		    </when> 
+        	<otherwise>
+				JOBSTSHISSEQ = #{JobStsHisSeq}
+            </otherwise>
+		</choose>    
+	</delete> 
+
+	<select id="getVacationInfo" parameterType="cmap" resultType= "cmap">
+		/* attend.req.getVacationInfo */
+		SELECT
+		CAST(NVL(PVACDAY,0.0)+NVL(EVACDAY,0.0) AS FLOAT )AS "VacDay"
+		, CAST(NVL(PUseVacDay,0.0)+NVL(EUseVacDay,0.0) AS FLOAT ) AS "UseDays"
+		, CAST((NVL(PVACDAY,0.0)+NVL(EVACDAY,0.0))-(NVL(PUseVacDay,0.0)+NVL(EUseVacDay,0.0)) AS FLOAT ) AS "ATot"
+		<!-- , CAST(NVL(RVACDAY,0.0) AS FLOAT ) AS "RewardVacDay"
+		, CAST(NVL(RVACDAY,0.0) AS FLOAT ) AS "RewardUseDays"
+		, CAST(NVL(RVACDAY,0.0)-NVL(0,0.0) AS FLOAT ) AS "RewardATot"-->
+		, CAST(NVL(NUseVacDay,0.0) AS FLOAT ) AS "DaysNext"
+		, CAST(NVL(DayReq,0.0) AS FLOAT ) AS "DaysReq"
+		, CAST(NVL(DayScan,0.0) AS FLOAT ) AS "DayScan"
+		,(SELECT case when Reserved1 = '+' then CASE WHEN Reserved3 = '' OR Reserved3 is null THEN 1 ELSE NVL(TO_NUMBER(Reserved3),1) END ELSE 0 end
+			FROM SYS_BASE_CODE bc  WHERE 	 bc.DomainID =(SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode}	) AND  CodeGroup = 'VACATION_TYPE'   	AND IsUse ='Y' AND Code =#{VacFlag}) "UnitDay"
+		FROM (
+			select UserCode
+			, EnterDate
+			, MultiDisplayName
+			, RetireDate
+			, SortKey
+			, TargetYear
+			, Sdate
+			, Edate
+			, PVACDAY
+			, EVACDAY
+			, RVACDAY
+			, (
+				SELECT  SUM(VacDay) AS PUseVacDay
+				FROM
+					(SELECT B.Code
+						, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+								Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+							ELSE
+								B.CodeName
+							END   AS CodeName
+						, A.Code as GroupCode
+						, B.Reserved1
+					FROM (select *
+							from sys_base_code
+							WHERE IsUse = 'Y'
+							AND DomainID = 0
+							AND CodeGroup = 'VACATION_KIND'
+					) A,
+					sys_base_code B
+					WHERE A.CodeID = B.ReservedInt
+					AND B.IsUse = 'Y'
+					AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+					AND B.Reserved1 = '+'
+					<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+					AND A.Code = 'PUBLIC'
+				)  C
+				LEFT JOIN VM_VACATIONINFO VI ON  VI.VacFlag = C.Code
+				WHERE VI.UR_Code = T.UserCode
+				AND TO_DATE(VI.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+				AND TO_DATE(VI.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+			) AS PUseVacDay
+			,(
+				SELECT SUM(VacDay)
+				FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+						FROM (select *
+						from sys_base_code
+						WHERE IsUse = 'Y'
+						AND DomainID = 0
+						AND Code = 'EXTRA'
+						AND CodeGroup = 'VACATION_KIND'
+						) A,
+						sys_base_code B
+						WHERE A.CodeID = B.ReservedInt
+						AND B.IsUse = 'Y'
+						AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+						AND B.Reserved1 = '+'
+				)  C
+				LEFT JOIN VM_VACATIONINFO VE
+				ON  VE.VacFlag = C.Code
+				WHERE  VE.UR_Code = T.UserCode
+				AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+				AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+			) AS EUseVacDay
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		AND B.Reserved2 = '1'
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS NUseVacDay
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS DayReq
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN IN('VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS DayScan
+		FROM
+		(select U.UserCode
+				, EnterDate
+				, MultiDisplayName
+				, RetireDate
+				, SortKey
+				, TargetYear
+				, Sdate
+				, Edate
+				, ( SELECT NVL(SUM(VacDay), 0)
+					FROM VM_VACATIONPLAN
+					WHERE VacKind = 'PUBLIC'
+					AND UR_Code = U.UserCode
+					AND YEAR = U.TargetYear
+				) AS PVACDAY
+				, ( SELECT NVL(SUM(VacDay), 0)
+					FROM VM_VACATIONPLAN
+					WHERE VacKind = 'VACATION_REWARD'
+					AND UR_Code = U.UserCode
+					AND TO_DATE(UseStartDate,'YYYYMMDD')  <![CDATA[>=]]>  TO_DATE(U.Sdate,'YYYYMMDD')
+					AND TO_DATE(UseEndDate,'YYYYMMDD')  <![CDATA[<=]]>  TO_DATE(U.Edate,'YYYYMMDD')
+				) AS RVACDAY
+				, (
+					SELECT NVL(SUM(V.VacDay), 0)
+					FROM VM_VACATIONPLAN V
+						, (select BA.Code, BA.ReservedInt, BA.CodeGroup, BB.Code as VacKindCode, BA.Reserved1
+                              from
+                                  (select *
+                                  from sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = (SELECT DomainID FROM sys_object_domain WHERE DomainCode = #{CompanyCode})
+                                  and CodeGroup = 'VACATION_TYPE') BA,
+
+                                  (select *
+								  from sys_base_code
+								  where IsUse = 'Y'
+								  and DomainID = '0'
+								  and CodeGroup = 'VACATION_KIND') BB
+							  where BA.ReservedInt = BB.CodeID
+								AND BA.Reserved1 = '+'
+								AND BB.Code = 'EXTRA'
+						  ) B
+						WHERE V.VacKind  <![CDATA[<>]]>  'PUBLIC'
+						AND V.VacKind = B.Code
+						AND V.UR_Code = U.UserCode
+						AND TO_DATE(V.UseStartDate,'YYYYMMDD')  <![CDATA[>=]]>  TO_DATE(U.Sdate,'YYYYMMDD')
+						AND TO_DATE(V.UseEndDate,'YYYYMMDD')  <![CDATA[<=]]>  TO_DATE(U.Edate,'YYYYMMDD')
+				) AS EVACDAY
+				From
+				(select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+						,TargetYear
+						,CASE WHEN  CreateMethod = 'J' THEN
+								TO_NUMBER(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')))
+							ELSE TO_NUMBER(TO_CHAR(TO_DATE(TargetYear||'0101','YYYYMMDD'),'YYYYMMDD')) 
+							END as Sdate
+						,CASE WHEN  CreateMethod = 'J' THEN
+								TO_NUMBER(TO_CHAR(ADD_MONTHS(TO_DATE(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD'), 12)-1,'YYYYMMDD'))
+							ELSE TO_NUMBER(TO_CHAR(TO_DATE(TargetYear||'1231','YYYYMMDD'),'YYYYMMDD')) 
+							END as Edate
+						from(
+							select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey, CreateMethod
+								,CASE WHEN  CFG.CreateMethod = 'J' THEN
+									CASE WHEN TO_DATE(CONCAT(#{VacYear},TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD') <![CDATA[<]]> TO_DATE(CONCAT(#{VacYear},TO_CHAR(SYSDATE,'MMDD')),'YYYYMMDD') THEN
+										EXTRACT(YEAR FROM TO_DATE(CONCAT(#{VacYear},'0101'),'YYYYMMDD'))
+									ELSE
+										EXTRACT(YEAR FROM ADD_MONTHS(TO_DATE(CONCAT(#{VacYear},'0101'),'YYYYMMDD'), -12 ))
+									END
+								ELSE
+									EXTRACT(YEAR FROM TO_DATE(CONCAT(#{VacYear},'0101'),'YYYYMMDD'))
+								END AS TargetYear
+							from sys_object_user U
+								, vm_config CFG
+							where U.UserCode = #{UserCode}
+							and U.ENTERDATE is not null
+							and CFG.CompanyCode = #{CompanyCode}
+						) a
+				) U
+			)T
+		) U
+	</select>
+
+	<select id="getVacationInfoV2" parameterType="cmap" resultType= "cmap">
+		/* attend.req.getVacationInfoV2 */
+		/* attend.req.getVacationInfoV2 */
+		SELECT
+		CAST(NVL(PVACDAY,0.0)+NVL(EVACDAY,0.0) AS FLOAT )AS "VacDay"
+		, CAST(NVL(PUseVacDay,0.0)+NVL(EUseVacDay,0.0) AS FLOAT ) AS "UseDays"
+		, CAST((NVL(PVACDAY,0.0)+NVL(EVACDAY,0.0))-(NVL(PUseVacDay,0.0)+NVL(EUseVacDay,0.0)) AS FLOAT ) AS "ATot"
+		<!-- , CAST(NVL(RVACDAY,0.0) AS FLOAT ) AS "RewardVacDay"
+		, CAST(NVL(RVACDAY,0.0) AS FLOAT ) AS "RewardUseDays"
+		, CAST(NVL(RVACDAY,0.0)-NVL(0,0.0) AS FLOAT ) AS "RewardATot"-->
+		, CAST(NVL(NUseVacDay,0.0) AS FLOAT ) AS "DaysNext"
+		, CAST(NVL(DayReq,0.0) AS FLOAT ) AS "DaysReq"
+		, CAST(NVL(DayScan,0.0) AS FLOAT ) AS "DayScan"
+		,(SELECT case when Reserved1 = '+' then CASE WHEN Reserved3 = '' OR Reserved3 is null THEN 1 ELSE NVL(TO_NUMBER(Reserved3),1) END ELSE 0 end
+			FROM SYS_BASE_CODE bc  WHERE 	 bc.DomainID =(SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode}	) AND  CodeGroup = 'VACATION_TYPE'   	AND IsUse ='Y' AND Code =#{VacFlag}) "UnitDay"
+		FROM (
+			select UserCode
+			, EnterDate
+			, MultiDisplayName
+			, RetireDate
+			, SortKey
+			, TargetYear
+			, Sdate
+			, Edate
+			, PVACDAY
+			, EVACDAY
+			, RVACDAY
+			, (
+				SELECT  SUM(VacDay) AS PUseVacDay
+				FROM
+					(SELECT B.Code
+						, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+								Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+							ELSE
+								B.CodeName
+							END   AS CodeName
+						, A.Code as GroupCode
+						, B.Reserved1
+					FROM (select *
+							from sys_base_code
+							WHERE IsUse = 'Y'
+							AND DomainID = 0
+							AND CodeGroup = 'VACATION_KIND'
+					) A,
+					sys_base_code B
+					WHERE A.CodeID = B.ReservedInt
+					AND B.IsUse = 'Y'
+					AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+					AND B.Reserved1 = '+'
+					<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+					AND A.Code = 'PUBLIC'
+				)  C
+				LEFT JOIN VM_VACATIONINFO VI ON  VI.VacFlag = C.Code
+				WHERE VI.UR_Code = T.UserCode
+				AND TO_DATE(VI.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+				AND TO_DATE(VI.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+			) AS PUseVacDay
+			,(
+				SELECT SUM(VacDay)
+				FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+						FROM (select *
+						from sys_base_code
+						WHERE IsUse = 'Y'
+						AND DomainID = 0
+						AND Code = 'EXTRA'
+						AND CodeGroup = 'VACATION_KIND'
+						) A,
+						sys_base_code B
+						WHERE A.CodeID = B.ReservedInt
+						AND B.IsUse = 'Y'
+						AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+						AND B.Reserved1 = '+'
+				)  C
+				LEFT JOIN VM_VACATIONINFO VE
+				ON  VE.VacFlag = C.Code
+				WHERE  VE.UR_Code = T.UserCode
+				AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+				AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+			) AS EUseVacDay
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		AND B.Reserved2 = '1'
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS NUseVacDay
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS DayReq
+		,(
+		SELECT SUM(VacDay)
+		FROM  (SELECT B.Code
+		, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+		Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+		ELSE
+		B.CodeName
+		END   AS CodeName
+		, A.Code as GroupCode
+		, B.Reserved1
+		FROM (select *
+		from sys_base_code
+		WHERE IsUse = 'Y'
+		AND DomainID = 0
+		AND CodeGroup = 'VACATION_KIND'
+		) A,
+		sys_base_code B
+		WHERE A.CodeID = B.ReservedInt
+		AND B.IsUse = 'Y'
+		AND B.DomainID = (SELECT DomainID FROM  sys_object_domain WHERE DomainCode = #{CompanyCode})
+		AND B.Reserved1 = '+'
+		<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+		)  C
+		LEFT JOIN VM_VACATIONINFO VE
+		ON  VE.VacFlag = C.Code AND VE.GUBUN IN('VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+		WHERE  VE.UR_Code = T.UserCode
+		AND TO_DATE(VE.Sdate,'YYYY-MM-DD') <![CDATA[>=]]> TO_DATE(T.Sdate,'YYYYMMDD')
+		AND TO_DATE(VE.Edate,'YYYY-MM-DD') <![CDATA[<=]]> TO_DATE(T.Edate,'YYYYMMDD')
+		) AS DayScan
+		FROM
+		(select U.UserCode
+				, EnterDate
+				, MultiDisplayName
+				, RetireDate
+				, SortKey
+				, TargetYear
+				, Sdate
+				, Edate
+				, ( SELECT NVL(SUM(VacDay), 0)
+					FROM VM_VACATIONPLAN
+					WHERE VacKind = 'PUBLIC'
+					AND UR_Code = U.UserCode
+					AND YEAR = U.TargetYear
+				) AS PVACDAY
+				, ( SELECT NVL(SUM(VacDay), 0)
+					FROM VM_VACATIONPLAN
+					WHERE VacKind = 'VACATION_REWARD'
+					AND UR_Code = U.UserCode
+					AND TO_DATE(UseStartDate,'YYYYMMDD')  <![CDATA[>=]]>  TO_DATE(U.Sdate,'YYYYMMDD')
+					AND TO_DATE(UseEndDate,'YYYYMMDD')  <![CDATA[<=]]>  TO_DATE(U.Edate,'YYYYMMDD')
+				) AS RVACDAY
+				, (
+					SELECT NVL(SUM(V.VacDay), 0)
+					FROM VM_VACATIONPLAN V
+						, (select BA.Code, BA.ReservedInt, BA.CodeGroup, BB.Code as VacKindCode, BA.Reserved1
+                              from
+                                  (select *
+                                  from sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = (SELECT DomainID FROM sys_object_domain WHERE DomainCode = #{CompanyCode})
+                                  and CodeGroup = 'VACATION_TYPE') BA,
+
+                                  (select *
+								  from sys_base_code
+								  where IsUse = 'Y'
+								  and DomainID = '0'
+								  and CodeGroup = 'VACATION_KIND') BB
+							  where BA.ReservedInt = BB.CodeID
+								AND BA.Reserved1 = '+'
+								AND BB.Code = 'EXTRA'
+						  ) B
+						WHERE V.VacKind  <![CDATA[<>]]>  'PUBLIC'
+						AND V.VacKind = B.Code
+						AND V.UR_Code = U.UserCode
+						AND TO_DATE(V.UseStartDate,'YYYYMMDD')  <![CDATA[>=]]>  TO_DATE(U.Sdate,'YYYYMMDD')
+						AND TO_DATE(V.UseEndDate,'YYYYMMDD')  <![CDATA[<=]]>  TO_DATE(U.Edate,'YYYYMMDD')
+				) AS EVACDAY
+				From
+				(select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+						,TargetYear
+						,TO_NUMBER(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD'))) as Sdate
+						,TO_NUMBER(TO_CHAR(ADD_MONTHS(TO_DATE(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD'), 12)-1,'YYYYMMDD')) as Edate
+						from(
+							select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+								, CASE WHEN TO_DATE(CONCAT(#{VacYear},TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD') <![CDATA[<]]> TO_DATE(CONCAT(#{VacYear},TO_CHAR(SYSDATE,'MMDD')),'YYYYMMDD') THEN
+										EXTRACT(YEAR FROM TO_DATE(CONCAT(#{VacYear},'0101'),'YYYYMMDD'))
+									ELSE
+										EXTRACT(YEAR FROM ADD_MONTHS(TO_DATE(CONCAT(#{VacYear},'0101'),'YYYYMMDD'), -12 ))
+									END AS TargetYear
+							from sys_object_user
+							where UserCode = #{UserCode}
+							and ENTERDATE is not null
+						) a
+				) U
+			)T
+		) U
+	</select>
+	
+	<select id="getExistAttendVacation" parameterType="cmap"   resultType= "java.lang.Long">	
+		SELECT NVL(SUM(VacDay),0) as "CntVacDay"
+		FROM VM_VACATIONINFO
+		WHERE 1=1
+		AND UR_CODE IN
+		<foreach collection="ReqData" item="item" index="index" open="(" close=")" separator=",">
+			#{item.UserCode}
+		</foreach>
+		<foreach collection="ReqData" item="item" index="index" separator="OR" open="AND (" close=")">
+			#{item.WorkDate} BETWEEN SDATE AND EDATE
+		</foreach>
+	</select>
+	
+	<insert id="insertVacationInfo" parameterType="cmap" useGeneratedKeys="true" keyProperty="vacationInfoID">
+		INSERT INTO VM_VACATIONINFO (
+			VACATIONINFOID
+			, VACYEAR
+			, UR_CODE
+			, UR_NAME
+			, VACFLAG
+			, SDATE
+			, EDATE
+			, VACDAY
+			, REASON
+			, APPDATE
+			, ENDDATE
+			, WORKITEMID
+			, PROCESSID
+			, GUBUN
+			, DEPUTY_NAME
+			, DEPUTY_CODE
+			, VACOFFFLAG
+		) 
+		(
+			SELECT
+				VM_VACATIONINFO_SEQ.NEXTVAL
+				, #{VacYear}
+				, #{UserCode}
+				, #{UrName}
+				, #{VacFlag}
+				, #{SDate}
+				, #{EDate}
+				, cast(cast(NVL(RESERVED3,0) as DECIMAL(9,3)) as float)
+				, #{Reason}
+				, #{AppDate}
+				, #{EndDate}
+				, #{WorkItemID}
+				, #{ProcessId}
+				, #{Gubun}
+				, #{DeputyName}
+				, #{DeputyCode}
+				, #{VacOffFlag}
+			FROM SYS_BASE_CODE
+			WHERE CODEGROUP = 'VACATION_TYPE' AND CODE = #{VacFlag}
+			AND DOMAINID = (SELECT DOMAINID FROM SYS_OBJECT_DOMAIN WHERE DOMAINCODE = #{CompanyCode})
+		)
+		<selectKey keyProperty="vacationInfoID" resultType="Integer" order="AFTER">
+			SELECT VM_VACATIONINFO_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>   
+	
+	<insert id="insertVacationInfoApp" parameterType="cmap" useGeneratedKeys="true" keyProperty="vacationInfoID">
+		INSERT INTO VM_VACATIONINFO (
+			VACATIONINFOID
+			, VACYEAR
+			, UR_CODE
+			, UR_NAME
+			, VACFLAG
+			, SDATE
+			, EDATE
+			, VACDAY
+			, REASON
+			, APPDATE
+			, ENDDATE
+			, WORKITEMID
+			, PROCESSID
+			, GUBUN
+			, DEPUTY_NAME
+			, DEPUTY_CODE
+			, VACOFFFLAG
+		) VALUES (
+			VM_VACATIONINFO_SEQ.NEXTVAL
+			, #{VacYear}
+			, #{UserCode}
+			, #{UrName}
+			, #{VacFlag}
+			, #{SDate}
+			, #{EDate}
+			, #{VacDay}
+			, #{Reason}
+			, TO_DATE(#{AppDate}, 'YYYY-MM-DD HH24:MI:SS')
+			, #{EndDate}
+			, #{WorkItemId}
+			, #{ProcessId}
+			, #{Gubun}
+			, #{DeputyName}
+			, #{DeputyCode}
+			, #{VacOffFlag}
+		)
+		
+		<selectKey keyProperty="vacationInfoID" resultType="Integer" order="AFTER">
+		    SELECT VM_VACATIONINFO_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>   
+	
+	<select id="selectFormInstData" parameterType="cmap" resultType="cmap">
+		SELECT
+			FORMINSTID AS "FormInstID"
+			, SUBJECT AS "Subject"
+			, BODYCONTEXT AS "BodyContext"
+		FROM JWF_FORMINSTANCE
+		WHERE FORMINSTID = #{FormInstID}
+	</select>
+	
+	<update id= "usp_form_UpdateBodyContext" parameterType="cmap" >
+       <![CDATA[
+			UPDATE JWF_FORMINSTANCE
+			SET BODYCONTEXT = #{BODYCONTEXT}
+			WHERE FORMINSTID = #{FIID}
+	   ]]>
+    </update>
+	
+	<select id="selectVacationProcess" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT count('x') as count
+			FROM vm_vacationinfo_process
+		   WHERE FormInstID = #{FormInstID}
+	</select>
+	
+	<insert id="insertVacationProcess" parameterType="cmap">	
+		INSERT INTO vm_vacationinfo_process (VacYear, UR_Code, UR_Name, 
+		  									 Gubun, VacFlag, Sdate, Edate, VacDay, 
+		  									 Reason, APPDATE, 
+		  									 WorkItemID, FormInstID, 
+		  									 ProcessID, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag,
+		  									 STARTTIME, ENDTIME
+		  						   			)
+	    VALUES (#{VacYear}, #{UserCode}, #{UrName},
+	    		#{Gubun}, #{VacFlag}, #{SDate}, #{EDate}, #{VacDay},
+	    		#{Reason}, TO_CHAR(TO_DATE(#{AppDate}, 'YYYY-MM-DD HH24:MI:SS')), 
+	    		#{WorkItemId}, #{FormInstID},
+	    		#{ProcessId}, #{DeputyName}, #{DeputyCode}, #{VacOffFlag},
+	    		#{STime}, #{ETime}
+	    	   )
+	</insert> 
+	
+	<delete id="deleteVacationProcess" parameterType="cmap">	
+		DELETE FROM vm_vacationinfo_process WHERE FormInstID = #{FormInstID}
+	</delete>
+	
+	<insert id="insertVacationInfoDayApp" parameterType="cmap">
+		INSERT INTO vm_vacationinfo_day
+		( UR_Code, VacFlag, VacOffFlag, VacDate, Gubun, StartTime, EndTime, VacDay , VacationInfoID)
+		SELECT #{UserCode}, #{VacFlag}, #{VacOffFlag}, SolarDate, #{Gubun}, #{STime}, #{ETime}, trunc(#{VacDay}/count(SolarDate) over(),3), #{VacationInfoID}
+		FROM sys_calendar 
+		WHERE SolarDate BETWEEN #{SDate} AND #{EDate}
+		AND SolarDate NOT IN (SELECT TB.DAYLIST
+							  FROM (SELECT CAL.DAYLIST
+										, CAL.WEEKNUM
+										, AJ.JOBDATE
+										, AJ.WORKSTS
+										, HOL.HOLIDAYSTART
+										, CASE WHEN AJ.WORKSTS IS NULL AND HOL.HOLIDAYSTART IS NOT NULL THEN 'H'
+											   WHEN AJ.WORKSTS IS NULL AND HOL.HOLIDAYSTART IS NULL AND (CAL.WEEKNUM = '5' OR CAL.WEEKNUM = '6') THEN 'H'
+											   WHEN (AJ.WORKSTS = 'HOL' OR AJ.WORKSTS = 'OFF') THEN 'H' 
+											   ELSE 'O' END AS HOLIDAYFLAG			   
+								  FROM (SELECT TO_CHAR(DAYLIST, 'YYYY-MM-DD') DAYLIST, WEEKD AS WEEKNUM
+										  FROM ATTEND_DAYLIST
+										 WHERE DAYLIST BETWEEN TO_DATE(#{SDate}, 'YYYY-MM-DD') AND TO_DATE(#{EDate}, 'YYYY-MM-DD')) CAL				
+										LEFT JOIN 		
+										(SELECT TO_CHAR(JOBDATE, 'YYYY-MM-DD') AS JOBDATE, WORKSTS
+										 FROM ATTEND_JOB
+										 WHERE USERCODE = #{UserCode}) AJ
+										 ON CAL.DAYLIST = AJ.JOBDATE
+										LEFT JOIN 
+										(SELECT TO_CHAR(HOLIDAYSTART, 'YYYY-MM-DD') AS HOLIDAYSTART, HOLIDAYNAME	
+										 FROM ATTEND_HOLIDAY_SCHEDULE
+										 WHERE COMPANYCODE = #{CompanyCode}
+										 AND TO_CHAR(HOLIDAYSTART, 'YYYY') BETWEEN TO_CHAR(TO_DATE(#{SDate}, 'YYYY-MM-DD'), 'YYYY') AND TO_CHAR(TO_DATE(#{EDate}, 'YYYY-MM-DD'), 'YYYY')) HOL
+										 ON CAL.DAYLIST = HOL.HolidayStart) TB
+							WHERE TB.HOLIDAYFLAG = 'H')
+		GROUP BY SolarDate
+	</insert>
+	
+	<delete id="deleteVacationInfoDayApp" parameterType="cmap">
+		DELETE FROM vm_vacationinfo_day 
+		WHERE
+		UR_Code = #{UserCode}
+		AND VacFlag = #{VacFlag}
+		AND VacOffFlag = #{VacOffFlag}
+		AND VacDate between #{SDate} and #{EDate}
+		<if test='VacDay != null and VacDay != ""'>
+			AND VacDay = #{VacDay}
+		</if>
+		<if test="STime != null and STime != ''">
+			AND StartTime = #{STime}
+		</if>
+		<if test="ETime != null and ETime != ''">
+			AND EndTime = #{ETime}
+		</if>
+	</delete>
+
+	<delete id="deleteVacationInfoDayAppById" parameterType="cmap">
+		delete from vm_vacationinfo_day
+		where VACATIONINFOID=#{processId}
+	</delete>
+
+	<!-- 휴일대체근무 처리 -->
+	<!-- job 정보 -->
+	<select id="selectAttendMngJobInfo" parameterType="cmap" resultType="cmap">
+		SELECT SCHSEQ AS "SchSeq"
+			, WORKSTS AS "WorkSts"
+			, TO_CHAR(ATTDAYSTARTTIME, 'HH24:MI:SS') AS "AttDayStartTime"
+			, TO_CHAR(ATTDAYENDTIME, 'HH24:MI:SS') AS "AttDayEndTime"
+			, NVL(NEXTDAYYN, 'N') AS "NextDayYn"
+			, NVL(CONFMYN, 'N') AS "ConfmYn"
+			, ATTDAYAC AS "AttDayAC"
+			, ATTDAYIDLE AS "AttDayIdle"
+			, WORKTIME AS "WorkTime"
+			, WORKCODE AS "WorkCode"
+			, UNITTERM AS "UnitTerm"
+			, WORKAPPLYDATE AS "WorkApplyDate"
+			, MAXWORKTIME AS "MaxWorkTime"
+			, MAXWORKCODE AS "MaxWorkCode"
+			, MAXUNITTERM AS "MaxUnitTerm"
+			, MAXWORKAPPLYDATE AS "MaxWorkApplyDate"
+			, ASSYN AS "AssYn"
+			, ASSSEQ AS "AssSeq"
+			, WORKZONE AS "WorkZone"
+			, WORKADDR AS "WorkAddr"
+			, WORKPOINTX AS "WorkPointX"
+			, WORKPOINTY AS "WorkPointY"
+			, ALLOWRADIUS AS "AllowRadius"
+			, STARTZONE AS "StartZone"
+			, STARTADDR AS "StartAddr"
+			, STARTPOINTX AS "StartPointX"
+			, STARTPOINTY AS "StartPointY"
+			, ENDZONE AS "EndZone"
+			, ENDADDR AS "EndAddr"
+			, ENDPOINTX AS "EndPointX"
+			, ENDPOINTY AS "EndPointY"
+			, ETC AS "Etc"
+		FROM ATTEND_JOB
+		WHERE JOBDATE = #{SelectDate}
+			AND USERCODE =#{UserCode}
+			AND COMPANYCODE = #{CompanyCode}
+	</select>
+
+	<!-- job 수정 -->
+	<update id="updateAttendMngJob" parameterType="cmap" >
+		UPDATE ATTEND_JOB
+		SET SCHSEQ = #{SchSeq}
+			, USERCODE = #{UserCode}
+			, JOBDATE = #{JobDate}
+			, COMPANYCODE = #{CompanyCode}
+			, WORKSTS = #{WorkSts}
+		<choose>
+			<when test='WorkSts eq "OFF" or WorkSts eq "HOL"'>
+				, ATTDAYSTARTTIME = NULL
+				, ATTDAYENDTIME = NULL
+			</when>
+			<otherwise>
+				, ATTDAYSTARTTIME = TO_DATE(#{JobDate}||' '||#{AttDayStartTime},'YYYY-MM-DD HH24:MI:SS')
+				, ATTDAYENDTIME = TO_DATE(#{JobDate}||' '||#{AttDayStartTime},'YYYY-MM-DD HH24:MI:SS')
+			</otherwise>
+		</choose>
+			, NEXTDAYYN = #{NextDayYn}
+			, CONFMYN = #{ConfmYn}
+			, ATTDAYAC = #{AttDayAC}
+			, ATTDAYIDLE = #{AttDayIdle}
+			, WORKTIME = #{WorkTime}
+			, WORKCODE = #{WorkCode}
+			, UNITTERM = #{UnitTerm}
+			, WORKAPPLYDATE = #{WorkApplyDate}
+			, MAXWORKTIME = #{MaxWorkTime}
+			, MAXWORKCODE = #{MaxWorkCode}
+			, MAXUNITTERM = #{MaxUnitTerm}
+			, MAXWORKAPPLYDATE = #{MaxWorkApplyDate}
+			, ASSYN = #{AssYn}
+			, ASSSEQ = #{AssSeq}
+			, WORKZONE = #{WorkZone}
+			, WORKADDR = #{WorkAddr}
+			, WORKPOINTX = #{WorkPointX}
+			, WORKPOINTY = #{WorkPointY}
+			, ALLOWRADIUS = #{AllowRadius}
+			, STARTZONE = #{StartZone}
+			, STARTADDR = #{StartAddr}
+			, STARTPOINTX = #{StartPointX}
+			, STARTPOINTY = #{StartPointY}
+			, ENDZONE = #{EndZone}
+			, ENDADDR = #{EndAddr}
+			, ENDPOINTX = #{EndPointX}
+			, ENDPOINTY = #{EndPointY}
+			, ETC = #{Etc}
+			, MODIFYERCODE = 'SYSTEM'
+			, MODIFYDATE = SYSDATE
+		WHERE JOBDATE = #{JobDate}
+			AND USERCODE = #{UserCode}
+			AND COMPANYCODE = #{CompanyCode}
+	</update>
+	
+	<select id="getUsedVacList" parameterType="cmap" resultType="cmap">
+		<if test="rowStart != null and rowStart != 0 and rowEnd != null and rowEnd != 0">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	  A.UserCode AS "UserCode"
+				, A.DisplayName AS "DisplayName"
+				, C.DeptName AS "DeptName"
+				, A.VacDay AS "VacDay"
+				, A.UseDays AS "UseDays"
+				, A.ATot AS "ATot"
+		FROM (
+			SELECT	  NVL(SUM(VACDAY), 0) AS VacDay
+					, NVL(SUM(DAYSREQ) + SUM(DAYSCAN), 1) AS UseDays
+					, NVL(SUM(VACDAY) - (SUM(DAYSREQ) + SUM(DAYSCAN)) - SUM(DAYSNEXT), 0) AS ATot
+					, A.UserCode
+					, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+			FROM (
+				<foreach collection="UserCodeList" item="UserCode" separator=" UNION ALL ">
+					SELECT
+						YEAR
+						, UR_CODE AS UserCode
+						, TO_NUMBER(TO_CHAR(NVL(VACDAY, 0), 'FM990.0')) AS VACDAY
+						, TO_NUMBER(TO_CHAR(NVL(REWARDVACDAY, 0), 'FM990.0')) AS REWARDVACDAY
+						, 0 AS DAYSREQ
+						, 0 AS DAYSCAN
+						, 0 AS DAYSNEXT
+						, 0 AS DAYSREWARD
+					FROM VM_VACATIONPLAN
+					WHERE YEAR = #{VacYear}
+						AND UR_CODE = #{UserCode}
+					UNION ALL
+					SELECT
+						VI.VACYEAR AS YEAR
+						, VI.UR_CODE AS UserCode
+						, 0 AS VACDAY
+						, 0 AS REWARDVACDAY
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND (RESERVED2 IS NULL OR RESERVED2 = '') THEN VACDAY END), 0) AS DAYSREQ
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') AND (RESERVED2 IS NULL OR RESERVED2 = '') THEN VACDAY END), 0) AS DAYSCAN
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND RESERVED2 = '1' THEN VACDAY END), 0) AS DAYSNEXT
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND RESERVED2 = '2' THEN VACDAY END), 0) AS DAYSREWARD
+					FROM VM_VACATIONINFO VI
+						JOIN SYS_BASE_CODE BC
+							ON BC.DomainID = (SELECT DomainID FROM SYS_OBJECT_DOMAIN WHERE DomainCode = #{CompanyCode}) AND CODEGROUP = 'VACATION_TYPE' AND ISUSE = 'Y' AND RESERVED1 = '+' AND VACFLAG = BC.CODE
+					WHERE VI.VACYEAR = #{VacYear}
+						AND VI.UR_CODE = #{UserCode}
+					GROUP BY VI.VACYEAR, VI.UR_CODE
+				</foreach>
+			) A
+			JOIN SYS_OBJECT_USER B ON A.UserCode = B.UserCode
+			GROUP BY A.UserCode, B.MultiDisplayName
+		) A
+		JOIN SYS_OBJECT_USER_BASEGROUP C ON C.UserCode = A.UserCode AND C.JobType = 'Origin'
+		WHERE A.ATot <![CDATA[<=]]> 0
+		<trim prefix="ORDER BY" prefixOverrides=",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection == ''">
+				DisplayName ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("Atot")'>Atot</when>
+					<otherwise>DisplayName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="rowStart != null and rowStart != 0 and rowEnd != null and rowEnd != 0">
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+	</select>
+	
+	<select id="getUsedVacListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM (
+			SELECT	  NVL(SUM(VACDAY), 0) AS VacDay
+					, NVL(SUM(DAYSREQ) + SUM(DAYSCAN), 1) AS UseDays
+					, NVL(SUM(VACDAY) - (SUM(DAYSREQ) + SUM(DAYSCAN)) - SUM(DAYSNEXT), 0) AS ATot
+					, A.UserCode
+			FROM (
+				<foreach collection="UserCodeList" item="UserCode" separator=" UNION ALL ">
+					SELECT
+						YEAR
+						, UR_CODE AS UserCode
+						, TO_NUMBER(TO_CHAR(NVL(VACDAY, 0), 'FM990.0')) AS VACDAY
+						, TO_NUMBER(TO_CHAR(NVL(REWARDVACDAY, 0), 'FM990.0')) AS REWARDVACDAY
+						, 0 AS DAYSREQ
+						, 0 AS DAYSCAN
+						, 0 AS DAYSNEXT
+						, 0 AS DAYSREWARD
+					FROM VM_VACATIONPLAN
+					WHERE YEAR = #{VacYear}
+						AND UR_CODE = #{UserCode}
+					UNION ALL
+					SELECT
+						VI.VACYEAR AS YEAR
+						, VI.UR_CODE AS UserCode
+						, 0 AS VACDAY
+						, 0 AS REWARDVACDAY
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND (RESERVED2 IS NULL OR RESERVED2 = '') THEN VACDAY END), 0) AS DAYSREQ
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') AND (RESERVED2 IS NULL OR RESERVED2 = '') THEN VACDAY END), 0) AS DAYSCAN
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND RESERVED2 = '1' THEN VACDAY END), 0) AS DAYSNEXT
+						, NVL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND RESERVED2 = '2' THEN VACDAY END), 0) AS DAYSREWARD
+					FROM VM_VACATIONINFO VI
+						JOIN SYS_BASE_CODE BC
+							ON BC.DomainID = (SELECT DomainID FROM SYS_OBJECT_DOMAIN WHERE DomainCode = #{CompanyCode}) AND CODEGROUP = 'VACATION_TYPE' AND ISUSE = 'Y' AND RESERVED1 = '+' AND VACFLAG = BC.CODE
+					WHERE VI.VACYEAR = #{VacYear}
+						AND VI.UR_CODE = #{UserCode}
+					GROUP BY VI.VACYEAR, VI.UR_CODE
+				</foreach>
+			) A
+			GROUP BY UserCode
+		) A
+		WHERE A.ATot <![CDATA[<=]]> 0
+	</select>
+	
+	<update id= "updateApprovalCommuteStatus" parameterType="cmap" >
+		/* attend.req.updateApprovalCommuteStatus */
+		UPDATE ATTENDANCE_COMMUTING_MST
+		SET
+		<if test='CommuteType == "S"'>STARTSTS = #{Status}</if>
+		<if test='CommuteType == "E"'>ENDSTS = #{Status}</if>
+	    WHERE USERCODE = #{UserCode} AND TARGETDATE = #{TargetDate}
+    </update>
+    
+    <select id= "selectRequestList" parameterType="cmap" resultType="cmap">
+	    /* attend.req.selectRequestList */
+	    SELECT REQTYPE, REQDATA
+	    FROM ATTENDANCE_REQUEST
+	    WHERE REQSEQ = #{ReqSeq}
+	</select>
+</mapper>
+

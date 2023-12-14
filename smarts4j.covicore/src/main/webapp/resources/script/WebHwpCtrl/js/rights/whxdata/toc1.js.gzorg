@@ -1,0 +1,1 @@
+gXMLBuffer ="<?xml version=\"1.0\" encoding=\"utf-8\" ?><data  src=\"toc.js\"  name=\"파일\" url=\"menu/file.htm\"><book name=\"편집 용지\" url=\"format/setting_paper/setting_paper.htm\" src=\"toc2.js\" /><item name=\"인쇄\" url=\"file/print.htm\" /><item name=\"문서 정보\" url=\"file/document_info.htm\" /></data>";

@@ -1,0 +1,135 @@
+<br>
+<table class="tableStyle linePlus mt10 table_3"> <!-- class="table_10" cellpadding="0" cellspacing="0"-->
+	<colgroup>
+		<col style="width: 12%;">
+		<col>
+	</colgroup>
+	<tbody>
+	<tr>
+		<th>출장자</th>
+		<td>
+			<input id="BT_PERSON" style="width: 98%;" type="text" value="{{ doc.BodyContext.BT_PERSON }}" data-type="mField"> 
+			<input id="BT_PERSON_CODE" type="hidden" value="{{ doc.BodyContext.BT_PERSON_CODE }}" data-type="mField">
+			<input id="SYSTEMTYPE" type="hidden" value="{{ doc.BodyContext.SYSTEMTYPE }}" data-type="mField">
+			<input id="INSTANCEID" type="hidden" value="{{ doc.BodyContext.INSTANCEID }}" data-type="mField">
+			<input id="SUBJECT" type="hidden" value="{{ doc.BodyContext.SUBJECT }}" data-type="mField">
+		</td>
+		<th>부서명</th>
+		<td>
+			<input id="BT_DEPT" style="width: 98%;" type="text" value="{{ doc.BodyContext.BT_DEPT }}" data-type="mField">
+			<input id="BT_DEPT_CODE" type="hidden" value="{{ doc.BodyContext.BT_DEPT_CODE }}" data-type="mField">
+		</td>
+	</tr>
+	<tr>
+		<th>출장지역</th>
+		<td colspan="3">
+			<input id="BT_AREA" style="width: 98%;" type="text" value="{{ doc.BodyContext.BT_AREA }}" data-type="mField">
+		</td>
+	</tr>
+	<tr>
+		<th>출장목적</th>
+		<td style="-ms-word-break: break-all;" colspan="3">
+			<textarea id="BT_PERPOSE" style="width: 98%; overflow: auto;" rows="3" data-type="mField">{{ doc.BodyContext.BT_PERPOSE }}</textarea>
+		</td>
+	</tr>
+	<tr>
+		<th>출장기간</th>
+		<td colspan="3">
+			<div class="multi-period">
+				<input name="BT_S_DATE" id="BT_S_DATE" type="text" value="{{ doc.BodyContext.BT_S_DATE }}" data-type="mField" data-pattern="date">
+				~ <input name="BT_E_DATE" id="BT_E_DATE" type="text" value="{{ doc.BodyContext.BT_E_DATE }}" data-type="mField" data-pattern="date" data-date-months="3">
+				--&gt; <input id="BT_PERIOD" type="text" value="{{ doc.BodyContext.BT_PERIOD }}" data-type="mField" data-pattern="period" data-period-ref="BT_S_DATE,BT_E_DATE">
+				(일)
+			</div>
+		</td>
+	</tr>
+</tbody></table>
+
+
+
+<br>
+<!-- 멀티로우처리 -->
+<table class="tableStyle linePlus mt10 table_3 multi-row-table RowSumTable" id="SI_LEGACYTEST_LEGACY_BTRIP_COST" style="margin-top: 0px;" cellspacing="0" cellpadding="0" summary="멀티로우 샘플">
+	<colgroup>
+		<col style="width: 5%;"> <!-- 순번 -->
+		<col style="width: 17%;"> <!-- 성명 -->
+		<col style="width: 15%;"> <!-- 교통비 -->
+		<col style="width: 15%;"> <!-- 숙박비 -->
+		<col style="width: 15%;"> <!-- 일비 -->
+		<col style="width: 15%;"> <!-- 기타 -->
+		<col style="width: 17%;"> <!-- 합계 -->
+	</colgroup>
+	<!-- 멀티로우 컨트롤 버튼 -->
+	<tbody>
+	<tr class="multi-row-control" data-mode="writeOnly">
+		<td colspan="7">
+			<span style="float: right;"> 
+				<input class="usa multi-row-add" type="button" value="+추가"> 
+				<input class="usa multi-row-del-auto" type="button" value="-삭제"> 
+			</span>
+		</td>
+	</tr>
+	<!-- 멀티로우 헤더 -->
+	<tr>
+		<th>순번</th> <!-- 순번 -->
+		<th>성명</th>
+		<th>교통비</th>
+		<th>숙박비</th>
+		<th>일비</th>
+		<th>기타</th>
+		<th>합계</th>
+	</tr>
+	<!-- 멀티로우 템플릿 -->
+	<tr class="multi-row-template">
+		<td class="multi-row-seq" style="text-align: center;">1</td> <!-- 순번 -->
+		<td> <!-- 텍스트 --> 
+			<input name="R_BT_NAME" style="width: 98%;" type="text" data-type="rField">
+			<input name="R_BT_CODE" style="width: 98%;" type="hidden" data-type="rField">
+			<input name="R_BT_DEPT_NAME" style="width: 98%;" type="hidden" data-type="rField">
+			<input name="R_BT_DEPT_CODE" style="width: 98%;" type="hidden" data-type="rField">
+			<input name="MULTIID" style="width: 98%;" type="hidden" data-type="rField">
+		</td>
+		<td  style="text-align:right;"> <!-- textarea --> 
+			<input class="sum-table-cell" name="R_BT_TRANS" style="width: 98%;" type="text" data-type="rField" data-pattern="currency">
+		</td>
+		<td  style="text-align:right;"> <!-- textarea --> 
+			<input class="sum-table-cell" name="R_BT_ROOM" style="width: 98%;" type="text" data-type="rField" data-pattern="currency">
+		</td>
+		<td  style="text-align:right;"> <!-- textarea --> 
+			<input class="sum-table-cell" name="R_BT_WORK" style="width: 98%;" type="text" data-type="rField" data-pattern="currency">
+		</td>
+		<td  style="text-align:right;"> <!-- textarea --> 
+			<input class="sum-table-cell" name="R_BT_ETC" style="width: 98%;" type="text" data-type="rField" data-pattern="currency">
+		</td>
+		<td  style="text-align:right;"> <!-- textarea --> 
+			<input class="sum-table-rowsum" name="R_BT_ROW_SUM" style="width: 98%;" type="text" data-type="rField" readonly="readonly" data-pattern="currency">
+		</td>
+	</tr>
+	<tr>
+		<th colspan="2">
+			합계
+			<img id="img_calc" align="absmiddle" class="table-sum-button" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/btn_organization.gif" border="0" style="display:none;">
+		</th> <!-- 순번 -->
+		<td style="text-align:right;">
+			<input class="sum-table-colsum" id="R_BT_TRANS_SUM" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.R_BT_TRANS_SUM }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td style="text-align:right;">
+			<input class="sum-table-colsum" id="R_BT_ROOM_SUM" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.R_BT_ROOM_SUM }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td style="text-align:right;">
+			<input class="sum-table-colsum" id="R_BT_WORK_SUM" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.R_BT_WORK_SUM }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td style="text-align:right;">
+			<input class="sum-table-colsum" id="R_BT_ETC_SUM" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.R_BT_ETC_SUM }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td style="text-align:right;">
+			<input class="sum-table-total" id="R_BT_TOTAL_SUM" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.R_BT_TOTAL_SUM }}" data-type="mField" data-pattern="currency">
+		</td>
+	</tr>
+	</tbody>
+</table>
+
+<br>
+
+
+

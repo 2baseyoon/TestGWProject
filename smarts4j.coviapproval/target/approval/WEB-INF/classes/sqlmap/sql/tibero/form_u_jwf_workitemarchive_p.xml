@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.workitemarchive">
+	<update id="updateBusinessData" parameterType="cmap">			
+		UPDATE jwf_workitem
+		<trim prefix="SET" suffixOverrides=",">
+		    BusinessData6 = 'MODIFY'
+		</trim>		
+		WHERE ProcessID IN (
+				SELECT ProcessID FROM jwf_process
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					 FormInstID = #{FormInstID}
+				</trim>		
+		)
+	</update>
+	<select id="selectAutoIncrement" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		  SELECT JWF_WORKITE_SEQ.CURRVAL FROM dual
+    ]]>
+	</select>
+</mapper>

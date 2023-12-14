@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.issuemessage">
+    <!-- 본문 정보 내용 추가 -->
+    <insert id="createContents" parameterType="cmap">
+        INSERT INTO issue_board_message(MessageID, CustomerName, ProjectName, ProjectManager, ProductType, Module, IssueType, IssueContext, IssueSolution, Progress, Result, ComplateCheck, ComplateDate, Etc)
+        VALUES(#{messageID}, #{customerName}, #{projectName}, #{projectManager}, #{productType}, #{module}, #{projectIssueType}, #{projectIssueContext}, #{projectIssueSolution}, #{progress}, #{result}, #{complateCheck}, #{complateDate}, #{etc})
+    </insert>
+    
+    <!-- 상세 보기 조회 쿼리 -->
+    <select id="selectMessageDetail" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.MessageID, A.FolderID, IsInherited, IFNULL(ParentID,'') AS ParentID, MsgType, 
+			IFNULL(MsgState,'') AS MsgState, 
+			IFNULL(A.CategoryID, '') AS CategoryID, Number, Seq, Step, Depth,
+			IFNULL(A.Subject, '') AS Subject, 
+			IFNULL(BodyText, '') AS BodyText, 
+			IFNULL(PopupStartDate, '') AS PopupStartDate, 
+			IFNULL(PopupEndDate,'') AS PopupEndDate, A.`Version` AS Version,
+			IFNULL(DATE_FORMAT(A.TopStartDate,'%Y.%m.%d') ,'') AS TopStartDate, 
+			IFNULL(DATE_FORMAT(A.TopEndDate,'%Y.%m.%d') , '')AS TopEndDate, 
+			IFNULL(BodyFormID, '') AS BodyFormID, 
+			IFNULL(UseSecurity, 'N') AS UseSecurity, 
+			IFNULL(UseAnonym, 'N') AS UseAnonym, 
+			IFNULL(IsPopup, 'N') AS IsPopup, IsTop, 
+			IFNULL(IsApproval, 'N') AS IsApproval, 
+			IFNULL(IsUserForm, 'N') AS IsUserForm, 
+			IFNULL(UseScrap, 'N') AS UseScrap, 
+			IFNULL(NoticeMedia, '') AS NoticeMedia, 
+			IFNULL(UseRSS, 'N') AS UseRSS,
+			IFNULL(UseReplyNotice, 'N') AS UseReplyNotice, 
+			IFNULL(UseCommNotice, 'N') AS UseCommNotice, 
+			IFNULL(TrackBackURL, '') AS TrackBackURL, AnswerCnt, ReadCnt, SatisfactionPoint,
+			ScrapCnt, ReportCnt, FileCnt, 
+			IFNULL(FileExtension, '') AS FileExtension, TracbackCnt, 
+			IFNULL(IsMobile, 'N') AS IsMobile, IsCurrent, IsCheckOut, 
+			IFNULL(CheckOuterCode, '') AS CheckOuterCode,
+			IFNULL(A.ProgressState, '') as ProgressState, 
+			A.CreatorCode, 
+			IFNULL(A.OwnerCode, '') AS OwnerCode,
+			IFNULL((SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = A.OwnerCode), '') AS OwnerName,
+			(SELECT OwnerCode FROM sys_object_folder WHERE FolderID = A.FolderID) AS FolderOwnerCode,
+			(SELECT FolderType FROM sys_object_folder WHERE FolderID = A.FolderID) AS FolderType,
+			(SELECT ObjectType FROM sys_object_folder WHERE FolderID = A.FolderID) AS ServiceType,
+			CreateDate, 
+			Fn_BaseGetDictionary_S(#{lang}, CreatorName) AS CreatorName, 
+			Fn_BaseGetDictionary_S(#{lang}, CreatorLevel) AS CreatorLevel, 
+			Fn_BaseGetDictionary_S(#{lang}, CreatorPosition) AS CreatorPosition, 
+			Fn_BaseGetDictionary_S(#{lang}, CreatorTitle) AS CreatorTitle, 
+			Fn_BaseGetDictionary_S(#{lang}, CreatorDept) AS CreatorDept,
+			(SELECT IFNULL(PhotoPath, '') FROM sys_object_user WHERE UserCode = A.CreatorCode) AS PhotoPath,
+			DATE_FORMAT(A.RegistDate,'%Y.%m.%d %H:%i:%s') AS RegistDate,
+			IFNULL(DATE_FORMAT(A.ExpiredDate,'%Y.%m.%d'),'') AS ExpiredDate,
+			IFNULL(DATE_FORMAT(A.ReservationDate,'%Y.%m.%d %H:%i:%s'), '') AS ReservationDate,
+			IFNULL(A.DeleteDate, '') AS DeleteDate,
+			IFNULL(A.TableHistoryType, '') AS TableHistoryType,
+			IFNULL(A.TableBody, '') AS TableBody,
+			IFNULL(A.HistoryBody, '') AS HistoryBody,
+			IFNULL(A.ScheduleStartDate,'') AS ScheduleStartDate,
+			IFNULL(A.ScheduleEndDate,'') AS ScheduleEndDate,
+			IFNULL(A.ScheduleDisplayColor,'') AS ScheduleDisplayColor,
+			IFNULL(A.ScheduleStartHour,'') AS ScheduleStartHour,
+			IFNULL(A.ScheduleStartMinute,'') AS ScheduleStartMinute,
+			IFNULL(A.ScheduleEndHour,'') AS ScheduleEndHour,
+			IFNULL(A.ScheduleEndMinute,'') AS ScheduleEndMinute,
+			IFNULL(A.IsAllDay,'') AS IsAllDay,
+			IFNULL(A.BodyText, '') AS Body,  
+			IFNULL(B.CustomerName, '') AS CustomerName,
+			IFNULL(B.ProjectName, '') AS ProjectName,
+			IFNULL(B.ProjectManager, '') AS ProjectManager,
+			IFNULL(B.ProductType, '') AS ProductType,
+			IFNULL(B.Module, '') AS Module,
+			IFNULL(B.IssueType, '') AS ProjectIssueType,
+			IFNULL(B.IssueContext, '') AS ProjectIssueContext,
+			IFNULL(B.IssueSolution, '') AS ProjectIssueSolution,
+			IFNULL(B.Progress, '') AS Progress,
+			IFNULL(B.Result, '') AS Result,
+			IFNULL(B.ComplateCheck, '') AS ComplateCheck,
+			IFNULL(B.ComplateDate, '') AS ComplateDate,
+			IFNULL(B.Etc, '') AS Etc,
+			IFNULL(Fn_BaseGetDictionary_S(#{lang}, C.DisplayName), '') AS CategoryName, 
+			IFNULL(C.MemberOf, '') AS CategoryMemberOf, 
+			IFNULL(P.ProcessID, '') AS ProcessID,
+			IFNULL(P.ProcessDefID, '') AS ProcessDefID,
+			IFNULL(A.SecurityLevel, '999') AS SecurityLevel, 
+			IFNULL(A.UseMessageReadAuth, 'N') AS UseMessageReadAuth,
+			(SELECT IFNULL(UseMessageAuth,'N') FROM board_config WHERE FolderID = A.FolderID) AS UseMessageAuth,
+			IFNULL(A.UsePubDeptName, 'N') AS UsePubDeptName,
+			IFNULL(A.KeepYear, '') AS KeepYear, 
+			IFNULL(A.RegistDept, '') AS RegistDept,
+			IFNULL(BME.EventOwner, '') AS EventOwnerCode,
+			IFNULL(BME.EventType, '') AS EventType,
+			IFNULL(DATE_FORMAT(BME.EventDate,'%Y.%m.%d'), '') AS EventDate,
+			IFNULL((SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = BME.EventOwner), '') AS EventOwnerName,
+			IFNULL((SELECT IFNULL(Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName), '') FROM sys_object_group WHERE groupcode = A.RegistDept), '') AS RegistDeptName,
+			IFNULL((SELECT IFNULL(Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName), '') FROM sys_object_user WHERE UserCode = A.RevisionCode), '') AS RevisionName,
+			IF(A.RevisionDate IS NULL, DATE_FORMAT(A.RegistDate,'%Y.%m.%d %H:%i:%s'), DATE_FORMAT(A.RevisionDate,'%Y.%m.%d %H:%i:%s')) AS RevisionDate,
+			IFNULL((SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_group WHERE groupcode = A.RegistDept), '') AS RegistDeptName
+		FROM board_message AS A 
+		LEFT OUTER JOIN issue_board_message AS B ON A.MessageID = B.MessageID
+		LEFT OUTER JOIN board_category AS C ON C.FolderID = #{folderID} AND A.CategoryID = C.CategoryID	
+		LEFT OUTER JOIN sys_object_user AS E ON (CASE WHEN A.MsgType='S' THEN A.OwnerCode ELSE A.CreatorCode END)=E.UserCode
+		LEFT OUTER JOIN board_message_event AS BME ON (BME.MessageID = A.MessageID)
+		LEFT OUTER JOIN sys_process AS P ON P.MessageID = A.MessageID  AND P.ObjectType = #{bizSection}
+		WHERE A.MessageID = #{messageID}
+		AND A.Version = #{version}
+		LIMIT 1
+    </select>
+    
+    <!-- 본문 정보 내용 수정 -->
+    <update id="updateContents" parameterType="cmap">
+        UPDATE issue_board_message 
+        SET CustomerName = #{customerName}
+        	,ProjectName = #{projectName}
+        	,ProjectManager = #{projectManager}
+        	,ProductType = #{productType}
+        	,Module = #{module}
+        	,IssueType = #{projectIssueType}
+        	,IssueContext = #{projectIssueContext}
+        	,IssueSolution = #{projectIssueSolution}
+        	,Progress = #{progress}
+        	,Result = #{result}
+        	,ComplateCheck = #{complateCheck}
+        	,ComplateDate = #{complateDate}
+        	,Etc = #{etc}
+        WHERE 1=1
+        AND MessageID = #{messageID}
+    </update>
+    
+    <!-- 폴더/게시판 게시글 목록 조회 -->
+    <select id="selectNormalMessageGridCount" resultType="java.lang.Long">
+        SELECT COUNT(*) 
+        FROM (
+	        SELECT 
+	        	BM.MessageID 
+	        FROM board_message AS BM
+<!-- 			LEFT OUTER JOIN sys_object_user AS SOU ON BM.CreatorCode = SOU.UserCode -->
+			<if test="categoryID != null and categoryID != ''">
+			    LEFT OUTER JOIN board_category AS BC ON BM.CategoryID = BC.CategoryID AND BC.FolderID = #{folderID}
+			</if>
+			LEFT OUTER JOIN board_progressstate AS BP ON BM.progressstate = BP.StateID 
+			<if test='useUserForm == "Y"'>
+				LEFT OUTER JOIN board_message_userform_value AS BMUV ON (BM.MessageID = BMUV.MessageID AND BM.Version = BMUV.Version)
+			</if>
+			LEFT OUTER JOIN issue_board_message AS IBM ON BM.MessageID = IBM.MessageID
+			WHERE 1=1
+			AND BM.MsgState IN ('C', 'A') 
+			AND MsgType != 'S' 
+			AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND CreatorCode = #{userCode})) 
+			AND (BM.ExpiredDate IS NULL OR  BM.ExpiredDate >= NOW(3) ) 
+			AND DeleteDate IS NULL
+			AND BM.FolderID = #{folderID}
+			AND (BM.ReservationDate IS NULL OR BM.ReservationDate &lt; NOW(3))
+			AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{userCode})
+<!-- 			<if test="bizSection == 'Doc'"> -->
+				AND BM.IsCurrent = 'Y'
+<!-- 			</if> -->
+			<!-- CHECK: 권한체크, 열람권한 체크 -->
+			<!-- AND (BM.IsMessageReadAuth='Y' AND BM.MessageID IN (SELECT MessageID FROM Fn_ComMessageReadAclCheck_T('Board', @DN_Code, @GR_Code, @UR_Code)) OR (BM.IsMessageReadAuth=''N'')) -->
+			<if test="folderType != null and folderType == 'OneToOne'">
+			    AND (BM.OwnerCode = #{userCode} OR (SELECT OwnerCode FROM sys_object_folder WHERE FolderID = #{folderID}) LIKE CONCAT('%',#{userCode},';%'))
+			    <!-- CHECK: 폴더타입 비교 후 1:1게시판일 경우 게시판 담당자만 조회가능하게 조건 추가 -->
+<!-- 			    AND ( BM.Depth = 0 AND  (BM.OwnerCode = #{userCode} OR BM.OwnerCode IN  -->
+<!-- 			    	<foreach item="item" index="index" collection="messageOwner" open="(" close=")" separator=","> -->
+<!-- 			            #{item} -->
+<!-- 			    	</foreach> -->
+<!-- 			    	) -->
+<!-- 			    )  -->
+			</if>
+			<if test="categoryID != null and categoryID != ''">
+		        <choose>
+			    	<when test="categoryGubun == 'Y'">
+			    	    AND (BC.MemberOf = #{categoryID} OR BC.CategoryID = #{categoryID})
+			        </when>
+			        <otherwise>
+			            AND BM.CategoryID = #{categoryID}
+			        </otherwise>
+			    </choose>
+		    </if>
+		    <if test="readSearchType != null and readSearchType != ''">
+		       <!-- CHECK: 읽음/읽음 조회 설정 -->
+		       AND BM.MessageID NOT IN (SELECT MessageID FROM board_message_reader WHERE ReaderCode = #{userCode})
+		    </if>
+		    <!-- 검색어 항목 -->
+			<if test="searchText != null and searchText != ''">
+				<choose>
+		       	 	<when test="searchType == 'Total'">
+				        AND ( BM.Subject LIKE CONCAT('%',#{searchText},'%')  || BM.BodyText LIKE CONCAT('%',#{searchText},'%') || IBM.CustomerName LIKE CONCAT('%',#{searchText},'%')  || IBM.ProjectName LIKE CONCAT('%',#{searchText},'%') || IBM.ProjectManager LIKE CONCAT('%',#{searchText},'%')
+							|| IBM.ProductType LIKE CONCAT('%',IF(#{searchText}='CP',0,IF(#{searchText}='MP','1',#{searchText})),'%') || IBM.Module LIKE CONCAT('%',#{searchText},'%') || IBM.IssueType LIKE CONCAT('%',#{searchText},'%') || IBM.IssueContext LIKE CONCAT('%',#{searchText},'%')
+							|| IBM.IssueSolution LIKE CONCAT('%',#{searchText},'%') || IBM.Progress LIKE CONCAT('%',#{searchText},'%') || IBM.Result LIKE CONCAT('%',#{searchText},'%'))
+				    </when>
+				    <when test="searchType == 'BodyText'">
+				       	AND ( BM.BodyText LIKE CONCAT('%',#{searchText},'%') || IBM.CustomerName LIKE CONCAT('%',#{searchText},'%')  || IBM.ProjectName LIKE CONCAT('%',#{searchText},'%') || IBM.ProjectManager LIKE CONCAT('%',#{searchText},'%')
+						 || IBM.ProductType LIKE CONCAT('%',IF(#{searchText}='CP',0,IF(#{searchText}='MP','1',#{searchText})),'%') || IBM.Module LIKE CONCAT('%',#{searchText},'%') || IBM.IssueType LIKE CONCAT('%',#{searchText},'%') || IBM.IssueContext LIKE CONCAT('%',#{searchText},'%')
+						 || IBM.IssueSolution LIKE CONCAT('%',#{searchText},'%') || IBM.Progress LIKE CONCAT('%',#{searchText},'%') || IBM.Result LIKE CONCAT('%',#{searchText},'%')) 
+				    </when>
+				    <when test="searchType == 'Mobile'">
+				       	AND ( BM.Subject LIKE CONCAT('%',#{searchText},'%')  || BM.BodyText LIKE CONCAT('%',#{searchText},'%')  || BM.CreatorName LIKE CONCAT('%',#{searchText},'%') )
+				    </when>
+				    <otherwise>
+						AND 
+						<choose>
+							<when test='searchType.equalsIgnoreCase("Subject")'> Subject </when>
+							<when test='searchType.equalsIgnoreCase("CreatorName")'> CreatorName </when>
+							<otherwise> Subject </otherwise>
+						</choose>
+						LIKE CONCAT('%',#{searchText},'%')   
+				    </otherwise>
+				</choose>
+			</if>
+			<if test="startDate != '' or endDate != ''">
+				AND BM.RegistDate between CONCAT(#{startDate}, ' 00:00:00') and CONCAT(#{endDate}, ' 23:59:59')		
+			</if>
+	    ) AS RESULT
+		WHERE 1=1
+    </select>
+    
+    <!-- 폴더/게시판 게시글 목록 조회 -->
+    <select id="selectNormalMessageGridList" parameterType="cmap" resultType="cmap">
+        SELECT * FROM ( 
+		SELECT
+			BM.MessageID 
+			, BM.Version
+			, BM.Number 
+			, BM.FolderID 
+			, BM.MenuID
+			, BM.FolderPath
+			, BM.IsInherited
+			, BM.ParentID 
+			, BM.MsgType 
+			, BM.MsgState 
+			, BM.CategoryID
+			, (SELECT Fn_BaseGetDictionary_S(#{lang},DisplayName) FROM board_category WHERE CategoryPath = BM.CategoryPath) AS CategoryName
+			, BM.CategoryPath
+			, BM.Seq, BM.Step , BM.Depth 
+			, BM.Subject
+			, BM.IsPopup, BM.IsTop
+			, BM.PopupStartDate, BM.PopupEndDate 
+			, BM.TopStartDate, BM.TopEndDate 
+			, BM.ExpiredDate 
+			, BM.UseSecurity 
+			, BM.UseAnonym 
+			, BM.IsApproval 
+			, BM.IsUserForm
+			, BM.IsCheckOut 
+			, BM.UseScrap 
+			, BM.NoticeMedia 
+			, BM.UseRSS 
+			, BM.TrackBackURL 
+			, BM.AnswerCnt 
+			, BM.ReadCnt 
+			, BM.ListTop
+			, (SELECT COUNT(*) FROM sys_comment WHERE DeleteDate IS NULL AND TargetServiceType=#{bizSection} AND TargetID = CONCAT(BM.MessageID,'_',BM.Version))AS CommentCnt 
+			, (SELECT COUNT(*) FROM sys_like WHERE TargetServiceType=#{bizSection} AND TargetID = CONCAT(BM.MessageID,'_',BM.Version))AS RecommendCnt
+			, BM.ScrapCnt 
+			, BM.ReportCnt 
+			, BM.FileCnt, BM.FileExtension
+			, BM.TracbackCnt
+			, DATE_FORMAT(BM.RegistDate,'%Y.%m.%d %H:%i:%s') AS RegistDate
+			, BM.CreatorCode 
+<!-- 			, SOU.MultiDisplayName -->
+			, DATE_FORMAT(BM.CreateDate, '%Y-%m-%d') AS CreateDate
+			,IF(BM.UsePubDeptName = 'Y', Fn_BaseGetDictionary_S(#{lang},BM.CreatorDept), Fn_BaseGetDictionary_S(#{lang},BM.CreatorName)) AS CreatorName
+			, BM.CreatorLevel, BM.CreatorPosition, BM.CreatorTitle 
+			, Fn_BaseGetDictionary_S(#{lang}, BM.CreatorDept) AS CreatorDept
+			, BM.DeleteDate
+			, BM.ReservationDate
+			, BM.LinkURL 
+			, BM.RegistDept
+			, BM.OwnerCode
+			, (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = BM.OwnerCode) AS OwnerName
+			, (SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_group WHERE groupcode = BM.RegistDept) AS RegistDeptName
+			, BM.A_OwnerCode AS FolderOwnerCode
+			, BM.DisplayName AS ProgressState 
+			, IF(BM.RevisionDate IS NULL, DATE_FORMAT(BM.RegistDate,'%Y.%m.%d %H:%i:%s'), DATE_FORMAT(BM.RevisionDate,'%Y.%m.%d %H:%i:%s')) AS RevisionDate
+			, (SELECT Fn_BaseGetDictionary_S( #{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = BM.RevisionCode) AS RevisionName
+			, IF((SELECT COUNT(*) FROM board_message_reader WHERE MessageID = BM.MessageID AND ReaderCode = #{userCode}) >0, 'Y', 'N' ) AS IsRead
+			<if test='useUserForm == "Y"'>
+				, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value0) AS UF_Value0, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value1) AS UF_Value1
+				, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value2) AS UF_Value2, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value3) AS UF_Value3
+				, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value4) AS UF_Value4, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value5) AS UF_Value5
+				, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value6) AS UF_Value6, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value7) AS UF_Value7
+				, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value8) AS UF_Value8, Fn_BaseGetDictionary_S(#{lang}, BMUV.UF_Value9) AS UF_Value9
+			</if>
+			<if test="bizSection == 'Board'">
+		    	, (SELECT MailAddress FROM sys_object_user WHERE UserCode = BM.CreatorCode) AS MailAddress
+			</if>
+			<if test="bizSection == 'Doc'">
+			    , (SELECT MailAddress FROM sys_object_user WHERE UserCode = BM.OwnerCode) AS MailAddress
+			</if>
+			<if test="viewType == 'Album'">
+			    ,(SELECT MAX(FileID) FROM sys_file WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID
+			</if>
+				,BM.ProjectName
+				,BM.ProjectManager
+				,BM.ProductType
+				,BM.Module
+			FROM( SELECT BM.*, A.MenuID, A.FolderPath, BC.CategoryPath, A.OwnerCode AS 'A_OwnerCode', BP.DisplayName
+				,IBM.ProjectName
+				,IBM.ProjectManager
+				,IF(IBM.ProductType=0,'CP',IF(IBM.ProductType=1,'MP','')) as ProductType
+				,IBM.Module
+				,(CASE IsTop WHEN 'N' THEN 'Z' ELSE (CASE WHEN NOW(3) BETWEEN TopStartDate AND TopEndDate THEN 'A' ELSE 'Z' END) END) AS ListTop
+				FROM board_message BM
+				JOIN COVI_SMART4J.SYS_OBJECT_FOLDER A on BM.FolderID= A.FolderID
+				LEFT OUTER JOIN board_category AS BC ON BM.CategoryID = BC.CategoryID AND BC.FolderID = BM.FolderID
+				LEFT OUTER JOIN board_progressstate AS BP ON BM.progressstate = BP.StateID
+				LEFT OUTER JOIN issue_board_message AS IBM ON BM.MessageID = IBM.MessageID
+				WHERE BM.FolderID = #{folderID}
+				AND BM.DeleteDate IS NULL
+				AND BM.MsgState IN ('C', 'A') 
+				AND BM.MsgType != 'S' 
+				AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND CreatorCode = #{userCode}))
+				AND (ExpiredDate IS NULL OR ExpiredDate >= NOW(3) ) 
+				AND (ReservationDate IS NULL OR ReservationDate &lt; NOW(3))
+				AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{userCode})
+				<if test="folderType != null and folderType == 'OneToOne'">
+				    AND (OwnerCode = #{userCode} OR (SELECT OwnerCode FROM sys_object_folder WHERE FolderID = #{folderID}) LIKE CONCAT('%',#{userCode},';%'))
+				</if>
+<!-- 				<if test="bizSection == 'Doc'"> -->
+					AND IsCurrent = 'Y'
+<!-- 				</if> -->
+				<if test="readSearchType != null and readSearchType != ''">
+			       <!-- CHECK: 읽음/읽음 조회 설정 -->
+			       AND BM.MessageID NOT IN (SELECT MessageID FROM board_message_reader WHERE ReaderCode = #{userCode})
+			    </if>
+			    <!-- 검색어 항목 -->
+				<if test="searchText != null and searchText != ''">
+					<choose>
+				        <when test="searchType == 'Total'">
+				            AND ( Subject LIKE CONCAT('%',#{searchText},'%')  || BodyText LIKE CONCAT('%',#{searchText},'%') || IBM.CustomerName LIKE CONCAT('%',#{searchText},'%')  || IBM.ProjectName LIKE CONCAT('%',#{searchText},'%') || IBM.ProjectManager LIKE CONCAT('%',#{searchText},'%')
+							 || IBM.ProductType LIKE CONCAT('%',IF(#{searchText}='CP',0,IF(#{searchText}='MP','1',#{searchText})),'%') || IBM.Module LIKE CONCAT('%',#{searchText},'%') || IBM.IssueType LIKE CONCAT('%',#{searchText},'%') || IBM.IssueContext LIKE CONCAT('%',#{searchText},'%')
+							 || IBM.IssueSolution LIKE CONCAT('%',#{searchText},'%') || IBM.Progress LIKE CONCAT('%',#{searchText},'%') || IBM.Result LIKE CONCAT('%',#{searchText},'%'))
+				       	</when>
+				       	<when test="searchType == 'BodyText'">
+				       	    AND ( BodyText LIKE CONCAT('%',#{searchText},'%') || IBM.CustomerName LIKE CONCAT('%',#{searchText},'%')  || IBM.ProjectName LIKE CONCAT('%',#{searchText},'%') || IBM.ProjectManager LIKE CONCAT('%',#{searchText},'%')
+							 || IBM.ProductType LIKE CONCAT('%',IF(#{searchText}='CP',0,IF(#{searchText}='MP','1',#{searchText})),'%') || IBM.Module LIKE CONCAT('%',#{searchText},'%') || IBM.IssueType LIKE CONCAT('%',#{searchText},'%') || IBM.IssueContext LIKE CONCAT('%',#{searchText},'%')
+							 || IBM.IssueSolution LIKE CONCAT('%',#{searchText},'%') || IBM.Progress LIKE CONCAT('%',#{searchText},'%') || IBM.Result LIKE CONCAT('%',#{searchText},'%')) 
+				       	</when>
+				       	<when test="searchType == 'Mobile'">
+				       	    AND ( Subject LIKE CONCAT('%',#{searchText},'%')  || BodyText LIKE CONCAT('%',#{searchText},'%')  || CreatorName LIKE CONCAT('%',#{searchText},'%') )
+				       	</when>
+				       	<otherwise>
+							AND 
+							<choose>
+								<when test='searchType.equalsIgnoreCase("Subject")'> Subject </when>
+								<when test='searchType.equalsIgnoreCase("CreatorName")'> CreatorName </when>
+								<otherwise> Subject </otherwise>
+							</choose>
+							LIKE CONCAT('%',#{searchText},'%')   
+				       	</otherwise>
+					</choose>
+				</if>
+				<if test="startDate != '' or endDate != ''">
+					AND BM.RegistDate between CONCAT(#{startDate}, ' 00:00:00') and CONCAT(#{endDate}, ' 23:59:59')		
+				</if>		
+				<!-- CHECK: 권한체크, 열람권한 체크 -->
+				<!-- AND (BM.IsMessageReadAuth='Y' AND BM.MessageID IN (SELECT MessageID FROM Fn_ComMessageReadAclCheck_T('Board', @DN_Code, @GR_Code, #{userCode})) OR (BM.IsMessageReadAuth='N')) -->
+				<if test="categoryID != null and categoryID != ''">
+			        <choose>
+				    	<when test="categoryGubun == 'Y'">
+				    	    AND (BC.MemberOf = #{categoryID} OR BC.CategoryID = #{categoryID})
+				        </when>
+				        <otherwise>
+				            AND BM.CategoryID = #{categoryID}
+				        </otherwise>
+				    </choose>
+			    </if>
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test='useTopNotice == "Y"'>
+					ListTop ASC,
+				</if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("MessageID")'>MessageID</when>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("ProjectName")'>ProjectName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProjectManager")'>ProjectManager</when>
+						<when test='sortColumn.equalsIgnoreCase("ProductType")'>ProductType</when>
+						<when test='sortColumn.equalsIgnoreCase("Module")'>Module</when>
+						<when test='sortColumn.equalsIgnoreCase("CreatorName")'>CreatorName</when>
+						<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ReadCnt")'>ReadCnt</when>
+						<otherwise>MessageID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC,</when>
+						<otherwise> DESC,</otherwise>
+					</choose>
+				</if>
+				Seq DESC, depth,step ASC
+			</trim>
+			<if test="pageSize != null and pageOffset != null">
+				LIMIT #{pageSize} OFFSET #{pageOffset}
+			</if>
+		) AS BM
+		<if test='useUserForm == "Y"'>
+			LEFT OUTER JOIN board_message_userform_value AS BMUV ON (BM.MessageID = BMUV.MessageID AND BM.Version = BMUV.Version)
+		</if>
+		) AS RESULT
+    </select>
+    
+</mapper>

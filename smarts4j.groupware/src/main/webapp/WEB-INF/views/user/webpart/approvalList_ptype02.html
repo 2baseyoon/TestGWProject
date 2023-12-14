@@ -1,0 +1,40 @@
+<div class="ptype02_Approval" id="wp_approval">
+	<div class="ptype02_sday">
+		<div class="ptype02_tab" id="approvalList_tab">
+			<a href="#" class="ptype02_tab_off" onclick="javascript:approvalList.changeTab(this);" data-role="Approval"><span><spring:message code="Cache.lbl_apv_doc_approve2" /></span></a>  <!-- 미결함 -->
+			<a href="#" class="ptype02_tab_off" onclick="javascript:approvalList.changeTab(this);" data-role="Process"><span><spring:message code="Cache.lbl_apv_doc_process2" /></span></a>	<!-- 진행함 -->
+			<a href="#" class="ptype02_tab_off" onclick="javascript:approvalList.changeTab(this);" data-role="Complete"><span><spring:message code="Cache.lbl_apv_doc_complete2" /></span></a>	<!-- 완료함 -->
+			<a href="#" class="ptype02_tab_off" onclick="javascript:approvalList.changeTab(this);" data-role="TCInfo"><span><spring:message code="Cache.lbl_TCInfo" /></span></a>	<!-- 참조/회람 -->
+			<p class="ptype02_more">
+				<a href="#" onclick="javascript: approvalList.goMore();"><spring:message code="Cache.lbl_MoreView" />&nbsp;></a>
+			</p>
+		</div>
+		<div class="ptype02_wp_height">
+			<table class="ptype02_sday_table" border="0" cellspacing="0" cellpadding="0" data-role="result">
+				<tbody id="approvalList_list"></tbody>
+			</table>
+			<!-- 조회목록없음 -->
+			<table border="0" cellspacing="0" cellpadding="0" data-role="no-result" style="display:none;">
+				<tbody>
+					<tr>
+						<td class="ptype02_wp_none"><spring:message code='Cache.msg_NoDataList'/></td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<script type="text/template" id="tempalte_approvalList_item">
+<tr>
+	<td class="ptype02_wp_ta01">
+		<div class="ptype02_ellipsis_n">
+			<a href="#" data-index="{index}" onclick="javascript: approvalList.goView(this);">{title}</a>
+		</div>
+	</td>
+	<td class="ptype02_wp_ta02">{initiatorName}</td>
+	<td class="ptype02_wp_ta03">{date}</td>
+</tr>
+</script>
+
+

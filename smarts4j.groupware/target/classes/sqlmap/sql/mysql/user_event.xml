@@ -1,0 +1,699 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.event">
+	<!-- EVENT -->
+    <insert id="insertEvent" parameterType="cmap">
+        INSERT INTO covi_smart4j.`EVENT`
+		(
+			FolderID
+			, FolderType
+			, EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, OwnerCode
+			, RegisterCode
+			, MultiRegisterName
+			, RegistDate
+			, ModifierCode
+			, ModifyDate
+			, DeleteDate
+		) VALUES (
+			#{FolderID}				# 일정 구분 폴더 ID
+			, #{FolderType}			# 일정 구분 폴더 Type
+			, #{EventType}			# '': 일반일정, M: 반복일정 중 개별일정 , A: 개인일정(참석자가 승인하여 생긴 개인일정), F: 자주 쓰는 일정
+			, #{LinkEventID}			# NULL
+			, #{MasterEventID}		# NULL
+			, #{Subject}				# 일정 제목
+			, #{Description}			# 일정 설명
+			, #{Place}					# 장소
+			, #{IsPublic}				# 공개여부
+			, #{IsDisplay}			# 'Y'
+			, #{IsInviteOther}		# 참석자 다른사람 초대 권한
+			, #{ImportanceState}	# 중요도
+			, #{OwnerCode}			# 운영자. 개인일정시 사용자 코드
+			, #{RegisterCode}		# 등록자
+			, #{MultiRegisterName}		# 등록자 명
+			, NOW(3)				# 등록일
+			, #{ModifierCode}		# 수정자
+			, NOW(3)				# 수정일
+			, #{DeleteDate}			# NULL
+		);
+		<selectKey keyProperty="EventID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+    <!-- EVENT_REPEAT -->
+    <insert id="insertEventRepeat" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_REPEAT
+		(
+			EventID
+			, AppointmentStartTime
+			, AppointmentEndTime
+			, AppointmentDuring
+			, RepeatType
+			, RepeatYear
+			, RepeatMonth
+			, RepeatWeek
+			, RepeatDay
+			, RepeatMonday
+			, RepeatTuesday
+			, RepeatWednseday
+			, RepeatThursday
+			, RepeatFriday
+			, RepeatSaturday
+			, RepeatSunday
+			, RepeatStartDate
+			, RepeatEndType
+			, RepeatEndDate
+			, RepeatCount
+			, RepeatAppointType
+			, RepeatTimeZoneDisplay
+		) VALUES (
+			#{EventID}						#EVENT의 ID
+			, #{AppointmentStartTime}		#시작시간 (시간만)
+			, #{AppointmentEndTime}		#종료시간 (시간만)
+			, #{AppointmentDuring}		 #진행시간 (지정하지 않았으면 NULL)
+			, #{RepeatType}					#반복유형 (지정하지 않았으면 '')
+			, #{RepeatYear}					#년 반복기준 (지정하지 않았으면 NULL)
+			, #{RepeatMonth}				# 월 반복기준 (지정하지 않았으면 NULL)
+			, #{RepeatWeek}				# 주 반복기준 (지정하지 않았으면 NULL)
+			, #{RepeatDay}					# 일 반복기준 (지정하지 않았으면 NULL)
+			, #{RepeatMonday}				# 월요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatTuesday}				# 화요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatWednseday}			# 수요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatThursday}			# 목요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatFriday}				# 금요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatSaturday}				# 토요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatSunday}				# 일요일 반복여부 (지정하지 않았으면 NULL)
+			, #{RepeatStartDate}			# 반복 시작일
+			, #{RepeatEndType}				# 반복 종료유형 (지정하지 않았으면 '')
+			, #{RepeatEndDate}				# 반복 종료일
+			, #{RepeatCount}				# 반복 횟수 (지정하지 않으면 NULL)
+			, #{RepeatAppointType}			# 반복 지정유형 (지정하지 않았으면 NULL)
+			, #{RepeatTimeZoneDisplay}		# 반복조건 저장 시점의 사용자 타임존
+		);
+		<selectKey keyProperty="RepeatID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+    <!-- EVENT_DATE -->
+    <insert id="insertEventDate" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_DATE
+		(
+			EventID
+			, RepeatID
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		) VALUES (
+			#{EventID}					# EVENT의 ID
+			, #{RepeatID}				# EVENT_REPEAT의 ID
+			, #{StartDateTime}		# 시작일시
+			, #{StartDate}				# 시작일
+			, #{StartTime}				# 시작시간	
+			, #{EndDateTime}			# 종료일시
+			, #{EndDate}				# 종료일
+			, #{EndTime}				# 종료시간
+			, #{IsAllDay}				# 종일여부
+			, #{IsRepeat}				# 반복여부
+		);
+		<selectKey keyProperty="DateID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+    <!-- EVENT_RESOURCE_BOOKING -->
+    <insert id="insertEventResourceBooking" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_RESOURCE_BOOKING (
+			DateID
+			, EventID
+			, ResourceID
+			, ApprovalDate
+			, ApprovalState
+			, RealEndDateTime
+			, DeleteDate
+		) VALUES (
+			#{DateID}					# EVENT_DATE의 ID
+			, #{EventID}					# EVENT의 ID
+			, #{ResourceID}				# Resource의 폴더 ID
+			, #{ApprovalDate}			# NULL
+			, #{ApprovalState}			# NULL
+			, (SELECT EndDateTime FROM covi_smart4j.EVENT_DATE WHERE DateID = #{DateID})
+			, NULL
+		);
+    </insert>
+    
+    <!-- EVENT_RELATION -->
+    <insert id="insertEventRelation" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_RELATION
+		(
+			ScheduleID
+			, ResourceID
+			, Reserved1
+			, Reserved2
+		) VALUES (
+			#{ScheduleID}			# EVENT의 ID
+			, #{ResourceID}			# Resource의 폴더 ID
+			, #{Reserved1}			# NULL
+			, #{Reserved2}			# NULL
+		);
+    </insert>
+    
+    <update id="updateEventRelation" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT_RELATION
+		SET
+			  ScheduleID = #{ScheduleID}
+			, ResourceID = #{ResourceID}
+		WHERE
+			ScheduleID = #{ScheduleID}
+		AND	ResourceID = #{ResourceID}
+    </update>
+    
+    <!-- EVENT_NOTIFICATION -->
+    <insert id="insertEventNotification" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_NOTIFICATION
+		(
+			EventID
+			, DateID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		) VALUES (
+			#{EventID}						# EVENT의 ID
+			, #{DateID}						# EVENT_DATE 의 ID
+			, #{RegisterCode}				# 알림 등록자
+			, #{RegisterKind}				# 알림 등록자 종류
+			, #{IsNotification}				# 알림 설정 여부
+			, #{IsReminder}					# 미리알림 여부
+			, #{ReminderTime}				# 미리알림 설정 시간
+			, #{IsCommentNotification}		# 댓글알림 여부
+			, #{MediumKind}				# 알림 매체 종류 (Mail;ToDo;)
+		);
+    </insert>
+    
+    <!-- 등록자에 대한 알림 저장 -->
+    <insert id="insertEventNotificationByRegister" parameterType="cmap">
+        INSERT INTO covi_smart4j.EVENT_NOTIFICATION
+		(
+			EventID
+			, DateID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		) VALUES (
+			#{EventID}						# EVENT의 ID
+			, #{DateID}
+			, (SELECT RegisterCode FROM covi_smart4j.EVENT WHERE EventID = #{EventID})				# 등록자
+			, 'R'
+			, #{IsNotification}				# 알림 설정 여부
+			, #{IsReminder}					# 미리알림 여부
+			, #{ReminderTime}				# 미리알림 설정 시간
+			, #{IsCommentNotification}		# 댓글알림 여부
+			, #{MediumKind}				# 알림 매체 종류 (Mail;ToDo;)
+		);
+    </insert>
+    
+    
+    <!-- 삭제 -->
+    <!-- Date 테이블 데이터 삭제 -  DateID로 -->
+    <delete id="deleteEventDateByDateID" parameterType="cmap">
+        DELETE
+        FROM covi_smart4j.EVENT_DATE
+        WHERE
+        	DateID = #{DateID}
+    </delete>
+    <!-- Date 테이블 데이터 삭제 -  EventID로 -->
+    <delete id="deleteEventDateByEventID" parameterType="cmap">
+        DELETE
+        FROM covi_smart4j.EVENT_DATE
+        WHERE
+        	EventID = #{EventID}
+    </delete>
+    <!-- Resource Booking 테이블 데이터 삭제 -->
+    <delete id="deleteEventResourceBooking" parameterType="cmap">
+        DELETE
+        FROM covi_smart4j.EVENT_RESOURCE_BOOKING
+        <trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		    <if test="ResourceID != null and ResourceID !='' ">AND ResourceID = #{ResourceID}</if>
+		</trim>
+    </delete>
+    <!-- Relation 테이블 데이터 삭제 -->
+    <delete id="deleteEventRelation" parameterType="cmap">
+        DELETE
+        FROM covi_smart4j.EVENT_RELATION
+        WHERE
+        	ScheduleID = #{EventID}
+    </delete>
+    <!-- Notification 테이블 데이터 삭제 -->
+    <delete id="deleteEventNotification" parameterType="cmap">
+        DELETE
+        FROM covi_smart4j.EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+        	<if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+    </delete>
+    
+    <!-- 수정 -->
+    <update id="updateEvent" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT
+        SET
+        	FolderID = #{FolderID}
+		    ,FolderType = #{FolderType}
+		    ,EventType = #{EventType}
+		<if test="LinkEventID != null and LinkEventID != ''" >
+		    ,LinkEventID = #{LinkEventID}
+		</if>
+		<if test="MasterEventID != null and MasterEventID != ''" >
+		    ,MasterEventID = #{MasterEventID}
+		</if>
+		    ,Subject = #{Subject}
+		    ,Description = #{Description}
+		<if test="Place != null" >
+		    ,Place = #{Place}
+		</if>
+		    ,IsPublic = #{IsPublic}
+		    ,IsInviteOther = #{IsInviteOther}
+		    ,ImportanceState = #{ImportanceState}
+		    ,OwnerCode = #{OwnerCode}
+		    ,ModifierCode = #{ModifierCode}
+		    ,ModifyDate = NOW(3)
+        WHERE EventID = #{EventID}
+    </update>
+    <update id="updateLinkEvent" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT
+        SET
+		    Subject = #{Subject}
+		    ,Description = #{Description}
+		<if test="Place != null" >
+		    ,Place = #{Place}
+		</if>
+		    ,IsPublic = #{IsPublic}
+		    ,IsInviteOther = #{IsInviteOther}
+		    ,ImportanceState = #{ImportanceState}
+		    ,ModifierCode = #{ModifierCode}
+		    ,ModifyDate = NOW(3)
+        WHERE LinkEventID = #{EventID} 
+        AND EventType = 'A'
+    </update>
+    <update id="updateEventRepeat" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT_REPEAT
+        SET
+        	AppointmentStartTime = #{AppointmentStartTime}
+			,AppointmentEndTime = #{AppointmentEndTime}
+			,AppointmentDuring = #{AppointmentDuring}
+			,RepeatType = #{RepeatType}
+			,RepeatYear = #{RepeatYear}
+			,RepeatMonth = #{RepeatMonth}
+			,RepeatWeek = #{RepeatWeek}
+			,RepeatDay = #{RepeatDay}
+			,RepeatMonday = #{RepeatMonday}
+			,RepeatTuesday = #{RepeatTuesday}
+			,RepeatWednseday = #{RepeatWednseday}
+			,RepeatThursday = #{RepeatThursday}
+			,RepeatFriday = #{RepeatFriday}
+			,RepeatSaturday = #{RepeatSaturday}
+			,RepeatSunday = #{RepeatSunday}
+			,RepeatStartDate = #{RepeatStartDate}
+			,RepeatEndType = #{RepeatEndType}
+			<if test="RepeatEndDate != null and RepeatEndDate != ''" >
+			,RepeatEndDate = #{RepeatEndDate}
+			</if>
+			,RepeatCount = #{RepeatCount}
+			,RepeatAppointType = #{RepeatAppointType}
+			,RepeatTimeZoneDisplay = #{RepeatTimeZoneDisplay}
+        WHERE
+        	RepeatID = #{RepeatID}
+    </update>
+    <update id="updateEventRepeatDate" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT_REPEAT
+        SET RepeatStartDate = #{StartDate}
+		  , RepeatEndDate = #{EndDate}
+		  , AppointmentStartTime = #{StartTime}
+		  , AppointmentEndTime = #{EndTime}
+        WHERE
+        	RepeatID = #{RepeatID}
+    </update>
+    <update id="updateEventNotification" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT_NOTIFICATION
+        SET
+        	IsNotification = #{IsNotification}
+			,IsReminder = #{IsReminder}
+			,ReminderTime = #{ReminderTime}
+			,IsCommentNotification = #{IsCommentNotification}
+			,MediumKind = #{MediumKind}
+		<trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		    <if test="RegisterCode != null and RegisterCode !='' ">AND RegisterCode = #{RegisterCode}</if>
+		</trim>
+    </update>
+    
+    <select id="selectResourceList" parameterType="cmap" resultType="cmap">
+        SELECT E.ResourceID AS FolderID, F.DisplayName AS ResourceName 
+		FROM covi_smart4j.EVENT_RELATION AS E
+		LEFT JOIN covi_smart4j.SYS_OBJECT_FOLDER AS F ON E.ResourceID = F.FolderID
+		WHERE E.ScheduleID = #{EventID}
+    </select>
+    <select id="selectNotificationByOne" parameterType="cmap" resultType="cmap">
+        SELECT 
+			IsNotification
+			,IsReminder
+			,ReminderTime
+			,IsCommentNotification
+			,MediumKind
+		FROM covi_smart4j.EVENT_NOTIFICATION
+		<trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		    <if test="RegisterCode != null and RegisterCode !='' ">AND RegisterCode = #{RegisterCode}</if>
+		    <if test="RegisterKind != null and RegisterKind !='' ">AND RegisterKind = #{RegisterKind}</if>
+		</trim>
+		LIMIT 1;
+    </select>
+    
+    <!-- Event 조회 -->
+    <select id="selectEvent" parameterType="cmap" resultType="cmap">
+         SELECT
+        	E.FolderID
+        	,E.FolderType
+        	,Fn_BaseGetDictionary_S(#{lang}, FD.MultiDisplayName) AS FolderName
+        	,IFNULL(FC.Color, FD.Reserved2) AS FolderColor # 일정만을 위함
+        	,E.EventID
+        	,E.EventType
+        	,IFNULL(E.LinkEventID, '')  AS LinkEventID
+        	,IFNULL(E.MasterEventID, '') AS MasterEventID
+        	,E.Subject
+        	,E.Description
+        	,E.Place
+        	,E.IsPublic
+        	,E.IsInviteOther
+        	,E.ImportanceState
+        	,E.OwnerCode
+        	,E.RegisterCode
+        	,UR.PhotoPath AS RegisterPhoto
+        	,Fn_BaseGetDictionary_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+        	,(SELECT MailAddress FROM sys_object_user WHERE UserCode = E.RegisterCode) AS MailAddress
+        	,Fn_BaseGetDictionary_S(#{lang}, U.MultiJobPositionName) AS MultiJobPositionName
+        	,Fn_BaseGetDictionary_S(#{lang}, U.MultiJobLevelName) AS MultiJobLevelName
+        	,Fn_BaseGetDictionary_S(#{lang}, U.MultiJobTitleName) AS MultiJobTitleName
+        	,CONCAT(Fn_BaseGetDictionary_S(#{lang}, E.MultiRegisterName)
+			, ' ',case when MultiJobPositionName is not null then Fn_BaseGetDictionary_S(#{lang}, U.MultiJobPositionName) else '' end ) AS RegisterData
+			, Fn_BaseGetDictionary_S(#{lang}, U.MultiDeptName) AS RegisterDept
+        	,E.ModifierCode
+        	,E.RegistDate
+        FROM covi_smart4j.EVENT AS E
+        INNER JOIN covi_smart4j.sys_object_folder AS FD ON E.FolderID = FD.FolderID
+        INNER JOIN covi_smart4j.sys_object_user_basegroup AS U ON E.RegisterCode = U.UserCode AND U.JobType = 'Origin'
+        LEFT JOIN covi_smart4j.SCHEDULE_FOLDERCOLOR AS FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+        LEFT JOIN covi_smart4j.sys_object_user AS UR ON E.RegisterCode = UR.UserCode
+        WHERE
+        	E.EventID = #{EventID}
+        	#AND E.FolderType LIKE '%Schedule%'
+        	AND E.DeleteDate IS NULL
+        LIMIT 1;
+    </select>
+    
+    <!-- Event Date 조회 -->
+    <select id="selectEventDate" parameterType="cmap" resultType="cmap">
+        SELECT RepeatID
+        	,StartDate
+        	,EndDate
+        	,StartTime
+        	,EndTime
+        	,IsAllDay
+        	,IsRepeat
+        	,DateID
+        FROM covi_smart4j.EVENT_DATE
+        <trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		</trim>
+    </select>
+    
+    <!-- Event Repeat 조회 -->
+    <select id="selectEventRepeat" parameterType="cmap" resultType="cmap">
+        SELECT
+        	AppointmentStartTime
+        	,AppointmentEndTime
+        	,AppointmentDuring
+        	,RepeatType
+        	,RepeatYear
+        	,RepeatMonth
+        	,RepeatWeek
+        	,RepeatDay
+        	,RepeatMonday
+        	,RepeatTuesday
+        	,RepeatWednseday
+        	,RepeatThursday
+        	,RepeatFriday
+        	,RepeatSaturday
+        	,RepeatSunday
+        	,RepeatStartDate
+        	,RepeatEndType
+        	,RepeatEndDate
+        	,RepeatCount
+        	,RepeatAppointType
+        	,RepeatTimeZoneDisplay
+        FROM covi_smart4j.EVENT_REPEAT er
+        <trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="RepeatID != null and RepeatID !=''">AND RepeatID = #{RepeatID}</if>
+		</trim>
+        LIMIT 1;
+    </select>
+    
+    <!-- Event Resource 조회 -->
+    <select id="selectEventResource" parameterType="cmap" resultType="cmap">
+        SELECT
+        	 ResourceID AS FolderID
+        	,Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS ResourceName
+        	,Fn_BaseGetDictionary_S(#{lang}, IFNULL(b.MultiCodeName,'')) AS TypeName
+        	,r.LeastRentalTime AS LeastRentalTime
+        FROM covi_smart4j.EVENT_RELATION AS ER
+        INNER JOIN covi_smart4j.SYS_OBJECT_FOLDER AS FD ON ER.ResourceID = FD.FolderID
+        INNER JOIN covi_smart4j.resource r ON (Fn_ResourceParentIDGet_S(FD.FolderID) = r.FolderID)
+        LEFT JOIN sys_base_code AS b ON SUBSTRING_INDEX(FD.FolderType, '.', -1) = b.Code AND b.CodeGroup = 'ResourceType'
+        WHERE 1=1
+        AND ER.ScheduleID = #{EventID}
+       	AND FD.FolderType LIKE '%Resource%'
+       	AND b.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = b.Code AND CodeGroup = 'ResourceType' ORDER BY IF(DomainID = FD.DomainID, 0, 1) LIMIT 1 );
+    </select>
+    
+    <!-- Event Notification 조회 -->
+    <select id="selectEventNotification" parameterType="cmap" resultType="cmap">
+        SELECT
+        	IsNotification
+        	,IsReminder
+        	,ReminderTime
+        	,IsCommentNotification
+        	,MediumKind
+        FROM covi_smart4j.EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+        	<if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+        	AND RegisterCode = #{RegisterCode};
+    </select>
+    
+    <!-- 자원 설정 정보 조회 -->
+    <select id="selectResourceData" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT a.IconPath
+							, IFNULL(a.BookingType,'') AS BookingType
+							, IFNULL(a.ReturnType,'') AS ReturnType
+							, IFNULL(a.BookingType,'') AS BookingTypeCode
+							, IFNULL(a.ReturnType,'') AS ReturnTypeCode
+							, IFNULL(a.NotificationState,'') AS NotificationState
+							, IFNULL(a.NotificationKind,'') AS NotificationKind
+							, a.LeastRentalTime
+							, a.LeastPartRentalTime
+							, IFNULL(a.DescriptionURL,'') AS DescriptionURL
+					FROM resource AS a
+					WHERE FolderID = Fn_ResourceParentIDGet_S(#{FolderID})
+			]]>
+	</select>
+	
+    <select id="selectNotificationComment" parameterType="cmap" resultType="cmap">
+        SELECT RegisterCode
+        FROM covi_smart4j.event_notification
+		WHERE EventID = #{EventID}
+		<if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		AND IsCommentNotification = 'Y'
+		AND IsNotification = 'Y'
+		<!-- AND RegisterKind = 'A' -->
+    </select>
+    
+    <update id="updateEachScheduleResource" parameterType="cmap">
+        UPDATE covi_smart4j.event_resource_booking SET
+		DateID = #{DateID},
+		EventID = #{EventID}
+		WHERE DateID = #{oldDateID}
+		AND EventID = #{oldEventID};
+    </update>
+    
+    <insert id="insertEachScheduleRelation"  parameterType="cmap">
+        INSERT INTO covi_smart4j.event_relation (
+			ScheduleID,
+			ResourceID,
+			Reserved1,
+			Reserved2
+		)
+		SELECT 
+		#{EventID} AS ScheduleID,
+		ResourceID,
+		Reserved1,
+		Reserved2
+		FROM covi_smart4j.event_relation
+		WHERE ScheduleID = #{oldEventID};
+    </insert>
+    
+    <delete id="deleteRelationByScheduleResourceID" parameterType="cmap">
+        DELETE FROM
+        covi_smart4j.event_relation
+        WHERE ScheduleID = #{ScheduleID}
+        AND ResourceID = #{ResourceID}
+    </delete>
+    
+    <update id="updateResourceRealEndDateTime" parameterType="cmap">
+        UPDATE
+        	covi_smart4j.event_resource_booking
+        SET
+        	RealEndDateTime = (SELECT EndDateTime FROM covi_smart4j.event_date WHERE DateID = #{DateID}),
+        	ApprovalState = (SELECT CASE WHEN BookingType='DirectApproval' THEN 'Approval' ELSE 'ApprovalRequest' END FROM resource WHERE FolderID = Fn_ResourceParentIDGet_S(#{ResourceID}))
+        WHERE
+        	DateID = #{DateID}
+        	AND EventID = #{EventID}
+        	AND ResourceID = #{ResourceID}
+    </update>
+    
+    <select id="selectAnniversaryList" parameterType="cmap" resultType="cmap">
+    	<![CDATA[
+    		SELECT A.CalendarID
+					, A.SolarDate
+					, A.DN_ID AS DomainID
+					, A.AnniversaryType
+					, A.Anniversary
+			FROM covi_smart4j.sys_calendar AS A 
+			INNER JOIN (	SELECT SolarDate, MAX(DN_ID) AS DN_ID
+								FROM covi_smart4j.sys_calendar AS A 
+								WHERE A.Anniversary IS NOT NULL
+								AND SolarDate >= #{StartDate} AND SolarDate < #{EndDate}
+								AND ( DN_ID = 0 OR DN_ID = #{domainID} )
+								Group By SolarDate )  AS B ON A.SolarDate = B.SolarDate AND A.DN_ID = B.DN_ID
+			WHERE A.Anniversary IS NOT NULL
+			ORDER BY SolarDate
+		]]>
+    </select>
+        
+    <select id="selectDateIDs" parameterType="cmap" resultType="java.lang.String">
+        SELECT IFNULL(GROUP_CONCAT(DateID),'') AS DateIDs
+        FROM covi_smart4j.event_date
+		WHERE EventID = #{EventID}
+    </select>
+    
+    <delete id="deleteAllNoti" parameterType="cmap">
+    	DELETE FROM covi_smart4j.event_notification
+    	 WHERE EventID = #{EventID} AND RegisterCode = #{UserCode}
+    </delete>
+    
+    <select id="selectEventAuthorizedACL" parameterType="cmap" resultType="cmap">
+		SELECT AclID, ObjectID, ObjectType, SubjectCode, SubjectType, AclList, 
+				Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`,
+				CASE WHEN SubjectType = 'CM' THEN '9'
+				WHEN SubjectType = 'DEPT' THEN '2' 
+				WHEN SubjectType = 'UR' THEN '1' 
+				ELSE '3' END AS AclPriority
+		FROM covi_smart4j.sys_object_acl AS a 
+		LEFT JOIN sys_object_group AS g ON a.SubjectCode = g.GroupCode AND a.SubjectType = 'GR'
+		WHERE ObjectType = 'FD' AND (
+			(a.SubjectCode IN 
+			<foreach collection="subjectInArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+			 AND a.SubjectType != 'UR' ) 
+			OR 
+			(a.SubjectCode = #{userCode} AND  a.SubjectType = 'UR')
+		) AND ObjectID IN (SELECT FolderID FROM SYS_OBJECT_FOLDER WHERE ObjectType = 'Resource' OR FolderType like 'Schedule%')
+		ORDER BY AclPriority DESC, g.SortPath;
+	</select>
+	
+	<!-- 	<select id="selectServiceMediaType" parameterType="cmap" resultType="cmap">
+		SELECT   USERCODE
+			   , SERVICETYPE
+			   , MEDIATYPE
+		  FROM   covi_smart4j.sys_messaging_setting
+		 WHERE   SERVICETYPE = #{ServiceType}
+		   AND   USERCODE = #{userID}
+	</select> -->
+	
+	<!-- 참석자 조회 -->
+    <select id="selectAttendee" parameterType="cmap" resultType="cmap">
+        SELECT   AttenderCode 	   AS UserCode
+        	   , MultiAttenderName AS UserName
+        	   , IsOutsider 	   AS IsOutsider
+          FROM   COVI_SMART4J.EVENT_ATTENDANT
+         WHERE   EventID = #{EventID}
+    </select>
+    
+    <!-- 참석요청 조회 -->
+    <select id="selectAttendRequest" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	AttendantID, 
+	    	ea.EventID AS EventID, 
+	    	e.FolderID AS FolderID, 
+	    	Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName) AS DisplayName,
+	    	e.Subject AS Subject,
+	    	(SELECT MIN(ed.DateID) FROM covi_smart4j.event_date ed WHERE ed.EventID = e.EventID GROUP BY ed.EventID) AS DateID,
+	    	er.RepeatID AS RepeatID,
+	    	er.RepeatType AS RepeatType
+		FROM covi_smart4j.event_attendant ea
+		JOIN covi_smart4j.event e on (e.EventID = ea.EventID)
+		JOIN covi_smart4j.event_repeat er on (e.EventID = er.EventID)
+		JOIN covi_smart4j.sys_object_folder sof on (sof.FolderID = e.FolderID)
+		JOIN covi_smart4j.sys_object_user sou on (sou.UserCode = e.OwnerCode)
+		WHERE AttenderCode = #{UserCode}
+		AND (IsAllow = '' OR IsAllow IS NULL)
+		AND left(e.FolderType, 8) = 'Schedule'
+		AND sou.IsUse = 'Y'
+		AND (SELECT MAX(ed.endDateTime) FROM covi_smart4j.event_date ed WHERE ed.eventID = e.EventID GROUP BY ed.eventid) <![CDATA[>=]]> now()
+	</select>
+	
+	<!-- 시작일 및 종료일 Update -->
+    <update id="updateEventDate" parameterType="cmap">
+        UPDATE covi_smart4j.EVENT_DATE
+		SET
+			StartDate = #{StartDate},
+			StartTime = #{StartTime},
+			StartDateTime = CONCAT(#{StartDate}, ' ', #{StartTime})
+			EndDate = #{EndDate},
+			EndTime = #{EndTime},
+			EndDateTime = CONCAT(#{EndDate}, ' ', #{EndTime})
+		WHERE
+			EventID = #{EventID}
+			AND DateID = #{DateID}
+	</update>
+</mapper>

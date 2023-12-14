@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.codemanage">
+
+	<select id="getCodeSearchGroupList" parameterType="cmap" resultType="cmap">
+		SELECT	BC.CodeGroup AS "CodeGroup"
+			,	BC.Code AS "Code"
+			,	BC.CodeName AS "CodeName"
+			,	('['||BC.Code||']'||BC.CodeName)	AS "ViewName"
+		FROM	act_base_code BC
+		WHERE	BC.CodeGroup	= 'TaxCode'
+		AND		BC.IsUse		= 'Y'
+		AND		BC.IsGroup		= 'N'
+		AND		BC.CompanyCode = (
+				CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = 'TaxCode' AND IsUse = 'Y' AND IsGroup = 'N' AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		ORDER BY BC.SortKey
+	</select>
+	
+	<select id="getCodeSearchList" parameterType="cmap" resultType="cmap">
+		SELECT	BC.CodeGroup AS "CodeGroup"
+			,	BC.Code AS "Code"
+			,	BC.CodeName AS "CodeName"
+			,	TM.ProofTaxMappID AS "ProofTaxMappID"
+			,	TM.DeductionType AS "DeductionType"
+			,	('['||	FN_GETACTBASECODENAME('DeductionType', TM.DeductionType, #{companyCode})
+						||']'||'['||BC.Code||']'||BC.CodeName)	AS "ViewName"
+		FROM	act_proof_tax_mapp	TM
+		INNER JOIN act_base_code		BC
+		ON		BC.CodeGroup	= TM.CodeGroup AND BC.Code = TM.Code
+		WHERE	BC.IsUse		= 'Y'
+		AND		BC.IsGroup		= 'N'
+		AND		TM.ProofCode	= #{proofCode}
+		AND		TM.CompanyCode	= #{companyCode}
+		ORDER BY BC.SortKey,TM.DeductionType DESC
+	</select>
+	
+	<insert id="insertCodeManageInfo" parameterType="cmap" >
+	    INSERT INTO act_proof_tax_mapp (
+	    		CompanyCode
+			,	ProofCode
+			,	CodeGroup
+			,	Code
+			,	DeductionType
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+	    		#{companyCode}
+	    	,	#{proofCode}
+			,	#{codeGroup}
+			,	#{code}
+			,	#{deductionType}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+	    )
+ 	</insert>
+ 	
+	<delete id="deleteCodeManageInfo">
+	    DELETE FROM act_proof_tax_mapp		
+		WHERE	ProofCode		= #{proofCode}
+		AND		ProofTaxMappId	= #{proofTaxMappID}
+	</delete>
+</mapper>

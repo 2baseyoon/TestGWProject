@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="organization.conf.syncexcel">
+
+	<!-- 라이선스 리스트 -->
+    <select id="selectLicenseList" parameterType="cmap" resultType="cmap">
+    	SELECT 	M.LicSeq	AS "LicSeq"
+			,	M.LicName   AS "LicName"
+			,	(CASE WHEN B.LicSeq IS NULL THEN 'N' ELSE 'Y' END)AS "LicMail"
+		FROM 	sys_license M
+		JOIN 	sys_object_domain_license A
+		ON		M.LicSeq = A.LicSeq
+		<choose>
+			<when test="searchGUBUN == 'DOMAINCODE'.toString()">
+				AND 	A.domainId 		= (SELECT DOMAINID FROM sys_object_domain WHERE domaincode =#{DomainCode})
+			</when>
+			<when test="searchGUBUN == 'DOMAINID'.toString()">
+				AND 	A.domainId 		= #{DomainID}  
+			</when>
+		</choose>
+		AND 	M.IsUse			=	'Y'
+		AND		M.IsOpt			=	'N'
+		LEFT
+		JOIN 	sys_license_bizsection B
+		ON		M.LicSeq = B.LicSeq
+		AND		B.BizSection	=	'Mail'
+		WHERE	#{licSection}	=	'Y'
+    </select>
+    
+	<!-- 엑셀동기화 대상 계열사 확인 -->
+    <select id="checkSyncCompany" parameterType="cmap" resultType="cmap">
+    	SELECT 	OrgSyncType      as "OrgSyncType"
+			, 	DomainID         as "DomainID"
+			, 	DomainURL        as "DomainURL"
+			,	DomainCode       as "DomainCode"
+			,	MailDomain       as "MailDomain"
+			,	DomainCode       as "DomainCode"
+			, 	DomainCode 		 as "CompanyCode" 
+		FROM 	sys_object_domain
+    	WHERE 	DomainID = #{DomainID}
+    </select>
+    
+    
+    <!-- 엑셀 다운로드 -->
+    <select id="selectallDeptList" parameterType="cmap" resultType="cmap">
+    	SELECT 
+			<choose>
+    			<when test='isSaaS == "Y"'>
+    				REPLACE(B.GroupCode, CONCAT(B.CompanyCode,'_'),'') AS "GroupCode",
+					REPLACE(B.MemberOf, CONCAT(B.CompanyCode,'_'),'') AS "MemberOf",
+    			</when>
+    			<otherwise>B.GroupCode AS "GroupCode",B.MemberOf AS "MemberOf",</otherwise>
+    		</choose>
+    		B.CompanyCode			AS "CompanyCode"
+		,	B.DisplayName           AS "DisplayName"
+		,	B.MultiDisplayName      AS "MultiDisplayName"
+		,	B.SortKey               AS "SortKey"
+		,	B.IsUse                 AS "IsUse"
+		,	B.IsHR                  AS "IsHR"
+		,	B.IsDisplay             AS "IsDisplay"
+		,	B.IsMail                AS "IsMail"
+		,	B.PrimaryMail           AS "PrimaryMail"
+		,	B.ManagerCode           AS "ManagerCode"
+    	FROM sys_object_domain A
+		JOIN sys_object_group B
+		ON	 A.DomainID = #{domainId}
+		AND  B.GroupType = 'Dept'
+    	AND  B.IsUse = 'Y'
+    	AND  B.IsHR = 'Y'
+		AND  A.DomainCode = B.CompanyCode
+    	AND GroupCode not like '%RetireDept'
+    	ORDER BY B.SortPath, B.GroupCode
+    </select>
+    
+    <select id="selectallDeptListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(*)
+    	FROM sys_object_domain A
+		JOIN sys_object_group B
+		ON	 A.DomainID = #{domainId}
+		AND  B.GroupType = 'Dept'
+    	AND  B.IsUse = 'Y'
+    	AND  B.IsHR = 'Y'
+		AND  A.DomainCode = B.CompanyCode
+    	AND GroupCode not like '%RetireDept'
+    </select>
+    
+    <select id="selectallUserList" parameterType="cmap" resultType="cmap">
+    	SELECT 
+    		<choose>
+    			<when test='isSaaS == "Y"'>
+    				REPLACE(A.UserCode, CONCAT(B.CompanyCode,'_'), '') AS "UserCode",
+    				REPLACE(B.DeptCode, CONCAT(B.CompanyCode,'_'),'') AS "DeptCode",
+    			</when>
+    			<otherwise>A.UserCode AS "UserCode",B.DeptCode AS "DeptCode",</otherwise>
+    		</choose>
+    		B.CompanyCode               AS "CompanyCode"
+		,	A.LogonID                   AS "LogonID"
+		,	''              			AS "LogonPW"
+		,	A.EmpNo                     AS "EmpNo"
+		,	A.DisplayName               AS "DisplayName"
+		,	A.MultiDisplayName          AS "MultiDisplayName"
+		,	B.JobPositionCode           AS "JobPositionCode"
+		,	B.JobTitleCode              AS "JobTitleCode"
+		,	B.JobLevelCode              AS "JobLevelCode"
+		,	A.SortKey                   AS "SortKey"
+		,	A.IsUse                     AS "IsUse"
+		,	A.IsHR                      AS "IsHR"
+		,	A.IsDisplay                 AS "IsDisplay"
+		,	A.UseMailConnect            AS "UseMailConnect"
+		,	A.EnterDate                 AS "EnterDate"
+		,	A.RetireDate                AS "RetireDate"
+		,	A.BirthDiv                  AS "BirthDiv"
+		,	A.BirthDate                 AS "BirthDate"
+		,	A.PhotoPath                 AS "PhotoPath"
+		,	A.MailAddress               AS "MailAddress"
+		,	A.ExternalMailAddress       AS "ExternalMailAddress"
+		,	A.ChargeBusiness            AS "ChargeBusiness"
+		,	A.PhoneNumberInter          AS "PhoneNumberInter"
+		,	A.PhoneNumber               AS "PhoneNumber"
+		,	A.Mobile                    AS "Mobile"
+		,	A.Fax                       AS "Fax"
+		,	A.UseMessengerConnect		AS "UseMessengerConnect"
+		,	A.LicSeq					AS "LicSeq"
+    	FROM sys_object_user A
+    	INNER JOIN sys_object_user_basegroup B ON A.UserCode = B.UserCode
+    	JOIN sys_object_domain M
+    	ON	 M.DomainID = #{domainId}
+		AND  M.DomainCode =B.CompanyCode
+    	WHERE A.IsUse = 'Y'
+    	AND A.IsHR = 'Y'
+    	AND B.JobType = 'Origin'
+    </select>
+    
+    <select id="selectallUserListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(*)
+    	FROM sys_object_user A
+    	INNER JOIN sys_object_user_basegroup B ON A.UserCode = B.UserCode
+    	JOIN sys_object_domain M
+    	ON	 M.DomainID = #{domainId}
+		AND  M.DomainCode =B.CompanyCode
+    	WHERE A.IsUse = 'Y'
+    	AND A.IsHR = 'Y'
+    	AND B.JobType = 'Origin'
+    </select>
+
+
+    <!-- 부서 엑셀동기화 -->
+    <delete id="deleteFileDataDept">
+		DELETE 	B
+		FROM 	sys_object_domain A
+		JOIN	covi_syncdata.excel_orgdept B
+		ON  	A.DomainCode =B.CompanyCode
+		WHERE 	A.DomainID	 =#{DomainID}
+		AND 	B.GroupCode <![CDATA[<>]]> B.CompanyCode
+	</delete>
+
+
+    <!-- 사용자 엑셀동기화 -->
+    <delete id="deleteFileDataUser">
+		
+		DELETE 	B
+		FROM 	sys_object_domain A
+		JOIN	covi_syncdata.excel_orguser B
+		ON  	A.DomainCode =B.CompanyCode
+		WHERE 	A.DomainID	 =#{DomainID}
+	</delete>
+</mapper>

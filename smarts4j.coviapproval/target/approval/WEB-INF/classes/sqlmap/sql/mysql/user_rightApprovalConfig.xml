@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.rightApprovalConfig">
+    <select id="selectUserSetting" parameterType="cmap" resultType="cmap">
+	<!-- [2019-02-19 MOD] gbhwang 대결 설정 시 옵션 추가 -->
+		 <![CDATA[
+		 SELECT u.UserCode,
+		 u.MultiDisplayName AS MultiDisplayName,
+		 a.DeputyCode,
+		 a.UseDeputy,
+		 a.DeputyName,
+		 DATE_FORMAT(a.DeputyFromDate,'%Y-%m-%d %H:%i') AS DeputyFromDate,
+		 DATE_FORMAT(a.DeputyToDate,'%Y-%m-%d %H:%i') AS DeputyToDate,
+		 a.DeputyReason,
+		 a.DeputyOption,
+		 a.AlertConfig AS Alarm,
+		 a.ApprovalPassword,
+		 u.LanguageCode,
+		 Fn_ComTimeZoneGet_S(#{UR_CODE}) AS TimeZoneDiff,
+		 a.UseApprovalPassWord AS UseApprovalPassWord
+		 FROM sys_object_user AS u
+		 LEFT JOIN sys_object_user_approval a ON u.UserCode = a.UserCode
+		 WHERE u.UserCode = #{UR_CODE}
+		 LIMIT 1;
+		 ]]>
+	 </select>
+
+    <select id="selectJobFunctionMember" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+       	SELECT  jfm.JobFunctionMemberID,
+				jfm.JobFunctionID,
+				jfm.UserCode,
+				u.DisplayName AS UR_Name
+		FROM covi_approval4j.jwf_jobfunctionmember as jfm
+		LEFT JOIN covi_smart4j.sys_object_user as u on jfm.UserCode = u.UserCode
+		WHERE jfm.JobFunctionID= #{JobFunctionID}
+        ]]>
+    </select>
+	
+    <select id="selectJFMemberID" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+       	SELECT jfm.UserCode AS UserCode
+		FROM covi_approval4j.jwf_jobfunctionmember as jfm
+		LEFT JOIN covi_smart4j.sys_object_user as u on jfm.UserCode = u.UserCode
+		WHERE jfm.JobFunctionID = (
+			SELECT JobFunctionID FROM covi_approval4j.jwf_jobfunction  jb 
+			INNER JOIN COVI_SMART4J.sys_object_domain AS SOD ON SOD.DomainCode = jb.EntCode
+			WHERE JobFunctionCode = #{JobFunctionCode} AND SOD.domainID = #{DomainID}
+			)
+		AND u.isuse = 'Y'
+        ]]>
+    </select>
+    
+    <select id="selectGRMemberID" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+        SELECT UserCode
+       	FROM covi_smart4j.sys_object_user_basegroup 
+       	WHERE DeptCode = (SELECT GroupCode FROM covi_smart4j.sys_object_group WHERE GroupCode = #{GroupID})
+        ]]>
+    </select>    
+    
+    <update id="updateUserSettingDeputy" parameterType="cmap">
+		<!-- [2019-02-19 MOD] gbhwang 대결 설정 시 옵션 추가 -->
+		UPDATE covi_smart4j.sys_object_user_approval
+		SET DeputyCode = #{DeputyCode},
+		DeputyName = #{DeputyName},
+		DeputyFromDate = #{DeputyFromDate},
+		DeputyToDate = #{DeputyToDate},
+		UseDeputy = #{DeputyYN},
+		DeputyReason = #{DeputyReason},
+		DeputyOption = #{DeputyOption}
+		WHERE UserCode = #{UR_Code}
+	 </update> 
+
+    <update id="updateUserSettingApproval" parameterType="cmap">
+       	UPDATE sys_object_user_approval
+		SET
+		<choose>
+			<when test='passwordChangeYN == "Y"'>
+				ApprovalPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{Password},512))), UseApprovalPassWord = #{ApprovalPWUse},
+			</when>
+			<otherwise>
+				<if test='ApprovalPWUse == "N"'>
+					ApprovalPassword = '',
+				</if> 
+				UseApprovalPassWord = #{ApprovalPWUse},
+			</otherwise>
+		</choose>
+		AlertConfig = #{Alarm}
+		WHERE UserCode = #{UR_Code}
+    </update>
+
+    <select id="checkUserData" parameterType="cmap" resultType="cmap">
+         SELECT * FROM covi_smart4j.sys_object_user
+        WHERE IsUse ='Y' and UserCode = #{UR_Code}
+    </select>
+
+    <insert id="insertApprovalRow" parameterType="cmap" useGeneratedKeys="true" keyProperty="ApprovalID" keyColumn="ApprovalID">
+		<!-- [2019-02-19 MOD] gbhwang 대결 설정 시 옵션 추가 -->
+		INSERT INTO sys_object_user_approval (
+		 UserCode
+		 , UseDeputy
+		 , DeputyCode
+		 , DeputyName
+		 , DeputyReason
+		 , DeputyFromDate
+		 , DeputyToDate
+		, DeputyOption
+		 , AlertConfig
+		 , ApprovalUnitCode
+		 , ReceiptUnitCode
+		 , ApprovalCode
+		 , ApprovalFullCode
+		 , ApprovalFullName
+		 , ApprovalPassword
+		 , UseApprovalTempListView
+		 , UseApprovalMessageBoxView
+		 , UseMobile
+		 , UseApprovalPassword
+		 , RegistDate
+		 , ModifyDate
+		 , Reserved1
+		 , Reserved2
+		 ) 
+		 SELECT U.UserCode
+		 , 'N'
+		 , ''
+		 , ''
+		 , NULL
+		 , ''
+		 , ''
+		, ''
+		 ,'{"mailconfig": {"APPROVAL": "N;", "COMPLETE": "N;", "REJECT": "N;", "CCINFO": "N;", "CIRCULATION": "N;", "HOLD": "N;", "WITHDRAW": "N;", "ABORT": "N;", "APPROVECANCEL": "N;", "REDRAFT": "N;", "CHARGEJOB": "N;", "CONSULTATION": "N;", "CONSULTATIONCOMPLETE": "N;", "CONSULTATIONCANCEL": "N;"}}'
+		 , BG.DeptCode
+		 , BG.DeptCode
+		 , U.UserCode
+		 , U.UserCode
+		 , DisplayName
+		 , NULL
+		 , NULL
+		 , 'Y'
+		 , 'N'
+		 , 'N'
+		 , now(3)
+		 , now(3)
+		 , NULL
+		 , NULL
+		 FROM covi_smart4j.sys_object_user U
+		 LEFT JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+		 WHERE U.UserCode = #{UR_Code};
+		 <selectKey keyProperty="ApprovalID" resultType="long" order="AFTER">
+		 SELECT LAST_INSERT_ID();
+		 </selectKey>
+	</insert>
+	
+	<select id="getDomainPolicy" parameterType="cmap" resultType="cmap">
+        SELECT  DOMAINID AS DomainID
+              , ISUSECOMPLEXITY AS IsUseComplexity
+              , MAXCHANGEDATE AS MaxChangeDate
+              , MINIMUMLENGTH AS MinimumLength
+              , CHANGENOTICEDATE AS ChangeNoticeDate
+        FROM covi_smart4j.sys_object_pw_policy
+        WHERE DOMAINID IN (0, #{domainID})
+        ORDER BY DOMAINID DESC
+        LIMIT 1
+    </select>
+</mapper>
+

@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="admin.listadmin">
+    <!-- 계열사 리스트 조회 -->
+	<select id="selectEntinfototalListData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT NULL AS "DN_ID"
+				, '전체' AS "DisplayName"
+				, -1   AS  "sortkey"
+				, ''    AS "DN_Code"
+   	 	FROM DUAL
+    
+		UNION ALL
+
+		SELECT DomainID AS "DN_ID"
+				, DisplayName AS "DisplayName"
+				, SortKey AS "sortkey"
+				, DomainCode AS "DN_Code"
+		FROM sys_object_domain 
+		WHERE isuse='Y'
+		AND DeleteDate IS NULL
+		AND MemberOf IS NOT NULL
+		ORDER BY "sortkey" ASC
+	    ]]>
+	</select>
+
+	<select id="selectListAdminData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		    SELECT WF_PROCESS.*,
+					   ( CASE WHEN WF_PROCESS."PiBusinessState" = '02_02_' OR WF_PROCESS."PiBusinessState" = '02_01_'
+							  THEN WF_PROCESS."PiBusinessState"
+							  ELSE  '-'  END ) AS "BusinessState"
+			FROM (SELECT
+								 SubJect AS "SubJect" ,
+								 FormName AS "FormName" ,
+								 FI.FormInstID AS "FormInstID"  ,
+								 InitiatorName AS "InitiatorName" ,
+								 InitiatorID AS "InitiatorID" ,
+								 InitiatorUnitID AS "InitiatorUnitID" ,
+								 InitiatorUnitName AS "InitiatorUnitName" ,
+								 FI.ProcessID AS "PiID" ,
+								 P.ProcessState AS "PiState" ,
+								 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+								 P.BusinessState AS "DocBusinessState" ,
+								 DocNo AS "DocNo" ,
+								 InitiatedDate AS "WorkDt" ,
+								 CompletedDate AS "PiFinished" ,
+								 FormPrefix AS "FormPrefix" ,
+								 FI.EntCode AS "EntCode",
+								 FI.ProcessID AS "ProcessID",
+								 InitiatedDate AS "PiStarted" ,
+								 DECODE(DeletedDate,null,'', 'Y') AS "PiDeletedDate"  ,
+								 DECODE(CompletedDate,null,'false', 'true') AS "IsArchived",
+								 CompletedDate AS "CompletedDate" ,
+								 P.ProcessState AS "ProcessState",
+								 Subject AS "FormSubject",
+								 InitiatedDate AS "InitiatedDate" ,
+								 P.BusinessData1 AS "BusinessData1" ,
+								 P.BusinessData2 AS "BusinessData2"
+			         FROM jwf_forminstance FI
+					 INNER JOIN ( SELECT A.ProcessID, A.ProcessState, A.BusinessState, B.BusinessData1, B.BusinessData2
+										FROM 	jwf_process A
+										INNER JOIN jwf_processDescription B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+								 ) P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN jwf_forms form on FI.formid = form.formid ) WF_PROCESS
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  	
+			    <if test="selectEntinfoListData != null and selectEntinfoListData != '' and selectEntinfoListData != 'undefined'">	
+				    AND "EntCode" = #{selectEntinfoListData}
+				</if>
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  		<if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+				  	     AND 
+				  	     <choose>
+							<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>"InitiatedDate"</when>
+							<otherwise>"CompletedDate"</otherwise>
+						 </choose> 
+				  	     BETWEEN to_Date(#{startDate},'yyyy-mm-dd hh24:mi:ss') AND to_Date(#{endDate},'yyyy-mm-dd hh24:mi:ss')+1
+			  	    </if>
+			  	 </if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+		                <when test="searchType == 'FormInstID' ">
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormInstID")'>"FormInstID"</when>
+							</choose> 
+		                    = #{searchWord}
+		                </when>
+		                <otherwise>
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+								<when test='searchType.equalsIgnoreCase("FormName")'>"FormName"</when>
+								<otherwise>"DocNo"</otherwise>
+							</choose> 
+		                    LIKE '%'||#{searchWord}||'%'
+		                </otherwise>
+			        </choose>
+				</if>
+				<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+				    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+				        AND "ProcessState" = #{selectSearchTypeDoc}
+					    <if test="selectSearchTypeDoc == '528'">
+					    	AND "DocBusinessState" LIKE '02_01%'
+					    </if>
+				    </if>
+				    <if test="selectSearchTypeDoc == 'REJECT'">
+				        AND "ProcessState" = 528  AND  "DocBusinessState" LIKE '02_02%'
+				    </if>
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						TO_CHAR("FormInstID") = #{icoSearch} OR 
+						"FormSubject" LIKE '%'||#{icoSearch}||'%' 			OR 
+						"InitiatorUnitName" LIKE '%'||#{icoSearch}||'%' 	OR
+						"InitiatorName" LIKE '%'||#{icoSearch}||'%' 	OR 
+						"FormName" LIKE '%'||#{icoSearch}||'%' 	OR  
+						"DocNo" LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>	
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>"FormName"</when>
+						<when test='sortColumn.equalsIgnoreCase("CompletedDate")'>"CompletedDate"</when>
+						<when test='sortColumn.equalsIgnoreCase("DocNo")'>"DocNo"</when>
+						<when test='sortColumn.equalsIgnoreCase("PiState")'>"PiState"</when>
+						<when test='sortColumn.equalsIgnoreCase("BusinessState")'>"BusinessState"</when>
+						<when test='sortColumn.equalsIgnoreCase("PiDeletedDate")'>"PiDeletedDate"</when>
+						<otherwise>"InitiatedDate"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					, "FormInstID" 
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					"InitiatedDate" DESC, "FormInstID"
+			    </if>
+			</trim>
+	    <include refid="oracle.include.pagingFooter"/>		
+	</select>
+
+	<select id="selectListAdminDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		    SELECT COUNT(*)
+			FROM (SELECT '' AS "FormID" ,
+								 SubJect AS "SubJect" ,
+								 FormName AS "FormName" ,
+								 FI.FormInstID AS "FormInstID"  ,
+								 InitiatorName AS "InitiatorName" ,
+								 InitiatorID AS "InitiatorID" ,
+								 InitiatorUnitID AS "InitiatorUnitID" ,
+								 InitiatorUnitName AS "InitiatorUnitName" ,
+								 FI.ProcessID AS "PiID" ,
+								 P.ProcessState AS "PiState" ,
+								 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+								 P.BusinessState AS "DocBusinessState" ,
+								 DocNo AS "DocNo" ,
+								 InitiatedDate AS "WorkDt" ,
+								 CompletedDate AS "PiFinished" ,
+								 FormPrefix AS "FormPrefix" ,
+								 FI.EntCode AS "EntCode",
+								 FI.ProcessID AS "ProcessID",
+								 InitiatedDate AS "PiStarted" ,
+								 DECODE(DeletedDate,null,'', 'Y') AS "PiDeletedDate"  ,
+								 DECODE(CompletedDate,null,'false', 'true') AS "IsArchived",
+								 CompletedDate AS "CompletedDate" ,
+								 P.ProcessState AS "ProcessState",
+								 Subject AS "FormSubject",
+								 InitiatedDate AS "InitiatedDate" ,
+								 P.BusinessData1 AS "BusinessData1" ,
+								 P.BusinessData2 AS "BusinessData2"
+			         FROM jwf_forminstance FI
+					 INNER JOIN ( SELECT A.ProcessID, A.ProcessState, A.BusinessState, B.BusinessData1, B.BusinessData2
+										FROM 	jwf_process A
+										INNER JOIN jwf_processDescription B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+								) P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN jwf_forms form on FI.formid = form.formid ) WF_PROCESS
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="selectEntinfoListData != null and selectEntinfoListData != '' and selectEntinfoListData != 'undefined'">
+				    AND "EntCode" = #{selectEntinfoListData}
+				</if>
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  		<if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+			  	     AND 
+			  	     <choose>
+						<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>"InitiatedDate"</when>
+						<otherwise>"CompletedDate"</otherwise>
+					 </choose> 
+			  	     BETWEEN to_Date(#{startDate},'yyyy-mm-dd hh24:mi:ss') AND to_Date(#{endDate},'yyyy-mm-dd hh24:mi:ss')+1
+			  	    </if>
+			  	 </if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+		                <when test="searchType == 'FormInstID' ">
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormInstID")'>"FormInstID"</when>
+							</choose> 
+		                    = #{searchWord}
+		                </when>
+		                <otherwise>
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+								<when test='searchType.equalsIgnoreCase("FormName")'>"FormName"</when>
+								<otherwise>"DocNo"</otherwise>
+							</choose> 
+		                    LIKE '%'||#{searchWord}||'%'
+		                </otherwise>
+			        </choose>
+				</if>
+				<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+				    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+				        AND "ProcessState" = #{selectSearchTypeDoc}
+					    <if test="selectSearchTypeDoc == '528'">
+					    	AND "DocBusinessState" LIKE '02_01%'
+					    </if>
+				    </if>
+				    <if test="selectSearchTypeDoc == 'REJECT'">
+				        AND "ProcessState" = 528  AND  "DocBusinessState" LIKE '02_02%'
+				    </if>
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						TO_CHAR("FormInstID") = #{icoSearch} OR 
+						"FormSubject" LIKE '%'||#{icoSearch}||'%' 			OR 
+						"InitiatorUnitName" LIKE '%'||#{icoSearch}||'%' 	OR
+						"InitiatorName" LIKE '%'||#{icoSearch}||'%' 	OR 
+						"FormName" LIKE '%'||#{icoSearch}||'%' 	OR  
+						"DocNo" LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>
+	</select>
+
+	<select id="selectListAdminData_Store" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		    SELECT WF_PROCESS.*,
+					   ( CASE WHEN WF_PROCESS."PiBusinessState" = '02_02_' OR WF_PROCESS."PiBusinessState" = '02_01_'
+							  THEN WF_PROCESS."PiBusinessState"
+							  ELSE  '-'  END ) AS "BusinessState"
+			FROM (SELECT
+								 SubJect AS "SubJect" ,
+								 FormName AS "FormName" ,
+								 FI.FormInstID AS "FormInstID"  ,
+								 InitiatorName AS "InitiatorName" ,
+								 InitiatorID AS "InitiatorID" ,
+								 InitiatorUnitID AS "InitiatorUnitID" ,
+								 InitiatorUnitName AS "InitiatorUnitName" ,
+								 FI.ProcessID AS "PiID" ,
+								 P.ProcessState AS "PiState" ,
+								 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+								 P.BusinessState AS "DocBusinessState" ,
+								 DocNo AS "DocNo" ,
+								 InitiatedDate AS "WorkDt" ,
+								 CompletedDate AS "PiFinished" ,
+								 FormPrefix AS "FormPrefix" ,
+								 FI.EntCode AS "EntCode",
+								 FI.ProcessID AS "ProcessID",
+								 InitiatedDate AS "PiStarted" ,
+								 DECODE(DeletedDate,null,'', 'Y') AS "PiDeletedDate"  ,
+								 DECODE(CompletedDate,null,'false', 'true') AS "IsArchived",
+								 CompletedDate AS "CompletedDate" ,
+								 P.ProcessState AS "ProcessState",
+								 Subject AS "FormSubject",
+								 InitiatedDate AS "InitiatedDate"
+			         FROM jwf_forminstance FI
+					 INNER JOIN ( SELECT ProcessArchiveID, 528 AS ProcessState , BusinessState
+										FROM 	jwf_processArchive A ) P ON P.ProcessArchiveID = FI.ProcessID
+					  INNER JOIN jwf_forms form on FI.formid = form.formid ) WF_PROCESS
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  	
+			    <if test="selectEntinfoListData != null and selectEntinfoListData != '' and selectEntinfoListData != 'undefined'">	
+				    AND "EntCode" = #{selectEntinfoListData}
+				</if>
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  		<if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+			  	     AND 
+			  	     <choose>
+						<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>"InitiatedDate"</when>
+						<otherwise>"CompletedDate"</otherwise>
+					</choose> 
+			  	     BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+			  	    </if>
+			  	 </if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+		                <when test="searchType == 'FormInstID' ">
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormInstID")'>"FormInstID"</when>
+							</choose> 
+		                    = #{searchWord}
+		                </when>
+		                <otherwise>
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+								<when test='searchType.equalsIgnoreCase("FormName")'>"FormName"</when>
+								<otherwise>"DocNo"</otherwise>
+							</choose> 
+		                    LIKE '%'||#{searchWord}||'%'
+		                </otherwise>
+			        </choose>
+				</if>
+				<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+				    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+				        AND "ProcessState" = #{selectSearchTypeDoc}
+					    <if test="selectSearchTypeDoc == '528'">
+					    	AND "DocBusinessState" LIKE '02_01%'
+					    </if>
+				    </if>
+				    <if test="selectSearchTypeDoc == 'REJECT'">
+				        AND "ProcessState" = 528  AND  "DocBusinessState" LIKE '02_02%'
+				    </if>
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						TO_CHAR("FormInstID") = #{icoSearch} OR 
+						"FormSubject" LIKE '%'||#{icoSearch}||'%' 			OR 
+						"InitiatorUnitName" LIKE '%'||#{icoSearch}||'%' 	OR
+						"InitiatorName" LIKE '%'||#{icoSearch}||'%' 	OR 
+						"FormName" LIKE '%'||#{icoSearch}||'%' 	OR  
+						"DocNo" LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>	
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>"FormName"</when>
+						<when test='sortColumn.equalsIgnoreCase("CompletedDate")'>"CompletedDate"</when>
+						<when test='sortColumn.equalsIgnoreCase("DocNo")'>"DocNo</when>
+						<when test='sortColumn.equalsIgnoreCase("PiDeletedDate")'>"PiDeletedDate"</when>
+						<otherwise>"InitiatedDate"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				   , "FormInstID" 
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					"InitiatedDate" DESC, "FormInstID"
+			   </if>
+			</trim>
+	    <include refid="oracle.include.pagingFooter"/>		
+	</select>
+
+	<select id="selectListAdminDataCnt_Store" parameterType="cmap" resultType="java.lang.Long">
+		    SELECT COUNT(*)
+			FROM (SELECT '' AS "FormID" ,
+								 SubJect AS "SubJec" ,
+								 FormName AS "FormName" ,
+								 FI.FormInstID AS "FormInstID"  ,
+								 InitiatorName AS "InitiatorName" ,
+								 InitiatorID AS "InitiatorID" ,
+								 InitiatorUnitID AS "InitiatorUnitID" ,
+								 InitiatorUnitName AS "InitiatorUnitName" ,
+								 FI.ProcessID AS "PiID" ,
+								 P.ProcessState AS "PiState" ,
+								 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+								 P.BusinessState AS "DocBusinessState" ,
+								 DocNo AS "DocNo" ,
+								 InitiatedDate AS "WorkDt" ,
+								 CompletedDate AS "PiFinished" ,
+								 FormPrefix AS "FormPrefix" ,
+								 FI.EntCode AS "EntCode",
+								 FI.ProcessID AS "ProcessID",
+								 InitiatedDate AS "PiStarted" ,
+								 DECODE(DeletedDate,null,'', 'Y') AS "PiDeletedDate"  ,
+								 DECODE(CompletedDate,null,'false', 'true') AS "IsArchived",
+								 CompletedDate AS "CompletedDate" ,
+								 P.ProcessState AS "ProcessState",
+								 Subject AS "FormSubject",
+								 InitiatedDate AS "InitiatedDate"
+			         FROM jwf_forminstance FI
+					 INNER JOIN ( SELECT ProcessArchiveID, 528 AS ProcessState , BusinessState
+										FROM 	jwf_processArchive A ) P ON P.ProcessArchiveID = FI.ProcessID
+					  INNER JOIN jwf_forms form on FI.formid = form.formid ) WF_PROCESS
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="selectEntinfoListData != null and selectEntinfoListData != '' and selectEntinfoListData != 'undefined'">
+				    AND "EntCode" = #{selectEntinfoListData}
+				</if>
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  		<if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+			  	     AND 
+			  	     <choose>
+						<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>"InitiatedDate"</when>
+						<otherwise>"CompletedDate"</otherwise>
+					</choose> 
+			  	     BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+			  	    </if>
+			  	 </if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+		                <when test="searchType == 'FormInstID' ">
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormInstID")'>"FormInstID"</when>
+							</choose> 
+		                    = #{searchWord}
+		                </when>
+		                <otherwise>
+		                    AND 
+		                    <choose>
+								<when test='searchType.equalsIgnoreCase("FormSubject")'>"FormSubject"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>"InitiatorUnitName"</when>
+								<when test='searchType.equalsIgnoreCase("InitiatorName")'>"InitiatorName"</when>
+								<when test='searchType.equalsIgnoreCase("FormName")'>"FormName"</when>
+								<otherwise>"DocNo"</otherwise>
+							</choose> 
+		                    LIKE '%'||#{searchWord}||'%'
+		                </otherwise>
+			        </choose>
+				</if>
+				<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+				    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+				        AND "ProcessState" = #{selectSearchTypeDoc}
+					    <if test="selectSearchTypeDoc == '528'">
+					    	AND "DocBusinessState" LIKE '02_01%'
+					    </if>
+				    </if>
+				    <if test="selectSearchTypeDoc == 'REJECT'">
+				        AND "ProcessState" = 528  AND  "DocBusinessState" LIKE '02_02%'
+				    </if>
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						TO_CHAR("FormInstID") = #{icoSearch} OR 
+						"FormSubject" LIKE '%'||#{icoSearch}||'%' 			OR 
+						"InitiatorUnitName" LIKE '%'||#{icoSearch}||'%' 	OR
+						"InitiatorName" LIKE '%'||#{icoSearch}||'%' 	OR 
+						"FormName" LIKE '%'||#{icoSearch}||'%' 	OR  
+						"DocNo" LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>
+	</select>
+
+	<select id="selectDocumentInfo" parameterType="cmap" resultType="cmap">
+	     SELECT WF_PROCESS.*,
+			     	( CASE WHEN WF_PROCESS."PiBusinessState" = '02_02_' OR WF_PROCESS."PiBusinessState" = '02_01_'
+									  THEN WF_PROCESS."PiBusinessState"
+									  ELSE  '-'  END ) AS "BusinessState"
+	     FROM ( SELECT SubJect AS "SubJect" ,
+							 FormName AS "FormName",
+							 FI.FormInstID AS "FormInstID"  ,
+							 InitiatorName AS "InitiatorName" ,
+							 InitiatorID AS "InitiatorID" ,
+							 InitiatorUnitID AS "InitiatorUnitID" ,
+							 InitiatorUnitName AS "InitiatorUnitName" ,
+							 FI.ProcessID AS "PiID" ,
+							 CASE WHEN P.ProcessState = 546 THEN 546 WHEN CompletedDate IS NULL THEN 288 ELSE 528 END AS "PiState" ,
+							 SUBSTR(P.BusinessState,1,6) AS "PiBusinessState" ,
+							 DocNo AS "DocNo" ,
+							 InitiatedDate AS "WorkDt" ,
+							 CompletedDate AS "PiFinished" ,
+							 FormPrefix AS "FormPrefix" ,
+							 InitiatedDate AS "PiStarted" ,
+							 DECODE(DeletedDate,null,'', 'Y') AS "PiDeletedDate"  ,
+							 CompletedDate AS "CompletedDate" ,
+							 FI.BodyType AS "BodyType" ,
+							 NVL(FI.BodyContext , Empty_CLOB()) AS "BodyContext" ,
+							 FI.DocLinks AS "DocLinks" ,
+							 Subject AS "FormSubject",
+							 InitiatedDate AS "InitiatedDate" ,
+							 P.IsSecureDoc AS "IsSecureDoc" ,
+							 P.IsSecureDoc AS "DocYn",
+							 NVL(FI.AttachFileInfo , Empty_CLOB())AS "AttachFileInfo" , 
+                             form.ExtInfo AS "ExtInfo"
+               FROM jwf_forminstance FI
+			   INNER JOIN (SELECT ProcessID,ParentProcessID, ProcessState, BusinessState , B.IsSecureDoc
+								 FROM jwf_process A
+								 INNER JOIN  jwf_ProcessDescription B ON B.ProcessDescriptionID = A.ProcessDescriptionID
+						) P ON P.ProcessID = FI.ProcessID
+			   INNER JOIN jwf_forms form on FI.formid = form.formid  ) WF_PROCESS
+	     	   WHERE "FormInstID" = #{FormInstID}
+	</select>
+
+	<select id="selectAbortInfo" parameterType="cmap" resultType="cmap">
+		SELECT FI.FormID AS "FormID", F.FormName AS "FormName", FI.Subject AS "Subject", FI.InitiatorName AS "InitiatorName", D.DomainDataContext AS "DomainDataContext", FI.AttachFileInfo AS "AttachFileInfo"
+		FROM jwf_forminstance FI
+			INNER JOIN jwf_domaindata D
+				ON FI.processid = D.processid
+			INNER JOIN jwf_forms F
+				ON FI.formid = F.formid
+		WHERE FI.FormInstID = #{FormInstID}
+	</select>
+	
+	<select id="selectForminfo" parameterType="cmap" resultType="cmap">
+		SELECT fi.InitiatorID AS "InitiatorID"
+			, fi.InitiatorName AS "InitiatorName"
+			, fi.InitiatorUnitID AS "InitiatorUnitID"
+			, fi.InitiatorUnitName AS "InitiatorUnitName"
+			, fi.Subject AS "Subject"
+			, fi.formid AS "FormID"
+			, fi.bodycontext AS "BodyContext"
+			, fi.RuleItemInfo AS "RuleItemInfo"
+			, d.DomainDataContext AS "DomainDataContext"
+			, pda.IsFile AS "IsFile"
+		FROM jwf_forminstance fi
+			INNER JOIN jwf_process pa
+				ON fi.forminstid = pa.FormInstID AND pa.parentprocessid = 0
+			INNER JOIN jwf_processdescription pda
+				ON pa.ProcessDescriptionID = pda.ProcessDescriptionID
+			INNER JOIN jwf_domaindata d
+				ON pa.ProcessID = d.ProcessID
+		WHERE fi.forminstid = #{FormInstID}
+	</select>
+</mapper>
+

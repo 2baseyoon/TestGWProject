@@ -1,0 +1,58 @@
+<style>
+	.PN_ShareBox .btn_like { margin-left: 3px !important; }
+	.PN_ShareBox .file_box { right: -34px; top: 25px; }
+</style>
+
+<div class="PN_myContents_box PN_myContents_sizeH">
+	<div class="PN_portlet">
+		<div class="PN_portlet_head PN_portlet_handler">
+			<div class="PN_portlet_title">
+				<strong class="PN_portlet_link"><spring:message code="Cache.lbl_SharedTask"/></strong> <!-- 공유 업무 -->
+			</div>
+			<div class="PN_portlet_function">
+				<a href="#" class="PN_portlet_btn">
+					<span class=""></span>
+					<span class=""></span>
+					<span class=""></span>
+				</a>
+				<div class="PN_portlet_menu">
+					<ul>
+						<li mode="write"><a href="#"><spring:message code="Cache.lbl_Write"/></a></li> <!-- 작성 -->
+						<li mode="hide"><a href="#"><spring:message code="Cache.lbl_HideContent"/></a></li> <!-- 컨텐츠 숨기기 -->
+						<li><a href="#" class="PN_portlet_close"><spring:message code="Cache.lbl_ClosingWindow"/></a></li> <!-- 창닫기 -->
+					</ul>
+				</div>
+			</div>
+			<a href="/groupware/layout/task_ItemList.do?CLSYS=task&CLMD=user&CLBIZ=Task&folderID=0&isMine=N" class="PN_More">more</a>
+		</div>
+		<div class="PN_portlet_contents">
+			<div class="PN_ShareBox">
+				<div class="PN_Share_Search">
+					<div class="PN_searchBox01">
+						<span>
+							<input type="text" value="" readonly/>
+							<button type="button" class="btnSearchType01"><spring:message code="Cache.btn_search"/></button> <!-- 검색 -->
+						</span>
+					</div>
+					<div class="shPeriod" style="display: none;">
+						<span class="shDday"></span>
+						<span class="shDate"></span>
+						<a href="#" class="shBtn"><spring:message code="Cache.lbl_ShareWebhard"/></a> <!-- 공유하기 -->
+					</div>
+				</div>
+				<!-- 목록이 있을 경우 -->
+				<div class="PN_Share_Chat mScrollV scrollVType01" style="display:none;">
+					<div class="shChatArea"></div>
+				</div>
+				<!-- 목록이 없을 경우 -->
+				<div class="PN_Share_Chat PN_nolist">
+					<p class="list_none"><spring:message code="Cache.msg_NoDataList"/></p> <!-- 조회할 목록이 없습니다. -->
+				</div>
+				<div class="PN_Share_Process" style="display: none;">
+					<div class="PN_ProcessTit"><span class="PN_shState"></span> <span class="PN_shPer"></span></div>
+					<div class="PN_ProcessBox"><div id="PN_ProcessBar" class="PN_ProcessBar" style="width:0%;"></div></div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

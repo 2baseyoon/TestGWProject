@@ -1,0 +1,909 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.exho">
+
+
+	<!-- 보상휴가 기준 리스트 조회 -->
+	<select id="selectExHoInfoListCnt" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT sum(case when WorkTime> 52*60 then 1 ELSE 0 END ) OverCnt
+				   , sum(ExHoCnt) ExHoCnt
+					, sum(WorkTime) TotTime
+					, sum(NotCnt) NotCnt
+					, sum(CanCnt) CanCnt
+			FROM (
+				SELECT usercode, COUNT(*) ExHoCnt
+						, sum(wHour*60+wMin)/60 WorkTime
+						, sum(case when ApprovalStsU = 'NOT' THEN 	1 ELSE 0 END) NotCnt
+						, sum(case when ApprovalSts = 'S' THEN 	1 ELSE 0 END) CanCnt				
+				FROM	(
+						SELECT ame.UserCode
+							,IFNULL(ApprovalSts,'Y') ApprovalSts
+							,CASE WHEN DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') THEN
+									CASE WHEN acm.AttEndTime IS NULL THEN 'NOT'
+									ELSE 
+										CASE WHEN DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d') THEN 'SUCCESS'
+										ELSE IF(DATE_FORMAT(acm.AttEndTime,'%H%i')   <   DATE_FORMAT(EndTime,'%H%i') , 'NOT', 'SUCCESS' )
+										END
+									END
+							 ELSE ApprovalSts
+							 END ApprovalStsU
+							,SUBSTRING(WorkTime,1,2) wHour
+							,SUBSTRING(WorkTime,3,2) wMin 
+							,CASE
+								WHEN DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') THEN 'Y'
+								ELSE 'N'
+							END PreYn
+						FROM covi_smart4j.attendance_mng_extensionholiday ame
+						JOIN covi_smart4j.sys_object_user ur           ON ame.userCode = ur.UserCode
+					    JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+				        JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		       	   LEFT JOIN covi_smart4j.attendance_commuting_mst acm ON ame.UserCode = acm.UserCode	 AND ame.JobDate = acm.TargetDate	        
+				       WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+					  	 AND JobDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')		and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+					  	 AND IFNULL(ApprovalSts,'') <> 'N']]>
+			  	 		<if test='RetireUser == "N"'>
+							AND ur.IsUse = 'Y'
+							AND ur.IsDisplay = 'Y'
+						</if>
+					  	<if test="JobStsName != null and JobStsName != ''">
+						AND JobStsName = #{JobStsName} 
+						</if>
+						<if test="p_UserCode != null and p_UserCode != ''">
+						AND ame.UserCode = #{p_UserCode} 
+						</if>
+						<if test='searchText != null and searchText != ""'>
+							AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+						</if>
+						<if test="ExHoSeq != null and ExHoSeq != ''">
+						AND ExHoSeq = #{ExHoSeq} 
+						</if>
+						<if test="ApprovalSts != null and ApprovalSts != '' ">
+						AND IFNULL(ApprovalSts,'Y') = #{ApprovalSts} 
+						</if>
+						<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+							 <choose>
+							 	<when test ="ApprovalStsU == 'NOT' ">
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') 
+									AND (acm.AttEndTime IS NULL OR DATE_FORMAT(acm.AttEndTime,'%H%i')   <  DATE_FORMAT(EndTime,'%H%i')) ]]>
+								</when>	
+								<when test ="ApprovalStsU == 'SUCCESS' ">	
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') 
+									AND DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+								</when>	
+								<otherwise>
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <=  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+								</otherwise>
+							</choose>	
+						</if>
+				) R
+				GROUP BY UserCode) r
+	</select>
+
+	<select id="selectExHoInfoListCnt2" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT sum(case when WorkTime> 52*60 then 1 ELSE 0 END ) OverCnt
+				   , sum(ExHoCnt) ExHoCnt
+					, sum(WorkTime) TotTime
+					, sum(NotCnt) NotCnt
+					, sum(CanCnt) CanCnt
+			FROM (
+				SELECT usercode
+					  , COUNT(*) ExHoCnt
+					  , sum(TIME_FORMAT(WorkTime, '%H') * 60 + TIME_FORMAT(WorkTime, '%i')) / 60 WorkTime
+					  , sum(case when ApprovalStsU = 'NOT' THEN 1 ELSE 0 END) NotCnt
+					  , sum(case when ApprovalSts = 'S' THEN 1 ELSE 0 END)    CanCnt
+				 FROM (
+						  SELECT ame.UserCode
+							   , JobStsName
+							   , ExHoSeq
+							   , IFNULL(ApprovalSts, 'Y') AS ApprovalSts
+							   , CASE
+									 WHEN DATE_FORMAT(#{UR_TimeZone}, '%Y%m%d') > DATE_FORMAT(JobDate, '%Y%m%d') THEN
+										 CASE
+											 WHEN AttEndTime is null or AttEndTime = ''THEN 'NOT'
+											 ELSE 'SUCCESS'
+											 END
+									 ELSE ApprovalSts
+							  END AS ApprovalStsU
+							   , JobDate
+							   , CASE
+									 WHEN DATE_FORMAT(#{UR_TimeZone}, '%Y%m%d') > DATE_FORMAT(JobDate, '%Y%m%d') THEN
+										 CASE
+											 WHEN JobStsName = 'O' THEN SEC_TO_TIME(ExtenAC * 60)
+											 ELSE SEC_TO_TIME(HoliAc * 60)
+										 END
+									 ELSE TIME(CONCAT(ame.WorkTime, '00'))
+							  END AS WorkTime
+						FROM covi_smart4j.attendance_mng_extensionholiday ame
+						JOIN covi_smart4j.sys_object_user ur           ON ame.userCode = ur.UserCode
+					    JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+				        JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		       	   LEFT JOIN covi_smart4j.attendance_commuting_mst acm ON ame.UserCode = acm.UserCode	 AND ame.JobDate = acm.TargetDate
+				       WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+					  	 AND JobDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')		and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+					  	 AND IFNULL(ApprovalSts,'') <> 'N']]>
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<if test="JobStsName != null and JobStsName != ''">
+			AND JobStsName = #{JobStsName}
+		</if>
+		<if test="p_UserCode != null and p_UserCode != ''">
+			AND ame.UserCode = #{p_UserCode}
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test="ExHoSeq != null and ExHoSeq != ''">
+			AND ExHoSeq = #{ExHoSeq}
+		</if>
+		<if test="ApprovalSts != null and ApprovalSts != '' ">
+			AND IFNULL(ApprovalSts,'Y') = #{ApprovalSts}
+		</if>
+		<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+			<choose>
+				<when test ="ApprovalStsU == 'NOT' ">
+					<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d')
+									AND (acm.AttEndTime IS NULL OR DATE_FORMAT(acm.AttEndTime,'%H%i')   <  DATE_FORMAT(EndTime,'%H%i')) ]]>
+				</when>
+				<when test ="ApprovalStsU == 'SUCCESS' ">
+					<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d')
+									AND DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+				</when>
+				<otherwise>
+					<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <=  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+				</otherwise>
+			</choose>
+		</if>
+		) R
+		GROUP BY UserCode) r
+	</select>
+
+	<select id="selectExHoInfoList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+				SELECT 
+					ame.UserCode
+					,JobStsName
+				    ,(SELECT CodeName FROM covi_smart4j.sys_base_code a WHERE CodeGroup='AttendReqType' AND CODE = ame.JobStsName) JobStsNameKr
+					,ExHoSeq
+					,IFNULL(ApprovalSts,'Y') ApprovalSts
+					,CASE WHEN DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') THEN
+							CASE WHEN acm.AttEndTime IS NULL THEN 'NOT'
+							ELSE 
+								CASE WHEN DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d') THEN 'SUCCESS'
+								ELSE IF(DATE_FORMAT(acm.AttEndTime,'%H%i')   <  DATE_FORMAT(EndTime,'%H%i') , 'NOT', 'SUCCESS' )
+								END
+							END
+					 ELSE ApprovalSts
+					 END ApprovalStsU
+					,JobDate
+					,StartTime
+					,EndTime
+					,CONCAT(SEC_TO_TIME(TIMESTAMPDIFF(SECOND,TIME(CONCAT(StartTime,'00')),TIME(CONCAT(ENDTIME,'00'))))) WorkingTime
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(WorkTime,'00')),'%H:%i:%s')) WorkTime
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(WorkTime,'00')),'%H')) WorkTimeHour
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(WorkTime,'00')),'%i')) WorkTimeMin
+					,ame.Etc
+					,BillName
+					,ProcessId
+					,FormInstId	
+					,Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName) AS TransMultiDisplayName 
+					,Fn_BaseGetDictionary_S(#{lang},bg.MultiDeptName) AS TransMultiDeptName
+					,Fn_BaseGetDictionary_S(#{lang},bg.MultiJobPositionName) AS TransMultiJobPositionName
+					,DATE_FORMAT(StartTime,'%H') sHour
+					,DATE_FORMAT(StartTime,'%i') sMin
+					,DATE_FORMAT(ENDTIME,'%H')	eHour
+					,DATE_FORMAT(ENDTIME,'%i')	eMin
+					,DATE_FORMAT(WorkTime,'%H') wHour
+					,DATE_FORMAT(WorkTime,'%i') wMin 
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(StartTime,'00')),'%H:%i')) f_StartTime
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(EndTime,'00')),'%H:%i')) f_EndTime
+					,CONCAT(TIME_FORMAT(TIME(CONCAT(WorkTime,'00')),'%H:%i')) f_WorkTime
+					,CASE
+						WHEN DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') THEN 'Y'
+						ELSE 'N'
+					END PreYn
+					,DeptCode
+					,EnterDate
+					,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+					,case when ame.ProcessId is null then Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+					 else (SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM attendance_request ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = ame.ProcessId LIMIT 1) END RegistName
+				FROM covi_smart4j.attendance_mng_extensionholiday ame
+				JOIN covi_smart4j.sys_object_user ur           ON ame.userCode = ur.UserCode
+			    JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		        JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+       	   LEFT JOIN covi_smart4j.attendance_commuting_mst acm ON ame.UserCode = acm.UserCode	 AND ame.JobDate = acm.TargetDate	        
+		       WHERE IFNULL(ApprovalSts,'')  <> 'N']]>
+	  	 		<if test='RetireUser == "N"'>
+					AND ur.IsUse = 'Y'
+					AND ur.IsDisplay = 'Y'
+				</if>
+		     	 <choose>
+				 	<when test ="ExHoSeq !=null and ExHoSeq !='' ">
+						AND ExHoSeq = #{ExHoSeq} 
+					</when>
+					<otherwise>
+					     AND og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+		   			  	 AND JobDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')		and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+						 
+					  	<if test="JobStsName != null and JobStsName != ''">
+						AND JobStsName = #{JobStsName} 
+						</if>
+						<if test="p_UserCode != null and p_UserCode != ''">
+						AND ame.UserCode = #{p_UserCode} 
+						</if>
+						<if test='searchText != null and searchText != ""'>
+							AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+						</if>
+						<if test="ApprovalSts != null and ApprovalSts != '' ">
+						AND IFNULL(ApprovalSts,'Y') = #{ApprovalSts} 
+						</if>
+						<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+							 <choose>
+							 	<when test ="ApprovalStsU == 'NOT' ">
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') 
+									AND (acm.AttEndTime IS NULL OR DATE_FORMAT(acm.AttEndTime,'%H%i')   <  DATE_FORMAT(EndTime,'%H%i')) ]]>
+								</when>	
+								<when test ="ApprovalStsU == 'SUCCESS' ">	
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d') 
+									AND DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+								</when>	
+								<otherwise>
+									<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <=  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+								</otherwise>
+							</choose>	
+						</if>
+					</otherwise>
+				</choose>	
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>TransMultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobStsNameKr")'>JobStsNameKr</when>
+					<when test='sortColumn.equalsIgnoreCase("JobDate")'>JobDate</when>
+					<when test='sortColumn.equalsIgnoreCase("f_StartTime")'>f_StartTime</when>
+					<when test='sortColumn.equalsIgnoreCase("f_EndTime")'>f_EndTime</when>
+					<when test='sortColumn.equalsIgnoreCase("f_WorkTime")'>f_WorkTime</when>
+					<when test='sortColumn.equalsIgnoreCase("Etc")'>Etc</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalSts")'>ApprovalSts</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalStsU")'>ApprovalStsU</when>
+					<when test='sortColumn.equalsIgnoreCase("BillName")'>BillName</when>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>TransMultiDeptName</when>
+					<otherwise>JobDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+
+	<select id="selectExHoInfoList2" parameterType="cmap" resultType="cmap">
+		/* queryID : attend.exho.selectExHoInfoList2 */
+		<![CDATA[
+			SELECT UserCode
+				 , JobStsName
+				 , (SELECT CodeName
+					FROM covi_smart4j.sys_base_code a
+					WHERE CodeGroup = 'AttendReqType'
+					  AND CODE = JobStsName) AS JobStsNameKr
+				 , ExHoSeq
+				 , ApprovalSts
+				 , CASE
+						WHEN PreYn = 'Y' THEN
+							CASE WHEN JobStsName = 'O' THEN
+								   CASE
+									   WHEN AttEndTime is not null  and AttEndTime >= ExtenEnd THEN 'SUCCESS'
+								   ELSE 'NOT'
+								   END
+							   ELSE
+								   CASE
+									   WHEN AttStartTime is not null
+										   and AttStartTime <= HoliStart AND AttEndTime is not null
+										   and AttEndTime >= HoliEnd THEN 'SUCCESS'
+								   ELSE 'NOT'
+								   END
+								END
+						ELSE ApprovalSts
+				 END AS ApprovalStsU
+				 , JobDate
+				 , Etc
+				 , BillName
+				 , ProcessId
+				 , FormInstId
+				 , TransMultiDisplayName
+				 , TransMultiDeptName
+				 , TransMultiJobPositionName
+				 , PreYn
+				 , DeptCode
+				 , EnterDate
+				 , DeptFullPath
+				 , DATE_FORMAT(StartTime, '%Y-%m-%d %H:%i:%s') AS StartTime
+				 , DATE_FORMAT(EndTime, '%Y-%m-%d %H:%i:%s') AS EndTime
+				 , IdleTime
+				 , CONCAT(SEC_TO_TIME(TIMESTAMPDIFF(SECOND, StartTime, EndTime))) AS WorkingTime
+				 , TIME_FORMAT(WorkTime, '%H:%i:%s') AS WorkTime
+				 , TIME_FORMAT(WorkTime, '%H') AS WorkTimeHour
+				 , TIME_FORMAT(WorkTime, '%i') AS WorkTimeMin
+				 , DATE_FORMAT(StartTime, '%H') AS sHour
+				 , DATE_FORMAT(StartTime, '%i') AS sMin
+				 , DATE_FORMAT(ENDTIME, '%H') AS eHour
+				 , DATE_FORMAT(ENDTIME, '%i') AS eMin
+				 , DATE_FORMAT(WorkTime, '%H') AS wHour
+				 , DATE_FORMAT(WorkTime, '%i') AS wMin
+				 , CONCAT(TIME_FORMAT(StartTime, '%H:%i')) AS f_StartTime
+				 , CONCAT(TIME_FORMAT(EndTime, '%H:%i')) AS f_EndTime
+				 , CONCAT(TIME_FORMAT(WorkTime, '%H:%i')) AS f_WorkTime
+				 , case when a.ProcessId is null then TransMultiDisplayName
+				 else (SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM attendance_request ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = a.ProcessId LIMIT 1) END RegistName
+			FROM (
+				SELECT
+					ame.UserCode
+              		, JobStsName
+              		, ExHoSeq
+              		, IFNULL(ApprovalSts, 'Y') AS ApprovalSts
+              		, JobDate
+              		, ame.Etc
+              		, BillName
+              		, ProcessId
+              		, FormInstId
+              		, Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS TransMultiDisplayName
+              		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS TransMultiDeptName
+              		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS TransMultiJobPositionName
+              		, CASE
+                    		WHEN DATE_FORMAT(#{UR_TimeZone}, '%Y%m%d') > DATE_FORMAT(JobDate, '%Y%m%d') THEN 'Y'
+                    		ELSE 'N'
+             		END AS PreYn
+              		, DeptCode
+              		, EnterDate
+              		, (SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) AS DeptFullPath
+              		, IFNULL(CASE WHEN JobStsName = 'O' THEN ExtenStart ELSE HoliStart END, ame.StartTime) AS StartTime
+              		, IFNULL(CASE WHEN JobStsName = 'O' THEN ExtenEnd ELSE HoliEnd END, ame.EndTime) AS EndTime
+              		, CASE
+                    	WHEN IdleTime is null or IdleTime = '' THEN 0
+                    	ELSE IdleTime
+             		END AS IdleTime
+				    , AttStartTime
+				    , ExtenEnd
+				    , HoliStart
+				    , HoliEnd
+              		, AttEndTime
+              		, IFNULL(
+              			CASE WHEN DATE_FORMAT(#{UR_TimeZone}, '%Y%m%d') > DATE_FORMAT(JobDate, '%Y%m%d')
+              			THEN CASE WHEN JobStsName = 'O' THEN SEC_TO_TIME(ExtenAC * 60) ELSE SEC_TO_TIME(HoliAc * 60) END
+                    	ELSE TIME(CONCAT(ame.WorkTime, '00'))
+             			END
+             			, TIME(CONCAT(ame.WorkTime, '00'))
+             		) AS WorkTime
+				FROM covi_smart4j.attendance_mng_extensionholiday ame
+				JOIN covi_smart4j.sys_object_user ur           ON ame.userCode = ur.UserCode
+				JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+				JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+				LEFT JOIN covi_smart4j.attendance_commuting_mst acm ON ame.UserCode = acm.UserCode	 AND ame.JobDate = acm.TargetDate
+				WHERE IFNULL(ApprovalSts,'')  <> 'N']]>
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<choose>
+			<when test ="ExHoSeq !=null and ExHoSeq !='' ">
+				AND ExHoSeq = #{ExHoSeq}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+				AND JobDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')		and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+
+				<if test="JobStsName != null and JobStsName != ''">
+					AND JobStsName = #{JobStsName}
+				</if>
+				<if test="p_UserCode != null and p_UserCode != ''">
+					AND ame.UserCode = #{p_UserCode}
+				</if>
+				<if test='searchText != null and searchText != ""'>
+					AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+				</if>
+				<if test="ApprovalSts != null and ApprovalSts != '' ">
+					AND IFNULL(ApprovalSts,'Y') = #{ApprovalSts}
+				</if>
+				<if test="ApprovalStsU != null and ApprovalStsU != '' ">
+					<choose>
+						<when test ="ApprovalStsU == 'NOT' ">
+							<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d')
+									AND (acm.AttEndTime IS NULL OR DATE_FORMAT(acm.AttEndTime,'%H%i')   <  DATE_FORMAT(EndTime,'%H%i')) ]]>
+						</when>
+						<when test ="ApprovalStsU == 'SUCCESS' ">
+							<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') >  DATE_FORMAT(JobDate,'%Y%m%d')
+									AND DATE_FORMAT(acm.AttEndTime,'%Y%m%d')  >  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+						</when>
+						<otherwise>
+							<![CDATA[AND DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <=  DATE_FORMAT(JobDate,'%Y%m%d')]]>
+						</otherwise>
+					</choose>
+				</if>
+			</otherwise>
+		</choose>
+		) A
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>TransMultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobStsNameKr")'>JobStsNameKr</when>
+					<when test='sortColumn.equalsIgnoreCase("JobDate")'>JobDate</when>
+					<when test='sortColumn.equalsIgnoreCase("f_StartTime")'>f_StartTime</when>
+					<when test='sortColumn.equalsIgnoreCase("f_EndTime")'>f_EndTime</when>
+					<when test='sortColumn.equalsIgnoreCase("f_WorkTime")'>f_WorkTime</when>
+					<when test='sortColumn.equalsIgnoreCase("Etc")'>Etc</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalSts")'>ApprovalSts</when>
+					<when test='sortColumn.equalsIgnoreCase("ApprovalStsU")'>ApprovalStsU</when>
+					<when test='sortColumn.equalsIgnoreCase("BillName")'>BillName</when>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>TransMultiDeptName</when>
+					<otherwise>JobDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+
+	<select id="getCallingList" parameterType="cmap" resultType="cmap">
+		SELECT
+			UserCode
+			,CallingSeq
+			,TargetDate
+			,CASE
+				WHEN CommuteType = 'Y' THEN Fn_GetSelDictionary(#{lang},'lbl_att_goWork',0)
+				WHEN CommuteType = 'N' THEN Fn_GetSelDictionary(#{lang},'lbl_leave',0)	 
+			END CommuteYnStr
+			,DATE_FORMAT(PreChangeTime,'%Y-%m-%d %H:%i')PreChangeTime
+			,DATE_FORMAT(ChangeTime,'%Y-%m-%d %H:%i') ChangeTime
+			,Etc
+			,BillName
+			,ProcessId
+			,Fn_ComURTimeZoneTrans_S(UserCode,c.RegistDate) RegistDate
+			,Fn_BaseGetDictionary_S(#{lang},MultiDisplayName) AS TransMultiDisplayName 
+			,Fn_BaseGetDictionary_S(#{lang},MultiDeptName) AS TransMultiDeptName
+			,Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) AS TransMultiJobPositionName
+			,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode =c.MemberOf) DeptFullPath
+			,EnterDate
+			,(SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) FROM attendance_request ar LEFT join  sys_object_user ur ON ar.RegisterCode = ur.UserCode WHERE ar.ProcessID = C.ProcessId LIMIT 1) RegistName
+		FROM
+		(
+			SELECT
+				amc.UserCode UserCode
+				,CallingSeq
+				,TargetDate
+				,TargetDate JobDate
+				,CommuteType
+				,PreChangeTime
+				,ChangeTime
+				,Etc
+				,BillName
+				,ProcessId
+				,amc.RegistDate
+				,ur.MultiDisplayName 
+				,bg.MultiDeptName
+				,bg.MultiJobPositionName
+				,MemberOf
+				,EnterDate
+			FROM  covi_smart4j.attendance_mng_calling   amc
+			JOIN covi_smart4j.sys_object_user ur           ON amc.userCode = ur.UserCode
+		    JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+	        JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		   WHERE amc.CompanyCode = #{CompanyCode}
+			 AND ValidYn = 'Y'
+			 AND TargetDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')			and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+			 AND og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<if test="p_UserCode != null and p_UserCode != ''">
+			AND amc.UserCode = #{p_UserCode} 
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		) c
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDisplayName")'>TransMultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("TransMultiDeptName")'>TransMultiDeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("TargetDate")'>TargetDate</when>
+					<when test='sortColumn.equalsIgnoreCase("CommuteYnStr")'>CommuteYnStr</when>
+					<when test='sortColumn.equalsIgnoreCase("PreChangeTime")'>PreChangeTime</when>
+					<when test='sortColumn.equalsIgnoreCase("ChangeTime")'>ChangeTime</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("Etc")'>Etc</when>
+					<when test='sortColumn.equalsIgnoreCase("BillName")'>BillName</when>
+					<otherwise>JobDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<if test ='!sortColumn.equalsIgnoreCase("RegistDate")'>
+				 ,RegistDate DESC
+				 </if>
+			</if>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+	
+	<select id="getCallingListCnt" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT count(amc.UserCode) cUserCode
+			FROM covi_smart4j.attendance_mng_calling amc
+			JOIN covi_smart4j.sys_object_user ur           ON amc.userCode = ur.UserCode
+		    JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+	        JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		   WHERE amc.CompanyCode = #{CompanyCode}
+			 AND ValidYn = 'Y'
+			 AND TargetDate between DATE_FORMAT(#{StartDate},'%Y-%m-%d')			and DATE_FORMAT(#{EndDate},'%Y-%m-%d')
+			 AND og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+		<if test='RetireUser == "N"'>
+			AND ur.IsUse = 'Y'
+			AND ur.IsDisplay = 'Y'
+		</if>
+		<if test="p_UserCode != null and p_UserCode != ''">
+			AND amc.UserCode = #{p_UserCode} 
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+	</select>
+	
+	<update id="updExHoInfo" parameterType="cmap">
+		UPDATE covi_smart4j.attendance_mng_extensionholiday SET
+			ModifyerCode   = #{UserCode}    
+		    ,ModifyDate     = NOW()
+			<if test="ApprovalSts != null and ApprovalSts != ''">
+			,ApprovalSts = #{ApprovalSts}
+			</if>
+			<if test="StartTime != null and StartTime != ''">
+			,StartTime = #{StartTime}
+			</if>
+			<if test="EndTime != null and EndTime != ''">
+			,EndTime = #{EndTime}
+			</if>
+			<if test="WorkTime != null and WorkTime != ''">
+			,WorkTime = #{WorkTime}
+			</if>
+		WHERE ExHoSeq = #{ExHoSeq}
+	</update>
+
+	<delete id="deleteExHoInfo" parameterType="cmap">
+		DELETE FROM covi_smart4j.attendance_mng_extensionholiday WHERE ExHoSeq = #{ExHoSeq}
+	</delete>
+	
+	<select id="getAttendCommList" parameterType="cmap" resultType="cmap">
+ 	 <![CDATA[
+		 SELECT  a.UserCode
+				, a.DeptName
+				, (SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = A.MemberOf) DeptFullPath
+				, MemberOf
+				, Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS URName
+				, a.JobPositionName
+				, ur.EnterDate
+				, TargetDate, VacFlag, VacOffFlag
+				, ifnull(AttStartTime,'') AttStartTime
+				, ifnull(AttEndTime,'') AttEndTime
+				, ifnull(AttStartTime,'') AttStartTime
+				, ifnull(AttEndTime,'') AttEndTime
+				, case when VacFlag !='' then (SELECT codename FROM covi_smart4j.sys_base_code     sc        where sc.CodeGroup = 'VACATION_TYPE' AND a.VacFlag = sc.Code)
+					ELSE '' END VacName
+		  FROM (		  	 
+			SELECT UserCode, TargetDate  , MAX(JobPositionName) JobPositionName, MAX(DeptName) DeptName, MAX(MemberOf) MemberOf
+					, case when  MAX(VacFlag) = '' THEN SUM(AttAC) 	ELSE CASE WHEN Max(VacFlag) = 'VACATION_OFF' THEN TRUNCATE(SUM(AttDayAC)/2+SUM(AttAC),0) 	ELSE SUM(AttDayAC) END END AttAC
+					, SUM(ExtenAC) ExtenAC, SUM(HoliAc) HoliAc
+					, MAX(AttStartTime) AttStartTime, MAX(AttEndTime) AttEndTime, MAX(AttDayStartTime) AttDayStartTime,  MAX(AttDayEndTime) AttDayEndTime, MAX(VacFlag) VacFlag, MAX(VacOffFlag)  VacOffFlag
+			  FROM ( 			 
+					 	 SELECT bg.UserCode, JobPositionName, DeptName, MemberOf
+						  		, m.TargetDate,  AttAC, ExtenAC, HoliAc, AttStartTime, AttEndTime, AttDayStartTime,  AttDayEndTime, '' VacFlag, '' VacOffFlag, 0 AttDayAC
+						   FROM  covi_smart4j.attendance_commuting_mst m
+					       JOIN  covi_smart4j.sys_object_group og          
+					       JOIN  covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  m.TargetDate between 	#{StartDate} AND	#{EndDate}
+						    AND  m.UserCode = bg.UserCode
+					  UNION ALL
+					 	 SELECT bg.UserCode, JobPositionName, DeptName, MemberOf
+						  			, vm.VacDate,  0, 0, 0, '', '', '',  '',  vm.VacFlag, vm.VacOffFlag, j.AttDayAC AttDayAC
+						  FROM covi_smart4j.sys_object_group og          
+					      JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+					      JOIN covi_smart4j.vm_vacationinfo_day vm ON vm.UR_Code = bg.UserCode
+					 LEFT JOIN covi_smart4j.attendance_mng_job j ON bg.CompanyCode = j.CompanyCode AND bg.UserCode = j.UserCode AND vm.VacDate = j.JobDate   
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  vm.VacDate between 	#{StartDate} AND	#{EndDate}
+					   GROUP BY bg.UserCode, vm.VacDate
+						 ) AA
+			GROUP BY UserCode, TargetDate	) A
+ 		JOIN covi_smart4j.sys_object_user ur ON a.UserCode = ur.UserCode 
+		ORDER BY DeptName, ur.DisplayName, TargetDate
+	]]>
+  	</select>
+	<select id="getAttendLate50List" parameterType="cmap" resultType="cmap">
+ 	 <![CDATA[
+  				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'       
+							ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END 
+						END  DeptFullPath
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL' then  ''         
+							ELSE  CASE WHEN COALESCE(UserCode, 'ALL') ='ALL'  then	CONCAT(	DeptName,' 요약')	   ELSE 	DeptName		 END  
+						END DeptName
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL'  OR COALESCE(UserCode,'ALL')  ='ALL' then  ''         
+							ELSE CASE WHEN COALESCE(TargetDate, 'ALL') ='ALL' then	CONCAT(	URName,' 요약')        ELSE URName	       END  
+					  END URName
+					, COALESCE(TargetDate,'') TargetDate
+					, CASE WHEN Late50  = 0 then '' ELSE Late50 END  Late50
+					, CASE WHEN Late51  = 0 then '' ELSE Late51 END  Late51
+					, CASE WHEN Late52  = 0 then '' ELSE Late52 END  Late52
+					, CASE WHEN Late53  = 0 then '' ELSE Late53 END  Late53
+					, CASE WHEN Late54  = 0 then '' ELSE Late54 END  Late54
+					, CASE WHEN Late55  = 0 then '' ELSE Late55 END  Late55
+					, CASE WHEN Late56  = 0 then '' ELSE Late56 END  Late56
+					, CASE WHEN Late57  = 0 then '' ELSE Late57 END  Late57
+					, CASE WHEN Late58  = 0 then '' ELSE Late58 END  Late58
+					, CASE WHEN Late59  = 0 then '' ELSE Late59 END  Late59
+					, CASE WHEN LateSum = 0 then '' ELSE LateSum END LateSum
+			  FROM (
+						 SELECT MemberOf 
+								 ,DeptCode 
+								 ,bg.UserCode UserCode
+								 ,DATE_FORMAT(TargetDate, '%Y%m') TargetDate
+								 , DeptName
+								 ,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+								 , Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName)  URName
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '50' THEN 1 ELSE 0 END) Late50
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '51' THEN 1 ELSE 0 END) Late51
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '52' THEN 1 ELSE 0 END) Late52
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '53' THEN 1 ELSE 0 END) Late53
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '54' THEN 1 ELSE 0 END) Late54
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '55' THEN 1 ELSE 0 END) Late55
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '56' THEN 1 ELSE 0 END) Late56
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '57' THEN 1 ELSE 0 END) Late57
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '58' THEN 1 ELSE 0 END) Late58
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%i') = '59' THEN 1 ELSE 0 END) Late59
+						  		, COUNT(targetdate) LateSum
+						   FROM  covi_smart4j.attendance_commuting_mst m
+					       JOIN  covi_smart4j.sys_object_group og          
+					       JOIN  covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+						   JOIN covi_smart4j.sys_object_user ur ON bg.UserCode = ur.UserCode 
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  m.TargetDate between 	#{StartDate} AND	#{EndDate}
+						    AND  m.UserCode = bg.UserCode
+						    AND  date_format(AttStartTime, '%H%i')  BETWEEN '0850' AND '0859'
+						GROUP BY 	MemberOf, DeptCode, bg.UserCode, 	DATE_FORMAT(TargetDate, '%Y%m')		WITH ROLLUP	 ) a   
+	]]>
+  	</select>
+  	<select id="getAttendLateList" parameterType="cmap" resultType="cmap">
+ 	 <![CDATA[
+  				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'       
+							ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END 
+						END  DeptFullPath
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL' then  ''         
+							ELSE  CASE WHEN COALESCE(UserCode, 'ALL') ='ALL'  then	CONCAT(	DeptName,' 요약')	   ELSE 	DeptName		 END  
+						END DeptName
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL'  OR COALESCE(UserCode,'ALL')  ='ALL' then  ''         
+							ELSE CASE WHEN COALESCE(TargetDate, 'ALL') ='ALL' then	CONCAT(	URName,' 요약')        ELSE URName	       END  
+					  END URName
+					, COALESCE(TargetDate,'') TargetDate
+					, CASE WHEN Late0900  = 0 then '' ELSE Late0900 END  Late0900
+					, CASE WHEN Late0901  = 0 then '' ELSE Late0901 END  Late0901
+					, CASE WHEN Late0902  = 0 then '' ELSE Late0902 END  Late0902
+					, CASE WHEN Late0903  = 0 then '' ELSE Late0903 END  Late0903
+					, CASE WHEN Late0904  = 0 then '' ELSE Late0904 END  Late0904
+					, CASE WHEN Late0905  = 0 then '' ELSE Late0905 END  Late0905
+					, CASE WHEN Late0906  = 0 then '' ELSE Late0906 END  Late0906
+					, CASE WHEN Late0907  = 0 then '' ELSE Late0907 END  Late0907
+					, CASE WHEN Late0908  = 0 then '' ELSE Late0908 END  Late0908
+					, CASE WHEN Late0909  = 0 then '' ELSE Late0909 END  Late0909
+					, CASE WHEN Late0910  = 0 then '' ELSE Late0910 END  Late0910
+					, CASE WHEN Late0920  = 0 then '' ELSE Late0920 END  Late0920
+					, CASE WHEN Late0930  = 0 then '' ELSE Late0930 END  Late0930
+					, CASE WHEN Late1000  = 0 then '' ELSE Late1000 END  Late1000
+					, CASE WHEN Late1100  = 0 then '' ELSE Late1100 END  Late1100
+					, CASE WHEN LateEtc  = 0 then '' ELSE LateEtc END  LateEtc
+					, CASE WHEN LateSum = 0 then '' ELSE LateSum END LateSum
+			  FROM (
+						 SELECT MemberOf 
+								, DeptCode 
+								, bg.UserCode UserCode
+								, DATE_FORMAT(TargetDate, '%Y%m') TargetDate
+								, DeptName
+								, (SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+								, Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName)  URName
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0900' THEN 1 ELSE 0 END) Late0900
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0901' THEN 1 ELSE 0 END) Late0901
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0902' THEN 1 ELSE 0 END) Late0902
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0903' THEN 1 ELSE 0 END) Late0903
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0904' THEN 1 ELSE 0 END) Late0904
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0905' THEN 1 ELSE 0 END) Late0905
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0906' THEN 1 ELSE 0 END) Late0906
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0907' THEN 1 ELSE 0 END) Late0907
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0908' THEN 1 ELSE 0 END) Late0908
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') = '0909' THEN 1 ELSE 0 END) Late0909
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') BETWEEN '0910' AND '0919' THEN 1 ELSE 0 END) Late0910
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') BETWEEN '0920' AND '0929' THEN 1 ELSE 0 END) Late0920
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') BETWEEN '0930' AND '1000' THEN 1 ELSE 0 END) Late0930
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') BETWEEN '1001' AND '1059' THEN 1 ELSE 0 END) Late1000
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') BETWEEN '1101' AND '1159' THEN 1 ELSE 0 END) Late1100
+						  		, SUM(CASE WHEN  date_format(AttStartTime, '%H%i') >= '1200' THEN 1 ELSE 0 END) LateEtc
+						  		, COUNT(targetdate) LateSum
+						   FROM  covi_smart4j.attendance_commuting_mst m
+					       JOIN  covi_smart4j.sys_object_group og          
+					       JOIN  covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+ 						   JOIN covi_smart4j.sys_object_user ur ON bg.UserCode = ur.UserCode 
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  m.TargetDate between 	#{StartDate} AND	#{EndDate}
+						    AND  m.UserCode = bg.UserCode
+						    AND  date_format(AttStartTime, '%H%i')  >= '0900'
+						GROUP BY 	MemberOf, DeptCode, bg.UserCode, 	DATE_FORMAT(TargetDate, '%Y%m')		WITH ROLLUP	 ) a   
+	]]>
+  	</select>
+  	<select id="getAttendCommSummList" parameterType="cmap" resultType="cmap">
+ 	 <![CDATA[
+  				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'       
+							ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END 
+						END  DeptFullPath
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL' then  ''         
+							ELSE  CASE WHEN COALESCE(UserCode, 'ALL') ='ALL'  then	CONCAT(	DeptName,' 요약')	   ELSE 	DeptName		 END  
+						END DeptName
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL'  OR COALESCE(UserCode,'ALL')  ='ALL' then  ''         
+							ELSE CASE WHEN COALESCE(TargetDate, 'ALL') ='ALL' then	CONCAT(	URName,' 요약')        ELSE URName	       END  
+					  END URName
+					, COALESCE(TargetDate,'') TargetDate
+					, CASE WHEN Late00  = 0 then '' ELSE Late00 END  Late00
+					, CASE WHEN Late01  = 0 then '' ELSE Late01 END  Late01
+					, CASE WHEN Late02  = 0 then '' ELSE Late02 END  Late02
+					, CASE WHEN Late03  = 0 then '' ELSE Late03 END  Late03
+					, CASE WHEN Late04  = 0 then '' ELSE Late04 END  Late04
+					, CASE WHEN Late05  = 0 then '' ELSE Late05 END  Late05
+					, CASE WHEN Late06  = 0 then '' ELSE Late06 END  Late06
+					, CASE WHEN Late07  = 0 then '' ELSE Late07 END  Late07
+					, CASE WHEN Late08  = 0 then '' ELSE Late08 END  Late08
+					, CASE WHEN Late17  = 0 then '' ELSE Late17 END  Late17
+					, CASE WHEN Late18  = 0 then '' ELSE Late18 END  Late18
+					, CASE WHEN Late19  = 0 then '' ELSE Late19 END  Late19
+					, CASE WHEN Late20  = 0 then '' ELSE Late20 END  Late20
+					, CASE WHEN Late21  = 0 then '' ELSE Late21 END  Late21
+					, CASE WHEN Late22  = 0 then '' ELSE Late22 END  Late22
+					, CASE WHEN Late23  = 0 then '' ELSE Late23 END  Late23
+					, CASE WHEN LateSum = 0 then '' ELSE LateSum END LateSum
+			  FROM (
+						 SELECT MemberOf 
+								 ,DeptCode 
+								 ,bg.UserCode UserCode
+								 ,DATE_FORMAT(TargetDate, '%Y%m') TargetDate
+								 , DeptName
+								 ,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+								 , Fn_BaseGetDictionary_S('kr', ur.MultiDisplayName)  URName
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '00' THEN 1 ELSE 0 END) Late00
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '01' THEN 1 ELSE 0 END) Late01
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '02' THEN 1 ELSE 0 END) Late02
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '03' THEN 1 ELSE 0 END) Late03
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '04' THEN 1 ELSE 0 END) Late04
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '05' THEN 1 ELSE 0 END) Late05
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '06' THEN 1 ELSE 0 END) Late06
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '07' THEN 1 ELSE 0 END) Late07
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '08' THEN 1 ELSE 0 END) Late08
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '17' THEN 1 ELSE 0 END) Late17
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '18' THEN 1 ELSE 0 END) Late18
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '19' THEN 1 ELSE 0 END) Late19
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '20' THEN 1 ELSE 0 END) Late20
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '21' THEN 1 ELSE 0 END) Late21
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '22' THEN 1 ELSE 0 END) Late22
+						  		, SUM(CASE WHEN  date_format(AttEndTime, '%H') = '23' THEN 1 ELSE 0 END) Late23
+						  		, COUNT(targetdate) LateSum
+						   FROM  covi_smart4j.attendance_commuting_mst m
+					       JOIN  covi_smart4j.sys_object_group og          
+					       JOIN  covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+						   JOIN covi_smart4j.sys_object_user ur ON bg.UserCode = ur.UserCode 
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  m.TargetDate between 	#{StartDate} AND	#{EndDate}
+						    AND  m.UserCode = bg.UserCode
+						    AND  (date_format(AttEndTime, '%H%i')  < '0900'
+						    		OR date_format(AttEndTime, '%H%i')  >= '1700')
+						GROUP BY 	MemberOf, DeptCode, bg.UserCode, 	DATE_FORMAT(TargetDate, '%Y%m')		WITH ROLLUP	 ) a   
+	]]>
+  	</select>
+  	<select id="getAttendExSummList" parameterType="cmap" resultType="cmap">
+ 	 <![CDATA[
+  				SELECT CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' then  '총 요약'       
+							ELSE 	CASE WHEN COALESCE(DeptCode,'ALL') = 'ALL'  then	CONCAT(	DeptFullPath,' 요약')	ELSE 	DeptFullPath END 
+						END  DeptFullPath
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL' then  ''         
+							ELSE  CASE WHEN COALESCE(UserCode, 'ALL') ='ALL'  then	CONCAT(	DeptName,' 요약')	   ELSE 	DeptName		 END  
+						END DeptName
+					, CASE WHEN COALESCE(MemberOf, 'ALL') = 'ALL' OR  COALESCE(DeptCode,'ALL')  ='ALL'  OR COALESCE(UserCode,'ALL')  ='ALL' then  ''         
+							ELSE CASE WHEN COALESCE(TargetDate, 'ALL') ='ALL' then	CONCAT(	URName,' 요약')        ELSE URName	       END  
+					  END URName
+					, COALESCE(TargetDate,'') TargetDate
+					, CASE WHEN Late00  = 0 then '' ELSE Late00 END  Late00
+					, CASE WHEN Late01  = 0 then '' ELSE Late01 END  Late01
+					, CASE WHEN Late02  = 0 then '' ELSE Late02 END  Late02
+					, CASE WHEN Late03  = 0 then '' ELSE Late03 END  Late03
+					, CASE WHEN Late04  = 0 then '' ELSE Late04 END  Late04
+					, CASE WHEN Late05  = 0 then '' ELSE Late05 END  Late05
+					, CASE WHEN Late06  = 0 then '' ELSE Late06 END  Late06
+					, CASE WHEN Late07  = 0 then '' ELSE Late07 END  Late07
+					, CASE WHEN Late08  = 0 then '' ELSE Late08 END  Late08
+					, CASE WHEN Late17  = 0 then '' ELSE Late17 END  Late17
+					, CASE WHEN Late18  = 0 then '' ELSE Late18 END  Late18
+					, CASE WHEN Late19  = 0 then '' ELSE Late19 END  Late19
+					, CASE WHEN Late20  = 0 then '' ELSE Late20 END  Late20
+					, CASE WHEN Late21  = 0 then '' ELSE Late21 END  Late21
+					, CASE WHEN Late22  = 0 then '' ELSE Late22 END  Late22
+					, CASE WHEN Late23  = 0 then '' ELSE Late23 END  Late23
+					, CASE WHEN LateSum = 0 then '' ELSE LateSum END LateSum
+			  FROM (
+						 SELECT MemberOf 
+								 ,DeptCode 
+								 ,bg.UserCode UserCode
+								 ,DATE_FORMAT(TargetDate, '%Y%m') TargetDate
+								 , DeptName
+								 ,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = og.MemberOf) DeptFullPath
+								 , Fn_BaseGetDictionary_S('kr', ur.MultiDisplayName)  URName
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '00' THEN 1 ELSE 0 END) Late00
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '01' THEN 1 ELSE 0 END) Late01
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '02' THEN 1 ELSE 0 END) Late02
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '03' THEN 1 ELSE 0 END) Late03
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '04' THEN 1 ELSE 0 END) Late04
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '05' THEN 1 ELSE 0 END) Late05
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '06' THEN 1 ELSE 0 END) Late06
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '07' THEN 1 ELSE 0 END) Late07
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '08' THEN 1 ELSE 0 END) Late08
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '17' THEN 1 ELSE 0 END) Late17
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '18' THEN 1 ELSE 0 END) Late18
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '19' THEN 1 ELSE 0 END) Late19
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '20' THEN 1 ELSE 0 END) Late20
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '21' THEN 1 ELSE 0 END) Late21
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '22' THEN 1 ELSE 0 END) Late22
+						  		, SUM(CASE WHEN  date_format(ExtenEnd, '%H') = '23' THEN 1 ELSE 0 END) Late23
+						  		, COUNT(targetdate) LateSum
+						   FROM  covi_smart4j.attendance_commuting_mst m
+					       JOIN  covi_smart4j.sys_object_group og          
+					       JOIN  covi_smart4j.sys_object_user_basegroup bg ON bg.CompanyCode = og.CompanyCode AND bg.DeptCode = og.GroupCode  AND bg.JobType = 'Origin'
+						   JOIN  covi_smart4j.sys_object_user ur ON bg.UserCode = ur.UserCode 
+						   JOIN  covi_smart4j.attendance_mng_extensionholiday ame ON m.TargetDate = ame.JobDate and m.UserCode = ame.UserCode AND JobStsName ='O' AND DATE_FORMAT(m.AttEndTime,'%Y%m%d')  >=  DATE_FORMAT(JobDate,'%Y%m%d')
+						  WHERE  og.CompanyCode = #{CompanyCode}
+						    AND  og.GroupPath LIKE CONCAT(#{DEPTID},'%')
+						    AND  m.TargetDate between 	#{StartDate} AND	#{EndDate}
+						    AND  m.UserCode = bg.UserCode
+						GROUP BY 	MemberOf, DeptCode, bg.UserCode, 	DATE_FORMAT(TargetDate, '%Y%m')		WITH ROLLUP	 ) a   
+	]]>
+  	</select>
+	
+	<select id="selectExHoTimeInfo" parameterType="cmap" resultType="cmap">
+		/* queryID : attend.exho.selectExHoTimeInfo */
+		SELECT
+				DATE_FORMAT(StartTIme, '%H') AS sHour
+				, DATE_FORMAT(StartTIme, '%i') AS sMin
+				, DATE_FORMAT(EndTime, '%H') AS eHour
+				, DATE_FORMAT(EndTime, '%i') AS eMin        
+		        , SUBSTR(WorkTime, 1, 2) AS WorkTimeHour
+		        , SUBSTR(WorkTime, 3, 2) AS WorkTimeMin
+		FROM 	covi_smart4j.attendance_mng_extensionholiday
+		WHERE 	1=1
+		AND 	ExHoSeq = #{ExHoSeq}
+	</select>
+		
+</mapper>
+

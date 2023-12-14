@@ -1,0 +1,139 @@
+<li id="combiCostApp@@{ProofCode}_listArea_@@{KeyNo}" name="listArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}">
+	<div class="cnrl_top" style="border-bottom: 1px solid #e0e0e0;">
+		<div class="chkStyle01">
+			<input type="checkbox" id="combiCostApp@@{RequestType}@@{ProofCode}_listCheckArea_@@{KeyNo}" 
+			name="listCheck" proofcode="@@{ProofCode}" keyno="@@{KeyNo}">
+			<label for="combiCostApp@@{RequestType}@@{ProofCode}_listCheckArea_@@{KeyNo}">
+				<span></span>
+			</label>
+		</div>
+		<ul class="card_nea_right_info">
+			<li>
+				<p class="card_nea_right_info_p1">
+					<span class="tx_ta">
+						<input type="text" id='combiCostApp@@{ProofCode}_totalAmt_@@{KeyNo}' tag="Amount"
+								name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TotalAmount" 
+								onblur = "removeCharMoney(this); CombineCostApplication@@{RequestType}.combiCostApp_InputValChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TotalAmount');"
+								style="text-align: right; color: #4abde1 !important; font-weight: bold; width: 120px; height: 24px;"
+								value="@@{TotalAmount}">
+					</span>**{ACC_krw}
+				</p>
+				<p class="card_nea_right_info_p2 ellips">
+					(@@{StoreName})<a href="#" class="btn_Bill" onClick="CombineCostApplication@@{RequestType}.combiCostApp_MobileAppClick('@@{FileID}')"></a>
+				</p>
+				<p class="tx_date">
+					<span class="dateSel type02" id='combiCostApp@@{RequestType}@@{ProofCode}_proofDate_@@{KeyNo}' 
+						name="DateArea" datafield="ProofDate" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"
+						onChange='CombineCostApplication@@{RequestType}.combiCostApp_changeDate(this,"@@{ProofCode}", "@@{KeyNo}", "ProofDate")'>
+					</span>
+				</p>
+				<div class="cnrl_top_btn" style="margin: 0;">
+					<a href="#" class="btn_File ico_file" onCLick="CombineCostApplication@@{RequestType}.combiCostApp_FileAttach('@@{ProofCode}', '@@{KeyNo}')">**{ACC_lbl_addFile}</a>
+					<a href="#" class="btn_File ico_doc" onCLick="CombineCostApplication@@{RequestType}.combiCostApp_DocLink('@@{ProofCode}', '@@{KeyNo}')">**{ACC_lbl_docLink}</a>
+				</div>
+			</li>
+		</ul>
+	</div>
+	<div class="cnrl_mid">
+		<!-- <dl>
+			지급일
+			<dt>**{ACC_lbl_payDay}<span class="star"></span></dt>
+			<dd>
+				<div class="dateSel type02" id='combiCostApp@@{RequestType}@@{ProofCode}_payDate_@@{KeyNo}' 
+					name="DateArea" datafield="PayDate" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"
+					onChange='CombineCostApplication@@{RequestType}.combiCostApp_changeDate(this,"@@{ProofCode}", "@@{KeyNo}", "PayDate")'>
+				</div>
+			</dd>
+		</dl> -->
+		<!-- <dl>
+			전기일
+			<dt>**{ACC_lbl_postDate}<span class="star"></span></dt>
+			<dd>
+				<div class="dateSel type02" id='combiCostApp@@{RequestType}@@{ProofCode}_postingDate_@@{KeyNo}' 
+					name="DateArea" datafield="PostingDate" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"
+					onChange='CombineCostApplication@@{RequestType}.combiCostApp_changeDate(this,"@@{ProofCode}", "@@{KeyNo}", "PostingDate")'>
+				</div>
+			</dd>
+		</dl> -->		
+		<dl>
+			<!-- 세금유형 -->
+			<dt style="width: 80px;">**{ACC_lbl_taxClass}</dt>
+			<dd>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_taxType_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TaxType"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TaxType')">
+					@@{TaxTypeOptions}
+				</select>
+			</dd>
+		</dl>	
+		<dl>
+			<!-- 세금코드 -->
+			<dt style="width: 80px;">**{ACC_lbl_taxCode}</dt>
+			<dd>
+				<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_taxCode_@@{KeyNo}" 
+					name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TaxCode"
+					onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TaxCode')"> <!--  style="width: 200px !important;" -->
+					<option value="">**{ACC_lbl_choice}</option>
+				</select>
+			</dd>
+		</dl>	
+		<dl>
+			<!-- 세금코드 -->
+			<dt style="width: 80px;">**{ACC_lbl_privateCard}<span class="star"></span></dt>
+			<dd>
+				<span>
+					<input type="hidden" id='combiCostApp@@{ProofCode}_personalCardNo_@@{KeyNo}' disabled="true"
+						name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="PersonalCardNo"
+						value="@@{PersonalCardNo}" class="HtmlCheckXSS ScriptCheckXSS">
+					<input type="text" id='combiCostApp@@{ProofCode}_ersonalCardNoView_@@{KeyNo}' disabled="true"
+						name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="PersonalCardNoView"
+						value="@@{PersonalCardNoView}" class="HtmlCheckXSS ScriptCheckXSS">
+					<button type="button" class="btnSearchType01" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callPrivateCardPopup('@@{ProofCode}', '@@{KeyNo}')"></button>
+				</span>
+			</dd>
+		</dl>		
+		<dl>
+			<!-- 세금코드 -->
+			<dt style="width: 80px;">**{ACC_lbl_vendorName}<span class="star"></span></dt>
+			<dd>
+				<span>
+					<input type="hidden" id='combiCostApp@@{ProofCode}_vendorNo_@@{KeyNo}' disabled="true"
+						name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="VendorNo"
+						value="@@{VendorNo}" class="HtmlCheckXSS ScriptCheckXSS">
+					<input type="text" id='combiCostApp@@{ProofCode}_vendorName_@@{KeyNo}' disabled="true"
+						name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="VendorName"
+						value="@@{VendorName}" class="HtmlCheckXSS ScriptCheckXSS">
+					
+					<button type="button" class="btnSearchType01" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callVendorPopup('@@{ProofCode}','@@{KeyNo}')"></button>
+				</span>
+			</dd>
+		</dl>						
+	</div>
+	<div class="cnrl_bot">
+		<div class="total_acooungting_table_btn">
+			<a href="#" class="btn_add" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divAddOne('@@{ProofCode}', '@@{KeyNo}')"></a><a href="#" class="btn_del" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divDelete('@@{ProofCode}', '@@{KeyNo}')"></a>
+			<a href="#" class="btn_copy" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divCopy('@@{ProofCode}', '@@{KeyNo}')"
+				title="**{ACC_msg_copyDivExpence}"><span>**{ACC_btn_copy}</span></a> <!-- 선택된 증빙분할이 복사되어 최하단에 추가됩니다. (단, 선택된 증빙분할이 없다면 첫 번째 증빙이 복사됩니다.) -->
+		</div>
+		<table class="total_acooungting_table">
+			<thead>
+				<tr>
+					<th width="30">
+					</th>
+					<th>**{ACC_lbl_account}<span class="star"></span></th>	<!-- 계정과목 -->
+					<th name="noSBArea">**{ACC_standardBrief}<span class='star'></span></th>	<!-- 표준적요 -->
+					<th>**{ACC_lbl_ctrlCode}<span class="star"></span></th>
+					<th>**{ACC_lbl_costCenter}<span class="star"></span></th>	<!-- 코스트센터 -->
+					<th name="noIOArea">**{ACC_lbl_projectName}</th> <!-- 프로젝트명 -->
+					<th>**{ACC_billReqAmt}<span class="star"></span></th>		<!-- 청구금액 -->
+					<th name="noBDArea">**{lbl_remainBudget}</th>	<!-- 잔여예산 -->
+					<th>**{ACC_useHistory}</th> <!-- 내역 -->
+				</tr>
+			</thead>
+			<tbody id="combiCostApp@@{ProofCode}_TableBodyArea_@@{KeyNo}"
+				name="DivBodyArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"></tbody>
+		</table>
+		<div class="BC_File_list_wrap" name="LinkArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}">										
+		</div>
+	</div>
+</li>

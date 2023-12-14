@@ -1,0 +1,67 @@
+<tr>
+	<th width="30"></th>
+	<th width="168" >**{ACC_lbl_totalAmount}</th>	<!-- 합계금액 -->
+	<th width="140">**{ACC_lbl_payDay}</th>		<!-- 지급일 -->
+	<th width="80" >**{ACC_lbl_taxValue}</th>	<!-- 세액 -->
+	<th width="80" >**{ACC_lbl_supplyValue}</th>	<!-- 공급가액 -->
+	<th width="80" name="accArea">**{ACC_lbl_account}</th>	<!-- 계정 -->
+	<th width="80" name="noSBArea">**{ACC_standardBrief}</th>	<!-- 표준적요 -->
+	<th width="90">**{ACC_lbl_costCenter}</th>	<!-- 코스트센터 -->	
+	<th width="70" name="noIOArea" >**{ACC_lbl_projectName}</th>	<!-- 프로젝트명 -->
+	<th width="80">**{ACC_billReqAmt}</th>	<!-- 청구금액 -->
+	<th width="80" name="noBDArea">**{ACC_lbl_remainBudget}</th>	<!-- 잔여예산 -->
+	<th width="80">**{ACC_lbl_docNo}</th>	<!-- 전표번호 -->
+	<th name="colIOArea">**{ACC_useHistory}</th>	<!-- 내역 -->
+	<th width="60" name="noViewArea" ></th>
+</tr>										
+<tr>
+	<td rowspan="2" name="noViewArea">
+		<div class="acooungting_status_chk" style="border-right: none;">
+			<div>
+				<input type="checkbox" id="combiCostApp_formCheck_@@{ViewKeyNo}"
+					name="EvidItemCheck" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}">
+				<label for="combiCostApp_formCheck_@@{ViewKeyNo}">
+					<span></span>
+				</label>
+			</div>
+		</div>
+	</td>
+	<td>
+		<ul class="write_info_txt">
+			<li><span class="tx_money">@@{TotalAmount}</span>원</li>
+			<li><span class="tx_date">@@{ProofDate}</span></li>
+			<li>@@{StoreName}</li>
+			<li>@@{CardApproveNo}
+				<a href="#" class="btn_Bill" onClick="@@{pageNm}.combiCostApp_onCardAppClick('@@{ReceiptID}')"></a>
+			</li>
+		</ul>
+	</td>
+	<td name="payDateArea">@@{PayDate}</td>
+	<td style="text-align: right;" ><strong>@@{TaxAmount}</strong></td>
+	<td style="text-align: right;" ><strong>@@{RepAmount}</strong></td>
+	<td colspan="8" name="colIOSBArea">
+		<table class="acstatus_table">
+			<tbody>
+				@@{divArea}
+			</tbody>
+		</table>
+	</td>
+	<td name="noViewArea">
+		<a href="#" class="btn_edit" 
+		onClick="CombineCostApplication@@{RequestType}.combiCostApp_onEvidItemEdit('@@{ProofCode}', '@@{ViewKeyNo}')">**{ACC_btn_modify}</a>
+	</td>
+</tr>
+<tr>
+	<td>
+		<strong>**{ACC_lbl_addFile}</strong>	<!-- 첨부파일 -->
+	</td>
+	<td colspan="8" class="align_l" id="combCostApp_fileViewArea_@@{ViewKeyNo}"
+		name="FileViewArea" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}">
+	</td>
+	<td>
+		<strong>**{ACC_lbl_doc}</strong>	<!-- 문서 -->
+	</td>
+	<td colspan="3" class="align_l" id="combCostApp_docViewArea_@@{ViewKeyNo}"
+		name="DocViewArea" proofcode="@@{ProofCode}" viewkeyno="@@{ViewKeyNo}">
+	</td>
+</tr>

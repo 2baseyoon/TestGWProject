@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.forms">
+    <select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT
+			FormID AS "FormID",
+			FormClassID AS "FormClassID",
+			SchemaID AS "SchemaID",
+			IsUse AS "IsUse",
+			Revision AS "Revision",
+			SortKey AS "SortKey",
+			FormName AS "FormName",
+			FormPrefix AS "FormPrefix",
+			FormDesc AS "FormDesc",
+			FileName AS "FileName",
+			BodyDefault AS "BodyDefault",
+			EntCode AS "EntCode",
+			ExtInfo AS "ExtInfo",
+			AutoApprovalLine AS "AutoApprovalLine",
+			BodyType AS "BodyType",
+			SubTableInfo AS "SubTableInfo",
+			Reserved1 AS "Reserved1",
+			Reserved2 AS "Reserved2",
+			Reserved3 AS "Reserved3",
+			Reserved4 AS "Reserved4",
+			Reserved5 AS "Reserved5",
+			RegID AS "RegID",
+			RegDate AS "RegDate",
+			ModID AS "ModID",
+			ModDate AS "ModDate"
+		FROM jwf_forms
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="FormID != null">AND FormID = #{FormID}</if>
+	  <if test="FormID == null">AND false</if>
+	</trim>
+	</select>
+</mapper>

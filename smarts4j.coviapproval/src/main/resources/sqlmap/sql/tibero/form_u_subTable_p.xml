@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.subtable">
+    <resultMap type="hashmap" id="clobSubData">
+    	<result property="FormInstID" column="FormInstID"/>
+    	<result property="ROWSEQ" column="ROWSEQ"/>
+    	<result property="MULTI_DOC_TYPE" column="MULTI_DOC_TYPE"/>
+    	<result property="MULTI_BODY_CONTEXT_HWP" column="MULTI_BODY_CONTEXT_HWP" jdbcType="CLOB" javaType="java.lang.String"/>
+    	<result property="MULTI_BODY_CONTEXT_HTML" column="MULTI_BODY_CONTEXT_HTML" jdbcType="CLOB" javaType="java.lang.String"/>
+    	<result property="MULTI_RECEIVER_TYPE" column="MULTI_RECEIVER_TYPE"/>
+    	<result property="MULTI_RECEIVENAMES" column="MULTI_RECEIVENAMES"/>
+    	<result property="MULTI_RECEIPTLIST" column="MULTI_RECEIPTLIST"/>
+    	<result property="MULTI_TITLE" column="MULTI_TITLE"/>
+    	<result property="MULTI_ATTACH_FILE" column="MULTI_ATTACH_FILE" jdbcType="CLOB" javaType="java.lang.String"/>    
+    </resultMap>
+    
+    <select id="selectColumnNames" parameterType="cmap" resultType="cmap">
+		SELECT LISTAGG(COLUMN_NAME ,',' ) WITHIN GROUP(ORDER BY COLUMN_ID ASC) AS "ColumnName" 
+		FROM ALL_TAB_COLUMNS
+		WHERE UPPER(TABLE_NAME) = UPPER(#{tableName})
+		AND OWNER = 'GWUSER'
+	</select>
+	
+    <select id="selectData" parameterType="cmap" resultType="cmap">
+		SELECT ${columns}
+		FROM ${tableName} 
+		WHERE FormInstID=#{formInstID}
+		<if test="tableName == 'HWP_MULTI_GOV_SUB'">
+			OR MULTI_FORM_INST_ID = #{formInstID}
+			ORDER BY ROWSEQ ASC
+		</if>
+	</select>
+	
+    <insert id="insertOneData" parameterType="cmap">
+		INSERT INTO ${tableName} 
+	    <foreach collection="insertData" item="item" separator="," open="(" close=")">
+	    	${item.key}
+	    </foreach>
+		VALUES
+	    <foreach collection="insertData" item="item" separator="," open="(" close=")">
+	    	#{item.value}
+	    </foreach> 
+    </insert>
+    
+    <insert id="insertSelectData" parameterType="cmap">
+		INSERT INTO ${tableName}
+		SELECT #{newFormInstID} AS ${columns}
+		FROM ${tableName}
+		WHERE FormInstID = #{formInstID}
+    </insert>
+    
+    <delete id="deleteData" parameterType="cmap">
+		DELETE FROM ${tableName} 
+		WHERE FormInstID= #{formInstID}
+	</delete>
+	
+	<insert id="insertMultiDraft_sub" parameterType="cmap">
+		INSERT INTO HWP_MULTI_GOV_SUB (
+			FORMINSTID, 
+			ROWSEQ, 
+			MULTI_DOC_TYPE, 
+			MULTI_BODY_CONTEXT_HWP, 
+			MULTI_BODY_CONTEXT_HTML, 
+			MULTI_RECEIVER_TYPE, 
+			MULTI_RECEIVENAMES, 
+			MULTI_RECEIPTLIST, 
+			MULTI_TITLE, 
+			MULTI_ATTACH_FILE, 
+			MULTI_LINK_DOC, 
+			MULTI_ADDRESS, 
+			MULTI_REGIST_CHECK, 
+			MULTI_KEEP_PERIOD, 
+			MULTI_SECURE_LEVEL, 
+			MULTI_RELEASE_CHECK, 
+			MULTI_RELEASE_RESTRICTION, 
+			MULTI_SPECIAL_RECORD, 
+			MULTI_RECORD_CLASS_NUM, 
+			MULTI_RECORD_SUBJECT
+		) VALUES (
+			#{FormInstID}, 
+			#{ROWSEQ}, 
+			#{MULTI_DOC_TYPE}, 
+			#{MULTI_BODY_CONTEXT_HWP}, 
+			#{MULTI_BODY_CONTEXT_HTML}, 
+			#{MULTI_RECEIVER_TYPE}, 
+			#{MULTI_RECEIVENAMES}, 
+			#{MULTI_RECEIPTLIST}, 
+			#{MULTI_TITLE}, 
+			#{MULTI_ATTACH_FILE}, 
+			#{MULTI_LINK_DOC}, 
+			#{MULTI_ADDRESS}, 
+			#{MULTI_REGIST_CHECK}, 
+			#{MULTI_KEEP_PERIOD}, 
+			#{MULTI_SECURE_LEVEL}, 
+			#{MULTI_RELEASE_CHECK}, 
+			#{MULTI_RELEASE_RESTRICTION}, 
+			#{MULTI_SPECIAL_RECORD}, 
+			#{MULTI_RECORD_CLASS_NUM}, 
+			#{MULTI_RECORD_SUBJECT}
+		)
+	</insert>
+</mapper>

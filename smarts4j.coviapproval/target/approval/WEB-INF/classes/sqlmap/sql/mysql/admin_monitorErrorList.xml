@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monitorErrorList">
+    <select id="selectMonitorErrorList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+			  <if test="TYPE != null and  (TYPE eq 'Workitem'.toString())">
+			  SELECT
+					 WorkItemID
+					, ProcessID 
+					, Name
+					, DSCR
+					, PerformerID
+					, UserName
+					, Created
+					, FinishRequested
+					, ProcessState
+				FROM
+					(SELECT 
+						WorkItemID
+						, W.ProcessID 
+						, W.Name
+						, W.DSCR
+						, PerformerID
+						, UserName
+						, Created AS Created
+						, FinishRequested AS FinishRequested  
+						, P.ProcessState AS ProcessState
+					FROM covi_approval4j.jwf_workitem AS W
+					JOIN covi_approval4j.jwf_process AS P
+						ON W.ProcessID = P.ProcessID
+					WHERE W.State = 275
+					) AS SUB_TABLE		
+				ORDER BY FinishRequested DESC
+			</if>
+			<if test="TYPE != null and  (TYPE eq 'Process'.toString())">
+			    SELECT
+					  ProcessID
+					, ProcessName
+					, StartDate
+					, ProcessState
+					, DocSubject
+					, InitiatorID
+					, InitiatorName
+				FROM
+					(SELECT 
+						  ProcessID
+						, ProcessName				
+						, StartDate
+						, ProcessState
+						, DocSubject
+						, InitiatorID
+						, InitiatorName
+					FROM covi_approval4j.jwf_process
+					WHERE ProcessState = 275
+					)AS SUB_TABLE
+				ORDER BY StartDate DESC
+			</if>
+		) A		
+		
+				
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="TYPE != null and  (TYPE eq 'Workitem'.toString())">
+		  		<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("WorkItemID")'>WorkItemID</when>
+						<when test='sortColumn.equalsIgnoreCase("FinishRequested")'>FinishRequested</when>
+						<when test='sortColumn.equalsIgnoreCase("Name")'>Name</when>
+						<when test='sortColumn.equalsIgnoreCase("PerformerID")'>PerformerID</when>
+						<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+						<otherwise>Created</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					Created DESC
+			    </if>
+			</if>
+			<if test="TYPE != null and  (TYPE eq 'Process'.toString())">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+						<when test='sortColumn.equalsIgnoreCase("ProcessName")'>ProcessName</when>
+						<when test='sortColumn.equalsIgnoreCase("DocSubject")'>DocSubject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<otherwise>StartDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					StartDate DESC
+			   </if>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectMonitorErrorListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT
+					 WorkItemID
+					, ProcessID 
+					, Name
+					, DSCR
+					, PerformerID
+					#, PERFORMER_NAME
+					, Created
+					, FinishRequested
+					, ProcessState
+				FROM
+					(SELECT 
+						WorkItemID
+						, W.ProcessID 
+						, W.Name
+						, W.DSCR
+						, PerformerID
+						#, PERFORMER_NAME
+						, Created
+						, FinishRequested
+						, P.ProcessState AS ProcessState
+					FROM covi_approval4j.jwf_workitem AS W
+					JOIN covi_approval4j.jwf_process AS P
+						ON W.ProcessID = P.ProcessID
+					WHERE W.State = 275
+					) AS SUB_TABLE		
+				ORDER BY FinishRequested DESC
+		) A		
+				
+	</select>
+	
+    
+    <update id="updateMonitorChangeState" parameterType="cmap" >       
+        <if test="sType != null  and  (sType eq 'Workitem'.toString())">
+        UPDATE covi_approval4j.jwf_workitem
+        SET State = #{CHANGE_STATE}
+        WHERE
+	   		WorkItemID IN
+	   	    <foreach collection="INSTANCE_ID" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+			</foreach>
+			AND State = 275
+	   	</if>        	
+        <if test="sType != null and (sType eq 'Process'.toString())">
+        UPDATE covi_approval4j.jwf_process
+        SET ProcessState = #{CHANGE_STATE}
+        WHERE
+            ProcessID IN
+            <foreach collection="INSTANCE_ID" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+			</foreach>
+			AND ProcessState = 275
+        </if>		
+    </update>
+    
+</mapper>
+

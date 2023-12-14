@@ -1,0 +1,379 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="admin.listadmin">
+    <!-- 계열사 리스트 조회 -->
+	<select id="selectEntinfototalListData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT
+				 DISTINCT
+				 '' as DN_ID
+				,'전체'as DisplayName
+				,'-1'   as sortkey
+				,''    as DN_Code
+
+		UNION ALL
+
+		SELECT
+				 DomainID AS DN_ID
+				,DisplayName
+				,sortkey
+				,DomainCode AS DN_Code
+		FROM
+				covi_smart4j.sys_object_domain
+		WHERE isuse='Y'
+		AND DeleteDate IS NULL
+		AND MemberOf IS NOT NULL
+		ORDER BY sortkey ASC
+	    ]]>
+	</select>
+
+	<select id="selectListAdminData" parameterType="cmap" resultType="cmap">
+	    SELECT
+				WF_PROCESS.*,
+				(CASE
+						WHEN WF_PROCESS.PiBusinessState = '02_02_' OR WF_PROCESS.PiBusinessState = '02_01_'
+							THEN WF_PROCESS.PiBusinessState
+						ELSE  '-'
+				END
+				)AS BusinessState
+		FROM (
+						SELECT
+						 '' AS FormID ,
+						 SubJect AS SubJect ,
+						 FormName ,
+						 '' AS PiName ,
+						 '' AS PiDscr ,
+						 FI.FormInstID  ,
+						 InitiatorName AS InitiatorName ,
+						 InitiatorID AS InitiatorID ,
+						 InitiatorUnitID AS InitiatorUnitID ,
+						 InitiatorUnitName AS InitiatorUnitName ,
+						 FI.ProcessID AS PiID ,
+						 Parent.ProcessState AS PiState ,
+						 '' AS PfID ,
+						 '' AS PfPerFormerID ,
+						 '' AS PfPerFormerName ,
+						 '' AS PfSubKind ,
+						 IFNULL(SUBSTR(Parent.BusinessState,1,6),SUBSTR(P.BusinessState,1,6)) AS PiBusinessState ,
+						 IFNULL(Parent.BusinessState,P.BusinessState) AS DocBusinessState ,
+						 '' AS PiBusinessDate1 ,
+						 '' AS PiBusinessDate2 ,
+						 DocNo AS DocNo ,
+						 '' AS WiBusinessDate1 ,
+						 '' AS WiBusinessDate2 ,
+						 InitiatedDate AS WorkDt ,
+						 '' AS WID ,
+						 CompletedDate AS PiFinished ,
+						 '' AS InitiatorSIPAddress ,
+						 FormPrefix ,
+						 FI.EntCode as EntCode,
+						 FI.ProcessID AS ProcessID,
+						 InitiatedDate AS PiStarted ,
+						 IF(DeletedDate,'Y','') AS PiDeletedDate  ,
+						 CompletedDate ,
+						 Parent.ProcessState as ProcessState,
+						 Subject AS FormSubject,
+						 InitiatedDate ,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS IsSecureDoc ,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS DocYn
+				FROM
+					  covi_approval4j.jwf_forminstance AS FI
+					  INNER JOIN (
+					  					SELECT ProcessID,ParentProcessID, ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, ParentProcessID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN (
+					  					SELECT ProcessID, ProcessState, BusinessState ,B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )Parent ON Parent.ProcessID = P.ProcessID
+					  INNER JOIN covi_approval4j.jwf_forms as form on FI.formid = form.formid
+			)WF_PROCESS
+		<!-- 검색 데이터 Where 절 -->
+		WHERE
+			1=1
+		<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+		    AND EntCode = #{selectEntinfoListData}
+		</if>
+	  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+	  		<if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+	  	     AND 
+	  	     <choose>
+				<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>InitiatedDate</when>
+				<otherwise>CompletedDate</otherwise>
+			 </choose> 
+			 BETWEEN #{startDate} AND DATEADD(DAY,1,#{endDate})
+	  	    </if>
+	  	 </if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormInstID")'>
+					AND FormInstID = #{searchWord} 
+				</when>
+				<otherwise>
+					AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("InitiatedDate")'>FormSubject</when>
+						<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+						<otherwise>DocNo</otherwise>
+					</choose> 
+					LIKE CONCAT('%',REGEXP_REPLACE(#{searchWord},'(%|\'|\")','\\\\\\1'),'%')
+				</otherwise>
+	        </choose>
+		</if>
+		<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+		    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+		        AND ProcessState = #{selectSearchTypeDoc}
+			    <if test="selectSearchTypeDoc == '528'">
+			    	AND DocBusinessState LIKE '02_01%'
+			    </if>
+		    </if>
+		    <if test="selectSearchTypeDoc == 'REJECT'">
+		        AND	ProcessState = 528
+		        AND DocBusinessState LIKE '02_02%'
+		    </if>
+		</if>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("CompletedDate")'>CompletedDate</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("PiState")'>PiState</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessState")'>BusinessState</when>
+					<when test='sortColumn.equalsIgnoreCase("PiDeletedDate")'>PiDeletedDate</when>
+					<otherwise>InitiatedDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				InitiatedDate DESC
+		    </if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<select id="selectListAdminDataCnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT
+			COUNT(*) AS CNT
+		FROM (
+						SELECT
+						 '' AS FormID ,
+						 SubJect AS SubJect ,
+						 FormName ,
+						 '' AS PiName ,
+						 '' AS PiDscr ,
+						 FI.FormInstID  ,
+						 InitiatorName AS InitiatorName ,
+						 InitiatorID AS InitiatorID ,
+						 InitiatorUnitID AS InitiatorUnitID ,
+						 InitiatorUnitName AS InitiatorUnitName ,
+						 FI.ProcessID AS PiID ,
+						 CASE WHEN Parent.ProcessState = 546 THEN 546 WHEN CompletedDate IS NULL THEN 288 ELSE 528 END AS PiState ,
+						 '' AS PfID ,
+						 '' AS PfPerFormerID ,
+						 '' AS PfPerFormerName ,
+						 '' AS PfSubKind ,
+						 IFNULL(SUBSTR(Parent.BusinessState,4),SUBSTR(P.BusinessState,4)) AS PiBusinessState ,
+						 IFNULL(Parent.BusinessState,P.BusinessState) AS DocBusinessState ,
+						 '' AS PiBusinessDate1 ,
+						 '' AS PiBusinessDate2 ,
+						 DocNo AS DocNo ,
+						 '' AS WiBusinessDate1 ,
+						 '' AS WiBusinessDate2 ,
+						 InitiatedDate AS WorkDt ,
+						 '' AS WID ,
+						 CompletedDate AS PiFinished ,
+						 '' AS InitiatorSIPAddress ,
+						 FormPrefix ,
+						 FI.EntCode as EntCode,
+						 InitiatedDate AS PiStarted ,
+						 IF(DeletedDate,'Y','') AS PiDeletedDate  ,
+						 CompletedDate ,
+						 Parent.ProcessState as ProcessState,
+						 Subject AS FormSubject,
+						 InitiatedDate,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS IsSecureDoc ,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS DocYn
+				FROM
+					  covi_approval4j.jwf_forminstance AS FI
+					  INNER JOIN (
+					  					SELECT ProcessID,ParentProcessID, ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, ParentProcessID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN (
+					  					SELECT ProcessID, ProcessState, BusinessState ,B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )Parent ON Parent.ProcessID = P.ProcessID
+					  INNER JOIN covi_approval4j.jwf_forms as form on FI.formid = form.formid
+			)WF_PROCESS
+		WHERE
+			1=1
+		<if test="selectEntinfoListData != null and selectEntinfoListData != ''">
+		    AND EntCode = #{selectEntinfoListData}
+		</if>
+	  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+	  	    <if test="selectSearchTypeDate != null and selectSearchTypeDate != ''">
+	  	     AND 
+	  	     <choose>
+				<when test='selectSearchTypeDate.equalsIgnoreCase("InitiatedDate")'>InitiatedDate</when>
+				<otherwise>CompletedDate</otherwise>
+			 </choose> 
+			 BETWEEN #{startDate} AND DATEADD(DAY,1,#{endDate})
+	  	    </if>
+	  	 </if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormInstID")'>
+					AND FormInstID = #{searchWord} 
+				</when>
+				<otherwise>
+					AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("InitiatedDate")'>FormSubject</when>
+						<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+						<otherwise>DocNo</otherwise>
+					</choose> 
+					LIKE CONCAT('%',REGEXP_REPLACE(#{searchWord},'(%|\'|\")','\\\\\\1'),'%')
+				</otherwise>
+	        </choose>
+		</if>
+		<if test="selectSearchTypeDoc != null and selectSearchTypeDoc != ''">
+		    <if test="selectSearchTypeDoc == '288' or selectSearchTypeDoc == '546' or selectSearchTypeDoc == '528'">
+		        AND ProcessState = #{selectSearchTypeDoc}
+			    <if test="selectSearchTypeDoc == '528'">
+			    	AND DocBusinessState LIKE '02_01%'
+			    </if>
+		    </if>
+		    <if test="selectSearchTypeDoc == 'REJECT'">
+		        AND	ProcessState = 528
+		        AND DocBusinessState LIKE '02_02%'
+		    </if>
+		</if>
+	</select>
+
+	<select id="selectDocumentInfo" parameterType="cmap" resultType="cmap">
+	    SELECT
+				WF_PROCESS.*,
+				(CASE
+						WHEN WF_PROCESS.PiBusinessState = '02_02_' OR WF_PROCESS.PiBusinessState = '02_01_'
+							THEN WF_PROCESS.PiBusinessState
+						ELSE  '-'
+				END
+				)AS BusinessState
+		FROM (
+						SELECT
+						 '' AS FormID ,
+						 SubJect AS SubJect ,
+						 FormName ,
+						 '' AS PiName ,
+						 '' AS PiDscr ,
+						 FI.FormInstID  ,
+						 InitiatorName AS InitiatorName ,
+						 InitiatorID AS InitiatorID ,
+						 InitiatorUnitID AS InitiatorUnitID ,
+						 InitiatorUnitName AS InitiatorUnitName ,
+						 FI.ProcessID AS PiID ,
+						 CASE WHEN Parent.ProcessState = 546 THEN 546 WHEN CompletedDate IS NULL THEN 288 ELSE 528 END AS PiState ,
+						 '' AS PfID ,
+						 '' AS PfPerFormerID ,
+						 '' AS PfPerFormerName ,
+						 '' AS PfSubKind ,
+						 IFNULL(SUBSTR(Parent.BusinessState,1,6),SUBSTR(P.BusinessState,1,6)) AS PiBusinessState ,
+						 '' AS PiBusinessDate1 ,
+						 '' AS PiBusinessDate2 ,
+						 DocNo AS DocNo ,
+						 '' AS WiBusinessDate1 ,
+						 '' AS WiBusinessDate2 ,
+						 InitiatedDate AS WorkDt ,
+						 '' AS WID ,
+						 CompletedDate AS PiFinished ,
+						 '' AS InitiatorSIPAddress ,
+						 FormPrefix ,
+						 InitiatedDate AS PiStarted ,
+						 IF(DeletedDate,'Y','') AS PiDeletedDate  ,
+						 CompletedDate ,
+						 FI.BodyType ,
+						 FI.BodyContext ,
+						 FI.DocLinks ,
+						 Subject AS FormSubject,
+						 InitiatedDate,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS IsSecureDoc ,
+						 IFNULL(Parent.IsSecureDoc,P.IsSecureDoc) AS DocYn,
+						 FI.AttachFileInfo
+				FROM
+					  covi_approval4j.jwf_forminstance AS FI
+					  INNER JOIN (
+					  					SELECT ProcessID,ParentProcessID, ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, ParentProcessID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )P ON P.ProcessID = FI.ProcessID
+					  INNER JOIN (
+					  					SELECT ProcessID, ProcessState, BusinessState ,B.IsSecureDoc
+										FROM 	covi_approval4j.jwf_process AS A
+										INNER JOIN  covi_approval4j.jwf_ProcessDescription AS B
+											ON B.ProcessDescriptionID = A.ProcessDescriptionID
+										UNION
+										SELECT ProcessArchiveID, '528' as ProcessState, BusinessState , B.IsSecureDoc
+										FROM 	covi_approval4j_archive.jwf_processArchive AS A
+										INNER JOIN  covi_approval4j_archive.jwf_ProcessDescriptionArchive AS B
+											ON B.ProcessDescriptionArchiveID = A.ProcessDescriptionArchiveID
+									 )Parent ON Parent.ProcessID = P.ProcessID
+					  INNER JOIN covi_approval4j.jwf_forms as form on FI.formid = form.formid
+			)WF_PROCESS
+		WHERE
+			 FormInstID = #{FormInstID}
+	</select>
+
+</mapper>
+

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="searchword">
+	<select id="selectList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT
+			SearchWordID AS "SearchWordID"
+			, SearchWord AS "SearchWord"
+			, SearchCnt AS "SearchCnt"
+			, SearchDate AS "SearchDate"
+			, RecentlyPoint AS "RecentlyPoint"
+			, DomainID AS "DomainID"
+			, DomainName AS "DomainName"
+			, System AS "System"
+			, CreateDate AS "CreateDate"
+		FROM (
+			SELECT
+				SW.SearchWordID
+				, SW.SearchWord
+				, SW.SearchCnt
+				, TO_CHAR(SW.SearchDate, 'YYYY-MM-DD HH24:MI:SS') AS SearchDate
+				, SW.RecentlyPoint
+				, SW.DomainID
+				, Fn_BaseGetDictionary_S(#{lang}, DN.MultiDisplayName) AS DomainName
+				, SW.System
+				, TO_CHAR(SW.CreateDate, 'YYYY-MM-DD HH24:MI:SS') AS CreateDate
+			FROM sys_search_word SW
+			INNER JOIN sys_object_domain DN ON SW.DomainID = DN.DomainID
+			<trim prefix="WHERE" prefixOverrides="AND | OR ">
+				<if test="DomainID != null and DomainID != ''">
+					AND SW.DomainID = #{DomainID}
+				</if>
+				<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+					<if test="SearchType eq 'SearchWord'.toString()">
+						AND SW.SearchWord LIKE '%' || #{SearchWord} || '%'
+					</if>
+					<if test="SearchType eq 'BizSection'.toString()">
+						AND SW.System LIKE '%' || #{SearchWord} || '%'
+					</if>
+				</if>
+			</trim>
+		) A
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("System")'>System</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchWord")'>SearchWord</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchCnt")'>SearchCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("RecentlyPoint")'>RecentlyPoint</when>
+					<when test='sortColumn.equalsIgnoreCase("CreateDate")'>CreateDate</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchDate")'>SearchDate</when>
+					<otherwise>DomainName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    <select id="selectListCount" parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*) AS CNT
+		FROM sys_search_word SW
+		INNER JOIN sys_object_domain DN ON SW.DomainID = DN.DomainID
+		<trim prefix="WHERE" prefixOverrides="AND | OR ">
+			<if test="DomainID != null and DomainID != ''">
+				AND SW.DomainID = #{DomainID}
+			</if>
+			<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+				<if test="SearchType eq 'SearchWord'.toString()">
+					AND SW.SearchWord LIKE '%' || #{SearchWord} || '%'
+				</if>
+				<if test="SearchType eq 'BizSection'.toString()">
+					AND SW.System LIKE '%' || #{SearchWord} || '%'
+				</if>
+			</if>
+		</trim>
+	</select>
+    
+    <select id="selectData" parameterType="cmap" resultType="cmap">
+        SELECT
+				SW.SearchWordID AS "SearchWordID"
+				, SW.SearchWord AS "SearchWord"
+				, SW.SearchCnt AS "SearchCnt"
+				, TO_CHAR(SW.SearchDate, 'YYYY-MM-DD') AS "SearchDate"
+				, SW.RecentlyPoint AS "RecentlyPoint"
+				, SW.DomainID AS "DomainID"
+				, SW.System AS "System"
+				, TO_CHAR(SW.CreateDate, 'YYYY-MM-DD') AS "CreateDate"
+		FROM sys_search_word SW
+		WHERE SearchWordID = #{SearchWordID}
+    </select>
+    
+    <insert id="insertData" parameterType="cmap">
+        INSERT INTO sys_search_word (
+        	SearchWord
+        	, SearchCnt
+        	<if test="SearchDate !=null and SearchDate !=''"> , SearchDate </if>
+        	<if test="RecentlyPoint !=null and RecentlyPoint !=''"> , RecentlyPoint </if>
+        	, DomainID
+        	, System
+        	<if test="CreateDate !=null and CreateDate !=''"> , CreateDate </if>
+        ) VALUES (
+        	#{SearchWord}
+        	, #{SearchCnt}
+        	<if test="SearchDate !=null and SearchDate !=''"> , TO_DATE(#{SearchDate}, 'YYYY-MM-DD')</if>
+        	<if test="RecentlyPoint !=null and RecentlyPoint !=''"> , #{RecentlyPoint} </if>
+        	, #{DomainID}
+        	, #{System}
+        	<if test="CreateDate !=null and CreateDate !=''"> , TO_DATE(#{CreateDate}, 'YYYY-MM-DD')</if>
+        )
+    </insert>
+    
+    <update id="updateData" parameterType="cmap">
+        UPDATE sys_search_word
+        SET 
+        	SearchWord = #{SearchWord}
+        	, SearchCnt = #{SearchCnt}
+        	, SearchDate = TO_DATE(#{SearchDate}, 'YYYY-MM-DD')
+        	, RecentlyPoint = #{RecentlyPoint}
+        	, DomainID = #{DomainID}
+        	, System = #{System}
+        WHERE
+        	SearchWordID = #{SearchWordID}
+    </update>
+    
+    <delete id="deleteData" parameterType="cmap">
+    	DELETE FROM sys_search_word
+		WHERE SearchWordID  IN  
+		<foreach item="item" index="index" collection="arrDeleteData" open="(" close=")" separator=",">
+          	#{item}
+      	 </foreach>
+    </delete>
+    
+    <select id="selectSearchWord" parameterType="cmap"	resultType="cmap">
+        SELECT
+        	SW.SearchWordID AS "SearchWordID"
+			, SW.SearchWord AS "SearchWord"
+			, SW.SearchCnt AS "SearchCnt"
+			, TO_CHAR(SW.SearchDate, 'YYYY-MM-DD') AS "SearchDate"
+			, SW.RecentlyPoint AS "RecentlyPoint"
+			, SW.DomainID AS "DomainID"
+			, SW.System AS "System"
+			, TO_CHAR(SW.CreateDate, 'YYYY-MM-DD') AS "CreateDate"
+		FROM sys_search_word SW
+		WHERE
+			SearchWord = #{SearchWord}
+			AND DomainID = #{DomainID}
+			AND System = #{System}
+    </select>
+    
+    <update id="updateRecentlyPoint" parameterType="cmap">
+        UPDATE sys_search_word
+        SET
+        	SearchCnt = #{SearchCnt},
+        	RecentlyPoint = #{RecentlyPoint},
+        	SearchDate = #{SearchDate}
+        WHERE
+			SearchWord = #{SearchWord}
+			AND DomainID = #{DomainID}
+			AND System = #{System}
+    </update>
+</mapper>

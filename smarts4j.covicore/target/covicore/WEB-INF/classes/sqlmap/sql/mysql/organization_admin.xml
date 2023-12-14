@@ -1,0 +1,3158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="organization.admin">
+    <!-- insert to sys_object  -->
+	<insert id="insertObject" parameterType="cmap">
+    	INSERT INTO covi_smart4j.sys_object
+		(
+			ObjectCode
+			, ObjectType
+			, IsUse
+			, IsSync
+			, Description
+			, RegistDate
+		) VALUES
+		(
+			#{ObjectCode}
+			, #{ObjectType}
+			, #{IsUse}
+			, #{IsSync}
+			, #{Description}
+			, now(3)
+		)
+	</insert>
+	
+	<!-- update to sys_object  -->
+	<update id="updateObject" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_object SET
+    		ObjectType=#{ObjectType}
+    		, IsUse=#{IsUse}
+    		, Description=#{Description}
+    	WHERE ObjectCode=#{ObjectCode}
+	</update>
+	
+	<!-- delete to sys_object -->
+	<update id="deleteObject" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_object
+    		SET IsUse='N'
+    	WHERE ObjectCode=#{ObjectCode}
+	</update>
+	
+    <!-- 그룹유형 조회 -->
+    <select id="selectGroupType" resultType="cmap">
+        SELECT GroupType, SortKey, Priority, DisplayName, MultiDisplayName 
+        FROM sys_object_group_type 
+        WHERE GroupType <![CDATA[<>]]> 'UR' AND IsUse = 'Y'
+    </select>
+    
+    <!-- 회사목록 조회 : 요청받은 DomainID를 최상위로 위치하도록 조회 -->
+    <select id="selectDomainList" parameterType="cmap" resultType="cmap">
+        SELECT dn.GroupCode as optionValue
+        	, Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as optionText
+		FROM sys_object_group AS gr
+		INNER JOIN sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+		WHERE gr.GroupType = 'Company'
+		<!-- AND gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y' -->
+		<if test="assignedDomain.size() > 0" >
+            AND dn.GroupCode IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+		ORDER BY
+		<if test="domainCode != null and domainCode != ''">
+		 	 dn.GroupCode = #{domainCode} DESC,
+		</if>
+		gr.SortKey ASC
+    </select>
+    
+    <!-- 도메인 선택시 해당 도메인의 부서를 가져옴 -->
+    <select id="selectDeptList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 'group' AS itemType
+			,gr.CompanyCode
+			,gr.GroupCode
+			,gr.GroupType
+			,gr.DisplayName AS GroupDisplayName
+			,gr.MultiDisplayName AS GroupName
+			,cn.DisplayName AS CompanyDisplayName
+			,cn.MultiDisplayName AS CompanyName
+			,gr.MemberOf
+			,gr.SortKey
+			,gr.SortPath
+			,gr.GroupID
+			,(SELECT COUNT(0) FROM covi_smart4j.sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild
+			, REPLACE(covi_smart4j.sys_getFullPath(gr.GroupCode),'@','>') AS GroupFullPath
+			FROM covi_smart4j.sys_object_group AS gr
+			LEFT JOIN covi_smart4j.sys_object_group AS cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	      <if test="companyCode != null">
+		  	AND gr.CompanyCode = #{companyCode}
+		  </if>
+		  <if test="groupType != null and groupType=='dept'">
+		  	AND gr.GroupType in ('Dept','Company')  	
+		  </if>
+		  <if test="groupType != null and groupType=='group'">
+		  	AND gr.GroupType != 'Dept'	
+		  </if>
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		 	SortPath asc
+		</trim>
+    
+	</select>
+	
+    <select id="selectSubDeptListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(A.GroupCode)
+  		FROM sys_object_group A 
+  		INNER JOIN sys_object_group B ON A.CompanyCode = B.GroupCode AND A.GroupType='Dept' AND B.GroupType = 'Company'
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  <if test="gr_code != null">
+		    AND A.MemberOf = #{gr_code}
+		  </if>
+		  <if test="IsUse != null">
+		  	AND A.IsUse = #{IsUse}
+		  </if>
+		  <if test="searchType == 'DeptName' and searchText != null">
+		    AND A.MultiDisplayName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'DeptCode' and searchText != null">
+		    AND A.GroupCode = #{searchText} 
+		  </if>
+		</trim> 
+    </select>
+	
+    <select id="selectSubDeptList" parameterType="cmap" resultType="cmap">
+    	SELECT     
+   			A.*,
+			B.DisplayName AS DomainName,
+			B.MultiDisplayName AS MultiDomainName, 
+     		(SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =A.GroupCode AND self.IsUse = 'Y') AS HasChild,     
+     		0 AS Depth 
+  		FROM sys_object_group A 
+  		INNER JOIN sys_object_group B ON A.CompanyCode = B.GroupCode AND A.GroupType='Dept' AND B.GroupType = 'Company'
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  <if test="gr_code != null">
+		    AND A.MemberOf = #{gr_code}
+		  </if>
+		  <if test="IsUse != null">
+		  	AND A.IsUse = #{IsUse}
+		  </if>
+		  <if test="searchType == 'DeptName' and searchText != null">
+		    AND A.MultiDisplayName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'DeptCode' and searchText != null">
+		    AND A.GroupCode = #{searchText} 
+		  </if>
+		</trim> 
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("GroupCode")'>GroupCode</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("ShortName")'>ShortName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("IsHR")'>IsHR</when>
+					<when test='sortColumn.equalsIgnoreCase("IsDisplay")'>IsDisplay</when>
+					<when test='sortColumn.equalsIgnoreCase("IsMail")'>IsMail</when>
+					<when test='sortColumn.equalsIgnoreCase("PrimaryMail")'>PrimaryMail</when>
+					<when test='sortColumn.equalsIgnoreCase("ManagerCode")'>ManagerCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiDisplayName")'>MultiDisplayName</when>
+					<otherwise>SortPath</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				SortPath ASC
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+    </select>
+    
+    <select id="selectParentName" parameterType="cmap" resultType="cmap">
+    	SELECT     
+   			DisplayName,
+   			MultiDisplayName,
+   			GroupPath
+  		FROM sys_object_group
+   		WHERE GroupCode = #{gr_code}
+    </select>
+    
+     <select id="selectUserListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(ur.UserCode)
+				FROM covi_smart4j.sys_object_user AS ur
+				LEFT JOIN covi_smart4j.sys_object_user_basegroup AS bg ON ur.UserCode = bg.UserCode
+		]]>
+		 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	      <if test="companyCode != null and companyCode != 'ORGROOT'">
+		  	AND bg.CompanyCode = #{companyCode}    
+		  </if>
+		  <if test="deptCode != null">
+		  	AND bg.DeptCode = #{deptCode}
+		  </if>
+		  <if test="IsUse != null">
+		  	AND ur.IsUse = #{IsUse}
+		  </if>
+		  <if test="searchType == 'UserName' and searchText != null">
+		    AND ur.MultiDisplayName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'UserCode' and searchText != null">
+		    AND ur.UserCode = #{searchText} 
+		  </if>
+		  <if test="searchType == 'DeptName' and searchText != null">
+		    AND bg.MultiDeptName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobPositionName' and searchText != null">
+		    AND bg.MultiJobPositionName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobTitleName' and searchText != null">
+		    AND bg.MultiJobTitleName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobLevelName' and searchText != null">
+		    AND bg.MultiJobLevelName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		</trim> 
+	</select>
+    
+    <select id="selectUserList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 'user' AS itemType
+				, ur.UserID
+				, ur.UserCode
+				, ur.DisplayName
+				, ur.MultiDisplayName
+				, CONCAT(bg.JobLevelCode,'&',bg.MultiJobLevelName) AS JobLevel
+				, CONCAT(bg.JobTitleCode,'&',bg.MultiJobTitleName) AS JobTitle
+				, CONCAT(bg.JobPositionCode,'&',bg.MultiJobPositionName) AS JobPosition
+				, bg.JobLevelCode
+				, bg.JobTitleCode
+				, bg.JobPositionCode
+				, bg.JobLevelName
+				, bg.JobTitleName
+				, bg.JobPositionName
+				, ur.Mobile
+				, ur.MailAddress
+				, ur.PhoneNumber	
+				, ur.EmpNo 
+				, bg.DeptCode
+				, bg.DeptName
+				, bg.MultiDeptName
+				, bg.CompanyCode
+				, bg.CompanyName
+				, bg.MultiCompanyName
+				, IFNULL(bg.JobType,'Original') AS JobType
+				, ur.PhoneNumberInter
+				, ur.IsUse
+				, ur.IsDisplay
+				, ur.IsHR
+				, ur.SortKey
+				FROM covi_smart4j.sys_object_user AS ur
+				LEFT JOIN covi_smart4j.sys_object_user_basegroup AS bg ON ur.UserCode = bg.UserCode
+		]]>
+		 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	      <if test="companyCode != null and companyCode != 'ORGROOT'">
+		  	AND bg.CompanyCode = #{companyCode}    
+		  </if>
+		  <if test="deptCode != null">
+		  	AND bg.DeptCode = #{deptCode}
+		  </if>
+		  <if test="IsUse != null">
+		  	AND ur.IsUse = #{IsUse}
+		  </if>
+		  <if test="searchType == 'UserName' and searchText != null">
+		    AND ur.MultiDisplayName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'UserCode' and searchText != null">
+		    AND ur.UserCode = #{searchText} 
+		  </if>
+		  <if test="searchType == 'DeptName' and searchText != null">
+		    AND bg.MultiDeptName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobPositionName' and searchText != null">
+		    AND bg.MultiJobPositionName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobTitleName' and searchText != null">
+		    AND bg.MultiJobTitleName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		  <if test="searchType == 'JobLevelName' and searchText != null">
+		    AND bg.MultiJobLevelName like CONCAT('%', #{searchText}, '%') 
+		  </if>
+		</trim> 
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>ur.SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiDisplayName")'>ur.MultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTitle")'>bg.JobTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("JobPosition")'>bg.JobPosition</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevel")'>bg.JobLevel</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>ur.IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("IsHR")'>ur.IsHR</when>
+					<when test='sortColumn.equalsIgnoreCase("MailAddress")'>ur.MailAddress</when>
+					<otherwise>UserCode</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+		 		ur.SortKey ASC
+		    </if>
+		    , bg.JobTitleSortKey ASC, bg.JobLevelSortKey ASC, ur.EnterDate ASC, ur.MultiDisplayName ASC
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+    <select id="selectDeptInfo" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+         SELECT
+        	A.GroupID,
+        	A.GroupCode,
+        	-- A.CompanyCode,
+			A.GroupType,
+			A.MemberOf,
+			A.DisplayName,
+			A.ShortName,
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode=A.MemberOf) As ParentName,
+			A.GroupPath,
+			A.MultiDisplayName,
+			A.MultiShortName,
+			A.SortKey,
+			A.SortPath,
+			A.OUName,
+			A.OUPath,
+			A.IsUse,
+			A.IsDisplay,
+			A.IsMail,
+			A.IsHR,
+			A.PrimaryMail,
+			A.SecondaryMail,
+			A.Description,
+			A.ReceiptUnitCode,
+			A.ApprovalUnitCode,
+			A.Receivable,
+			A.Approvable,
+			A.RegistDate,
+			A.ModifyDate,
+			A.ManagerCode,
+        	IFNULL(CONCAT(A.ManagerCode, '|', (SELECT DisplayName FROM sys_object_user WHERE UserCode = A.ManagerCode)), '') AS Manager,
+        	B.MultiDisplayName AS CompanyName,
+        	B.GroupCode AS CompanyCode
+		FROM sys_object_group AS A
+		INNER JOIN sys_object_group AS B ON A.CompanyCode = B.GroupCode
+		WHERE A.GroupCode = #{gr_code}
+		]]>
+    </select>
+    
+    <select id="selectUserInfo" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+				ur.UserID,
+				ur.UserCode,
+				ur.LogonID,
+				ur.EmpNo,
+				ur.MultiDisplayName,
+				ur.NickName,
+				ur.MultiAddress,
+				ur.HomePage,
+				ur.PhoneNumber,
+				ur.Mobile,
+				ur.FAX,
+				ur.IPPhone,
+				ur.UseMessengerConnect,
+				ur.SortKey,
+				ur.SecurityLevel,
+				ur.Description,
+				ur.IsUse,
+				ur.IsHR,
+				ur.IsDisplay,
+				ur.EnterDate,
+				ur.RetireDate,
+				ur.PhotoPath,
+				ur.BirthDiv,
+				ur.BirthDate,
+				ur.UseMailConnect,
+				ur.MailAddress,
+				ur.ExternalMailAddress,
+				ur.PhoneNumberInter,
+				ur.Reserved2,
+				ur.Reserved3,
+				ur.Reserved4,
+				(SELECT MultiDisplayName FROM sys_object_user WHERE UserCode = ur.Reserved4) AS ManagerName,
+				ur.Reserved5,
+				bg.CompanyCode,
+				bg.MultiCompanyName,
+				bg.DeptCode,
+				bg.MultiDeptName,
+				bg.RegionCode,
+				bg.MultiRegionName,
+				bg.JobPositionCode,
+				bg.JobPositionName,
+				bg.JobTitleCode,
+				bg.JobTitleName,
+				bg.JobLevelCode,
+				bg.JobLevelName,
+				apv.UseDeputy,
+				apv.DeputyCode,
+				apv.DeputyName,
+				apv.DeputyFromDate,
+				apv.DeputyToDate,
+				apv.AlertConfig,
+				apv.ApprovalUnitCode,
+				(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = apv.ApprovalUnitCode) AS ApprovalUnitName,
+				apv.ReceiptUnitCode,
+				(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = apv.ReceiptUnitCode) AS ReceiptUnitName,
+				apv.UseApprovalMessageBoxView,
+				apv.UseMobile
+				, ur.AD_ISUSE
+				, ur.EX_ISUSE
+				, ur.MSN_ISUSE
+				, AD.*
+                , EXCH.*
+                , MSN.*
+				FROM covi_smart4j.sys_object_user AS ur
+				LEFT JOIN covi_smart4j.sys_object_user_basegroup AS bg ON ur.UserCode = bg.UserCode
+				                                                       AND bg.JobType = 'Origin'
+				LEFT JOIN covi_smart4j.sys_object_user_approval AS apv ON ur.UserCode = apv.UserCode
+				LEFT JOIN covi_smart4j.sys_object_user_ad AD ON ur.UserCode = AD.USERID
+            	LEFT JOIN covi_smart4j.sys_object_user_exchange EXCH ON ur.UserCode = EXCH.USERID
+            	LEFT JOIN covi_smart4j.sys_object_user_messenger MSN ON ur.UserCode = MSN.USERID
+				WHERE ur.UserCode = #{UserCode}
+		]]>
+	</select>
+	
+        <select id="selectUserInfoList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+				ur.UserID,
+				ur.UserCode,
+				ur.LogonID,
+				ur.EmpNo,
+				ur.MultiDisplayName,
+				ur.NickName,
+				ur.MultiAddress,
+				ur.HomePage,
+				ur.PhoneNumber,
+				ur.Mobile,
+				ur.FAX,
+				ur.IPPhone,
+				ur.UseMessengerConnect,
+				ur.SortKey,
+				ur.SecurityLevel,
+				ur.Description,
+				ur.IsUse,
+				ur.IsHR,
+				ur.IsDisplay,
+				ur.EnterDate,
+				ur.RetireDate,
+				ur.PhotoPath,
+				ur.BirthDiv,
+				ur.BirthDate,
+				ur.UseMailConnect,
+				ur.MailAddress,
+				ur.ExternalMailAddress,
+				ur.PhoneNumberInter,
+				ur.Reserved2,
+				ur.Reserved3,
+				ur.Reserved4,
+				(SELECT MultiDisplayName FROM sys_object_user WHERE UserCode = ur.Reserved4) AS ManagerName,
+				ur.Reserved5,
+				bg.CompanyCode,
+				bg.MultiCompanyName,
+				bg.DeptCode,
+				bg.MultiDeptName,
+				bg.RegionCode,
+				bg.MultiRegionName,
+				bg.JobPositionCode,
+				bg.JobPositionName,
+				bg.JobTitleCode,
+				bg.JobTitleName,
+				bg.JobLevelCode,
+				bg.JobLevelName,
+				apv.UseDeputy,
+				apv.DeputyCode,
+				apv.DeputyName,
+				apv.DeputyFromDate,
+				apv.DeputyToDate,
+				apv.AlertConfig,
+				apv.ApprovalUnitCode,
+				(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = apv.ApprovalUnitCode) AS ApprovalUnitName,
+				apv.ReceiptUnitCode,
+				(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = apv.ReceiptUnitCode) AS ReceiptUnitName,
+				apv.UseApprovalMessageBoxView,
+				apv.UseMobile
+				, ur.AD_ISUSE
+				, ur.EX_ISUSE
+				, ur.MSN_ISUSE
+				, AD.*
+                , EXCH.*
+                , MSN.*
+                ,gr.OUPath
+                ,gr.OUName
+                ,dn.DomainID
+				FROM covi_smart4j.sys_object_user AS ur
+				INNER JOIN covi_smart4j.sys_object_user_basegroup AS bg ON ur.UserCode = bg.UserCode
+				                                                       AND bg.JobType = 'Origin'
+				INNER JOIN covi_smart4j.sys_object_group AS gr ON bg.DeptCode = gr.GroupCode
+				INNER JOIN covi_smart4j.sys_object_domain AS dn ON bg.CompanyCode = dn.DomainCode
+				LEFT JOIN covi_smart4j.sys_object_user_approval AS apv ON ur.UserCode = apv.UserCode
+				LEFT JOIN covi_smart4j.sys_object_user_ad AD ON ur.UserCode = AD.USERID
+            	LEFT JOIN covi_smart4j.sys_object_user_exchange EXCH ON ur.UserCode = EXCH.USERID
+            	LEFT JOIN covi_smart4j.sys_object_user_messenger MSN ON ur.UserCode = MSN.USERID
+				WHERE ur.UserCode IN
+		]]>
+		<foreach collection="TargetID" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</select>
+    
+    <select id="selectDefaultSetInfo" parameterType="cmap" resultType="cmap">
+        SELECT
+			A.DisplayName AS DeptName,
+        	B.DisplayName AS CompanyName,
+        	<if test="domainCode != null and groupType != null">
+	        	(
+		        	SELECT SUBSTRING_INDEX(GroupCode, '_', 1) 
+		            FROM sys_object_group
+					WHERE GroupCode like CONCAT('%',#{groupType}) and CompanyCode = #{domainCode} 
+				) 
+			</if>
+			<if test="domainCode == null or groupType == null">
+			    ''
+		    </if>
+			AS CompanyID
+		FROM sys_object_group AS A
+		INNER JOIN sys_object_group AS B ON A.CompanyCode = B.GroupCode AND B.GroupType = 'Company'
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domainCode != null">
+				AND B.GroupCode = #{domainCode} 
+			</if>
+	        <if test="gr_code != null">
+		    	AND A.GroupCode = #{gr_code} 
+		  	</if>
+		</trim> 
+    </select>
+	
+    <update id="updateIsUseDept" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsUse = #{IsUse},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+	
+     <update id="updateIsHRDept" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsHR = #{IsHR},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+	
+     <update id="updateIsDisplayDept" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsDisplay = #{IsDisplay},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+	
+    <update id="updateIsMailDept" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsMail = #{IsMail},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+	
+    <update id="updateIsUseUser" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_user
+		SET
+			IsUse = #{IsUse},
+			ModifyDate = #{ModifyDate}
+		WHERE UserCode = #{UserCode}
+		]]>
+	</update>
+	
+    <update id="updateIsHRUser" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_user
+		SET
+			IsHR = #{IsHR},
+			ModifyDate = #{ModifyDate}
+		WHERE UserCode = #{UserCode}
+		]]>
+	</update>
+	
+    <update id="updateIsADUser" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_user
+		SET
+			IsAD = #{IsAD},
+			ModifyDate = #{ModifyDate}
+		WHERE UserCode = #{UserCode}
+		]]>
+	</update>
+	
+    <update id="deleteUser" parameterType="cmap">
+        UPDATE sys_object_user
+        SET IsUse = 'N'
+        , IsDisplay = 'N'
+        WHERE UserCode IN
+		<foreach collection="deleteData" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</update>
+		
+    <update id="deleteUserBaseGroup" parameterType="cmap">
+		      UPDATE sys_object_user_basegroup AS a, sys_object_group AS b
+			  SET a.DeptCode = b.GroupCode
+					, a.DeptName =  b.DisplayName
+					, a.MultiDeptName = b.MultiDisplayName
+					, a.DeptSortKey = b.SortKey
+			  WHERE a.UserCode 
+			  in (
+				<foreach collection="deleteData" item="item" separator="," >
+					    #{item}
+				</foreach>	
+				)
+			  AND b.GroupCode = (SELECT CONCAT(c.DomainID,'_RetireDept') FROM sys_object_domain as c
+											WHERE c.DomainCode = a.CompanyCode )
+	</update>
+	
+    <delete id="deleteUserGroupMember" parameterType="cmap">
+	    DELETE FROM sys_object_group_member
+		WHERE UserCode IN
+		<foreach collection="deleteData" item="item"  separator="," open="(" close=");">
+		    #{item}
+		</foreach>
+	</delete>
+	
+    <insert id="insertRetiredGroupMember" parameterType="cmap">
+		INSERT INTO sys_object_group_member
+        (
+        	GroupCode,
+        	UserCode,
+        	SortKey,
+        	Role,
+        	IsUse,
+        	IsHR,
+        	MemberStatus,
+        	JoinDate
+        ) 
+          VALUES
+        <foreach collection="deleteData" item="item"  separator="),(" open="(" close=")">
+        	(	SELECT CONCAT(b.DomainID, '_RetireDept') FROM sys_object_user_basegroup AS a
+				LEFT JOIN sys_object_domain AS b ON a.CompanyCode = b.DomainCode
+				WHERE a.UserCode = #{item} AND a.JobType='Origin'),
+        	#{item},
+        	999,
+        	'regular', 
+        	'Y',
+        	'Y',
+        	'A',
+        	now(3)  	
+        </foreach>
+	</insert>
+    
+	<delete id="deleteDept" parameterType="cmap">
+	    DELETE FROM sys_object_group
+		WHERE GroupCode IN
+		<foreach collection="deleteData" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</delete>
+	
+    <select id="selectHasChildDept" parameterType="cmap" resultType="cmap">
+		SELECT 
+			(SELECT COUNT(0) 
+			 FROM covi_smart4j.sys_object_group AS B 
+			 WHERE B.MemberOf = A.GroupCode AND B.IsUse = 'Y')
+		AS HasChild
+		FROM covi_smart4j.sys_object_group AS A
+		WHERE A.GroupCode = #{GroupCode} 
+    </select>
+    
+    <select id="selectHasUserDept" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(UserCode) AS HasUser
+		FROM  covi_smart4j.sys_object_user_basegroup
+		WHERE DeptCode = #{GroupCode} 
+    </select>
+    
+    <select id="selectIsDuplicateDeptCode" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_smart4j.sys_object_group
+		WHERE GroupCode = #{GroupCode} 
+    </select> 
+    
+    <select id="selectIsDuplicateUserCode" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_smart4j.sys_object_user
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="Type == 'UserCode'">
+		  		AND UserCode = #{Code}    
+		  	</if>
+		  	<if test="Type == 'UserEmpNo'">
+		  		AND EmpNo = #{Code}
+		  	</if>
+		  	<if test="Type == 'LogonID'">
+		  		AND LogonID = #{Code}
+		  	</if>
+		</trim> 
+    </select> 
+    
+    <select id="selectIsDuplicateSortKey" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS "isDuplicate",
+			IFNULL((SELECT MAX(SortKey) FROM covi_smart4j.sys_object_group WHERE MemberOf = #{MemberOf}),'') AS "MaxSortKey"
+		FROM covi_smart4j.sys_object_group
+		WHERE MemberOf = #{MemberOf} AND SortKey = #{SortKey}
+    </select> 
+    
+    <!-- 도메인 선택시 해당 도메인의 그룹을 가져옴 -->
+    <select id="selectGroupList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 'group' AS itemType
+			, dn.GroupCode AS DomainCode
+			, gr.GroupCode
+			, gr.GroupType
+			, gr.DisplayName AS GroupName
+			, dn.DisplayName AS DomainName
+			, gr.PrimaryMail
+			, gr.MemberOf
+			, gr.SortKey
+			, IFNULL(gr.SortPath, '') AS SortPath
+			, gr.GroupID
+			,(SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild 
+	    FROM sys_object_group AS gr
+		left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+      <if test="domaincode != null and domaincode != ''">
+		AND gr.CompanyCode = #{domaincode}
+	  </if>
+	  <if test="grouptype != null and grouptype=='group'">
+	  	AND gr.GroupType != 'Dept'	
+	  </if>
+	</trim>
+    <!-- Order by 절 -->
+	<trim prefix="ORDER BY">
+	 	SortPath asc
+	</trim>
+	</select>
+	
+	<!-- 임의그룹 리스트 가져오기(cnt) -->
+    <select id="selectArbitraryGroupListCnt" parameterType="cmap" resultType="java.lang.Long">
+	    <![CDATA[
+			SELECT COUNT(*) 
+		    FROM sys_object_group AS gr
+			left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        AND gr.IsDisplay = 'Y' 
+        <if test="domaincode != null">
+		AND gr.CompanyCode = #{domaincode}
+	  </if>
+	 <if test="grouptype != null and grouptype=='title'">
+	  	AND gr.GroupType = 'JobTitle'
+	  </if>
+	  <if test="grouptype != null and grouptype=='position'">
+	  	AND gr.GroupType = 'JobPosition'
+	  </if>
+	  <if test="grouptype != null and grouptype=='level'">
+	  	AND gr.GroupType = 'JobLevel'
+	  </if>
+  	  <if test="IsUse != null  and IsUse != 'All'.toString()">
+	  	AND gr.IsUse = #{IsUse}
+	  </if>
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND gr.IsHR = #{IsHR}
+	  </if>
+	  <if test="IsMail != null  and IsMail != 'All'.toString()">
+	  	AND gr.IsMail = #{IsMail}
+	  </if>
+      <if test="searchType != null and searchText != null">
+          <choose>
+				 <when test="searchType == 'DisplayName'.toString()">
+					 AND gr.DisplayName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobTitleCode'.toString()">
+				     AND gr.GroupCode  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+     </select>
+	
+    <!-- 임의그룹 리스트 가져오기(list) -->
+    <select id="selectArbitraryGroupList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 'group' AS itemType
+			, dn.GroupCode AS DomainCode
+			, dn.MultiDisplayName AS MultiDomainCode
+			, gr.GroupCode
+			, gr.GroupType
+			, gr.DisplayName AS GroupName
+			, gr.MultiDisplayName AS MultiGroupName
+			, dn.DisplayName AS DomainName
+			, gr.PrimaryMail	
+			, gr.MemberOf
+			, gr.SortKey
+			, IFNULL(gr.SortPath, '') AS SortPath
+			, gr.GroupID
+			, gr.IsUse
+			, gr.IsHR
+			, gr.IsMail
+			, (SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild 
+			, gr.Description
+	    FROM sys_object_group AS gr
+		left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        AND gr.IsDisplay = 'Y' 
+        <if test="domaincode != null">
+		AND gr.CompanyCode = #{domaincode}
+	  </if>
+	 <if test="grouptype != null and grouptype=='title'">
+	  	AND gr.GroupType = 'JobTitle'
+	  </if>
+	  <if test="grouptype != null and grouptype=='position'">
+	  	AND gr.GroupType = 'JobPosition'
+	  </if>
+	  <if test="grouptype != null and grouptype=='level'">
+	  	AND gr.GroupType = 'JobLevel'
+	  </if>
+  	  <if test="IsUse != null  and IsUse != 'All'.toString()">
+	  	AND gr.IsUse = #{IsUse}
+	  </if>
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND gr.IsHR = #{IsHR}
+	  </if>
+	  <if test="IsMail != null  and IsMail != 'All'.toString()">
+	  	AND gr.IsMail = #{IsMail}
+	  </if>
+      <if test="searchType != null and searchText != null">
+          <choose>
+				 <when test="searchType == 'DisplayName'.toString()">
+					 AND gr.DisplayName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobTitleCode'.toString()">
+				     AND gr.GroupCode  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+    <!-- Order by 절 -->
+    <trim prefix="ORDER BY">
+		<if test="sortColumn != null and sortDirection != null">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("GroupName")'>GroupName</when>
+				<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+				<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				<when test='sortColumn.equalsIgnoreCase("IsHR")'>IsHR</when>
+				<when test='sortColumn.equalsIgnoreCase("IsMail")'>IsMail</when>
+				<when test='sortColumn.equalsIgnoreCase("PrimaryMail")'>PrimaryMail</when>
+				<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+				<otherwise>GroupCode</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if> 
+		<if test="sortColumn == null or sortDirection == null">
+			gr.SortKey ASC
+		</if>
+	</trim>
+    <if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+	
+    <!-- 임의그룹 드롭다운 리스트 가져오기 -->
+    <select id="selectArbitraryGroupDropDownList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT
+			gr.GroupType
+			, gr.GroupCode
+			, gr.DisplayName AS GroupName
+	    FROM sys_object_group AS gr
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        gr.IsUse = 'Y' 
+        AND gr.GroupType in ('JobTitle', 'JobPosition', 'JobLevel') 
+        <if test="domaincode != null">
+		AND gr.CompanyCode = #{domaincode}
+	  	</if>
+	</trim>
+    <!-- Order by 절 -->
+     <trim prefix="ORDER BY">  
+		gr.GroupType, gr.SortKey asc
+	</trim>
+	</select>
+	
+    <!-- 임의그룹 개별 정보 가져오기 -->
+    <select id="selectArbitraryGroupInfo" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 'group' AS itemType
+			, dn.GroupCode AS DomainCode
+			, gr.GroupCode
+			, gr.GroupType
+			, gr.DisplayName AS GroupName
+			, gr.MultiDisplayName AS MultiGroupName
+			, dn.DisplayName AS CompanyName
+			, dn.MultiDisplayName AS MultiCompanyName
+			, gr.PrimaryMail				
+			, gr.MemberOf
+			, SUBSTRING_INDEX(gr.MemberOf, '_', 1) AS CompanyID
+			, gr.SortKey
+			, IFNULL(gr.SortPath, '') AS SortPath
+			, gr.GroupID
+			, gr.IsUse
+			, gr.IsHR
+			, gr.IsMail
+			, gr.Description
+			, (SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild 
+	    FROM sys_object_group AS gr
+		left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        <if test="gr_code != null ">
+	  		gr.GroupCode = #{gr_code}
+	   </if>
+	</trim>
+	</select>
+	
+    <!-- 임의 그룹 목록 설정 변경 -->
+    <update id="updateArbitraryGroup" parameterType="cmap" >
+ 		UPDATE sys_object_group
+ 		SET 
+         <choose>
+			 <when test="Type == 'IsUse'.toString()">
+				 IsUse = #{ToBeValue}
+			 </when>
+			 <when test="Type == 'IsHR'.toString()">
+			     IsHR = #{ToBeValue}
+			 </when>
+			 <when test="Type == 'IsMail'.toString()">
+			     IsMail = #{ToBeValue}
+			 </when>
+	 </choose>
+ 		WHERE GroupCode = #{TargetCode}
+ 	</update>
+ 	
+    <!-- 임의 그룹 목록 삭제  -->
+    <delete id="deleteArbitraryGroupList" parameterType="cmap">
+		DELETE FROM  sys_object_group
+		WHERE	GroupCode IN
+			<foreach collection="TargetID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</delete>
+	
+    <!-- 임의 그룹 우선 순위 가져오기  -->
+	<select id="selectArbitraryGroupSortKey" parameterType="cmap" resultType="cmap">
+ 	    SELECT SortKey, SortPath
+ 	    FROM sys_object_group
+ 	    WHERE	GroupCode  = #{TargetCode}
+ 	</select>
+ 	
+	<!-- 임의 그룹 우선 순위 변경 -->
+    <update id="updateArbitraryGroupSortKey" parameterType="cmap" >
+ 		UPDATE sys_object_group
+ 		SET SortKey = #{TargetSortKey},
+ 			  SortPath = #{TargetSortPath}
+ 		WHERE GroupCode = #{TargetCode}
+ 	</update>
+ 	
+	<select id="selectDeptEtcInfo" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+ 	    	GroupPath,
+ 	    	SortPath,
+ 	    	OUPath,
+ 	    	(SELECT GroupID FROM sys_object_group WHERE GroupCode = #{CompanyCode}) AS CompanyID
+ 	    FROM sys_object_group
+ 	    WHERE GroupCode = #{MemberOf}
+ 	</select>
+    
+    <insert id="insertDeptInfo" parameterType="cmap">
+        INSERT INTO sys_object_group
+        (
+        	GroupCode,
+        	CompanyCode,
+        	GroupType,
+        	MemberOf,
+        	GroupPath,
+        	OUPath,
+        	OUName,
+        	DisplayName,
+        	MultiDisplayName,
+        	ShortName,
+        	MultiShortName,
+        	PrimaryMail,
+        	Approvable,
+        	Receivable,
+        	ApprovalUnitCode,
+        	ReceiptUnitCode,
+        	SortKey,
+        	SortPath,
+        	IsUse,
+        	IsDisplay,
+        	IsMail,
+        	IsHR,
+        	RegistDate,
+        	ManagerCode,
+        	Description,
+        	SecondaryMail    
+        ) 
+        VALUES
+        (
+        	#{GroupCode},
+        	#{CompanyCode},
+        	'Dept',
+        	#{MemberOf},
+        	#{GroupPath},
+        	#{OUPath},
+        	#{DisplayName}, #OUName
+        	#{DisplayName},
+        	#{MultiDisplayName},
+        	#{ShortName},
+        	#{MultiShortName},
+        	#{PrimaryMail},
+        	#{Approvable},
+        	#{Receivable},
+        	#{GroupCode}, #ApprovalUnitCode
+        	#{GroupCode}, #ReceiptUnitCode
+        	#{SortKey},
+        	#{SortPath},
+        	#{IsUse},
+        	#{IsDisplay},
+        	#{IsMail},
+        	#{IsHR},
+        	#{RegistDate},
+        	#{ManagerCode},
+        	#{Description},
+        	#{SecondaryMail}        	
+        )
+    </insert>
+ 	
+    <update id="updateDeptInfo" parameterType="cmap">
+        UPDATE sys_object_group
+        SET 
+        	MemberOf = #{MemberOf},
+        	GroupPath = #{GroupPath},
+        	OUPath = #{OUPath},
+        	DisplayName = #{DisplayName},
+        	MultiDisplayName = #{MultiDisplayName},
+        	ShortName = #{ShortName},
+        	MultiShortName = #{MultiShortName},
+        	PrimaryMail = #{PrimaryMail},
+        	Approvable = #{Approvable},
+        	Receivable = #{Receivable},
+        	SortKey = #{SortKey},
+        	SortPath = #{SortPath},
+        	IsUse = #{IsUse},
+        	IsDisplay = #{IsDisplay},
+        	IsMail = #{IsMail},
+        	IsHR = #{IsHR},
+        	ModifyDate = #{ModifyDate},
+        	ManagerCode = #{ManagerCode},
+        	Description = #{Description},
+        	SecondaryMail = #{SecondaryMail}  
+        WHERE GroupCode = #{GroupCode}
+    </update>
+    
+    <update id="updateChildDeptInfo" parameterType="cmap">
+        UPDATE sys_object_group as gr
+        SET 
+        	gr.OUPATH = Fn_ComOUPathCreate_S(gr.GroupCode),
+        	gr.GROUPPATH = Fn_ComObjectPathCreate_S(0,gr.GroupCode,'GR'),
+        	gr.SORTPATH =	Fn_ComSortPathCreate_S(0,gr.GroupCode,'GR')
+        WHERE gr.GROUPPATH LIKE CONCAT('%',#{GroupCode},'%') 
+        AND gr.GROUPCODE <![CDATA[<>]]> #{GroupCode}
+    </update>
+    
+    <update id="updateDeptPathInfo" parameterType="cmap">
+        UPDATE sys_object_group as gr
+        SET 
+        	gr.OUPATH = #{OUPath},
+        	gr.GROUPPATH = #{GroupPath},
+        	gr.SORTPATH =	#{SortPath}
+        WHERE gr.GROUPCODE = #{GroupCode}
+    </update>
+    
+     <select id="selectDeptPathInfo" parameterType="cmap" resultType="cmap">
+       SELECT  
+       		GroupCode AS "GroupCode"
+       		, Fn_ComOUPathCreate_S(gr.GroupCode) AS "OUPath"
+       		, Fn_ComObjectPathCreate_S(0,gr.GroupCode,'GR') AS "GroupPath"
+       		, Fn_ComSortPathCreate_S(0,gr.GroupCode,'GR') AS "SortPath"
+       	FROM sys_object_group as gr
+        WHERE gr.GROUPPATH LIKE CONCAT('%',#{GroupCode},'%') 
+        AND gr.GROUPCODE <![CDATA[<>]]> #{GroupCode}
+    </select>
+    
+    <update id="updateBaseGroupDeptInfo" parameterType="cmap">
+      	UPDATE sys_object_user_basegroup
+		SET DeptName = #{DisplayName},
+				MultiDeptName = #{MultiDisplayName},
+				DeptSortKey = #{SortKey}
+		WHERE DeptCode = #{GroupCode}
+    </update>
+    
+    <!-- 임의 그룹 중복 여부 조회 -->
+    <select id="selectIsDuplicateGroupCode" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_smart4j.sys_object_group
+		WHERE GroupCode = #{GroupCode} 
+    </select> 
+
+ 	<!-- 임의 그룹에 추가  -->
+ 	<insert id="insertGroup" parameterType="cmap" > 		  
+ 		   INSERT INTO sys_object_group (
+		   		GroupCode
+ 		   		, CompanyCode
+ 		   		, GroupType
+ 		   		, MemberOf
+ 		   		, GroupPath
+ 		   		, Regioncode
+ 		   		, DisplayName
+ 		   		, MultiDisplayName
+ 		   		, ShortName
+ 		   		, MultiShortName
+ 		   		, OUName
+ 		   		, OUPath
+ 		   		, SortKey
+ 		   		, SortPath
+ 		   		, IsUse
+ 		   		, IsDisplay
+ 		   		, IsMail
+ 		   		, IsHR
+ 		   		, PrimaryMail
+ 		   		, SecondaryMail
+ 		   		, ManagerCode
+ 		   		, Description
+ 		   		, ReceiptUnitCode
+ 		   		, ApprovalUnitCode
+ 		   		, Receivable
+ 		   		, Approvable
+ 		   		, RegistDate
+ 		   		, ModifyDate
+		   	)
+    		VALUES( 
+    			#{GroupCode} 
+ 		   		, #{CompanyCode}
+ 		   		, #{GroupType}
+ 		   		, #{MemberOf} <!-- JobTitle'scode -->
+ 		   		, #{GroupPath} <!-- DnCode;CompanyCode;JobTitle'sCode;GroupCode; -->
+ 		   		, NULL
+ 		   		, #{GroupName}
+ 		   		, #{MultiGroupName}
+ 		   		, #{GroupName}
+ 		   		, #{MultiGroupName}
+ 		   		, #{GroupName}
+ 		   		, #{OUPath} <!-- DnName;CompanyName;JobTitle'sName;GroupName; -->
+ 		   		, #{SortKey}
+ 		   		, #{SortPath} <!-- ? -->
+ 		   		, #{IsUse}
+ 		   		, 'Y'
+ 		   		, #{IsMail}
+ 		   		, #{IsHR}
+ 		   		, <if test="MailAddress != null">
+ 		   			  #{MailAddress}
+		   		  </if>
+				  <if test="MailAddress == null">
+				      NULL
+			      </if> <!-- PrimaryMail -->
+ 		   		, NULL <!-- SecondaryMail -->
+ 		   		, NULL
+ 		   		, #{Description}
+ 		   		, #{GroupCode} 
+ 		   		, #{GroupCode} 
+ 		   		, '1'
+ 		   		, '1'
+ 		   		, now(3)	
+ 		   		, now(3)	
+    		)
+ 	</insert>
+ 	
+ 	 	<!-- 임의 그룹에 추가  -->
+ 	<update id="updateGroup" parameterType="cmap" > 		  
+ 		   UPDATE sys_object_group 
+ 		   SET 
+ 		   		MemberOf = #{MemberOf}
+ 		   		, GroupPath = #{GroupPath}
+ 		   		, DisplayName = #{GroupName}
+ 		   		, MultiDisplayName = #{MultiGroupName}
+ 		   		, ShortName = #{GroupName}
+ 		   		, MultiShortName = #{MultiGroupName}
+ 		   		, OUName = #{GroupName}
+ 		   		, OUPath = #{OUPath} 
+ 		   		, SortKey = #{SortKey}
+ 		   		, SortPath = #{SortPath}
+ 		   		, IsUse = #{IsUse}
+ 		   		, IsMail = #{IsMail}
+ 		   		, IsHR = #{IsHR}
+ 		   		, PrimaryMail = <if test="MailAddress != null">
+					 		   			  #{MailAddress}
+							   		  </if>
+									  <if test="MailAddress == null">
+									      NULL
+								      </if> <!-- PrimaryMail -->
+ 		   		, SecondaryMail = NULL <!-- SecondaryMail -->
+ 		   		, Description = #{Description}
+ 		   		, ModifyDate = now(3)	
+		   WHERE GroupCode = #{GroupCode}
+ 	</update>
+ 	
+ 	<!-- 직위 임의그룹 정보 변경 시 업데이트 -->
+ 	<update id="updateBaseGroupJobPositionInfo" parameterType="cmap" > 		  
+		UPDATE sys_object_user_basegroup
+		SET JobPositionName = #{GroupName},
+				MultiJobPositionName = #{MultiGroupName},
+				JobPositionSortKey = #{SortKey}
+		WHERE JobPositionCode = #{GroupCode}; 
+ 	</update>
+ 	
+ 	<!-- 직책 임의그룹 정보 변경 시 업데이트 -->
+ 	<update id="updateBaseGroupJobTitleInfo" parameterType="cmap" > 		  
+		UPDATE sys_object_user_basegroup
+		SET JobTitleName = #{GroupName},
+				MultiJobTitleName = #{MultiGroupName},
+				JobTitleSortKey = #{SortKey}
+		WHERE JobTitleCode = #{GroupCode}; 
+ 	</update>
+ 	
+ 	<!-- 직급 임의그룹 정보 변경 시 업데이트 -->
+ 	<update id="updateBaseGroupJobLevelInfo" parameterType="cmap" > 		  
+		UPDATE sys_object_user_basegroup
+		SET JobLevelName = #{GroupName},
+				MultiJobLevelName = #{MultiGroupName},
+				JobLevelSortKey = #{SortKey}
+		WHERE JobLevelCode = #{GroupCode}; 
+ 	</update>
+ 	
+ 	<!-- 임의 그룹 삽입 정보 select(path 등) -->
+    <select id="selectGroupInsertData" parameterType="cmap" resultType="cmap">
+		SELECT GroupPath, OUPath, SortPath
+		FROM covi_smart4j.sys_object_group
+		WHERE GroupCode = #{GroupCode} 
+    </select> 
+    
+   	<!-- 지역 리스트 가져오기(cnt) -->
+    <select id="selectRegionListCnt" parameterType="cmap" resultType="java.lang.Long">
+	    <![CDATA[
+			SELECT COUNT(*) 
+		    FROM sys_object_group AS gr
+			left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        AND gr.IsDisplay = 'Y' 
+	 	AND gr.GroupType = 'Region'
+  	  <if test="IsUse != null  and IsUse != 'All'.toString()">
+	  	AND gr.IsUse = #{IsUse}
+	  </if>
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND gr.IsHR = #{IsHR}
+	  </if>
+	  <if test="IsMail != null  and IsMail != 'All'.toString()">
+	  	AND gr.IsMail = #{IsMail}
+	  </if>
+      <if test="searchType != null and searchText != null">
+          <choose>
+				 <when test="searchType == 'DisplayName'.toString()">
+					 AND gr.DisplayName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'RegionCode'.toString()">
+				     AND gr.GroupCode  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+     </select>
+	
+    <!-- 지역 리스트 가져오기(list) -->
+    <select id="selectRegionList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 'group' AS itemType
+			, dn.GroupCode AS DomainCode
+			, dn.MultiDisplayName AS MultiDomainCode
+			, gr.GroupCode
+			, gr.GroupType
+			, gr.DisplayName AS GroupName
+			, gr.MultiDisplayName AS MultiGroupName
+			, dn.DisplayName AS DomainName
+			, gr.PrimaryMail			
+			, gr.MemberOf
+			, gr.SortKey
+			, IFNULL(gr.SortPath, '') AS SortPath
+			, gr.GroupID
+			, gr.IsUse
+			, gr.IsHR
+			, gr.IsMail
+			, (SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild 
+			, gr.Description
+	    FROM sys_object_group AS gr
+		left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        AND gr.IsDisplay = 'Y' 
+	  	AND gr.GroupType = 'Region'
+  	  <if test="IsUse != null  and IsUse != 'All'.toString()">
+	  	AND gr.IsUse = #{IsUse}
+	  </if>
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND gr.IsHR = #{IsHR}
+	  </if>
+	  <if test="IsMail != null  and IsMail != 'All'.toString()">
+	  	AND gr.IsMail = #{IsMail}
+	  </if>
+      <if test="searchType != null and searchText != null">
+          <choose>
+				 <when test="searchType == 'DisplayName'.toString()">
+					 AND gr.DisplayName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'RegionCode'.toString()">
+				     AND gr.GroupCode  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+    <!-- Order by 절 -->
+    <trim prefix="ORDER BY">  
+		<if test="sortColumn != null and sortDirection != null">
+    		<choose>
+				<when test='sortColumn.equalsIgnoreCase("DomainName")'>DomainName</when>
+				<when test='sortColumn.equalsIgnoreCase("GroupCode")'>GroupCode</when>
+				<when test='sortColumn.equalsIgnoreCase("GroupName")'>GroupName</when>
+				<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				<when test='sortColumn.equalsIgnoreCase("IsHR")'>IsHR</when>
+				<when test='sortColumn.equalsIgnoreCase("IsMail")'>IsMail</when>
+				<when test='sortColumn.equalsIgnoreCase("PrimaryMail")'>PrimaryMail</when>
+				<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+				<when test='sortColumn.equalsIgnoreCase("MultiGroupName")'>MultiGroupName</when>
+				<otherwise>SortKey</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if> 
+		<if test="sortColumn == null or sortDirection == null">
+			gr.SortKey ASC
+	   </if>
+	</trim>
+    <if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+	
+    <!-- 지역 개별 정보 가져오기 -->
+    <select id="selectRegionInfo" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 'group' AS itemType
+			, dn.GroupCode AS DomainCode
+			, gr.GroupCode
+			, gr.GroupType
+			, gr.DisplayName AS GroupName
+			, gr.MultiDisplayName AS MultiGroupName
+			, dn.DisplayName AS CompanyName
+			, gr.PrimaryMail	
+			, gr.MemberOf
+			, SUBSTRING_INDEX(gr.MemberOf, '_', 1) AS CompanyID
+			, gr.SortKey
+			, IFNULL(gr.SortPath, '') AS SortPath
+			, gr.GroupID
+			, gr.IsUse
+			, gr.IsHR
+			, gr.IsMail
+			, gr.Description
+			, (SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS hasChild 
+	    FROM sys_object_group AS gr
+		left join sys_object_group AS dn on gr.CompanyCode = dn.GroupCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        gr.GroupType = 'Region' 
+        <if test="gr_code != null ">
+	  		AND gr.GroupCode = #{gr_code}
+	   </if>
+	</trim>
+	</select>
+	
+    <!-- 겸직 리스트 가져오기(cnt) -->
+    <select id="selectAddJobListCnt" parameterType="cmap" resultType="java.lang.Long">
+	<![CDATA[
+		SELECT COUNT(*)
+		FROM sys_object_user_basegroup AS BG
+		INNER JOIN sys_object_user AS USER ON BG.UserCode = USER.UserCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        BG.JobType = 'AddJob' 
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND BG.IsHR = #{IsHR}
+	  </if>
+      <if test="searchType != null and searchText != null">
+          <choose>
+				 <when test="searchType == 'Users'.toString()">
+					 AND BG.MultiUserName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'Company'.toString()">
+				     AND BG.MultiCompanyName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'Dept'.toString()">
+				     AND BG.MultiDeptName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobTitle'.toString()">
+				     AND BG.MultiJobTitleName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobPosition'.toString()">
+				     AND BG.MultiJobPositionName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobLevel'.toString()">
+				     AND BG.MultiJobLevelName  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+    </select>
+	
+    <!-- 겸직 리스트 가져오기(list) -->
+    <select id="selectAddJobList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 		
+			BG.Seq AS NO
+			, BG.UserCode
+			, USER.DisplayName AS UserName
+			, USER.MultiDisplayName AS MultiUserName
+			, BG.CompanyCode
+			, BG.CompanyName
+			, BG.MultiCompanyName
+			, BG.DeptCode
+			, BG.DeptName
+			, BG.MultiDeptName
+			, BG.JobTitleCode
+			, BG.JobTitleName
+			, BG.MultiJobTitleName
+			, BG.JobPositionCode
+			, BG.JobPositionName
+			, BG.MultiJobPositionName
+			, BG.JobLevelCode
+			, BG.JobType
+			, BG.JobLevelName
+			, BG.MultiJobLevelName
+			, BG.IsHR
+		FROM sys_object_user_basegroup AS BG
+		INNER JOIN sys_object_user AS USER ON BG.UserCode = USER.UserCode
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+        BG.JobType = 'AddJob' 
+	  <if test="IsHR != null  and IsHR != 'All'.toString()">
+	  	AND BG.IsHR = #{IsHR}
+	  </if>
+      <if test="searchType != null and searchText != null">
+           <choose>
+				 <when test="searchType == 'Users'.toString()">
+					 AND BG.MultiUserName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'Company'.toString()">
+				     AND BG.MultiCompanyName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'Dept'.toString()">
+				     AND BG.MultiDeptName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobTitle'.toString()">
+				     AND BG.MultiJobTitleName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobPosition'.toString()">
+				     AND BG.MultiJobPositionName  like CONCAT('%',#{searchText},'%')
+				 </when>
+				 <when test="searchType == 'JobLevel'.toString()">
+				     AND BG.MultiJobLevelName  like CONCAT('%',#{searchText},'%')
+				 </when>
+		 </choose>
+	  </if>
+	</trim>
+    <!-- Order by 절 -->
+    <trim prefix="ORDER BY">  
+		<if test="sortColumn != null and sortDirection != null">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+				<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+				<when test='sortColumn.equalsIgnoreCase("JobTitleName")'>JobTitleName</when>
+				<when test='sortColumn.equalsIgnoreCase("JobPositionName")'>JobPositionName</when>
+				<when test='sortColumn.equalsIgnoreCase("JobLevelName")'>JobLevelName</when>
+				<when test='sortColumn.equalsIgnoreCase("IsHR")'>IsHR</when>
+				<otherwise>UserName</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if> 
+		<if test="sortColumn == null or sortDirection == null">
+			user.DisplayName ASC
+	    </if>
+	</trim>
+    <if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+	
+    <!-- 겸직 개별 정보 가져오기 -->
+    <select id="selectAddJobInfo" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT 
+				 	BG.Seq AS NO
+					, BG.UserCode
+				 	, BG.JobType
+					, USER.DisplayName AS UserName
+					, USER.MultiDisplayName AS MultiUserName
+					, BG.CompanyCode
+					, BG.CompanyName
+					, BG.MultiCompanyName
+					, BG.DeptCode
+					, BG.DeptName
+					, BG.MultiDeptName
+					, BG.JobTitleCode
+					, BG.JobTitleName
+					, BG.MultiJobTitleName
+					, BG.JobPositionCode
+					, BG.JobPositionName
+					, BG.MultiJobPositionName
+					, BG.JobLevelCode
+					, BG.JobType
+					, BG.JobLevelName
+					, BG.MultiJobLevelName
+					, USER.IsHR
+		FROM sys_object_user_basegroup AS BG
+		INNER JOIN sys_object_user AS USER ON BG.UserCode = USER.UserCode
+	    ]]>
+	   	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	   	    BG.JobType = 'AddJob' 
+	   	    <if test="id != null ">
+	  			AND BG.Seq = #{id}
+	  		</if>
+		</trim>
+	</select>
+	
+	<!-- 겸직  정보 가져오기 -->
+    <select id="selectAddJobInfoList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+			 	BG.Seq AS NO
+				, BG.UserCode
+			 	, BG.JobType
+				, USER.DisplayName AS UserName
+				, USER.MultiDisplayName AS MultiUserName
+				, BG.CompanyCode
+				, BG.CompanyName
+				, BG.MultiCompanyName
+				, BG.DeptCode
+				, BG.DeptName
+				, BG.MultiDeptName
+				, BG.JobTitleCode
+				, BG.JobTitleName
+				, BG.MultiJobTitleName
+				, BG.JobPositionCode
+				, BG.JobPositionName
+				, BG.MultiJobPositionName
+				, BG.JobLevelCode
+				, BG.JobType
+				, BG.JobLevelName
+				, BG.MultiJobLevelName
+				, USER.IsHR
+				, AD.*
+			FROM sys_object_user_basegroup AS BG
+			INNER JOIN sys_object_user AS USER ON BG.UserCode = USER.UserCode
+			LEFT JOIBN sys_object_user_ad AS AD ON BG.USERCODE = AD.USERCODE
+		 ]]>
+			WHERE Seq IN
+			<foreach collection="TargetID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</select>
+	
+    <!-- 겸직 추가  -->
+ 	<insert id="insertAddJob" parameterType="cmap" > 		  
+ 		  INSERT INTO sys_object_user_basegroup (
+		   		UserCode
+		   		, JobType
+		   		, SortKey
+ 		   		, CompanyCode
+ 		   		, CompanyName
+ 		   		, MultiCompanyName
+ 		   		, CompanySortKey
+ 		   		, DeptCode
+ 		   		, DeptName
+ 		   		, MultiDeptName
+ 		   		, DeptSortKey
+ 		   		, JobLevelCode
+ 		   		, JobLevelName
+ 		   		, MultiJobLevelName
+ 		   		, JobLevelSortKey
+ 		   		, JobPositionCode
+ 		   		, JobPositionName
+ 		   		, MultiJobPositionName
+ 		   		, JobPositionSortKey
+ 		   		, JobTitleCode
+ 		   		, JobTitleName
+ 		   		, MultiJobTitleName
+ 		   		, JobTitleSortKey
+ 		   		, IsHR 
+ 		   		, RegistDate
+			)
+			SELECT 
+		    				#{UR_Code} 
+		    				, #{Type}
+		    				, 0
+			 		   		, #{AddJob_Company}
+			 		   		, COMPANY.DisplayName
+			 		   		, COMPANY.MultiDisplayName
+			 		   		, COMPANY.SortKey
+			 		   		, #{AddJob_Group}
+			 		   		, DEPT.DisplayName
+			 		   		, DEPT.MultiDisplayName
+			 		   		, DEPT.SortKey
+			 		   		, #{AddJob_Level}
+			 		   		, JobLevel.DisplayName
+			 		   		, JobLevel.MultiDisplayName
+			 		   		, JobLevel.SortKey
+			 		   		, #{AddJob_Position}
+			 		   		, JobPosition.DisplayName
+			 		   		, JobPosition.MultiDisplayName
+			 		   		, JobPosition.SortKey
+			 		   		, #{AddJob_Title}
+			 		   		, JobTitle.DisplayName
+			 		   		, JobTitle.MultiDisplayName
+			 		   		, JobTitle.SortKey
+			 		   		, #{IsHR}
+			 		   		, now(3)	
+			FROM sys_object_group AS COMPANY
+			LEFT JOIN sys_object_group AS DEPT ON DEPT.GroupType = 'Dept' AND DEPT.GroupCode = #{AddJob_Group}
+			LEFT JOIN sys_object_group AS JobTitle ON JobTitle.GroupType = 'JobTitle' AND JobTitle.GroupCode = #{AddJob_Title}
+			LEFT JOIN sys_object_group AS JobPosition ON JobPosition.GroupType = 'JobPosition' AND JobPosition.GroupCode = #{AddJob_Position}
+			LEFT JOIN sys_object_group AS JobLevel ON JobLevel.GroupType = 'JobLevel' AND JobLevel.GroupCode = #{AddJob_Level}
+			WHERE COMPANY.GroupCode = #{AddJob_Company} AND COMPANY.GroupType = 'Company'
+ 	</insert>
+ 	
+ 	<!-- 겸직 수정  -->
+ 	<insert id="updateAddJob" parameterType="cmap" > 		  
+ 		    UPDATE sys_object_user_basegroup AS BG
+					LEFT JOIN sys_object_group AS COMPANY ON COMPANY.GroupType = 'Company' AND COMPANY.GroupCode = #{AddJob_Company}  
+					LEFT JOIN sys_object_group AS DEPT ON DEPT.GroupType = 'Dept' AND DEPT.GroupCode = #{AddJob_Group}
+					LEFT JOIN sys_object_group AS JobTitle ON JobTitle.GroupType = 'JobTitle' AND JobTitle.GroupCode = #{AddJob_Title}
+					LEFT JOIN sys_object_group AS JobPosition ON JobPosition.GroupType = 'JobPosition' AND JobPosition.GroupCode = #{AddJob_Position}
+					LEFT JOIN sys_object_group AS JobLevel ON JobLevel.GroupType = 'JobLevel' AND JobLevel.GroupCode = #{AddJob_Level}
+			 SET
+			 		   		BG.CompanyCode				= #{AddJob_Company}
+			 		   		, BG.CompanyName				= COMPANY.DisplayName
+			 		   		, BG.MultiCompanyName		= COMPANY.MultiDisplayName
+			 		   		, BG.CompanySortKey			= COMPANY.SortKey
+			 		   		, BG.DeptCode					= #{AddJob_Group}
+			 		   		, BG.DeptName					= DEPT.DisplayName
+			 		   		, BG.MultiDeptName			= DEPT.MultiDisplayName
+			 		   		, BG.DeptSortKey					= DEPT.SortKey
+			 		   		, BG.JobLevelCode				= #{AddJob_Level}
+			 		   		, BG.JobLevelName				= JobLevel.DisplayName
+			 		   		, BG.MultiJobLevelName		= JobLevel.MultiDisplayName
+			 		   		, BG.JobLevelSortKey				= JobLevel.SortKey
+			 		   		, BG.JobPositionCode			= #{AddJob_Position}
+			 		   		, BG.JobPositionName			= JobPosition.DisplayName
+			 		   		, BG.MultiJobPositionName	= JobPosition.MultiDisplayName
+		 		   			, BG.JobPositionSortKey		= JobPosition.SortKey
+			 		   		, BG.JobTitleCode					= #{AddJob_Title}
+			 		   		, BG.JobTitleName				= JobTitle.DisplayName
+			 		   		, BG.MultiJobTitleName			= JobTitle.MultiDisplayName
+			 		   		, BG.JobTitleSortKey				= JobTitle.SortKey
+			 		   		, BG.ModifyDate					= now(3)	
+			 		   		, BG.IsHR 							= #{IsHR}		
+			WHERE BG.Seq = #{id}
+ 	</insert>
+ 	
+ 	<!-- 겸직 목록 설정 변경 => 테이블 구조 변경으로 인하여 보류 -->
+    <update id="updateAddJobSetting" parameterType="cmap" >
+ 		UPDATE sys_object_user_basegroup
+ 		SET IsHR = #{ToBeValue}
+ 		WHERE Seq = #{id}
+ 		AND JobType='AddJob'
+ 	</update>
+ 	
+    <!-- 겸직 목록 삭제 -->
+    <delete id="deleteAddJob" parameterType="cmap">
+		DELETE FROM  sys_object_user_basegroup
+		WHERE	Seq IN
+			<foreach collection="TargetID" item="item"  separator="," open="(" close=")">
+			    #{item}
+			</foreach>
+	</delete>
+
+	<!-- 메일 주소 중복 여부 조회 -->
+    <select id="selectIsDuplicateMail" parameterType="cmap" resultType="cmap">
+		SELECT MAX(CNT) AS isDuplicate
+		FROM
+		(
+			SELECT COUNT(1) AS CNT
+			FROM sys_object_user AS UR1
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			        MailAddress = #{MailAddress}
+			        AND MailAddress IS NOT NULL
+			        AND MailAddress != ''
+			   <if test="Code != null">
+				  	AND UserCode != #{Code}
+			   </if>
+			</trim>
+			
+			UNION 
+			
+			<!-- SELECT COUNT(1) AS CNT
+			FROM sys_object_user AS UR2
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			        ExternalMailAddress LIKE CONCAT('%',#{MailAddress},'%') 
+			        AND ExternalMailAddress IS NOT NULL
+			        AND ExternalMailAddress != ''
+			   <if test="Code != null">
+				  	AND UserCode != #{Code}
+			   </if>
+			</trim>
+			
+			UNION  -->
+				
+			SELECT COUNT(1) AS CNT
+			FROM sys_object_group AS GR1
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			        PrimaryMail = #{MailAddress}
+			        AND PrimaryMail IS NOT NULL 
+			        AND PrimaryMail != ''
+			   <if test="Code != null">
+				  	AND GroupCode != #{Code}
+			   </if>
+			</trim>
+			
+			UNION 
+				
+			SELECT COUNT(1) AS CNT
+			FROM sys_object_group AS GR2
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			        SecondaryMail LIKE CONCAT('%',#{MailAddress},'%') 
+			        AND SecondaryMail IS NOT NULL 
+			        AND SecondaryMail != ''
+			   <if test="Code != null">
+				  	AND GroupCode != #{Code}
+			   </if>
+			</trim>
+		) AS MAIL
+    </select>
+
+    <!-- 부서 우선 순위 가져오기  -->
+	<select id="selectDeptSortKey" parameterType="cmap" resultType="cmap">
+ 	    SELECT SortKey, SortPath
+ 	    FROM sys_object_group
+ 	    WHERE GroupCode = #{TargetCode}
+ 	</select>
+ 	
+	<!-- 부서 우선 순위 변경 -->
+    <update id="updateDeptSortKey" parameterType="cmap" >
+ 		UPDATE sys_object_group
+ 		SET SortKey = #{TargetSortKey},
+ 		SortPath = #{TargetSortPath}
+ 		WHERE GroupCode = #{TargetCode}
+ 	</update>
+ 	
+    <!-- 사용자 우선 순위 가져오기  -->
+	<select id="selectUserSortKey" parameterType="cmap" resultType="cmap">
+ 	    SELECT SortKey
+ 	    FROM sys_object_user
+ 	    WHERE UserCode = #{TargetCode}
+ 	</select>
+ 	
+	<!-- 사용자 우선 순위 변경 -->
+    <update id="updateUserSortKey" parameterType="cmap" >
+ 		UPDATE sys_object_user
+ 		SET SortKey = #{TargetSortKey}
+ 		WHERE UserCode = #{TargetCode}
+ 	</update>
+ 	
+    <select id="selectJobInfoCount" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(GroupCode) AS COUNT FROM sys_object_group AS A
+		INNER JOIN sys_object AS B ON A.GroupCode = B.ObjectCode  
+		WHERE 
+			CompanyCode = #{domainCode} 
+			AND B.DeleteDate IS NULL 
+			AND GroupType IN(#{groupType}) 
+			AND MemberOf IN (
+				SELECT CONCAT(DomainID, '_', #{groupType}) FROM sys_object_domain WHERE DomainCode = #{domainCode}
+			)
+    </select>
+    <select id="selectJobInfoList" parameterType="cmap" resultType="cmap">
+        SELECT 
+			GroupCode, DisplayName, GroupType, MemberOf, MultiDisplayName  
+		FROM sys_object_group AS A
+		INNER JOIN sys_object AS B	ON A.GroupCode = B.ObjectCode  
+		WHERE 
+			CompanyCode = #{domainCode}   
+			AND B.DeleteDate IS NULL
+			AND GroupType IN(#{groupType}) 
+			AND MemberOf in (
+				SELECT CONCAT(DomainID, '_', #{groupType}) FROM sys_object_domain WHERE DomainCode = #{domainCode} 
+			)
+		ORDER BY A.GroupCode
+    </select>
+    
+    <!-- 회사 드롭다운 목록 가져오기 -->
+    <select id="selectAvailableCompanyList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT
+			CompanyCode
+			, MultiDisplayName AS CompanyName
+			, RIGHT(SortKey, 1) AS CompanyID
+	    FROM sys_object_group
+	    WHERE groupType = 'Company' 
+	    		AND IsUse = 'Y'
+    ]]>
+    <!-- Order by 절 -->
+     <trim prefix="ORDER BY">  
+		sortKey ASC
+	</trim>
+	</select>
+
+	<select id="selectServiceTypeList" parameterType="cmap" resultType="cmap">
+        SELECT CN AS optionValue, CONCAT("[", CN, "]", DisplayName) AS optionText FROM ADMANAGER_ACCOUNT WHERE ServiceType = 'MESSENGER'
+    </select> 
+    
+    <update id="updateOrgUserPhotoPath" parameterType="cmap" >
+        UPDATE sys_object_user
+ 		SET PhotoPath = #{PhotoPath}
+ 		WHERE UserCode = #{UserCode}
+ 	</update>
+ 	
+    <insert id="insertUserDefaultInfo" parameterType="cmap">
+        INSERT INTO sys_object_user
+        (
+			UserCode,
+			LogonID,
+			LogonPassword,
+			EmpNo,
+			NickName,
+			DisplayName,
+			MultiDisplayName,
+			Address,
+			MultiAddress,
+			HomePage,
+			PhoneNumber,
+			Mobile,
+			Fax,
+			IPPhone,
+			UseMessengerConnect,
+			SortKey,
+			SecurityLevel,
+			Description,
+			IsUse,
+			IsHR,
+			IsDisplay,
+			EnterDate,
+			RetireDate,
+			PhotoPath,
+			BirthDiv,
+			BirthDate,
+			UseMailConnect,
+			MailAddress,
+			ExternalMailAddress,
+			ChargeBusiness,
+			PhoneNumberInter,
+			LanguageCode,
+			MobileThemeCode,
+			TimeZoneCode,
+			RegistDate,
+			ModifyDate,
+			Reserved2,
+			Reserved3,
+			Reserved4,
+			Reserved5,
+			AD_ISUSE,
+			EX_ISUSE,
+			MSN_ISUSE
+        ) 
+        VALUES
+        (
+        	#{UserCode},
+			#{LogonID},
+			HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{LogonPassword},512))) ,
+			<!-- #{LogonPassword}, -->
+			#{EmpNo},
+			#{NickName},
+			#{DisplayName},
+			#{MultiDisplayName},
+			#{Address},
+			#{MultiAddress},
+			#{HomePage},
+			#{PhoneNumber},
+			#{Mobile},
+			#{Fax},
+			#{IPPhone},
+			#{UseMessengerConnect},
+			#{SortKey},
+			#{SecurityLevel},
+			#{Description},
+			#{IsUse},
+			#{IsHR},
+			#{IsDisplay},
+			#{EnterDate},
+			#{RetireDate},
+			'',
+			#{BirthDiv},
+			#{BirthDate},
+			#{UseMailConnect},
+			#{MailAddress},
+			#{ExternalMailAddress},
+			#{ChargeBusiness},
+			#{PhoneNumberInter},
+			#{LanguageCode},
+			#{MobileThemeCode},
+			#{TimeZoneCode},
+			#{RegistDate},
+			#{RegistDate},
+			#{Reserved2},
+			#{Reserved3},
+			#{Reserved4},
+			#{Reserved5},  	
+			#{AD_IsUse},
+			#{EX_IsUse},
+			#{MSN_IsUse}  	
+        )
+	</insert>
+	
+    <!-- UserCode 제외 모든 값 => DB 스키마에 걸린 default 값 -->
+    <insert id="insertUserDefaultInfo2" parameterType="cmap">
+ 	    INSERT INTO sys_object_user_info
+        (
+        	UserCode
+        )
+        VALUES
+        (
+        	#{UserCode}
+        )
+ 	</insert>
+	
+    <insert id="insertUserBaseGroupInfo" parameterType="cmap">
+        INSERT INTO sys_object_user_basegroup
+        (
+			UserCode,
+			JobType,
+			SortKey,
+			CompanyCode,
+			CompanyName,
+			MultiCompanyName,
+			CompanySortKey,
+			DeptCode,
+			DeptName,
+			MultiDeptName,
+			DeptSortKey,
+			RegionCode,
+			RegionName,
+			MultiRegionName,
+			RegionSortKey,
+			JobPositionCode,
+			JobPositionName,
+			MultiJobPositionName,
+			JobPositionSortKey,
+			JobTitleCode,
+			JobTitleName,
+			MultiJobTitleName,
+			JobTitleSortKey,
+			JobLevelCode,
+			JobLevelName,
+			MultiJobLevelName,
+			JobLevelSortKey,
+			RegistDate,
+			ModifyDate
+        ) 
+        VALUES
+        (
+        	#{UserCode},
+			#{JobType},
+			'0',
+			#{CompanyCode},
+			#{CompanyName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{CompanyCode} AND GroupType = 'Company'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{CompanyCode} AND GroupType = 'Company'),
+			#{DeptCode},
+			#{DeptName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{DeptCode} AND GroupType = 'Dept'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{DeptCode} AND GroupType = 'Dept'),
+			#{RegionCode},
+			#{RegionName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{RegionCode} AND GroupType = 'Region'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{RegionCode} AND GroupType = 'Region'),
+			#{JobPositionCode},
+			#{JobPositionName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobPositionCode} AND GroupType = 'JobPosition'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobPositionCode} AND GroupType = 'JobPosition'),
+			#{JobTitleCode},
+			#{JobTitleName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobTitleCode} AND GroupType = 'JobTitle'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobTitleCode} AND GroupType = 'JobTitle'),
+			#{JobLevelCode},
+			#{JobLevelName},
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobLevelCode} AND GroupType = 'JobLevel'),
+			(SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobLevelCode} AND GroupType = 'JobLevel'),
+			#{RegistDate},
+			#{RegistDate}		
+        )
+	</insert>
+	
+    <insert id="insertUserApprovalInfo" parameterType="cmap">
+        INSERT INTO sys_object_user_approval
+        (
+        	UserCode,
+			UseDeputy,
+			DeputyCode,
+			DeputyName,
+			DeputyFromDate,
+			DeputyToDate,
+			AlertConfig,
+			ApprovalUnitCode,
+			ReceiptUnitCode,
+			ApprovalCode,
+			ApprovalFullCode,
+			ApprovalFullName,
+			UseApprovalMessageBoxView,
+			UseMobile,
+			UseApprovalPassword,
+			RegistDate,
+			ModifyDate
+        )
+        VALUES
+        (
+        	#{UserCode},
+			#{UseDeputy},
+			#{DeputyCode},
+			#{DeputyName},
+			#{DeputyFromDate},
+			#{DeputyToDate},
+			#{AlertConfig},
+			#{ApprovalUnitCode},
+			#{ReceiptUnitCode},
+			#{ApprovalCode},
+			#{ApprovalFullCode},
+			#{ApprovalFullName},
+			#{UseApprovalMessageBoxView},
+			#{UseMobile},
+			#{UseApprovalPassword},
+			#{RegistDate},
+			#{RegistDate}
+        )
+    </insert>
+    
+    <insert id="insertUserGroupMember" parameterType="cmap">
+         INSERT INTO sys_object_group_member
+          (
+        	GroupCode,
+        	UserCode,
+        	SortKey,
+        	Role,
+        	IsUse,
+        	IsHR,
+        	MemberStatus,
+        	JoinDate
+        ) 
+       <trim prefix="VALUES" prefixOverrides="," suffix=";">
+	        <if test="CompanyCode != null and CompanyCode != '' ">
+	            , (#{CompanyCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+	        <if test="DeptCode != null and DeptCode != '' ">
+	            , (#{DeptCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+	        <if test="RegionCode != null and RegionCode != '' ">
+	           , (#{RegionCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+	        <if test="JobPositionCode != null and JobPositionCode != '' ">
+	            , (#{JobPositionCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+	        <if test="JobTitleCode != null and JobTitleCode != '' ">
+	            , (#{JobTitleCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+	        <if test="JobLevelCode != null and JobLevelCode != '' ">
+	            , (#{JobLevelCode},#{UserCode},999,'regular', 'Y', 'Y', 'A', now(3))
+	        </if>
+        </trim>
+    </insert>
+    
+    <delete id="deleteUserGroupDefaultMember" parameterType="cmap">
+         DELETE FROM sys_object_group_member
+		 WHERE UserCode = #{UserCode}
+		 AND GroupCode IN (SELECT GroupCode FROM sys_object_group 
+								WHERE GroupType IN ('JobTitle', 'JobPosition', 'JobLevel', 'Dept', 'Company')
+								);
+    </delete>
+    
+    <update id="updateUserDefaultInfo" parameterType="cmap">
+        UPDATE sys_object_user
+        SET
+			EmpNo = #{EmpNo},
+			NickName = #{NickName},
+			DisplayName = #{DisplayName},
+			MultiDisplayName = #{MultiDisplayName},
+			Address = #{Address},
+			MultiAddress = #{MultiAddress},
+			HomePage = #{HomePage},
+			PhoneNumber = #{PhoneNumber},
+			Mobile = #{Mobile},
+			Fax = #{Fax},
+			IPPhone = #{IPPhone},
+			UseMessengerConnect = #{UseMessengerConnect},
+			SortKey = #{SortKey},
+			SecurityLevel = #{SecurityLevel},
+			Description = #{Description},
+			IsUse = #{IsUse},
+			IsHR = #{IsHR},
+			IsDisplay = #{IsDisplay},
+			EnterDate = #{EnterDate},
+			RetireDate = #{RetireDate},
+			BirthDiv = #{BirthDiv},
+			BirthDate = #{BirthDate},
+			UseMailConnect = #{UseMailConnect},
+			MailAddress = #{MailAddress},
+			ExternalMailAddress = #{ExternalMailAddress},
+			ChargeBusiness = #{ChargeBusiness},
+			PhoneNumberInter = #{PhoneNumberInter},
+			LanguageCode = #{LanguageCode},
+			MobileThemeCode = #{MobileThemeCode},
+			TimeZoneCode = #{TimeZoneCode},
+			ModifyDate = #{RegistDate},
+			Reserved2 = #{Reserved2},
+			Reserved3 = #{Reserved3},
+			Reserved4 = #{Reserved4},
+			Reserved5 = #{Reserved5},
+			AD_ISUSE = #{AD_IsUse},
+			EX_ISUSE = #{EX_IsUse},
+			MSN_ISUSE = #{MSN_IsUse}
+		WHERE UserCode = #{UserCode}
+	</update>
+	
+    
+    <update id="updateUserBaseGroupInfo" parameterType="cmap">
+        UPDATE sys_object_user_basegroup
+        SET
+			CompanyCode = #{CompanyCode},
+			CompanyName = #{CompanyName},
+			MultiCompanyName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{CompanyCode} AND GroupType = 'Company'),
+			CompanySortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{CompanyCode} AND GroupType = 'Company'),
+			DeptCode = #{DeptCode},
+			DeptName = #{DeptName},
+			MultiDeptName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{DeptCode} AND GroupType = 'Dept'),
+			DeptSortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{DeptCode} AND GroupType = 'Dept'),
+			RegionCode = #{RegionCode},
+			RegionName = #{RegionName},
+			MultiRegionName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{RegionCode} AND GroupType = 'Region'),
+			RegionSortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{RegionCode} AND GroupType = 'Region'),
+			JobPositionCode = #{JobPositionCode},
+			JobPositionName = #{JobPositionName},
+			MultiJobPositionName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobPositionCode} AND GroupType = 'JobPosition'),
+			JobPositionSortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobPositionCode} AND GroupType = 'JobPosition'),
+			JobTitleCode = #{JobTitleCode},
+			JobTitleName = #{JobTitleName},
+			MultiJobTitleName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobTitleCode} AND GroupType = 'JobTitle'),
+			JobTitleSortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobTitleCode} AND GroupType = 'JobTitle'),
+			JobLevelCode = #{JobLevelCode},
+			JobLevelName = #{JobLevelName},
+			MultiJobLevelName = (SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode = #{JobLevelCode} AND GroupType = 'JobLevel'),
+			JobLevelSortKey = (SELECT SortKey FROM sys_object_group WHERE GroupCode = #{JobLevelCode} AND GroupType = 'JobLevel'),
+			ModifyDate = #{RegistDate}
+        WHERE UserCode = #{UserCode}
+        AND JobType = 'Origin'
+	</update>
+	
+    <update id="updateUserApprovalInfo" parameterType="cmap">
+        UPDATE sys_object_user_approval
+        SET
+			UseDeputy = #{UseDeputy},
+			DeputyCode = #{DeputyCode},
+			DeputyName = #{DeputyName},
+			DeputyFromDate = #{DeputyFromDate},
+			DeputyToDate = #{DeputyToDate},
+			AlertConfig = #{AlertConfig},
+			ApprovalUnitCode = #{ApprovalUnitCode},
+			ReceiptUnitCode = #{ReceiptUnitCode},
+			ApprovalCode = #{ApprovalCode},
+			ApprovalFullCode = #{ApprovalFullCode},
+			ApprovalFullName = #{ApprovalFullName},
+			UseApprovalMessageBoxView = #{UseApprovalMessageBoxView},
+			UseMobile = #{UseMobile},
+			UseApprovalPassword = #{UseApprovalPassword},
+			ModifyDate = #{RegistDate}
+        WHERE UserCode = #{UserCode}
+    </update>
+    
+    <!-- 상위 분류 select box list(category)를 가져옴 -->
+    <select id="selectDeptListForCategory" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+			gr.GroupCode,
+			Fn_BaseGetDictionary_S(#{lang}, gr.MultiDisplayName) AS GroupName
+			FROM covi_smart4j.sys_object_group AS gr
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	      <if test="groupCode != null">
+		  	AND gr.MemberOf = (SELECT MemberOf FROM covi_smart4j.sys_object_group WHERE GroupCode = #{groupCode} LIMIT 1)
+		  </if>
+		  <if test="groupType != null and groupType=='Dept'">
+		  	AND gr.GroupType in ('Dept')  	
+		  </if>
+		  <if test="groupType != null and groupType=='Company'">
+		  	AND gr.GroupType in ('Company')
+		  </if>
+		  <if test="groupType != null and groupType=='group'">
+		  	AND gr.GroupType != 'Dept'	
+		  </if>
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		    <if test="groupCode != null and groupCode != ''">
+		 	 gr.GroupCode = #{groupCode} DESC,
+			</if>
+		 	SortPath asc
+		</trim>
+    
+	</select>
+	
+	<!--  하위 그룹 목록가져오기 -->
+    <select id="selectSubGroupList" parameterType="cmap" resultType="cmap">
+    	SELECT     
+   			A.*,
+			B.DisplayName AS DomainName,
+			B.MultiDisplayName AS MultiDomainName, 
+     		(SELECT COUNT(0) FROM sys_object_group AS self WHERE self.MemberOf =A.GroupCode AND self.IsUse = 'Y') AS HasChild,     
+     		0 AS Depth 
+  		FROM sys_object_group A 
+  		INNER JOIN sys_object_group B ON A.CompanyCode = B.GroupCode
+   		WHERE A.MemberOf = #{gr_code}
+   		ORDER BY SortPath asc
+   		<if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+    </select>
+    
+    <!--  하위 그룹 목록 갯수 가져오기 -->
+    <select id="selectSubGroupListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT  	COUNT(*)
+  		FROM sys_object_group A 
+  		INNER JOIN sys_object_group B ON A.CompanyCode = B.GroupCode
+   		WHERE A.MemberOf = #{gr_code}
+    </select>
+    
+    <!-- 그룹 선택시 해당 그룹의 사용자 가져옴 -->
+    <!-- 기존 .NET 에서는 사용자 정보를 가져올 때 메인이 되는 테이블이 BASE_GROUP_MEMBER 였지만 
+    JAVA 에서는 BASE_OBJECT_UR이 주가 되기 떄문에 겸직등의 정보를 표시 하기 위해 UNION을 사용한다.  -->
+    <select id="selectGroupUserList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT  'user' AS itemType
+							, UR.UserID
+							, UR.UserCode
+							, UR.MultiDisplayName
+							, CONCAT(BG.JobLevelCode,'&',BG.MultiJobLevelName) AS JobLevel
+							, CONCAT(BG.JobTitleCode,'&',BG.MultiJobTitleName) AS JobTitle
+							, CONCAT(BG.JobPositionCode,'&',BG.MultiJobPositionName) AS JobPosition
+							, IFNULL(UR.Mobile, '') AS Mobile
+							, IFNULL(UR.MailAddress, '') AS MailAddress
+							, IFNULL(UR.PhoneNumber, '') AS PhoneNumber	
+							, UR.EmpNo 
+					 		, BG.DeptCode
+					 		, BG.MultiDeptName
+					 		, BG.CompanyCode
+					 		, BG.MultiCompanyName
+					 		, BG.JobType
+							, IFNULL(UR.PhoneNumberInter, '') AS PhoneNumberInter
+							, UR.IsUse
+							, UR.IsDisplay
+							, UR.IsHR
+							, UR.SortKey
+		FROM sys_object_user AS UR
+	]]>
+			INNER JOIN sys_object_user_basegroup AS BG ON UR.UserCode = BG.UserCode
+			INNER JOIN (
+				SELECT UserCode, (CASE JobType WHEN 'addJob' THEN 'AddJob' ELSE 'Origin' END) AS JobType
+				FROM sys_object_group_member 
+				<if test="groupCode != null">
+					WHERE GroupCode = #{groupCode}
+				</if>
+			) AS GM ON BG.JobType = GM.JobType AND UR.UserCode = GM.UserCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="companyCode != null and companyCode != 'ORGROOT'">
+				AND BG.CompanyCode = #{companyCode} 
+			</if>
+		</trim> 
+		<![CDATA[ 	Order By bg.JobTitleSortKey ASC, bg.JobLevelSortKey ASC, ur.SortKey ASC, ur.EnterDate ASC, ur.MultiDisplayName ASC ]]>
+		<if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+    <!-- 그룹 선택시 해당 그룹의 사용자 갯수를 가져옴 -->
+    <select id="selectGroupUserListCnt" parameterType="cmap" resultType="java.lang.Long">
+	<![CDATA[
+		SELECT  COUNT(*)
+		FROM sys_object_user AS UR
+	]]>
+			INNER JOIN sys_object_user_basegroup AS BG ON UR.UserCode = BG.UserCode
+			INNER JOIN (
+				SELECT UserCode, (CASE JobType WHEN 'addJob' THEN 'AddJob' ELSE 'Origin' END) AS JobType
+				FROM sys_object_group_member 
+				<if test="groupCode != null">
+					WHERE GroupCode = #{groupCode}
+				</if>
+			) AS GM ON BG.JobType = GM.JobType AND UR.UserCode = GM.UserCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="companyCode != null and companyCode != 'ORGROOT'">
+				AND BG.CompanyCode = #{companyCode} 
+			</if>
+		</trim> 
+	</select>
+	
+    <!-- 상위 분류 select box list(category)를 가져옴 -->
+    <select id="selectGroupListForCategory" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+			gr.GroupCode,
+			Fn_BaseGetDictionary_S(#{lang}, gr.MultiDisplayName) AS GroupName
+			FROM covi_smart4j.sys_object_group AS gr
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	      <if test="groupCode != null">
+		  	AND gr.MemberOf = (SELECT MemberOf FROM covi_smart4j.sys_object_group WHERE GroupCode = #{groupCode} LIMIT 1)
+		  </if>
+		   <if test="groupType != null">
+		          <choose>
+						 <when test="groupType == 'Company'.toString()">
+							 AND gr.GroupType = 'Company'
+						 </when>
+						 <when test="groupType == 'group'.toString()">
+							 AND gr.GroupType != 'Dept'
+						 </when>
+						 <otherwise>
+						     AND gr.GroupType = #{groupType}
+						 </otherwise>
+				 </choose>
+	       </if>
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		    <if test="groupCode != null and groupCode != ''">
+		 	 gr.GroupCode = #{groupCode} DESC,
+			</if>
+		 	SortPath asc
+		</trim>
+    
+	</select>
+	
+	<!-- 그룹 사용여부 변경 -->
+    <update id="updateIsUseGroup" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsUse = #{IsUse},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+    
+    <!-- 그룹 메일사용여부 변경 -->
+    <update id="updateIsMailGroup" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_group
+		SET
+			IsMail = #{IsMail},
+			ModifyDate = #{ModifyDate}
+		WHERE GroupCode = #{GroupCode}
+		]]>
+	</update>
+	
+    <!-- 사용자 메일사용여부 변경 -->
+    <update id="updateIsMailUser" parameterType="cmap">
+	    <![CDATA[
+		UPDATE
+			covi_smart4j.sys_object_user
+		SET
+			IsMail = #{IsMail},
+			ModifyDate = #{ModifyDate}
+		WHERE UserCode = #{UserCode}
+		]]>
+	</update>
+	
+    <!-- 그룹 삭제 -->
+    <delete id="deleteGroup" parameterType="cmap">
+	    DELETE FROM sys_object_group
+		WHERE GroupCode IN
+		<foreach collection="deleteData" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</delete>
+	
+    <!-- 하위 그룹 존재 여부 select -->
+    <select id="selectHasChildGroup" parameterType="cmap" resultType="java.lang.Long">
+		SELECT 
+			(SELECT COUNT(0) 
+			 FROM covi_smart4j.sys_object_group AS B 
+			 WHERE B.MemberOf = A.GroupCode AND B.IsUse = 'Y')
+		AS HasChild
+		FROM covi_smart4j.sys_object_group AS A
+		WHERE A.GroupCode = #{GroupCode} 
+    </select>
+    
+    <!-- 하위 사용자 존재 여부 select -->
+    <select id="selectHasUserGroup" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(A.UserCode) AS HasUser
+		FROM covi_smart4j.sys_object_user AS A
+		INNER JOIN covi_smart4j.sys_object_user_basegroup AS B ON A.UserCode = B.UserCode
+		INNER JOIN covi_smart4j.sys_object_group_member AS C ON A.UserCode = C.UserCode
+		WHERE B.JobTitleCode = #{GroupCode} 
+			OR B.JobPositionCode = #{GroupCode} 
+			OR B.JobLevelCode = #{GroupCode} 
+			OR B.RegionCode = #{GroupCode} 
+			OR C.GroupCode = #{GroupCode} 
+    </select>
+	
+    <!-- 그룹 정보 가져오기 select -->
+    <select id="selectGroupInfo" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+         SELECT
+        	A.GroupID,
+        	A.GroupCode,
+        	-- A.CompanyCode,
+			A.GroupType,
+			A.MemberOf,
+			(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode=A.MemberOf) As ParentName,
+			A.GroupPath,
+			A.MultiDisplayName,
+			A.MultiShortName,
+			A.SortKey,
+			A.SortPath,
+			A.OUName,
+			A.OUPath,
+			A.IsUse,
+			A.IsDisplay,
+			A.IsMail,
+			A.IsHR,
+			A.PrimaryMail,
+			A.SecondaryMail,
+			A.Description,
+			A.ReceiptUnitCode,
+			A.ApprovalUnitCode,
+			A.Receivable,
+			A.Approvable,
+			A.RegistDate,
+			A.ModifyDate,
+			A.ManagerCode,
+        	IFNULL(CONCAT(A.ManagerCode, '|', (SELECT DisplayName FROM sys_object_user WHERE UserCode = A.ManagerCode)), '') AS Manager,
+        	B.MultiDisplayName AS CompanyName,
+        	B.GroupCode AS CompanyCode
+		FROM sys_object_group AS A
+		INNER JOIN sys_object_group AS B ON A.CompanyCode = B.GroupCode
+		WHERE A.GroupCode = #{gr_code}
+		]]>
+    </select>
+    
+	<select id="selectDeptInfoList" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+        	SELECT
+	        	A.GroupID,
+	        	A.GroupCode,
+	        	-- A.CompanyCode,
+				A.GroupType,
+				A.MemberOf,
+				(SELECT MultiDisplayName FROM sys_object_group WHERE GroupCode=A.MemberOf) As ParentName,
+				A.GroupPath,
+				A.DisplayName,
+				A.MultiDisplayName,
+				A.MultiShortName,
+				A.SortKey,
+				A.SortPath,
+				A.OUName,
+				A.OUPath,
+				A.IsUse,
+				A.IsDisplay,
+				A.IsMail,
+				A.IsHR,
+				A.PrimaryMail,
+				A.SecondaryMail,
+				A.Description,
+				A.ReceiptUnitCode,
+				A.ApprovalUnitCode,
+				A.Receivable,
+				A.Approvable,
+				A.RegistDate,
+				A.ModifyDate,
+				A.ManagerCode,
+	        	IFNULL(CONCAT(A.ManagerCode, '|', (SELECT DisplayName FROM sys_object_user WHERE UserCode = A.ManagerCode)), '') AS Manager,
+	        	B.MultiDisplayName AS CompanyName,
+	        	B.GroupCode AS CompanyCode
+			FROM sys_object_group AS A
+			INNER JOIN sys_object_group AS B ON A.CompanyCode = B.GroupCode
+			WHERE A.GroupCode IN
+		]]>
+		<foreach collection="TargetID" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+    </select> 
+    
+    <!-- 그룹 기타 정보 select -->
+    <select id="selectGroupEtcInfo" parameterType="cmap" resultType="cmap">
+ 	    SELECT 
+ 	    	GroupPath,
+ 	    	SortPath,
+ 	    	OUPath,
+ 	    	(SELECT GroupID FROM sys_object_group WHERE GroupCode = #{CompanyCode}) AS CompanyID
+ 	    FROM sys_object_group
+ 	    WHERE GroupCode = #{MemberOf}
+ 	</select>
+    
+    <!-- 그룹 insert -->
+    <insert id="insertGroupInfo" parameterType="cmap">
+        INSERT INTO sys_object_group
+        (
+        	GroupCode,
+        	CompanyCode,
+        	GroupType,
+        	MemberOf,
+        	GroupPath,
+        	OUPath,
+        	OUName,
+        	DisplayName,
+        	MultiDisplayName,
+        	ShortName,
+        	MultiShortName,
+        	PrimaryMail,
+        	SecondaryMail,
+        	Approvable,
+        	Receivable,
+        	ApprovalUnitCode,
+        	ReceiptUnitCode,
+        	SortKey,
+        	SortPath,
+        	IsUse,
+        	IsDisplay,
+        	IsMail,
+        	IsHR,
+        	RegistDate,
+        	Description
+        ) 
+        VALUES
+        (
+        	#{GroupCode},
+        	#{CompanyCode},
+        	#{GroupType},
+        	#{MemberOf},
+        	#{GroupPath},
+        	#{OUPath},
+        	#{DisplayName}, #OUName
+        	#{DisplayName},
+        	#{MultiDisplayName},
+        	#{ShortName},
+        	#{MultiShortName},
+        	#{PrimaryMail},
+        	#{SecondaryMail},
+        	1, #Approvable
+        	1, #Receivable
+        	#{GroupCode}, #ApprovalUnitCode
+        	#{GroupCode}, #ReceiptUnitCode
+        	#{SortKey},
+        	#{SortPath},
+        	#{IsUse},
+        	'Y', #IsDisplay
+        	#{IsMail},
+        	#{IsHR},
+        	#{RegistDate},
+        	#{Description}    	
+        )
+    </insert>
+    
+    <!-- 그룹 update -->
+    <update id="updateGroupInfo" parameterType="cmap">
+        UPDATE sys_object_group
+        SET 
+        	MemberOf = #{MemberOf},
+        	GroupPath = #{GroupPath},
+        	OUPath = #{OUPath},
+        	DisplayName = #{DisplayName},
+        	MultiDisplayName = #{MultiDisplayName},
+        	ShortName = #{ShortName},
+        	MultiShortName = #{MultiShortName},
+        	PrimaryMail = #{PrimaryMail},
+        	SecondaryMail = #{SecondaryMail},
+        	SortKey = #{SortKey},
+        	SortPath = #{SortPath},
+        	IsUse = #{IsUse},
+        	IsMail = #{IsMail},
+        	IsHR = #{IsHR},
+        	ModifyDate = #{ModifyDate},
+        	Description = #{Description}
+        WHERE GroupCode = #{GroupCode}
+    </update>
+    
+    <select id="selectDefaultSetInfoGroup" parameterType="cmap" resultType="cmap">
+         SELECT
+			A.DisplayName AS GroupName,
+        	B.DisplayName AS CompanyName,
+        	<if test="domainCode != null and groupType != null">
+	        	(
+		        	SELECT SUBSTRING_INDEX(GroupCode, '_', 1) 
+		            FROM sys_object_group
+					WHERE GroupCode like CONCAT('%',#{groupType}) and CompanyCode = #{domainCode} 
+				) 
+			</if>
+			<if test="domainCode == null or groupType == null">
+			    ''
+		    </if>
+			AS CompanyID
+		FROM sys_object_group AS A
+		INNER JOIN sys_object_group AS B ON A.CompanyCode = B.GroupCode AND B.GroupType = 'Company'
+		<if test="groupType = 'Company'.toString()">
+		    <if test="gr_code != null">
+		    	WHERE  A.GroupCode = #{gr_code} 
+		  </if>
+		</if>
+		<if test="groupType != 'Company'.toString()">
+    		<if test="domainCode != null">
+				WHERE B.GroupCode = #{domainCode} 
+			</if>
+	        <if test="gr_code != null">
+		    	AND A.GroupCode = #{gr_code} 
+		  </if>
+		</if>
+
+    </select>
+    
+    <!-- 그룹 멤버 User insert -->
+    <insert id="insertGroupMemberUser" parameterType="cmap">
+        INSERT INTO sys_object_group_member
+        (
+        	GroupCode,
+        	UserCode,
+        	SortKey,
+        	Role,
+        	IsUse,
+        	IsHR,
+        	MemberStatus,
+        	JoinDate
+        ) 
+        VALUES (
+        	#{GroupCode},
+        	#{URList},
+        	999,
+        	'regular', 
+        	'Y',
+        	'Y',
+        	'A',
+        	now(3)  	
+        )
+    </insert>
+    
+    <!-- 그룹 멤버 Group insert -->
+    <insert id="insertGroupMemberGroup" parameterType="cmap">
+        INSERT INTO sys_object_group_membergroup
+        (
+        	GroupCode,
+        	MemberGroupCode,
+        	SortKey,
+        	Role,
+        	IsUse,
+        	IsHR,
+        	MemberStatus,
+        	JoinDate
+        ) 
+        VALUES (
+        	#{GroupCode},
+        	#{GRList},
+        	999,
+        	'regular', 
+        	'Y',
+        	'Y',
+        	'A',
+        	now(3)
+        )
+    </insert>
+    
+    <!-- 그룹 멤버 User delete -->
+    <delete id="deleteGroupMemberUser" parameterType="cmap">
+	    DELETE FROM sys_object_group_member
+		WHERE GroupMemberID IN
+		<foreach collection="deleteDataUser" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+    </delete>
+    
+    <!-- 그룹 멤버 Group delete -->
+    <delete id="deleteGroupMemberGroup" parameterType="cmap">
+	    DELETE FROM sys_object_group_membergroup
+		WHERE MemberGroupID IN
+		<foreach collection="deleteDataGroup" item="item"  separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+    </delete>
+    
+    <!-- 그룹 멤버 목록 select -->
+    <select id="selectGroupMemberList" parameterType="cmap" resultType="cmap">
+		SELECT * FROM 
+		(
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, IFNULL(UR.DisplayName, '') AS CodeName
+					, IFNULL(UR.MailAddress, '') AS MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM sys_object_group_member AS GM
+					LEFT JOIN sys_object_user AS UR ON GM.UserCode = UR.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    GM.GroupCode = #{groupCode} 
+			</trim>
+			
+			UNION 
+			
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, IFNULL(GR.DisplayName, '') AS CodeName
+					, IFNULL(GR.PrimaryMail, '') AS MailAddress
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup AS GM
+					LEFT JOIN sys_object_group AS GR ON GM.MemberGroupCode = GR.GroupCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    GM.GroupCode = #{groupCode} 
+			</trim>
+		) AS A
+		<if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+    <!-- 그룹 선택시 해당 그룹의 멤버 수를 가져옴 -->
+    <select id="selectGroupMemberListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM 
+		(
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, UR.DisplayName AS CodeName
+					, UR.MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM sys_object_group_member AS GM
+					LEFT JOIN sys_object_user AS UR ON GM.UserCode = UR.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    GM.GroupCode = #{groupCode} 
+			</trim>
+			
+			UNION 
+			
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, GR.DisplayName AS CodeName
+					, GR.PrimaryMail
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup AS GM
+					LEFT JOIN sys_object_group AS GR ON GM.MemberGroupCode = GR.GroupCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			    GM.GroupCode = #{groupCode} 
+			</trim>
+		) AS A
+	</select>
+	
+    <!-- 비밀번호 초기화  -->
+    <update id="resetuserpassword" parameterType="cmap">
+        UPDATE sys_object_user
+        SET 
+        	LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{sNewPassword},512))) ,
+			<!-- #{LogonPassword}, -->
+        	ModifyDate = #{ModDate}
+
+        WHERE LogonID = #{UserID}
+    </update>
+    
+    <update id="resetuserpasswordLock" parameterType="cmap">
+        update covi_Smart4j.sys_object_user
+		set ACCOUT_LOCK = 'N'
+			, PASSWORD_CHANGE_DATE = #{ModDate}
+			, LOGIN_FAIL_COUNT = 0
+			, TEMPORARY_PASSWORD_ISUSE  = 'Y'
+		where usercode = #{UserID}
+    </update>
+    
+    <!-- AD 정보 입력 -->
+   	<insert id="insertUserADInfo" parameterType="cmap">
+       INSERT INTO sys_object_user_ad (
+		    USERID
+			,AD_DISPLAYNAME
+			,AD_FIRSTNAME
+			,AD_LASTNAME
+			,AD_INITIALS
+			,AD_OFFICE
+			,AD_HOMEPAGE
+			,AD_COUNTRY
+			,AD_COUNTRYID
+			,AD_COUNTRYCODE
+			,AD_STATE
+			,AD_CITY
+			,AD_STREETADDRESS
+			,AD_POSTOFFICEBOX
+			,AD_POSTALCODE
+			,AD_USERACCOUNTCONTROL
+			,AD_ACCOUNTEXPIRES
+			,AD_PHONENUMBER 
+			,AD_HOMEPHONE 
+			,AD_PAGER 
+			,AD_MOBILE
+			,AD_FAX 
+			,AD_IPPHONE
+			,AD_INFO
+			,AD_TITLE
+			,AD_DEPARTMENT
+			,AD_COMPANY
+			,AD_MANAGERCODE
+			,AD_CN
+			,AD_SamAccountName
+			,AD_UserPrincipalName 
+		) VALUES (
+		    #{UserCode},
+			#{AD_DisplayName},
+			#{AD_FirstName},
+			#{AD_LastName},
+			#{AD_Initials},
+			#{AD_Office},
+			#{AD_HomePage},
+			#{AD_Country},
+			#{AD_CountryID},
+			#{AD_CountryCode},
+			#{AD_State},
+			#{AD_City},
+			#{AD_StreetAddress},
+			#{AD_PostOfficeBox},
+			#{AD_PostalCode},
+			#{AD_UserAccountControl},
+			#{AD_AccountExpires},
+			#{AD_PhoneNumber},
+			#{AD_HomePhone},
+			#{AD_Pager},
+			#{AD_Mobile},
+			#{AD_Fax},
+			'',
+			#{AD_Info},
+			#{AD_Title},
+			#{AD_Department},
+			#{AD_Company},
+			#{AD_ManagerCode},  	
+			#{AD_CN},
+			#{AD_SamAccountName},
+			#{AD_UserPrincipalName} 
+        )
+    </insert>
+    <!-- Exchange 정보 입력 -->
+   	<insert id="insertUserExchInfo" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_user_exchange (
+			USERID,
+			EX_PRIMARYMAIL,
+			EX_SECONDARYMAIL,
+			EX_STORAGESERVER,
+			EX_STORAGEGROUP,
+			EX_STORAGESTORE,
+			EX_CUSTOMATTRIBUTE01,
+			EX_CUSTOMATTRIBUTE02,
+			EX_CUSTOMATTRIBUTE03,
+			EX_CUSTOMATTRIBUTE04,
+			EX_CUSTOMATTRIBUTE05,
+			EX_CUSTOMATTRIBUTE06,
+			EX_CUSTOMATTRIBUTE07,
+			EX_CUSTOMATTRIBUTE08,
+			EX_CUSTOMATTRIBUTE09,
+			EX_CUSTOMATTRIBUTE10,
+			EX_CUSTOMATTRIBUTE11,
+			EX_CUSTOMATTRIBUTE12,
+			EX_CUSTOMATTRIBUTE13,
+			EX_CUSTOMATTRIBUTE14,
+			EX_CUSTOMATTRIBUTE15
+		) VALUES (
+		   	#{UserCode},
+			#{EX_PrimaryMail},
+			#{EX_SecondaryMail},
+			#{EX_StorageServer},
+			#{EX_StorageGroup},
+			#{EX_StorageStore},
+			#{EX_CustomAttribute01},
+			#{EX_CustomAttribute02},
+			#{EX_CustomAttribute03},
+			#{EX_CustomAttribute04},
+			#{EX_CustomAttribute05},
+			#{EX_CustomAttribute06},
+			#{EX_CustomAttribute07},
+			#{EX_CustomAttribute08},
+			#{EX_CustomAttribute09},
+			#{EX_CustomAttribute10},
+			#{EX_CustomAttribute11},
+			#{EX_CustomAttribute12},
+			#{EX_CustomAttribute13},
+			#{EX_CustomAttribute14},
+			#{EX_CustomAttribute15}
+		)
+    </insert>
+    <!-- MSN 정보 입력 -->
+   	<insert id="insertUserMSNInfo" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_user_messenger (
+			USERID,
+			MSN_POOLSERVERNAME,
+			MSN_POOLSERVERDN,
+			MSN_SIPADDRESS,
+			MSN_ANONMY,
+			MSN_MEETINGPOLICYNAME,
+			MSN_MEETINGPOLICYDN,
+			MSN_PHONECOMMUNICATION,
+			MSN_PBX,
+			MSN_LINEPOLICYNAME,
+			MSN_LINEPOLICYDN,
+			MSN_LINEURI,
+			MSN_LINESERVERURI,
+			MSN_FEDERATION,
+			MSN_REMOTEACCESS,
+			MSN_PUBLICIMCONNECTIVITY,
+			MSN_INTERNALIMCONVERSATION,
+			MSN_FEDERATEDIMCONVERSATION
+		) VALUES (
+			  #{UserCode},
+			#{MSN_PoolServerName},
+			#{MSN_PoolServerDN},
+			#{MSN_SIPAddress},
+			#{MSN_Anonmy},
+			#{MSN_MeetingPolicyName},
+			#{MSN_MeetingPolicyDN},
+			#{MSN_PhoneCommunication},
+			#{MSN_PBX},
+			#{MSN_LinePolicyName},
+			#{MSN_LinePolicyDN},
+			#{MSN_LineURI},
+			#{MSN_LineServerURI},
+			#{MSN_Federation},
+			#{MSN_RemoteAccess},
+			#{MSN_PublicIMConnectivity},
+			#{MSN_InternalIMConversation},
+			#{MSN_FederatedIMConversation}
+		)
+    </insert>
+    
+	<!-- AD 정보 수정 -->
+   	<update id="updateUserADInfo" parameterType="cmap">
+   	     UPDATE 
+		covi_smart4j.sys_object_user_ad
+		SET 
+			 AD_DISPLAYNAME         = #{AD_DisplayName}
+			, AD_FIRSTNAME           = #{AD_FirstName}
+			, AD_LASTNAME            = #{AD_LastName}
+			, AD_INITIALS            = #{AD_Initials}
+			, AD_OFFICE              = #{AD_Office}
+			, AD_HOMEPAGE            = #{AD_HomePage}
+			, AD_COUNTRY             = #{AD_Country}
+			, AD_COUNTRYID           = #{AD_CountryID}
+			, AD_COUNTRYCODE         = #{AD_CountryCode}
+			, AD_STATE               = #{AD_State}
+			, AD_CITY                = #{AD_City}
+			, AD_STREETADDRESS       = #{AD_StreetAddress}
+			, AD_POSTOFFICEBOX       = #{AD_PostOfficeBox}
+			, AD_POSTALCODE          = #{AD_PostalCode}
+			, AD_USERACCOUNTCONTROL  = #{AD_UserAccountControl}
+			, AD_ACCOUNTEXPIRES      = #{AD_AccountExpires}
+			, AD_PHONENUMBER         = #{AD_PhoneNumber}
+			, AD_HOMEPHONE           = #{AD_HomePhone}
+			, AD_PAGER               = #{AD_Pager}
+			, AD_MOBILE              = #{AD_Mobile}
+			, AD_FAX                 = #{AD_Fax}
+			, AD_IPPHONE             = ''
+			, AD_INFO                = #{AD_Info}
+			, AD_TITLE               = #{AD_Title}
+			, AD_DEPARTMENT          = #{AD_Department}
+			, AD_COMPANY             = #{AD_Company}
+			, AD_MANAGERCODE         = #{AD_ManagerCode} 
+			, AD_CN         = #{AD_CN}
+			, AD_SamAccountName         = #{AD_SamAccountName}
+			, AD_UserPrincipalName         = #{AD_UserPrincipalName} 
+		WHERE USERID = 	#{UserCode}
+	</update>
+	<!-- Exchange 정보 수정 -->
+   	<update id="updateUserExchInfo" parameterType="cmap">
+		UPDATE
+		covi_smart4j.sys_object_user_exchange
+		SET 
+			EX_PRIMARYMAIL = #{EX_PrimaryMail},
+			EX_SECONDARYMAIL = #{EX_SecondaryMail},
+			EX_STORAGESERVER = #{EX_StorageServer},
+			EX_STORAGEGROUP = #{EX_StorageGroup},
+			EX_STORAGESTORE = #{EX_StorageStore},
+			EX_CUSTOMATTRIBUTE01 = #{EX_CustomAttribute01},
+			EX_CUSTOMATTRIBUTE02 = #{EX_CustomAttribute02},
+			EX_CUSTOMATTRIBUTE03 = #{EX_CustomAttribute03},
+			EX_CUSTOMATTRIBUTE04 = #{EX_CustomAttribute04},
+			EX_CUSTOMATTRIBUTE05 = #{EX_CustomAttribute05},
+			EX_CUSTOMATTRIBUTE06 = #{EX_CustomAttribute06},
+			EX_CUSTOMATTRIBUTE07 = #{EX_CustomAttribute07},
+			EX_CUSTOMATTRIBUTE08 = #{EX_CustomAttribute08},
+			EX_CUSTOMATTRIBUTE09 = #{EX_CustomAttribute09},
+			EX_CUSTOMATTRIBUTE10 = #{EX_CustomAttribute10},
+			EX_CUSTOMATTRIBUTE11 = #{EX_CustomAttribute11},
+			EX_CUSTOMATTRIBUTE12 = #{EX_CustomAttribute12},
+			EX_CUSTOMATTRIBUTE13 = #{EX_CustomAttribute13},
+			EX_CUSTOMATTRIBUTE14 = #{EX_CustomAttribute14},
+			EX_CUSTOMATTRIBUTE15 = #{EX_CustomAttribute15}
+		WHERE USERID = #{UserCode}
+	</update>
+	<!-- Messenger 정보 수정 -->
+   	<update id="updateUserMSNInfo" parameterType="cmap">
+   	    UPDATE covi_smart4j.sys_object_user_messenger 
+		SET
+			MSN_POOLSERVERNAME = #{MSN_PoolServerName},
+			MSN_POOLSERVERDN = #{MSN_PoolServerDN},
+			MSN_SIPADDRESS = #{MSN_SIPAddress},
+			MSN_ANONMY = #{MSN_Anonmy},
+			MSN_MEETINGPOLICYNAME = #{MSN_MeetingPolicyName},
+			MSN_MEETINGPOLICYDN = #{MSN_MeetingPolicyDN},
+			MSN_PHONECOMMUNICATION = #{MSN_PhoneCommunication},
+			MSN_PBX = #{MSN_PBX},
+			MSN_LINEPOLICYNAME = #{MSN_LinePolicyName},
+			MSN_LINEPOLICYDN = #{MSN_LinePolicyDN},
+			MSN_LINEURI = #{MSN_LineURI},
+			MSN_LINESERVERURI = #{MSN_LineServerURI},
+			MSN_FEDERATION = #{MSN_Federation},
+			MSN_REMOTEACCESS = #{MSN_RemoteAccess},
+			MSN_PUBLICIMCONNECTIVITY = #{MSN_PublicIMConnectivity},
+			MSN_INTERNALIMCONVERSATION = #{MSN_InternalIMConversation},
+			MSN_FEDERATEDIMCONVERSATION = #{MSN_FederatedIMConversation}
+		WHERE USERID = #{UserCode}
+	</update>
+	<select id="selectUserInfoByAdmin" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 
+				      ur.UserID AS "UserID"
+					, ur.UserCode AS "UserCode"
+					, ur.LogonID AS "LogonID"
+					, ur.EmpNo AS "EmpNo"
+					, ur.MultiDisplayName AS "MultiDisplayName"
+					, ur.NickName AS "NickName"
+					, ur.MultiAddress AS "MultiAddress"
+					, ur.HomePage AS "HomePage"
+					, ur.PhoneNumber AS "PhoneNumber"
+					, ur.Mobile AS "Mobile"
+					, ur.FAX AS "FAX" 
+					, ur.IPPhone AS "IPPhone" 
+					, ur.UseMessengerConnect AS "UseMessengerConnect" 
+					, ur.SortKey AS "SortKey" 
+					, ur.SecurityLevel AS "SecurityLevel" 
+					, ur.Description AS "Description" 
+					, ur.IsUse AS "IsUse" 
+					, ur.IsHR AS "IsHR" 
+					, ur.IsDisplay AS "IsDisplay" 
+					, ur.EnterDate AS "EnterDate" 
+					, ur.RetireDate AS "RetireDate" 
+					, ur.PhotoPath AS "PhotoPath" 
+					, ur.BirthDiv  AS "BirthDiv" 
+					, ur.BirthDate AS "BirthDate" 
+					, ur.UseMailConnect AS "UseMailConnect" 
+					, ur.MailAddress AS "MailAddress" 
+					, ur.ExternalMailAddress AS "ExternalMailAddress" 
+					, ur.PhoneNumberInter AS "PhoneNumberInter" 
+					, ur.Reserved2 AS "Reserved2" 
+					, ur.Reserved3 AS "Reserved3" 
+					, ur.Reserved4 AS "Reserved4" 
+					, (SELECT MultiDisplayName FROM covi_smart4j.sys_object_user WHERE UserCode = ur.Reserved4) AS "ManagerName"
+					, ur.Reserved5 AS "Reserved5" 
+					, bg.CompanyCode AS "CompanyCode" 
+					, bg.MultiCompanyName AS "MultiCompanyName" 
+					, bg.DeptCode AS "DeptCode" 
+					, bg.MultiDeptName AS "MultiDeptName" 
+					, bg.RegionCode AS "RegionCode" 
+					, bg.MultiRegionName AS "MultiRegionName" 
+					, bg.JobPositionCode AS "JobPositionCode" 
+					, bg.JobPositionName AS "JobPositionName" 
+					, bg.JobTitleCode AS "JobTitleCode" 
+					, bg.JobTitleName AS "JobTitleName" 
+					, bg.JobLevelCode AS "JobLevelCode" 
+					, bg.JobLevelName AS "JobLevelName" 
+					, apv.UseDeputy AS "UseDeputy" 
+					, apv.DeputyCode AS "DeputyCode" 
+					, apv.DeputyName AS "DeputyName" 
+					, apv.DeputyFromDate AS "DeputyFromDate" 
+					, apv.DeputyToDate AS "DeputyToDate" 
+					, apv.AlertConfig AS "AlertConfig" 
+					, apv.ApprovalUnitCode AS "ApprovalUnitCode" 
+					, (SELECT MultiDisplayName FROM covi_smart4j.sys_object_group WHERE GroupCode = apv.ApprovalUnitCode) AS "ApprovalUnitName"
+					, apv.ReceiptUnitCode AS "ReceiptUnitCode" 
+					, (SELECT MultiDisplayName FROM covi_smart4j.sys_object_group WHERE GroupCode = apv.ReceiptUnitCode) AS "ReceiptUnitName"
+					, apv.UseApprovalMessageBoxView AS "UseApprovalMessageBoxView"
+					, apv.UseMobile AS "UseMobile"
+					, ur.AD_ISUSE
+					, ur.EX_ISUSE
+					, ur.MSN_ISUSE
+					, AD.*
+                    , EXCH.*
+                    , MSN.*
+                    , AD.USERID As "AD_USERID"
+                    , EXCH.USERID As "EX_USERID"
+                    , MSN.USERID As "MSN_USERID"
+                    , ur.LOGONPASSWORD  As "LOGONPASSWORD"
+			FROM covi_smart4j.sys_object_user ur
+			LEFT JOIN covi_smart4j.sys_object_user_basegroup bg ON ur.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+			LEFT JOIN covi_smart4j.sys_object_user_approval apv ON ur.UserCode = apv.UserCode
+            LEFT JOIN covi_smart4j.sys_object_user_ad AD ON ur.UserCode = AD.USERID
+            LEFT JOIN covi_smart4j.sys_object_user_exchange EXCH ON ur.UserCode = EXCH.USERID
+            LEFT JOIN covi_smart4j.sys_object_user_messenger MSN ON ur.UserCode = MSN.USERID
+			WHERE ur.UserCode = #{UserCode}
+		]]>
+	</select>
+	
+	<select id="updatePasswordPolicyCount" parameterType="cmap" resultType="java.lang.Long">
+        select count(*) from covi_smart4j.sys_object_pw_policy a
+		inner join covi_smart4j.sys_object_domain b on a.DomainID = b.DomainID
+		where 1=1
+		and b.DomainCode = #{DomainCode}
+    </select>
+    
+	<select id="getPolicy" parameterType="cmap" resultType="cmap">
+        SELECT  a.DOMAINID AS DomainID
+              , a.ISUSECOMPLEXITY AS IsUseComplexity
+              , a.MAXCHANGEDATE AS MaxChangeDate
+              , a.MINIMUMLENGTH AS MinimumLength
+              , a.CHANGENOTICEDATE AS ChangeNoticeDate
+        FROM covi_smart4j.sys_object_pw_policy a
+        inner join covi_smart4j.sys_object_domain b on a.DomainID = b.DomainID
+        WHERE 1=1 
+        AND b.DomainCode = #{DomainCode}
+    </select>
+
+</mapper>
+

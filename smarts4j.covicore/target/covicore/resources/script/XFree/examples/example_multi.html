@@ -1,0 +1,78 @@
+<html>
+<head>
+<META content="text/html; charset=utf-8" http-equiv=Content-Type>
+</head>
+<body align="center">	
+	<form method="get">
+		
+		<!-- 에디터 모듈의 link 를 넣어줍니다. -->
+		<script src="../js/xfe_main.js" type="text/javascript"></script>
+		
+		<div width="800" id="xfe_ex2" style="margin-bottom:30px;">
+			
+		</div>
+		
+		<div width="800" id="xfe_ex">
+			
+			<script type="text/javascript">
+			
+				var initLoad1 = function(object) {
+					object.setHtmlValue('<html><head></head><body></body></html>');
+					alert(object);
+				};
+				
+				var initLoad2 = function(object) {
+					object.setBodyValue('<p style="font-family:맑은 고딕; font-size:10px;"> X-Free Editor 2.0 </p>');
+					alert(object);
+				};
+			
+				/*
+				 * 에디터 생성.
+				 * 
+				 * basePath : 에디터 모듈이 있는 폴더의 Url 경로를 적어줍니다. (필수)
+				 * width : 에디터의 너비
+				 * height : 에디터의 높이
+				 * onLoad : 에디터 초기 로드 이벤트
+				 */
+				var xfe = new XFE({							
+							basePath : 'http://192.168.0.1/editor/test',
+							width : '720px',
+							height : '700px',							
+							onLoad : initLoad1
+						});
+						
+				/*
+				 * 에디터를 redering 합니다.
+				 * 에디터를 생성할 HTML 객체의 id 값을 parameter 값으로 넘겨줘야 합니다. (필수)
+				 */		
+				xfe.render('xfe_ex');
+				
+				
+				
+				
+				/*
+				 * 에디터 생성.
+				 * 
+				 * basePath : 에디터 모듈이 있는 폴더의 Url 경로를 적어줍니다. (필수)
+				 * width : 에디터의 너비
+				 * height : 에디터의 높이
+				 * onLoad : 에디터 초기 로드 이벤트
+				 */
+				var xfe2 = new XFE({							
+							basePath : 'http://192.168.0.1/editor/test',
+							width : '720px',
+							height : '700px',							
+							onLoad : initLoad2
+						});
+						
+				/*
+				 * 에디터를 redering 합니다.
+				 * 에디터를 생성할 HTML 객체의 id 값을 parameter 값으로 넘겨줘야 합니다. (필수)
+				 */		
+				xfe2.render('xfe_ex2');
+				
+			</script>
+		</div>			
+	</form>	
+</body>
+</html>

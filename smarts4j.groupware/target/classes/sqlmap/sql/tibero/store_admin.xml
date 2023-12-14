@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="store.coupon.admin">
+	<!-- Coupon List by Domain -->
+	<select id="selectDomainCouponListCnt" parameterType="cmap" resultType="long">
+		SELECT Count(1) * 2 as CNT 
+		FROM sys_object_domain dm
+		WHERE 1=1 
+		AND dm.IsUse = 'Y'
+		AND dm.DomainID <![CDATA[<>]]> '0'
+		<if test="search != null and search != ''">
+			AND dm.MultiDisplayName LIKE '%' || #{search} || '%'
+		</if>
+		<if test="DomainID != null and DomainID != ''">
+			AND dm.DomainID = #{DomainID}
+		</if>
+	</select>
+	
+	<select id="selectDomainCouponList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT 
+				DomainID AS "DomainID", 
+				CouponType AS "CouponType", 
+				CouponTypeName AS "CouponTypeName", 
+				CompanyName AS "CompanyName", 
+				TotCount AS "TotCount", 
+				UseCount AS "UseCount", 
+				RemainCount AS "RemainCount",
+				IsUse AS "IsUse"
+			FROM (
+				SELECT 
+					dm.DomainID, a.CouponType, a.CouponTypeName, 
+					Fn_BaseGetDictionary_S(#{lang}, dm.MultiDisplayName) as CompanyName, 
+					NVL(TotCount, 0) as TotCount, 
+					NVL(UseCount, 0) as UseCount, 
+					(NVL(TotCount, 0) - NVL(UseCount, 0)) AS RemainCount,
+					dm.IsUse as IsUse
+				FROM sys_object_domain dm 
+				JOIN (
+					SELECT CODE AS CouponType, CodeName AS CouponTypeName, domainid
+					FROM sys_base_code cd WHERE cd.CodeGroup = 'ST_COUPONTYPE' AND IsUse = 'Y'
+				) a ON 1=1
+				LEFT OUTER JOIN (
+					SELECT DomainID
+						, CouponType
+						, COUNT(CouponID) as TotCount
+						, SUM(CASE WHEN IssueState != 'NORMAL' THEN 1 ELSE 0 END) as UseCount
+					FROM sys_object_coupon coupon
+					WHERE 1=1
+					GROUP BY domainid, coupontype 
+				) b
+				ON dm.domainid = b.domainid
+				AND a.CouponType = b.CouponType
+			)
+			WHERE IsUse = 'Y'
+			AND DomainID <![CDATA[<>]]> '0'
+			<if test="search != null and search != ''">
+				AND CompanyName LIKE '%' || #{search} || '%'
+			</if>
+			<if test="DomainID != null and DomainID != ''">
+				AND DomainID = #{DomainID}
+			</if>
+			<trim prefix="ORDER BY" prefixOverrides =","> 
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''"> 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("TotCount")'>TotCount</when>
+						<when test='sortColumn.equalsIgnoreCase("UseCount")'>UseCount</when>
+						<when test='sortColumn.equalsIgnoreCase("RemainCount")'>RemainCount</when>
+						<otherwise>CompanyName</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<!-- [API]특정회사 쿠폰개수 조회 -->
+	<select id="selectDomainCouponData" parameterType="cmap" resultType="cmap">
+		SELECT DomainID AS "DomainID"
+			, CouponType AS "CouponType"
+			, COUNT(CouponID) AS "TotCount"
+			, SUM(CASE WHEN IssueState != 'NORMAL' THEN 1 ELSE 0 END) AS "UseCount"
+		FROM sys_object_coupon coupon
+		WHERE 1=1
+		AND DomainID = #{DomainID}
+		AND CouponType = #{CouponType}
+		GROUP BY DomainID, CouponType
+	</select>
+	
+	<!-- Event List -->
+	<select id="selectCouponEventListCnt" parameterType="cmap" resultType="long">
+		SELECT count(1)
+		FROM sys_object_coupon_eventlog
+		WHERE DomainID = #{DomainID}
+		AND CouponType = #{CouponType}
+	</select>
+	<select id="selectCouponEventList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT 
+			evt.EventID AS "EventID", 
+			evt.DomainID AS "DomainID",
+			Fn_BaseGetDictionary_S(#{lang}, cd.MultiCodeName) AS "EventTypeName",
+			evt.CouponType AS "CouponType", 
+			evt.EventType AS "EventType", 
+			evt.EventDate AS "EventDate",
+			evt.EventUser AS "EventUser", 
+			evt.CouponQty AS "CouponQty", 
+			evt.ExpireDate AS "ExpireDate",
+			evt.Memo AS "Memo"
+		FROM sys_object_coupon_eventlog evt
+		JOIN sys_base_code cd
+			ON cd.codegroup = 'ST_EVENT_TYPE'
+			AND cd.DomainID = '0'
+			AND cd.code = evt.EventType
+		WHERE evt.DomainID = #{DomainID}
+		AND CouponType = #{CouponType}
+		<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''"> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("EventDate")'>EventDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EventUser")'>EventUser</when>
+					<when test='sortColumn.equalsIgnoreCase("CouponQty")'>CouponQty</when>
+					<when test='sortColumn.equalsIgnoreCase("ExpireDate")'>ExpireDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EventType")'>EventType</when>
+					<otherwise>EventDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<!-- Add coupon -->
+	<insert id="insertCoupon" parameterType="cmap">
+		INSERT INTO sys_object_coupon (DomainID, CouponType, ExpireDate, IssueType, IssueDate, IssueState, RegisterCode, RegistDate)
+		<foreach collection="couponList" item="item" separator="UNION ALL" index="index">
+			SELECT
+				#{item.DomainID}
+				, #{item.CouponType}
+				, #{item.ExpireDate}
+				, #{item.IssueType}
+				, SYSDATE
+				, #{item.IssueState}
+				, #{item.RegisterCode}
+				, SYSDATE
+			FROM DUAL
+		</foreach>
+	</insert>
+	
+	<insert id="insertCouponEvent" parameterType="cmap">
+		INSERT INTO sys_object_coupon_eventlog (DomainID, CouponType, EventType, EventUser, EventDate, CouponQty, ExpireDate, Memo, RegisterCode, RegistDate)
+		VALUES (
+			#{DomainID}
+			, #{CouponType}
+			, #{EventType}
+			, #{EventUser}
+			, SYSDATE
+			, #{CouponQty}
+			, #{ExpireDate}
+			, #{Memo}
+			, #{RegisterCode}
+			, SYSDATE
+		)
+		<selectKey keyProperty="EventID" resultType="long" order="AFTER">
+			SELECT SYS_OBJECT_COUPON_EVENTLOG_SEQ.CURRVAL FROM dual
+        </selectKey>
+	</insert>
+	
+	<!-- 만료 -->
+	<select id="selectCouponExpire" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DomainID AS "DomainID", 
+			CouponType AS "CouponType", 
+			COUNT(1) AS "COUNT"
+		FROM sys_object_coupon
+		WHERE IssueState = 'NORMAL'
+		AND ExpireDate <![CDATA[<]]> #{CurDate}
+		GROUP BY DomainID, CouponType
+	</select>
+	<update id="updateCouponExpire" parameterType="cmap">
+		UPDATE sys_object_coupon
+		SET IssueState = 'EXPIRED'
+			, ChgUserCode = 'SCHEDULER'
+			, ChgDate = SYSDATE
+		WHERE IssueState = 'NORMAL'
+		AND ExpireDate <![CDATA[<]]> #{CurDate}
+		AND DomainID = #{DomainID}
+		AND CouponType = #{CouponType}
+	</update>
+</mapper>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.processdescription">
+    <update id="updateFormInstID" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_processdescription
+		<set>
+		    <if test="IsModify != null and IsModify != '' ">
+		        IsModify = #{IsModify}
+		    </if>
+		</set>
+		WHERE 
+			FormInstID = #{FormInstID};
+	</update>	
+	<select id="selectReservedData" parameterType="cmap" resultType="cmap">
+	    SELECT Reserved1, Reserved2
+	    FROM covi_approval4j.jwf_processdescription
+	    WHERE FormInstID = #{FormInstID}
+	    LIMIT 1
+	</select>
+	<update id="updateProcessID" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_processdescription A
+		INNER JOIN covi_approval4j.jwf_process B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+		<set>
+		    <if test="IsReserved != null and IsReserved != '' ">
+		        IsReserved = #{IsReserved}
+		    </if>
+		    <if test="ApproverCode != null and ApproverCode != '' ">
+		        ,ApproverCode = #{ApproverCode}
+		    </if>
+		    <if test="ApproverName != null and ApproverName != '' ">
+		        ,ApproverName = #{ApproverName}
+		    </if>
+		    <if test="IsComment != null and IsComment != '' ">
+		        ,IsComment = #{IsComment}
+		    </if>
+		</set>
+		WHERE B.ProcessID IN 
+		<foreach collection="processIDs" item="processID" index="index"  open="(" close=")" separator=",">
+           #{processID}
+        </foreach>
+	</update>	
+</mapper>

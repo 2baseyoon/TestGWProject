@@ -1,0 +1,1302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.resource">
+    <!--장비 목록 조회  -->
+    <select id="selectEquipmentList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader" />
+       	SELECT
+       		EquipmentID AS "EquipmentID"
+      			, MultiEquipmentName AS "MultiEquipmentName"
+			, IconPath AS "IconPath"
+			, IsUse AS "IsUse"
+			, SortKey AS "SortKey"
+			, MultiRegisterName AS "MultiRegisterName"
+			, RegistDate  AS "RegistDate"
+			, CompanyCode AS "CompanyCode"
+       	FROM (
+       		SELECT a.EquipmentID
+       			, a.MultiEquipmentName
+				, a.IconPath
+				, a.IsUse
+				, a.SortKey
+				, b.MultiDisplayName AS MultiRegisterName
+				, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS')  AS RegistDate
+				, c.DomainCode AS CompanyCode
+			FROM RESOURCE_EQUIPMENT a
+			LEFT JOIN SYS_OBJECT_USER b ON a.RegisterCode = b.UserCode 
+			LEFT JOIN SYS_OBJECT_DOMAIN c ON a.DN_ID = c.DomainID
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+					    <when test="searchType == 'MultiEquipmentName'">
+					      AND a.MultiEquipmentName LIKE '%'||#{searchWord}||'%'
+					    </when>
+					    <when test="searchType == 'MultiRegisterName'">
+					      AND b.MultiDisplayName LIKE '%'||#{searchWord}||'%'
+					    </when>
+					    <when test="searchType == null or searchType ==''">
+					      AND a.MultiEquipmentName LIKE '%'||#{searchWord}||'%'
+					      OR b.MultiDisplayName LIKE '%'||#{searchWord}||'%'
+					    </when>
+				    </choose>
+				</if>
+				<if test="domainID != null and domainID !=''">
+				    AND a.DN_ID = #{domainID}
+				</if>
+			</trim>
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				SortKey ASC
+			 </if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("IconPath")'>IconPath</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiEquipmentName")'>MultiEquipmentName</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiRegisterName")'>MultiRegisterName</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+    <!--장비 목록 개수 조회  -->
+    <select id="selectEquipmentListCnt" parameterType="cmap" resultType="java.lang.Long">
+		   <![CDATA[
+					SELECT COUNT(*)
+					FROM RESOURCE_EQUIPMENT a
+					LEFT JOIN SYS_OBJECT_USER b ON a.RegisterCode = b.UserCode 
+			]]>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+					    <when test="searchType == 'MultiEquipmentName'">
+					      AND a.MultiEquipmentName LIKE '%'||#{searchWord}||'%'
+					    </when>
+					    <when test="searchType == 'MultiRegisterName'">
+					      AND b.MultiDisplayName LIKE '%'||#{searchWord}||'%'
+					    </when>
+				    </choose>
+				</if>
+				<if test="domainID != null and domainID !=''">
+				    AND a.DN_ID = #{domainID}
+				</if>
+			</trim>
+	</select>
+    
+    <!-- 장비 사용여부 변경  -->
+    <update id="updateEquipmentIsUse"  parameterType="cmap">
+        UPDATE RESOURCE_EQUIPMENT b
+		SET b.IsUse = (SELECT * FROM (SELECT (CASE a.IsUse WHEN 'Y' THEN 'N'
+								WHEN 'N' THEN 'Y' END)
+								FROM RESOURCE_EQUIPMENT a
+								WHERE a.EquipmentID =  #{equipmentID}) temp )
+		WHERE b.EquipmentID = #{equipmentID}
+    </update>
+    
+    <!-- 장비 삭제  -->
+    <delete id="deleteEquipmentData" parameterType="cmap">
+        BEGIN
+	    	DELETE FROM RESOURCE_EQUIPMENT_DEF
+			WHERE EquipmentID IN 
+			<foreach collection="equipmentIDArr" item="item" index="index" separator="," open="(" close=");">
+				#{item}
+		   </foreach>
+				
+			DELETE FROM RESOURCE_EQUIPMENT
+			WHERE EquipmentID IN
+			<foreach item="item" index="index" collection="equipmentIDArr" open="(" close=");" separator=",">
+	          		#{item}
+	   		</foreach>
+	   	END;
+    </delete>
+    
+    <!-- 장비 추가 -->
+    <insert id="insertEquipmentData" parameterType="cmap">
+        INSERT INTO RESOURCE_EQUIPMENT(DN_ID, MultiEquipmentName,IconPath, IsUse, SortKey, RegisterCode, RegistDate)
+		VALUES(#{domainID}, #{equipmentName},#{equipmentThumbnail},#{isUse},#{sortKey},#{userID},SYSDATE)
+    </insert>
+    
+       <!-- 장비 정보 수정-->
+    <update id="updateEquipmentData" parameterType="cmap">
+        UPDATE 	RESOURCE_EQUIPMENT
+        SET 	DN_ID = #{domainID}
+        		, MultiEquipmentName = #{equipmentName}
+			  	,SortKey = #{sortKey}
+			  	,IsUse = #{isUse}
+        	<if test="equipmentThumbnail != null">
+				,IconPath = #{equipmentThumbnail}
+			</if>
+        WHERE EquipmentID = #{equipmentID}
+    </update>
+    
+    <!-- 특정 장비 정보 조회-->
+    <select id = "selectEquipmentData" parameterType="cmap" resultType ="cmap">
+		SELECT
+				a.DN_ID AS "DN_ID"
+				, a.MultiEquipmentName AS "MultiEquipmentName"
+		      	, a.IconPath AS "IconPath"
+		      	, a.IsUse AS "IsUse"
+		      	, a.SortKey AS "SortKey"
+		      	, b.DomainCode AS "CompanyCode"
+		FROM 	RESOURCE_EQUIPMENT a
+		LEFT JOIN SYS_OBJECT_DOMAIN b ON a.DN_ID = b.DomainID
+		WHERE a.EquipmentID = #{equipmentID}
+    </select>
+    
+    <!-- 메인 화면 자원 관리 목록 조회-->
+    <select id = "selectMainResourceData" parameterType="cmap" resultType ="cmap">
+		SELECT a.FolderID AS "FolderID"
+		     , c.MultiDisplayName AS "MultiDisplayName"
+		     , b.MultiDisplayName AS "MultiDisplayName"
+		     , b.FolderPath  AS "FolderPath"
+		     , a.SortKey AS "SortKey"
+		     , a.RegisterCode AS "RegisterCode"
+		     , d.MultiDisplayName AS "MultiDisplayName"
+		FROM RESOURCE_FRONT a
+		INNER JOIN SYS_OBJECT_FOLDER b ON a.FolderID = b.FolderID
+		INNER JOIN SYS_OBJECT_DOMAIN c ON b.DomainID = c.DomainID
+		LEFT JOIN SYS_OBJECT_USER d ON a.RegisterCode = d.UserCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			 	AND a.IsDefault = 'Y'
+			<if test="domainID != null and domainID !=''">
+				 AND c.DomainID = #{domainID}
+			</if>
+		</trim>
+    </select>
+    
+    <!-- 메인 화면 자원 관리 목록 조회-->
+    <select id = "selectMainResourceList" parameterType="cmap" resultType ="cmap">
+        <include refid="oracle.include.pagingHeader" />
+        	SELECT
+        		FolderID AS "FolderID"
+				, DomainName AS "DomainName"
+				, ResourceName AS "ResourceName"
+				, FolderPath AS "FolderPath"
+				, SortKey AS "SortKey"
+				, RegisterName AS "RegisterName"
+				, RegistDate AS "RegistDate"
+        	FROM (
+		          SELECT a.FolderID
+						, c.MultiDisplayName AS DomainName
+						, NVL(b.MultiDisplayName, b.DisplayName) AS ResourceName
+						, FN_FOLDERPATHBYLANGGET_S(#{lang}, b.FolderPath) AS FolderPath
+						, a.SortKey
+						, d.MultiDisplayName AS RegisterName
+						, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+				FROM RESOURCE_FRONT a
+				INNER JOIN SYS_OBJECT_FOLDER b ON a.FolderID = b.FolderID
+				INNER JOIN SYS_OBJECT_DOMAIN c ON b.DomainID = c.DomainID
+				LEFT JOIN SYS_OBJECT_USER d ON a.RegisterCode = d.UserCode
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					 	AND a.IsDefault = 'Y'
+					<if test="domainID != null and domainID !=''">
+						 AND c.DomainID = #{domainID}
+					</if>
+				</trim>
+			) A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					SortKey ASC
+				 </if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("DomainName")'>DomainName</when>
+						<when test='sortColumn.equalsIgnoreCase("ResourceName")'>ResourceName</when>
+						<when test='sortColumn.equalsIgnoreCase("FolderPath")'>FolderPath</when>
+						<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+						<otherwise>FolderID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					<include refid="oracle.include.listOrderBy"/>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+    <!-- 메인 화면 자원 관리 목록 조회-->
+    <select id = "selectMainResourceListCnt" parameterType="cmap" resultType ="java.lang.Long">
+		<![CDATA[
+	        SELECT COUNT(*)
+			FROM RESOURCE_FRONT a
+			INNER JOIN SYS_OBJECT_FOLDER b ON a.FolderID = b.FolderID
+			INNER JOIN SYS_OBJECT_DOMAIN c ON b.DomainID = c.DomainID
+			LEFT JOIN SYS_OBJECT_USER d ON a.RegisterCode = d.UserCode
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			 	AND a.IsDefault = 'Y'
+			<if test="domainID != null and domainID !=''">
+				 AND c.DomainID = #{domainID}
+			</if>
+		</trim>
+    </select>
+    
+     <!--  자원 목록 조회-->
+    <select id = "selectResourceList" parameterType="cmap" resultType="cmap">
+    	/* queryID : admin.resource.selectResourceList */
+		<![CDATA[
+			SELECT    a.FolderID AS "FolderID"
+					, a.FolderType AS "FolderType"
+					, a.DomainID AS "DomainID"
+					, ( CASE WHEN (a.LinkFolderID IS NULL) THEN NVL(a.MultiDisplayName,a.DisplayName)
+					 	ELSE '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},NVL(a.MultiDisplayName,a.DisplayName))
+						END ) AS "MultiDisplayName"
+					, SUBSTR(REPLACE(FN_FOLDERPATHBYLANGGET_S(#{lang}, (a.FolderPath||a.FolderID||';')), ';',  ' > '), 0, LENGTH(REPLACE(FN_FOLDERPATHBYLANGGET_S(#{lang}, (a.FolderPath||a.FolderID||';')), ';',  ' > ')) - 3) AS "FolderPath"
+					, a.MemberOf AS "MemberOf"
+					, a.SortKey AS "SortKey"
+					, a.SortPath AS "SortPath"
+					, NVL(b.IconCode, ' ') AS "IconCode"
+					, NVL((SELECT MAX(FolderID) FROM SYS_OBJECT_FOLDER sof WHERE sof.DomainID = a.DomainID AND sof.MenuID = a.MenuID AND sof.FolderType ='Root' AND sof.ObjectType IS NULL), '0') AS "maxFolderID"
+					, Fn_BaseGetDictionary_S(#{lang}, NVL(a.MultiDisplayName, a.DisplayName)) AS "FolderName"
+					, b.BookingType AS "BookingType"
+					, b.ReturnType AS "ReturnType"
+					, a.IsDisplay AS "IsDisplay"
+					, a.IsUse AS "IsUse"
+					, Fn_BaseGetDictionary_S(#{lang}, f.MultiDisplayName) AS "RegisterName"
+					, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+					, A.Reserved1 AS "PlaceOfBusiness"
+			FROM SYS_OBJECT_FOLDER a 
+			LEFT JOIN RESOURCE_ b ON a.FolderID = b.FolderID
+			LEFT JOIN SYS_OBJECT_USER f ON a.RegisterCode = f.UserCode
+			WHERE a.DeleteDate IS NULL
+			AND ObjectType = 'Resource'
+		]]>
+		<if test="domainID != null and domainID !='' ">
+		    AND a.DomainID = #{domainID}
+		</if>
+		<if test="selectType == 'Folder'">
+		     AND a.FolderType IN ('Root','Folder')
+		</if>
+		<if test='isAll == "N"'>
+    		AND a.IsUse = 'Y'
+			AND a.IsDisplay = 'Y'
+		</if>
+		ORDER BY a.SortPath ASC, a.SortKey ASC
+    </select>
+    
+    <delete id="deleteOldMainResource" parameterType="cmap">
+		DELETE FROM RESOURCE_FRONT
+		WHERE IsDefault = 'Y'
+		AND FolderID in (
+			SELECT FolderID FROM SYS_OBJECT_FOLDER WHERE objectType = 'Resource' and DomainID = #{domainID}
+		)
+    </delete>
+    
+    <insert id="insertNewMainResource" parameterType="cmap">
+        /* queryID : admin.resource.insertNewMainResource */
+        INSERT ALL
+        <foreach collection="resourceIDArr" item="item" index="index" separator=" ">
+            INTO RESOURCE_FRONT(
+            	FolderID
+            	, SortKey
+            	, IsDefault
+            	, RegisterCode
+            	, RegistDate
+            )
+            VALUES
+            (
+            	<choose>
+            		<when test='item.equals("")'>
+            	0
+            		</when>
+            		<otherwise>
+            	#{item}	
+            		</otherwise>
+            	</choose>
+            	, #{index}
+            	, 'Y'
+            	, #{userID}
+            	, SYSDATE
+            )
+        </foreach>
+        SELECT * FROM DUAL
+    </insert>
+    
+     <update id="updateResourceSortKey" parameterType="cmap">
+         BEGIN
+			UPDATE RESOURCE_FRONT
+			SET SortKey = #{sortKey2}
+			WHERE IsDefault = 'Y' AND FolderID = #{folderID1};
+			
+			UPDATE RESOURCE_FRONT
+			SET SortKey = #{sortKey1}
+			WHERE IsDefault = 'Y' AND FolderID = #{folderID2};
+		END;
+    </update>
+    
+    <select id="selectFolderInfo" parameterType="cmap" resultType="cmap">
+    	/* queryID : admin.resource.selectFolderInfo */
+        SELECT FolderType AS "FolderType"
+      		 , REPLACE( FN_FOLDERPATHBYLANGGET_S(#{lang},(FolderPath || FolderID || ';')), ';' ,  ' > ') AS "FolderPath"
+      		 , Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName,DisplayName)) AS "FolderName"
+		FROM SYS_OBJECT_FOLDER 
+		WHERE folderID = #{folderID}
+    </select>
+    
+     <select id="selectResourceOfFolderList"  parameterType="cmap" resultType="cmap">
+         /* queryID : admin.resource.selectResourceOfFolderList */
+         <include refid="oracle.include.pagingHeader" />
+         	SELECT
+         		FolderID AS "FolderID"
+				, FolderType AS "FolderType"
+				, PlaceOfBusiness AS "PlaceOfBusiness"
+				, IconPath AS "IconPath"
+				, FolderName AS "FolderName"
+				, BookingType AS "BookingType"
+				, ReturnType AS "ReturnType"
+				, SortKey AS "SortKey"
+				, IsDisplay AS "IsDisplay"
+				, IsUse AS "IsUse"
+				, RegisterName AS "RegisterName"
+				, RegistDate AS "RegistDate"
+         	FROM (
+		        SELECT a.FolderID
+						, a.FolderType
+						, a.Reserved1 AS PlaceOfBusiness
+						, b.IconPath
+						, CASE WHEN (a.LinkFolderID IS NULL) THEN FN_BASEGETDICTIONARY_S(#{lang},NVL(a.MultiDisplayName,a.DisplayName))
+							ELSE '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},NVL(a.MultiDisplayName,a.DisplayName))
+							END AS FolderName
+						, CASE A.Reserved2 WHEN 'Y' THEN 'Inherited' ELSE b.BookingType END AS BookingType
+						, CASE A.Reserved2 WHEN 'Y' THEN 'Inherited' ELSE b.ReturnType END AS ReturnType
+						, a.SortKey
+						, a.IsDisplay
+						, a.IsUse
+						, FN_BASEGETDICTIONARY_S(#{lang},f.MultiDisplayName) AS RegisterName
+						, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+						, a.LinkFolderID
+				FROM SYS_OBJECT_FOLDER a 
+				LEFT JOIN RESOURCE_ b ON a.FolderID = b.FolderID
+				LEFT JOIN SYS_OBJECT_USER f ON a.RegisterCode = f.UserCode
+				WHERE (a.MemberOf IS NOT NULL) AND a.MemberOf != 0 AND  a.MemberOf = #{folderID} AND a.DeleteDate IS NULL
+			) A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					SortKey ASC
+				</if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("FolderType")'>FolderType</when>
+						<when test='sortColumn.equalsIgnoreCase("PlaceOfBusiness")'>PlaceOfBusiness</when>
+						<when test='sortColumn.equalsIgnoreCase("FolderName")'>FolderName</when>
+						<when test='sortColumn.equalsIgnoreCase("BookingType")'>BookingType</when>
+						<when test='sortColumn.equalsIgnoreCase("ReturnType")'>ReturnType</when>
+						<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+						<when test='sortColumn.equalsIgnoreCase("IsDisplay")'>IsDisplay</when>
+						<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+						<otherwise>FolderID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					<include refid="oracle.include.listOrderBy"/>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+	 <select id="selectResourceOfFolderListCnt"  parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(*)
+		FROM SYS_OBJECT_FOLDER a 
+		WHERE (a.MemberOf IS NOT NULL) AND a.MemberOf != 0 AND a.MemberOf = #{folderID} AND a.DeleteDate IS NULL
+    </select>
+    
+     <select id="selectBookingOfResourceList" parameterType="cmap" resultType = "cmap">
+        <include refid="oracle.include.pagingHeader" />
+        	SELECT    A.EventID AS "EventID"
+       	 			, A.DateID AS "DateID"
+					, A.FolderID AS "FolderID"
+					, A.RepeatID AS "RepeatID"
+					, A.Subject AS "Subject"
+					, A.StartDateTime AS "StartDateTime"
+					, A.EndDateTime AS "EndDateTime"
+					, A.ApprovalState AS "ApprovalState"
+	         		, A.ApprovalStateCode AS "ApprovalStateCode"
+					, A.RegisterCode AS "RegisterCode"
+					, A.RegisterName AS "RegisterName"
+					, A.RegistDate AS "RegistDate"
+        	FROM(
+		        <![CDATA[
+			        SELECT     a.EventID AS EventID
+							 , b.DateID AS DateID
+							 , e.FolderID AS FolderID
+							 , b.RepeatID AS RepeatID
+							 , a.Subject AS Subject
+							 , b.StartDateTime AS StartDateTime
+							 , TO_CHAR(c.RealEndDateTime, 'YYYY-MM-DD HH24:MI') AS EndDateTime
+							 , CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS ApprovalState
+		          			 , CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE  c.ApprovalState END AS ApprovalStateCode
+							 , a.RegisterCode AS RegisterCode
+							 , FN_BASEGETDICTIONARY_S(#{lang},g.MultiDisplayName) AS RegisterName
+							 , TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+					  FROM EVENT a 
+					  INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+					  LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+					  LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID
+					  INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+					  LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+					  LEFT JOIN SYS_OBJECT_USER g ON a.RegisterCode = g.UserCode
+					  WHERE ( (a.FolderType LIKE 'Resource'||'%') OR (a.FolderType LIKE 'Schedule'||'%' AND d.ResourceID IS NOT NULL) )
+					  AND c.DeleteDate IS NULL
+					  AND e.DeleteDate IS NULL
+					  AND c.ResourceID = #{folderID}
+			     ]]>
+			  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+					<![CDATA[
+					AND ( 	
+							(#{startDate} <= b.StartDateTime AND DATE_FORMAT(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{endDate})
+						OR	(#{startDate} < b.StartDateTime  AND b.StartDateTime < #{endDate} AND #{endDate} <= DATE_FORMAT(c.RealEndDateTime,'YYYY-MM-DD HH24:MI'))
+						OR	(b.StartDateTime <= #{startDate} AND #{startDate} < DATE_FORMAT(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND DATE_FORMAT(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{endDate})
+						OR	(b.StartDateTime <= #{startDate} AND #{endDate} <= DATE_FORMAT(c.RealEndDateTime,'YYYY-MM-DD HH24:MI'))
+					)
+					]]>
+				</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					<choose>
+					    <when test="searchType == 'Description'">
+					        AND a.Subject LIKE '%'||#{searchWord}||'%'
+					    </when>
+					    <when test="searchType == 'RegisterName'">
+					        AND FN_BASEGETDICTIONARY_S(#{lang},g.MultiDisplayName) LIKE '%'||#{searchWord}||'%'
+					    </when>
+				    </choose>
+				</if>
+				<if test="bookingState != null and bookingState !='' and !bookingState.equalsIgnoreCase('All')">
+					<![CDATA[ 
+					AND (
+						CASE 
+							WHEN f.ReturnType = 'AutoReturn' 
+								AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') 
+								AND c.ApprovalState = 'Approval' 
+								THEN 'ReturnComplete' 
+							ELSE c.ApprovalState 
+						END
+					) = #{bookingState}
+					]]>
+				</if>
+			) A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					RegistDate Desc
+				</if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("DateID")'>DateID</when>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("StartDateTime")'>StartDateTime</when>
+						<when test='sortColumn.equalsIgnoreCase("EndDateTime")'>EndDateTime</when>
+						<when test='sortColumn.equalsIgnoreCase("ApprovalState")'>ApprovalState</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+						<otherwise>EventID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					<include refid="oracle.include.listOrderBy"/>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+   <select id="selectBookingOfResourceListCnt" parameterType="cmap" resultType = "java.lang.Long">
+        <![CDATA[
+        SELECT COUNT(*)
+		  FROM EVENT a 
+		  INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+		  LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+		  LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID
+		  INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+		  
+		  LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+		  LEFT JOIN SYS_OBJECT_USER g ON a.RegisterCode = g.UserCode
+		  WHERE ( (a.FolderType LIKE 'Resource'||'%') OR (a.FolderType LIKE 'Schedule'||'%' AND d.ResourceID IS NOT NULL) )
+		  AND c.DeleteDate IS NULL
+		  AND e.DeleteDate IS NULL
+		  AND c.ResourceID = #{folderID}
+        ]]>
+	  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+	  	     AND  ((b.StartDateTime 	  
+		  	    BETWEEN #{startDate} AND #{endDate} ) OR (c.RealEndDateTime BETWEEN #{startDate} AND #{endDate} )  )
+	  	</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			<choose>
+			    <when test="searchType == 'Description'">
+			        AND a.Subject LIKE '%'||#{searchWord}||'%'
+			    </when>
+			    <when test="searchType == 'RegisterName'">
+			        AND FN_BASEGETDICTIONARY_S(#{lang},g.MultiDisplayName) LIKE '%'||#{searchWord}||'%'
+			    </when>
+		    </choose>
+		</if>
+  		<if test="bookingState != null and bookingState !='' and !bookingState.equalsIgnoreCase('All')">
+				<![CDATA[ AND (CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < #{localCurrentDate} AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END) = #{bookingState} ]]>
+		</if>
+	</select>
+    
+    <update id="updateIsSwitch" parameterType="cmap" >
+        UPDATE SYS_OBJECT_FOLDER b
+        <if test="columnName == 'IsUse'">
+            SET b.IsUse = (SELECT * FROM (SELECT (CASE a.IsUse WHEN 'Y' THEN 'N'
+								WHEN 'N' THEN 'Y' END)
+								FROM SYS_OBJECT_FOLDER a
+								WHERE a.FolderID =  #{folderID}) temp )
+        </if>
+        <if test="columnName == 'IsDisplay'">
+			SET b.IsDisplay = (SELECT * FROM (SELECT (CASE a.IsDisplay WHEN 'Y' THEN 'N'
+									WHEN 'N' THEN 'Y' END)
+									FROM SYS_OBJECT_FOLDER a
+									WHERE a.FolderID =  #{folderID}) temp )
+        </if>
+		WHERE b.FolderID = #{folderID}
+    </update>  
+    
+    <delete id="deleteFolderData" parameterType="cmap">
+   		UPDATE sys_object_folder 
+			SET DeleteDate = SYSDATE, 
+			    IsUse = 'N'
+			WHERE ObjectType = #{bizSection}
+			AND (
+				FolderID  IN
+				<foreach item="item" index="index" collection="folderIDArr" open="(" close=")" separator=",">
+	           		#{item}
+	    		</foreach>
+	    		<foreach item="item" index="index" collection="folderIDArr">
+	           		OR CONCAT(';',FolderPath) LIKE '%;'||#{item}||';%'
+	    		</foreach>
+			)
+    </delete>
+    
+     <delete id="deleteACLList" parameterType="cmap">
+	    DELETE FROM sys_object_acl
+		WHERE ObjectType = #{objectType}  AND ObjectID  IN
+		(
+			SELECT FolderID FROM sys_object_folder
+			WHERE ObjectType = #{bizSection}
+			AND (
+				FolderID  IN
+				<foreach item="item" index="index" collection="folderIDArr" open="(" close=")" separator=",">
+	           		#{item}
+	    		</foreach>
+	    		<foreach item="item" index="index" collection="folderIDArr">
+	           		OR CONCAT(';',FolderPath) LIKE '%;'||#{item}||';%'
+	    		</foreach>
+			)
+		)
+    </delete>
+    
+    <delete id="deleteMainResource">
+    	DELETE FROM RESOURCE_FRONT
+		WHERE FolderID IN
+				<foreach item="item" index="index" collection="folderIDArr" open="(" close=")" separator=",">
+	           		#{item}
+	    		</foreach>
+    </delete>
+    
+    <select id="selectFolderSortPath" parameterType="cmap" resultType="cmap">
+    	/* queryId : admin.resource.selectFolderSortPath */
+    	SELECT
+    		T.FOLDERID AS "FolderID",
+    		T.SORTKEY AS "SortKey",
+    		T.MEMBEROF AS "MemberOf",
+    		T.SORTPATH AS "SortPath"
+    	FROM (
+    		SELECT
+    			ROWNUM AS "RN",
+    			A.FOLDERID,
+    			A.SORTKEY,
+    			A.MEMBEROF,
+    			A.SORTPATH
+    		FROM (
+    			SELECT
+    				FOLDERID,
+    				SORTKEY,
+    				MEMBEROF,
+    				SORTPATH
+    			FROM SYS_OBJECT_FOLDER
+    			WHERE DOMAINID = #{domainID}
+    				AND DELETEDATE IS NULL
+    				AND MemberOf = #{memberOf}
+    				<choose>
+			    		<when test="mode == 'up'">
+							AND SORTKEY &lt; #{orgSortKey} 
+							ORDER BY SORTKEY DESC
+			    		</when>
+		   				<otherwise>
+							AND SORTKEY &gt; #{orgSortKey} 
+							ORDER BY SORTKEY ASC
+					    </otherwise>		  
+	   				</choose>
+    		) A
+    	) T
+    	WHERE T.RN = 1
+     </select>
+    
+    <update id="updateFolderSortKey" parameterType="cmap">
+        BEGIN
+	        UPDATE SYS_OBJECT_FOLDER a
+			SET a.SortKey = #{sortKey2}
+			WHERE a.FolderID = #{folderID1};
+			
+			UPDATE SYS_OBJECT_FOLDER a
+			SET a.SortKey = #{sortKey1}
+			WHERE a.FolderID = #{folderID2};
+		END;
+    </update>
+    
+     <update id="updateFolderSortPath" parameterType="cmap"> 
+    	UPDATE sys_object_folder B
+    	SET B.SortPath = (
+    							 SELECT SUBSTR(SYS_CONNECT_BY_PATH(LPAD(SortKey, 15, '0'), ';'),2) ||';'
+								 FROM sys_object_folder A
+								 WHERE A.ObjectType  ='Resource'
+                      			 AND A.FolderID = B.FolderID
+								START WITH A.MemberOf IS NULL
+								CONNECT BY PRIOR A.FolderID=A.MemberOf
+    	)
+		WHERE B.ObjectType = 'Resource'
+		AND ( B.FolderID = #{folderID1} 
+			OR B.FolderID = #{folderID2} 
+			OR CONCAT(';',B.FolderPath) LIKE '%;'||#{folderID1}||';%'
+			OR CONCAT(';',B.FolderPath) LIKE '%;'||#{folderID2}||';%' )
+	</update>
+
+    <!-- 확장옵션 탭: 사용자 정의 컬럼 Grid 조회 -->
+    <select id="selectUserDefFormGridList" parameterType="cmap" resultType="cmap">
+        SELECT RESULT.UserFormID AS "UserFormID"
+             , RESULT.FolderID AS "FolderID"
+             , RESULT.SortKey AS "SortKey"
+             , RESULT.FieldType AS "FieldType"
+             , RESULT.FieldInputLimit AS "FieldInputLimit"
+             , RESULT.IsList AS "IsList"
+             , RESULT.IsOption AS "IsOption"
+             , RESULT.IsCheckVal AS "IsCheckVal"
+             , RESULT.DisplayName AS "DisplayName" 
+             , RESULT.FieldName AS "FieldName"  
+             , RESULT.OptionCnt AS "OptionCnt"  
+	        FROM (
+		        SELECT  BU.UserFormID, 
+			        	BU.FolderID, 
+			        	BU.SortKey, 
+			        	BU.FieldType, 
+			        	BU.FieldInputLimit, 
+			        	BU.IsList, 
+			        	BU.IsOption, 
+			        	NVL(BU.IsCheckVal, 'N') AS IsCheckVal, 
+						FN_BASEGETDICTIONARY_S(#{lang},BU.MultiFieldName) AS DisplayName,
+						BU.MultiFieldName AS FieldName,
+						(SELECT COUNT(*) 
+							FROM RESOURCE_USERFORM_OPTION 
+							WHERE UserFormID=BU.UserFormID
+						) AS OptionCnt 
+				FROM RESOURCE_USERFORM BU
+			WHERE BU.FolderID=#{folderID}
+			) RESULT
+			ORDER BY SortKey ASC
+    </select>
+    
+    <select id="selectUserDefFormGridCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM (
+	        SELECT  BU.UserFormID
+				FROM RESOURCE_USERFORM BU
+				WHERE BU.FolderID=#{folderID}
+		) RESULT
+    </select>
+    
+    <!-- 사용자 정의 필드 옵션 -->
+    <select id="selectUserDefFieldOptionList" parameterType="cmap" resultType="cmap">
+          SELECT
+        	  OptionID AS "OptionID"
+        	, UserFormID AS "UserFormID"
+        	, SortKey AS "SortKey"
+        	, FN_BASEGETDICTIONARY_S(#{lang}, MultiOptionName) AS "OptionName"
+        	, OptionValue AS "OptionValue"
+        FROM RESOURCE_USERFORM_OPTION
+        WHERE UserFormID = #{userFormID}
+        ORDER BY SortKey
+    </select>
+    
+    <!-- 순서변경용 sortkey 조회 -->
+    <select id="selectTargetUserDefFieldSortKey" parameterType="cmap" resultType="cmap">
+       	SELECT   UserFormID AS "UserFormID"
+        	   , SortKey AS "SortKey"
+        FROM RESOURCE_USERFORM
+        WHERE 1=1
+        <choose>
+		    <when test="mode == 'up'">
+				AND FolderID = #{folderID}
+				AND SortKey &lt; #{orgSortKey} 
+				AND DeleteDate IS NULL
+				AND ROWNUM = 1 
+				ORDER BY SortKey DESC
+		    </when>
+		    <otherwise>
+		        AND FolderID = #{folderID}
+				AND SortKey &gt; #{orgSortKey} 
+				AND DeleteDate IS NULL
+				AND ROWNUM = 1 
+				ORDER BY SortKey ASC
+		    </otherwise>		  
+	    </choose>
+    </select>
+    
+    <!-- 사용자 정의 필드 추가 -->
+    <insert id="createUserDefField" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO RESOURCE_USERFORM
+		(FolderID, SortKey, MultiFieldName, FieldType, FieldInputLimit, IsList, IsOption, IsCheckVal)
+			VALUES
+		(#{folderID}, #{sortKey}, #{fieldName}, #{fieldType}, #{fieldLimitCnt}, #{isList}, #{isOption}, #{isCheckVal})
+		<selectKey keyProperty="userFormID" resultType="long" order="AFTER">
+			SELECT RESOURCE_USERFORM_SEQ.CURRVAL FROM dual
+      </selectKey>
+    </insert>
+    
+    <!-- 사용자 정의 필드 옵션 추가 -->
+    <insert id="createUserDefFieldOption" parameterType="cmap">
+        INSERT INTO RESOURCE_USERFORM_OPTION (UserFormID, FolderID, SortKey, MultiOptionName, OptionValue)
+		VALUES 
+		(#{userFormID}, #{folderID}, #{sortKey}, #{optionName}, #{optionValue})
+    </insert>
+    
+    <!-- 사용자 정의 필드 수정 -->
+    <update id="updateUserDefField" parameterType="cmap">
+        UPDATE RESOURCE_USERFORM
+        SET
+        	  MultiFieldName = #{fieldName}
+        	, FieldType = #{fieldType}
+        	, FieldInputLimit = #{fieldLimitCnt}
+        	, IsList = #{isList}
+        	, IsOption = #{isOption}
+        	, IsCheckVal = #{isCheckVal}
+        WHERE  UserFormID = #{userFormID}
+    </update>
+    
+    <!-- 사용자 정의 필드 순서 수정 -->
+    <update id="updateUserDefFieldSortKey" parameterType="cmap">
+        UPDATE RESOURCE_USERFORM
+        SET
+        	SortKey = #{sortKey}
+        WHERE UserFormID = #{userFormID}
+    </update>
+    
+    <!-- 사용자 정의 필드 정보 삭제 -->
+    <update id="deleteUserDefField" parameterType="cmap">
+         DELETE FROM RESOURCE_USERFORM WHERE UserFormID IN
+        <foreach item="item" index="index" collection="userFormIDs" open="(" close=")" separator=",">
+            #{item}
+    	</foreach>
+    </update>
+    
+    <!-- 사용자 정의 필드 옵션 삭제 -->
+    <delete id="deleteUserDefFieldOption" parameterType="cmap">
+        DELETE FROM RESOURCE_USERFORM_OPTION
+        WHERE 1=1
+        <choose>
+		    <when test="optionID != null and optionID != ''">
+		        AND OptionID = #{optionID}
+		    </when>
+		    <when test="userFormIDs != null and userFormIDs != ''">
+		        AND UserFormID IN
+		        <foreach item="item" index="index" collection="userFormIDs" open="(" close=")" separator=",">
+		            #{item}
+		    	</foreach>
+		    </when>
+		    <otherwise>
+		        AND UserFormID = #{userFormID}
+		        AND FolderID = #{folderID}
+		    </otherwise>		  
+	    </choose>
+    </delete>
+    
+    <insert id="insertFolderData" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO SYS_OBJECT_FOLDER
+			(
+					  DomainID
+					, MenuID
+					, ObjectType
+					, FolderType
+					, ParentObjectID
+					, ParentObjectType		
+					, LinkFolderID
+					, DisplayName
+					, MultiDisplayName
+					, MemberOf
+					, SortPath
+					, SortKey
+					, FolderPath
+					, IsInherited
+					, IsShared
+					, IsUse
+					, IsDisplay
+					, IsURL
+					, URL
+					, Description
+					, OwnerCode
+					, RegisterCode
+					, RegistDate
+					, Reserved1
+					, Reserved2
+					, Reserved3
+					, Reserved4
+					, Reserved5
+					, SecurityLevel
+		) VALUES (
+					  #{domainID}
+					, #{menuID}
+					, #{objectType}
+					, #{folderType}
+					, #{parentObjectID}
+					, #{parentObjectType}
+					, #{linkFolderID}
+					, #{displayName}
+					, #{multiDisplayName}
+					, #{memberOf}
+					, ''
+					, NVL((SELECT MAX(B.SortKey)
+				        		FROM SYS_OBJECT_FOLDER B
+				        		WHERE B.DeleteDate IS NULL
+				        		<choose>
+					        		<when test="memberOf == '' or memberOf == null">
+					        		AND B.MemberOf IS NULL
+					        		</when>
+					        		<otherwise>
+					        		AND	B.MemberOf = #{memberOf}
+					        		</otherwise>
+				        		</choose>
+				        		) + 1, 0)
+					, ''
+					, #{isInherited}
+					, #{isShared}
+					, #{isUse}
+					, #{isDisplay}
+					, #{isURL}
+					, #{url}
+					, #{description}
+					, #{ownerCode}
+					, #{registerCode}
+					, SYSDATE
+					, #{placeOfBusiness}
+					, #{isInheritedSetting}
+					, ''
+					, ''
+					, ''
+					, #{securityLevel}
+		)
+		<selectKey keyProperty="folderID" resultType="long" order="AFTER">
+			SELECT MAX(FOLDERID) FROM SYS_OBJECT_FOLDER
+        </selectKey>
+    </insert>
+     
+    <update id="updateFolderData"  parameterType="cmap">
+			UPDATE SYS_OBJECT_FOLDER SET
+						DomainID = #{domainID}
+						, MenuID = #{menuID}
+						, FolderType = #{folderType}
+						, ParentObjectID = #{parentObjectID}
+						, ParentObjectType = #{parentObjectType}
+						, LinkFolderID = #{linkFolderID}
+						, DisplayName = #{displayName}
+						, MultiDisplayName = #{multiDisplayName}
+						, MemberOf = #{memberOf}
+						<!-- , SortPath = ''
+						, SortKey = #{sortKey}
+						, FolderPath = '' -->
+						, IsInherited = #{isInherited}
+						, IsShared = #{isShared}
+						, IsUse =  #{isUse}
+						, IsDisplay = #{isDisplay}
+						, IsURL = #{isURL}
+						, URL = #{url}
+						, Description = #{description}
+						, ModifierCode = #{modifierCode}
+						, ModifyDate = SYSDATE
+						, Reserved1 = #{placeOfBusiness}
+						, Reserved2 = #{isInheritedSetting}
+						, SecurityLevel = #{securityLevel}
+			WHERE FolderID = #{folderID}
+    </update>  
+    
+    <select id="selectResourceData" parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM RESOURCE_
+        WHERE FolderID = #{folderID}
+    </select>
+    
+    <insert id="insertResourceData" parameterType="cmap">
+        INSERT INTO RESOURCE_(FolderID,IconCode,IconPath,BookingType,ReturnType,NotificationState,NotificationKind,LeastRentalTime,LeastPartRentalTime,DescriptionURL,RegisterCode,RegistDate)
+		VALUES(#{folderID},#{iconCode},#{iconPath},#{bookingType},#{returnType},#{notificationState},#{notificationKind},#{leastRentalTime},#{leastPartRentalTime},#{descriptionURL},#{registerCode},SYSDATE)
+    </insert> 
+    
+    <insert id="insertInheritResourceData" parameterType="cmap">
+        INSERT INTO RESOURCE_(FolderID,IconCode,IconPath,BookingType,ReturnType,NotificationState,NotificationKind,LeastRentalTime,LeastPartRentalTime,DescriptionURL,RegisterCode,RegistDate)
+		SELECT #{folderID},
+			   IconCode,
+			   IconPath,
+			   BookingType,
+			   ReturnType,
+			   NotificationState,
+			   NotificationKind,
+			   LeastRentalTime,
+			   LeastPartRentalTime,
+			   DescriptionURL,
+			   #{registerCode},
+			   SYSDATE
+		  FROM RESOURCE_
+		 WHERE FolderID = #{memberOf}
+    </insert>  
+    
+    <update id="updateResourceData" parameterType ="cmap">
+        UPDATE RESOURCE_ SET
+					  IconCode = #{iconCode}
+					, IconPath = #{iconPath}
+					, BookingType = #{bookingType}
+					, ReturnType = #{returnType}
+					, NotificationState = #{notificationState}
+					, NotificationKind = #{notificationKind}
+					, LeastRentalTime = #{leastRentalTime}
+					, LeastPartRentalTime = #{leastPartRentalTime}
+					, DescriptionURL = #{descriptionURL}
+		WHERE FolderID = #{folderID}
+    </update>
+     
+    <select id="selectComSortPathCreateS" parameterType="cmap" resultType="java.lang.String">
+         SELECT FN_COMSORTPATHCREATE_S(#{folderID},'','FDD') AS SortPath FROM DUAL
+    </select>
+    
+    <select id="selectComObjectPathCreateS" parameterType="cmap" resultType="java.lang.String">
+        SELECT FN_COMOBJECTPATHCREATE_S(#{folderID},'','FD') AS FolderPath FROM DUAL
+    </select>
+    
+    <update id="updatePathData" parameterType="cmap">
+        UPDATE SYS_OBJECT_FOLDER 
+        SET SortPath = #{SortPath}
+          , FolderPath = #{FolderPath}
+        WHERE FolderID = #{folderID}
+    </update>
+    
+	<select id="selectShareResourceList" parameterType="cmap" resultType = "cmap">
+		/* queryID : admin.resource.selectShareResourceList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	  FolderID AS "FolderID"
+				, DomainName AS "DomainName"
+				, ResourceName AS "ResourceName"
+				, RegisterName AS "RegisterName"
+				, RegistDate AS "RegistDate"
+				, MultiDisplayName AS "MultiDisplayName"
+		FROM (
+			SELECT	  a.FolderID
+					, FN_BASEGETDICTIONARY_S(#{lang},b.MultiDisplayName) AS DomainName
+					, FN_BASEGETDICTIONARY_S(#{lang},a.MultiDisplayName) AS ResourceName
+					, FN_BASEGETDICTIONARY_S(#{lang},c.MultiDisplayName) AS RegisterName
+					, TO_CHAR(a.RegistDate,'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+					, a.MultiDisplayName
+			FROM SYS_OBJECT_FOLDER a 
+			LEFT JOIN SYS_OBJECT_DOMAIN b ON a.DomainID = b.DomainID 
+			LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+			WHERE FolderType LIKE 'Resource%'
+			AND a.IsUse = 'Y'
+			AND a.IsShared = 'Y'
+			<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND a.MultiDisplayName LIKE '%'||#{searchWord}||'%'
+			</if> 
+			<if test="domainID != null and domainID !=''">
+				AND a.DomainID = #{domainID}
+			</if>
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				RegistDate Desc
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DomainName")'>DomainName</when>
+					<when test='sortColumn.equalsIgnoreCase("ResourceName")'>ResourceName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>FolderID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+    
+    <select id="selectShareResourceListCnt" parameterType="cmap" resultType = "java.lang.Long">
+         SELECT COUNT(*)
+		 FROM SYS_OBJECT_FOLDER a 
+		 LEFT JOIN SYS_OBJECT_DOMAIN b ON a.DomainID = b.DomainID 
+		 LEFT JOIN SYS_OBJECT_USER c ON a.RegisterCode = c.UserCode
+		 WHERE FolderType LIKE 'Resource%'
+		 AND a.IsUse = 'Y' 
+		 AND a.IsShared = 'Y'
+		<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND a.MultiDisplayName LIKE '%'||#{searchWord}||'%'
+		</if>
+		<if test="domainID != null and domainID !=''">
+			AND a.DomainID = #{domainID}
+		</if>
+    </select>
+    
+    <insert id="insertAttributeData" parameterType="clist">
+        INSERT INTO RESOURCE_ATTRIBUTE(FolderID, SortKey, AttributeName, MultiAttributeName, AttributeValue, MultiAttributeValue)
+		VALUES
+		<foreach collection="list" item="attributeData" index="index" separator=",">
+            (
+	        	  #{attributeData.folderID}
+	        	, #{index}
+				, #{attributeData.attributeName}
+				, #{attributeData.multiAttributeName}
+				, #{attributeData.attributeValue}
+				, #{attributeData.multiAttributeValue}
+	        )
+        </foreach>
+    </insert>
+    	
+    <insert id="insertAddEquipmentData" parameterType="cmap">
+		INSERT INTO RESOURCE_EQUIPMENT_DEF(FolderID, EquipmentID, RegistDate)
+		<foreach collection="equipmentIDArr" item="info" open="" separator="UNION ALL" close="">
+			SELECT
+				#{folderID} AS FolderID
+				, #{info} AS EquipmentID
+				, SYSDATE AS RegistDate
+			FROM DUAL
+		</foreach>
+    </insert> 
+     
+    <!-- 메뉴조회: 업무담당자의 MenuID를 조회이전까지 사용 -->
+    <select id="selectMenuByDomainID" parameterType="cmap" resultType="java.lang.Long">
+        SELECT MenuID AS "MenuID"
+        FROM SYS_OBJECT_MENU 
+        WHERE DomainID = #{domainID} 
+        AND BizSection = 'Resource'	
+        AND  (MemberOf IS NULL OR MemberOf = 0)
+    </select> 
+     
+    <select id="selectTopFolderByMenuID" parameterType="cmap" resultType="java.lang.Long">
+        SELECT FolderID AS "FolderID" 
+        FROM SYS_OBJECT_FOLDER 
+        WHERE menuID = #{menuID} 
+        AND  (MemberOf IS NULL OR MemberOf = 0)
+    </select> 
+     
+    <select id="selectFolderData" parameterType="cmap" resultType="cmap">
+        /* queryId : admin.resource.selectFolderData */
+        SELECT    a.FolderID AS "FolderID"
+                , a.DomainID AS "DomainID"
+	        	, a.MenuID AS "MenuID"
+	        	, a.ObjectType AS "ObjectType"
+	        	, a.FolderType AS "FolderType"
+	        	, a.ParentObjectID AS "ParentObjectID"
+	        	, a.ParentObjectType AS "ParentObjectType"
+	        	, a.LinkFolderID AS "LinkFolderID"
+	        	, ( SELECT MultiDisplayName FROM sys_object_folder l WHERE l.FolderID = a.LinkFolderID) AS "LinkFolderName"
+	        	, a.DisplayName AS "DisplayName"
+		        , a.MultiDisplayName AS "MultiDisplayName"
+		        , a.MemberOf AS "MemberOf"
+		        , a.FolderPath AS "FolderPath"
+		        , a.SortKey AS "SortKey"
+		        , a.SecurityLevel AS "SecurityLevel"
+		        , a.SortPath AS "SortPath"
+		        , a.IsInherited AS "IsInherited"
+		        , a.IsShared AS "IsShared"
+		        , a.IsUse AS "IsUse"
+		        , a.IsDisplay AS "IsDisplay"
+		        , a.IsURL AS "IsURL"
+		        , a.URL AS "URL"
+		        , a.ManageCompany AS "ManageCompany"
+		        , a.Description AS "Description"
+		        , a.OwnerCode AS "OwnerCode"
+		        , a.Reserved1 AS "Reserved1"
+		        , NVL(a.Reserved1,'') AS "PlaceOfBusiness"
+		        , a.Reserved2 AS "Reserved2"
+		        , NVL(a.Reserved3,'') AS "Reserved3"
+		        , b.BookingType AS "BookingType"
+		        , b.ReturnType AS "ReturnType"
+		        , b.BookingType AS "BookingTypeCode"
+		        , b.ReturnType AS "ReturnTypeCode"
+		        , b.NotificationState AS "NotificationState"
+		        , b.NotificationKind AS "NotificationKind"
+	        	, b.LeastRentalTime AS "LeastRentalTime"
+	        	, b.LeastPartRentalTime AS "LeastPartRentalTime"
+	        	, b.DescriptionURL AS "DescriptionURL"
+	       		, (SELECT NVL(MultiDisplayName,DisplayName) FROM SYS_OBJECT_FOLDER WHERE FolderID = a.MemberOf) AS "ParentFolderName" 
+        FROM SYS_OBJECT_FOLDER a
+		LEFT JOIN RESOURCE_ b ON a.FolderID = b.FolderID
+		WHERE a.folderID = #{folderID}
+    </select>  
+     
+    <select id = "selectAddEquipmentData" parameterType="cmap" resultType ="cmap">
+		SELECT a.EquipmentID AS "EquipmentID"
+		     , b.MultiEquipmentName AS "MultiEquipmentName"
+		     , b.IconPath AS "IconPath"
+		     , c.DomainCode AS "CompanyCode"
+		FROM RESOURCE_EQUIPMENT_DEF a 
+		INNER JOIN RESOURCE_EQUIPMENT b ON a.EquipmentID = b.EquipmentID
+		INNER JOIN SYS_OBJECT_DOMAIN c ON b.DN_ID = c.DomainID
+		WHERE a.FolderID = #{folderID}
+    </select>
+     
+    <select id = "selectAttributeData" parameterType="cmap" resultType ="cmap">
+		SELECT AttributeName AS "Title"
+		     , MultiAttributeName AS "ExTitle"
+		     , AttributeValue AS "Value"
+		     , MultiAttributeValue AS "ExValue"
+		FROM RESOURCE_ATTRIBUTE a 
+		WHERE a.FolderID = #{folderID}
+		ORDER BY SortKey ASC
+    </select>
+    
+    <select id="selectManagementData" parameterType="cmap" resultType ="cmap">
+		SELECT  Result.AclID AS "AclID"
+			  , Result.ObjectID AS "ObjectID"
+			  , Result.ObjectType AS "ObjectType"
+			  , Result.SubjectCode AS "SubjectCode"
+			  , Result.SubjectType AS "SubjectType"
+			  , Result.AclList AS "AclList" 
+			  , Result.SubjectName AS "SubjectName" 
+			  , Result.MultiSubjectName AS "MultiSubjectName" 
+   			FROM (
+		        SELECT A.AclID
+				     , A.ObjectID
+				     , A.ObjectType
+				     , A.SubjectCode
+				     , 'UR' AS SubjectType
+				     , A.AclList
+				     , U.DisplayName AS SubjectName
+				     , U.MultiDisplayName AS MultiSubjectName
+				FROM SYS_OBJECT_ACL A 
+				INNER JOIN SYS_OBJECT_USER U ON A.SubjectCode = U.UserCode 
+				WHERE A.ObjectType = #{objectType} 
+				  AND A.ObjectID = #{objectID} 
+				  AND A.SubjectType = 'RM' 
+				
+				UNION
+				
+				SELECT A.AclID
+				     , A.ObjectID
+				     , A.ObjectType
+				     , A.SubjectCode
+				     ,(CASE G.GroupType WHEN 'Company' THEN 'CM' ELSE 'GR' END) AS SubjectType
+				     , A.AclList
+				     , G.DisplayName AS SubjectName
+				     , G.MultiDisplayName AS MultiSubjectName
+				FROM SYS_OBJECT_ACL A 
+				INNER JOIN SYS_OBJECT_GROUP G ON A.SubjectCode = G.GroupCode 
+				WHERE A.ObjectType = #{objectType} 
+				  AND A.ObjectID = #{objectID} 
+				  AND A.SubjectType = 'RM'
+			  )Result	  
+     </select>
+    
+     <delete id="deleteResourceData" parameterType="cmap">
+        DELETE FROM RESOURCE_
+		WHERE FolderID = #{folderID}
+     </delete>
+    
+    <delete id="deleteAddOptionData" parameterType="cmap">
+        BEGIN
+	        DELETE FROM RESOURCE_ATTRIBUTE
+			WHERE FolderID = #{folderID};
+			
+			DELETE FROM RESOURCE_EQUIPMENT_DEF
+			WHERE FolderID = #{folderID};
+		END;
+     </delete>
+
+	 <select id="selectACLList" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM sys_object_acl
+		WHERE ObjectID = #{objectID} AND ObjectType = 'FD' AND SubjectCode = #{subjectCode} AND SubjectType = 'RM'
+	 </select>
+    
+     <select id="seleteDeletedBookingInfo" parameterType="cmap" resultType="cmap">
+        SELECT   a.EventID AS "EventID"
+			   , a.FolderType AS "FolderType"
+			   , NVL(b.RepeatID,0) AS "RepeatID"
+			   , (SELECT COUNT(*) FROM EVENT_DATE c WHERE c.EventID = b.EventID AND c.DateID != b.DateID) AS "RepeatCnt"
+			   , NVL(d.ResourceID, a.FolderID) AS "ResourceID"
+		FROM EVENT a
+		INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+		LEFT JOIN EVENT_RELATION d ON a.EventID = d.ScheduleID 
+		WHERE b.DateID = #{DateID}
+     </select>
+    
+     <select id="selectResourceEquipmentDomainInfo" parameterType="cmap" resultType="cmap">
+         /* queryID = admin.resource.selectResourceEquipmentDomainInfo */
+         SELECT DOMAINCODE AS "DomainCode"
+         FROM 	SYS_OBJECT_DOMAIN
+         WHERE 	DOMAINID = #{domainID}
+     </select>
+
+     <delete id="deleteRelationData" parameterType="cmap" >
+        DELETE FROM EVENT_RELATION
+		WHERE ScheduleID = #{EventID} 
+		  AND ResourceID = #{ResourceID}
+     </delete>
+    
+     <update id="deleteResourceBookingData" parameterType="cmap" >
+       UPDATE EVENT_RESOURCE_BOOKING
+	   SET DeleteDate = SYSDATE
+	   WHERE DateID = #{DateID}
+     </update>
+    
+     <!--if문으로 나눠놓을 경우 둘다 null 일 때 전체 삭제를 방지  -->
+     <delete id="deleteDateDataByDateID" parameterType="cmap" >
+       DELETE FROM EVENT_DATE
+	   WHERE DateID = #{DateID}
+     </delete>
+     
+     <!--if문으로 나눠놓을 경우 둘다 null 일 때 전체 삭제를 방지  -->
+     <delete id="deleteDateDataByEventID" parameterType="cmap">
+       DELETE FROM EVENT_DATE
+	   WHERE EventID = #{EventID}
+     </delete>
+     
+     <update id="deleteEventData" parameterType = "cmap">
+        UPDATE EVENT
+		SET DeleteDate = SYSDATE
+		WHERE EventID = #{EventID}
+     </update>
+     
+     <update id="updateImagePath">
+        UPDATE SYS_OBJECT_FOLDER
+		SET Reserved3 = #{FileID}
+		WHERE FolderID = #{FolderID}
+     </update>
+     
+     <select id="selectDuplicateShareResource" parameterType="cmap" resultType="java.lang.Long">
+     	/* queryID : admin.resource.selectDuplicateShareResource */
+     	SELECT 	COUNT(1)
+		FROM  	SYS_OBJECT_FOLDER
+		WHERE 	1=1
+		AND 	LinkFolderID = #{folderID}
+		AND 	DomainID = #{domainID}
+		AND 	ObjectType = 'Resource'
+     </select>
+     
+</mapper>

@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.authority">
+ 	<sql id="searchGroup">
+ 		AND a.SubjectType != 'UR'
+	 	AND ((g.GroupType !='Dept' AND g.GroupCode IN 
+			<foreach collection="subjectCodeArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+			)
+			OR (g.GroupType ='Dept' AND a.IsSubInclude = 'Y' AND INSTR(#{deptPath},g.GroupPath) = 1) 
+			OR (g.GroupType ='Dept' AND a.IsSubInclude = 'N' AND #{deptPath}  = g.GroupPath)
+		 )
+ 	</sql>
+    <!-- 비사용 -->
+ 	<select id="selectAssignedBaseGroup" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT CompanyCode, DeptCode, RegionCode, JobPositionCode, JobTitleCode, JobLevelCode
+		FROM covi_smart4j.sys_object_user_basegroup
+		WHERE UserCode = #{userCode} 
+		AND CompanyCode = (SELECT DomainCode FROM covi_smart4j.sys_object_domain WHERE DomainID = #{domainID})
+    ]]>
+	</select>
+	
+ 	<select id="selectGroupPath" parameterType="cmap" resultType="String">
+	<![CDATA[
+		SELECT GroupPath
+		FROM covi_smart4j.sys_object_group
+		WHERE GroupCode = #{deptCode}
+    ]]>
+	</select>
+	
+ 	<select id="selectAllowedURL" parameterType="cmap" resultType="cmap">
+		SELECT AccessUrlID AS AccessUrlID 
+			, URL AS URL 
+		FROM covi_smart4j.sys_access_url
+		WHERE IsUse = 'Y'
+		<if test="IsAdmin">
+			AND IsAdmin = 'Y' OR IsAdmin is null OR IsAdmin = ''
+		</if>
+		<if test="!IsAdmin">
+			AND IsAdmin = 'N'
+		</if>
+	</select>
+ 	
+ 	<select id="selectAssignedGroup" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT DISTINCT GM.GroupCode
+		FROM covi_smart4j.sys_object_group_member GM
+		INNER JOIN covi_smart4j.sys_object_group G ON GM.GroupCode = G.GroupCode
+		WHERE UserCode = #{userCode}
+		AND G.CompanyCode IN (#{domainCode}, 'ORGROOT')
+		AND G.GroupType NOT IN ('Dept', 'JobLevel', 'JobPosition', 'JobTitle')
+    ]]>
+	</select>
+	
+	<select id="selectAssignedGroupMember" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT gm.GroupCode
+		FROM   sys_object_group_membergroup gm
+		INNER JOIN covi_smart4j.sys_object_group G ON gm.GroupCode = G.GroupCode
+		WHERE gm.MemberGroupCode IN ('' 
+		<foreach collection="groupIDArr" item="item" open="," close="" separator=",">
+			#{item}
+		</foreach>
+		)
+		AND G.CompanyCode IN (#{domainCode}, 'ORGROOT')
+		AND G.GroupType NOT IN ('Dept', 'JobLevel', 'JobPosition', 'JobTitle')
+	</select>
+	
+ 	<select id="selectAuthorizedACL_User" parameterType="cmap" resultType="cmap">
+   		SELECT AclID
+			, ObjectID
+			, ObjectType
+			, AclList
+		FROM covi_smart4j.sys_object_acl 
+		<if test="objectType == 'PT'">
+			INNER JOIN covi_smart4j.portal pt on pt.BizSection = 'Portal' AND pt.PortalType!='License' AND pt.IsUse = 'Y' and pt.PortalID = ObjectID
+		</if>	
+		<if test="objectType == 'MN'">
+			INNER JOIN sys_object_menu mn on mn.IsUse = 'Y' and mn.IsDisplay = 'Y' and mn.MenuID = ObjectID
+		</if>	
+		WHERE ObjectType = #{objectType}
+		AND SubjectType = 'UR'
+		AND SubjectCode = #{userCode}
+	</select>
+	<select id="selectAuthorizedACL_Group" parameterType="cmap" resultType="cmap">
+	    SELECT AclID
+			, ObjectID
+			, ObjectType
+			, AclList
+			, (
+				CASE WHEN SubjectType = 'CM' THEN '9'
+				WHEN SubjectType = 'DEPT' THEN '2' 
+				ELSE '3' END 
+			) AS AclPriority
+		FROM covi_smart4j.sys_object_acl AS a 
+		INNER JOIN covi_smart4j.sys_object_group AS g ON a.SubjectCode = g.GroupCode 
+		INNER JOIN covi_smart4j.sys_object_group_type AS gt ON gt.GroupType = g.GroupType
+		<if test="objectType == 'PT'">
+			INNER JOIN covi_smart4j.portal pt on pt.BizSection = 'Portal'  AND pt.PortalType!='License' AND pt.IsUse = 'Y' and pt.PortalID = ObjectID
+		</if>	
+		
+		WHERE a.ObjectType = #{objectType}
+		<include refid="searchGroup" />
+		ORDER BY AclPriority DESC, Priority DESC, GroupPath ASC, AclID DESC
+	</select>
+	
+	<select id="selectAuthorizedACL_Lic" parameterType="cmap" resultType="cmap">
+   		SELECT  b.InitPortal ObjectID
+				, 'PT' ObjectType
+				, '_____V_' AclList
+		  FROM covi_smart4j.sys_object_user a
+		LEFT JOIN sys_license b  ON a.LicSeq = b.LicSeq
+		INNER JOIN portal pt on  pt.PortalType='Business' and  pt.IsUse = 'Y' and pt.PortalID = b.InitPortal
+		WHERE userCode = #{userCode}
+	</select>
+	
+	<select id="selectAuthorizedACL_Folder_User" parameterType="cmap" resultType="cmap">
+		SELECT AclID
+			, ObjectID 
+			, A.ObjectType
+			, AclList
+			, F.ObjectType AS BizSection
+		FROM covi_smart4j.sys_object_acl AS a 
+		INNER JOIN covi_smart4j.sys_object_folder F ON A.ObjectID = F.FolderID
+		<if test="serviceType == 'Community'">
+			LEFT JOIN covi_smart4j.community_menu_top mt ON f.FolderID = mt.fd_id
+			LEFT JOIN covi_smart4j.community c ON mt.cu_id = c.cu_id 
+		</if>
+		WHERE a.ObjectType = 'FD'
+		AND a.SubjectType = 'UR'
+		AND a.SubjectCode =  #{userCode}
+		<if test="serviceType != null and serviceType != '' ">
+		    AND F.ObjectType = #{serviceType}
+		</if>
+		<if test="serviceType == 'Community'">
+			AND (c.appstatus NOT IN ('UF', 'UV') OR c.appstatus IS NULL)
+		</if>
+	</select>
+	<select id="selectAuthorizedACL_Folder_Group" parameterType="cmap" resultType="cmap">
+		SELECT AclID
+			, ObjectID
+			, A.ObjectType
+			, AclList
+			, (
+				CASE WHEN SubjectType = 'CM' THEN '9'
+				WHEN SubjectType = 'DEPT' THEN '2' 
+				ELSE '3' END 
+			) AS AclPriority
+			, F.ObjectType AS BizSection
+		FROM covi_smart4j.sys_object_acl AS a 
+		INNER JOIN covi_smart4j.sys_object_group AS g ON a.SubjectCode = g.GroupCode 
+		INNER JOIN covi_smart4j.sys_object_group_type AS gt ON gt.GroupType = g.GroupType
+		INNER JOIN covi_smart4j.sys_object_folder F ON A.ObjectID = F.FolderID
+		<if test="serviceType == 'Community'">
+			LEFT JOIN covi_smart4j.community_menu_top mt ON f.FolderID = mt.fd_id
+			LEFT JOIN covi_smart4j.community c ON mt.cu_id = c.cu_id 
+		</if>
+		WHERE a.ObjectType = 'FD'
+		<include refid="searchGroup" />
+		<if test="serviceType != null and serviceType != '' ">
+		    AND F.ObjectType = #{serviceType}
+		</if>
+		<if test="serviceType == 'Community'">
+			AND (c.appstatus NOT IN ('UF', 'UV') OR c.appstatus IS NULL)
+		</if>
+		ORDER BY AclPriority DESC, Priority DESC, GroupPath ASC, AclID DESC
+	</select>
+	
+ 	<select id="selectAuthorizedMenu" parameterType="cmap" resultType="cmap">
+		SELECT a.MenuID, a.DomainID, a.IsAdmin, a.MenuType, a.BizSection, a.ParentObjectID, a.ParentObjectType, a.ServiceDevice, a.MultiDisplayName, a.IconClass, a.MemberOf, 
+				a.MenuPath, a.LinkMenuID, a.SecurityLevel, a.SortKey, a.SiteMapPosition, a.SortPath, a.HasFolder, a.IsInherited, a.IsUse, a.IsDisplay, 
+				case when b.MenuID IS NOT NULL AND a.OriginMenuID IS not null AND a.OriginMenuID>0 then b.URL ELSE a.URL end URL, 
+				case when b.MenuID IS NOT NULL AND a.OriginMenuID IS not null AND a.OriginMenuID>0 then b.MobileURL ELSE a.MobileURL end MobileURL, 
+				case when b.MenuID IS NOT NULL AND a.OriginMenuID IS not null AND a.OriginMenuID>0 then b.Reserved5 ELSE a.Reserved5 end Reserved5, 
+				a.Target, a.MobileTarget, a.Reserved1, a.Reserved2, a.Reserved3, a.Reserved4, 
+				case when a.domainid =0 || a.OriginMenuID IS null then  a.menuid else a.OriginMenuID  end OriginMenuID  
+		FROM 	  covi_smart4j.sys_object_menu a
+		 LEFT JOIN covi_smart4j.sys_object_menu b ON a.OriginMenuID = b.MenuID AND b.DomainID = 0
+	    INNER JOIN sys_object_user ui on ui.UserCode = #{userID}
+		WHERE     a.MenuID IN 
+		<foreach collection="menuIDArr" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		AND 	  a.IsUse = 'Y' 
+		AND       a.IsDisplay = 'Y'
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		a.BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>	
+  		ORDER BY  a.DomainID ASC,a.SortKey ASC
+	</select>
+	
+ 	<insert id="insertACL" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_smart4j.sys_object_acl (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate, InheritedObjectID, IsSubInclude)
+		VALUES (#{objectID},#{objectType},#{subjectCode},#{subjectType},#{aclList},#{security},#{create},#{delete},#{modify},#{execute},#{view},#{read},#{description},#{registerCode},now(3),#{inheritedObjectID}, #{isSubInclude})
+	]]>
+	</insert>
+	
+	<insert id="insertInheritedACL" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_acl (ObjectID, ObjectType, SubjectCode, SubjectType, AclList, Security, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate, InheritedObjectID, IsSubInclude)
+		SELECT	  #{objectID}
+				, ObjectType
+				, A.SubjectCode
+				, A.SubjectType
+				, AclList
+				, Security
+				, `Create`
+				, `Delete`
+				, `Modify`
+				, `Execute`
+				, `View`
+				, `Read`
+				, Description
+				, #{registerCode}
+				, now(3)
+				, CASE WHEN ObjectType = 'FD' THEN (SELECT MemberOf FROM covi_smart4j.sys_object_folder WHERE FolderID = #{objectID})
+					   WHEN ObjectType = 'MN' THEN (SELECT MemberOf FROM covi_smart4j.sys_object_menu WHERE MenuID = #{objectID})
+				  	   ELSE 0 END AS InheritedObjectID
+				, IsSubInclude
+		FROM covi_smart4j.sys_object_acl A
+		LEFT OUTER JOIN (
+			SELECT SubjectCode, SubjectType
+			FROM covi_smart4j.sys_object_acl
+			WHERE ObjectID = #{objectID}
+			AND InheritedObjectID = 0
+		) B ON A.SubjectCode = B.SubjectCode AND A.SubjectType = B.SubjectType
+		WHERE A.ObjectID = #{inheritedObjectID}
+		AND A.ObjectType = #{objectType}
+		AND B.SubjectCode IS NULL
+	</insert>
+	
+	<insert id="insertACLVO" parameterType="egovframework.coviframework.vo.ObjectAcl">
+        INSERT INTO covi_smart4j.sys_object_acl(ObjectID,ObjectType,SubjectCode,SubjectType,AclList,`Security`, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		VALUES (#{objectID},#{objectType}, #{subjectCode}, #{subjectType}, #{aclList}, #{security}, #{create}, #{delete}, #{modify}, #{execute}, #{view}, #{read}, #{description}, #{registerCode},now(3)); 
+    </insert>
+    
+	<insert id="insertACLList" parameterType="clist">
+        INSERT INTO covi_smart4j.sys_object_acl(ObjectID,ObjectType,SubjectCode,SubjectType,AclList,`Security`, `Create`, `Delete`, `Modify`, `Execute`, `View`, `Read`, Description, RegisterCode, RegistDate)
+		VALUES
+		<foreach collection="list" item="aclData" index="index" separator=",">
+            (
+	        	#{aclData.objectID}
+				, #{aclData.objectType}
+				, #{aclData.subjectCode}
+				, #{aclData.subjectType}
+				, #{aclData.aclList}
+				, #{aclData.security}
+				, #{aclData.create}
+				, #{aclData.delete}
+				, #{aclData.modify}
+				, #{aclData.execute}
+				, #{aclData.view}
+				, #{aclData.read}
+				, #{aclData.description}
+				, #{aclData.registerCode}
+				, NOW(3)
+	        )
+        </foreach>
+        ;
+    </insert>
+    
+	<delete id="deleteACL" parameterType="cmap">
+        DELETE FROM covi_smart4j.sys_object_acl
+		WHERE ObjectID = #{objectID} AND ObjectType = #{objectType} 
+		<if test='subjectCode != null and subjectCode != ""'>		
+			AND SubjectCode = #{subjectCode}
+		</if>
+	</delete>
+	
+	<delete id="deleteACLList" parameterType="cmap">
+	<![CDATA[
+	    DELETE FROM covi_smart4j.sys_object_acl
+		WHERE ObjectType = #{objectType}  AND ObjectID  IN
+	]]>
+		<foreach item="item" index="index" collection="objectIDs" open="(" close=");" separator=",">
+			#{item}
+	  	</foreach>
+	</delete>
+	
+	<delete id="deleteInheritedACL" parameterType="cmap">
+		DELETE FROM sys_object_acl
+		WHERE 1=1
+		<if test='inheritedObjectID != null and inheritedObjectID != ""'>	
+			<if test='objectType == "FD"'>							  		   	
+			AND ObjectID IN (
+				SELECT DISTINCT FolderID 
+				FROM (
+					SELECT FolderID, CONCAT(';', FolderPath) AS FolderPath 
+					FROM sys_object_folder 
+					WHERE DeleteDate IS NULL
+					<if test='isUpdateChildren != "Y"'>
+						AND IsInherited = 'Y'
+					</if>
+				) A 
+				WHERE FolderPath LIKE CONCAT('%;', #{inheritedObjectID}, ';%')
+			)
+			</if>			
+			<if test='objectType == "MN"'>							  		   	
+			AND ObjectID IN (
+				SELECT DISTINCT MenuID 
+				FROM (
+					SELECT MenuID, CONCAT(';', MenuPath) AS MenuPath 
+					FROM sys_object_menu
+					WHERE DeleteDate IS NULL
+					<if test='isUpdateChildren != "Y"'>
+						AND IsInherited = 'Y'
+					</if>
+				) A 
+				WHERE MenuPath LIKE CONCAT('%;', #{inheritedObjectID}, ';%')
+			)
+			</if>
+		</if>		
+		<if test='objectID != null and objectID != ""'>
+			AND ObjectID = #{objectID}
+		</if>	
+		<if test='isUpdateChildren != "Y"'>
+			AND IFNULL(InheritedObjectID, 0) != 0 		
+		</if>	
+		AND ObjectType = #{objectType}
+	</delete>
+	
+	<select id="selectACL" parameterType="cmap" resultType="cmap">	
+		SELECT *
+		FROM (
+			SELECT	  A.AclID
+					, A.ObjectID
+					, A.ObjectType
+					, A.SubjectCode
+					, A.SubjectType
+					, A.AclList
+					, A.Security
+					, A.Create
+					, A.Delete
+					, A.Modify
+					, A.Execute
+					, A.View
+					, A.Read
+					, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, U.MultiDisplayName) AS SubjectName
+					, U.MultiDisplayName AS MultiSubjectName
+					, UB.CompanyCode
+					, 'UR' AS GroupType
+					, (SELECT SortKey FROM covi_smart4j.sys_object_group_type WHERE GroupType = 'UR') AS SortKey
+					<choose>
+						<when test='inheritedObjectID != null and inheritedObjectID != ""'>
+						, IFNULL(#{inheritedObjectID}, 0) AS InheritedObjectID
+						</when>
+						<otherwise>
+						, IFNULL(A.InheritedObjectID, 0) AS InheritedObjectID	
+						</otherwise>
+					</choose>
+					,IsSubInclude
+			FROM covi_smart4j.sys_object_acl A 
+				INNER JOIN covi_smart4j.sys_object_user U 
+					ON A.SubjectCode = U.UserCode 
+				INNER JOIN covi_smart4j.sys_object_user_basegroup UB
+					ON UB.UserCode = U.UserCode AND UB.JobType = 'Origin'
+			WHERE A.ObjectType = #{objectType} AND A.ObjectID = #{objectID} AND A.SubjectType = 'UR'
+			
+			UNION
+			
+			SELECT	  A.AclID
+					, A.ObjectID
+					, A.ObjectType
+					, A.SubjectCode
+					, A.SubjectType
+					, A.AclList
+					, A.Security
+					, A.Create
+					, A.Delete
+					, A.Modify
+					, A.Execute
+					, A.View
+					, A.Read
+					, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, G.MultiDisplayName) AS SubjectName
+					, G.MultiDisplayName AS MultiSubjectName
+					, G.CompanyCode
+					, G.GroupType
+					, GT.SortKey
+					<choose>
+						<when test='inheritedObjectID != null and inheritedObjectID != ""'>
+						, IFNULL(#{inheritedObjectID}, 0) AS InheritedObjectID
+						</when>
+						<otherwise>
+						, IFNULL(A.InheritedObjectID, 0) AS InheritedObjectID	
+						</otherwise>
+					</choose>				
+					,IsSubInclude	
+			FROM covi_smart4j.sys_object_acl A
+				INNER JOIN covi_smart4j.sys_object_group G
+					ON A.SubjectCode = G.GroupCode
+				INNER JOIN covi_smart4j.sys_object_group_type GT
+					ON GT.GroupType = G.GroupType
+			WHERE A.ObjectType = #{objectType} AND A.ObjectID = #{objectID} AND A.SubjectType != 'UR'
+		) A
+		ORDER BY InheritedObjectID DESC, SortKey, SubjectName    
+	</select>
+	
+	<select id="selectCompanyACL" parameterType="cmap" resultType="cmap">	
+		  SELECT
+				 '0' AS AclID
+				,'0' AS ObjectID
+				,#{objectType} AS ObjectType
+				,sog.GroupCode AS SubjectCode
+				,'CM' AS SubjectType
+				,'SCDMEVR' AS AclList
+				,'S' AS `Security`
+				,'C' AS `Create`
+				,'D' AS `Delete`
+				,'M' AS `Modify`
+				,'E' AS `Execute`
+				,'V' AS `View`
+				,'R' AS `Read`
+				,sog.DisplayName AS SubjectName
+				,sog.MultiDisplayName AS MultiSubjectName
+				,sog.CompanyCode AS CompanyCode
+				,sog.GroupType AS GroupType
+				,0 AS SortKey
+				,0 AS InheritedObjectID
+				,'Y' AS IsSubInclude
+			   FROM covi_smart4j.sys_object_group sog
+			  WHERE sog.GroupCode = #{companyCode}
+	</select>
+	
+	<select id="selectInheritedACL" parameterType="cmap" resultType="cmap">
+		<if test='objectType == "FD"'>
+			SELECT *
+			FROM (
+				SELECT  
+					  FolderID AS ObjectID
+					, FolderID AS FolderID
+					, MemberOf AS MemberOf
+					, IsInherited AS IsInherited
+					, CONCAT(';', FolderPath) AS FolderPath
+				FROM sys_object_folder
+				WHERE DeleteDate IS NULL
+				<if test='isUpdateChildren != "Y"'>
+					AND IsInherited = 'Y'
+				</if>
+			) A
+			WHERE FolderPath LIKE CONCAT('%;', #{inheritedObjectID}, ';%')
+		</if>
+		<if test='objectType == "MN"'>
+			SELECT *
+			FROM (
+				SELECT
+					  MenuID AS ObjectID
+					, MenuID AS FolderID
+					, MemberOf AS MemberOf
+					, IsInherited AS IsInherited
+					, CONCAT(';', MenuPath) AS MenuPath
+				FROM sys_object_menu
+				WHERE DeleteDate IS NULL
+				<if test='isUpdateChildren != "Y"'>
+					AND IsInherited = 'Y'
+				</if>
+			) A
+			WHERE MenuPath LIKE CONCAT('%;', #{inheritedObjectID}, ';%')
+		</if>	
+	</select>
+
+	<select id="selectSyncDomain" parameterType="cmap" resultType="cmap">
+		<if test="URAction != null and URAction.length > 0">
+			SELECT DISTINCT DomainID FROM covi_smart4j.sys_object_user_basegroup AS BG
+			INNER JOIN covi_smart4j.sys_object_domain AS DN ON BG.CompanyCode = DN.DomainCode
+			WHERE UserCode IN 
+			<foreach collection="URAction" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		<if test="URAction != null and URAction.length > 0 and GRAction != null and GRAction.length > 0">
+			UNION
+		</if>
+		<if test="GRAction != null and GRAction.length > 0">
+			SELECT DISTINCT DomainID FROM covi_smart4j.sys_object_group AS GR
+			INNER JOIN covi_smart4j.sys_object_domain AS DN ON GR.CompanyCode = DN.DomainCode
+			WHERE GroupCode IN 
+			<foreach collection="GRAction" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+	</select>
+	
+	<select id="getUserAcl"   parameterType="cmap"   resultType="cmap">
+		/* getUserAcl */
+		SELECT ObjectID as "ObjectID"
+		  FROM sys_object_user_acl
+		 WHERE UserCode = #{UserCode} and JobSeq = #{JobSeq} AND ServiceType = #{ServiceType} 
+	</select>
+
+
+	<insert id="insertUserAcl"   parameterType="cmap"  >
+		/* framework.authority.insertUserAcl */
+			<foreach collection="aclList" item="lst" open="" close=";" separator=";">
+			INSERT IGNORE INTO sys_object_user_acl (UserCode, JobSeq, ServiceType, ObjectType, ObjectId, V)	
+				VALUES (#{UserCode}, #{JobSeq}, #{ServiceType}, #{ObjectType},#{lst} , 'Y')
+			</foreach>	  
+	</insert>
+	
+	<delete id="deleteUserAcl"   parameterType="cmap"  >
+		/* framework.authority.deleteUserACL */
+		<foreach collection="aclList" item="lst" open="" close=";" separator=";">
+		DELETE FROM sys_object_user_acl 
+			WHERE UserCode = #{UserCode} and JobSeq = #{JobSeq} AND ServiceType = #{ServiceType} AND ObjectId =  #{lst} 
+		</foreach>	  
+	</delete>
+	
+	<!-- 관리자 조회 (isSaaS인 경우 간편관리자까지 포함) -->
+	<select id="selectAdminList" parameterType="cmap" resultType="cmap">
+		/* framework.authority.selectAdminList */
+		SELECT 
+			d.UserCode
+		FROM sys_object_user d
+		JOIN sys_object_group_member c ON (c.UserCode = d.UserCode)
+		JOIN sys_object_group a ON (c.GroupCode = a.GroupCode)
+		JOIN sys_object_domain b ON (a.CompanyCode = b.DomainCode AND b.DomainID IN (0, #{domainID}))
+		WHERE ((a.GroupType = 'Authority' AND a.GroupCode IN ('0_Admin', #{domainID}||'_Admin'))
+		<if test='isSaaS == "Y"'>
+			OR (a.GroupType = 'Manage' AND a.GroupCode IN ('0_EasyAdmin', #{domainID}||'_EasyAdmin'))
+		</if>
+		)
+		AND c.LeaveDate IS NULL
+		AND d.IsUse = 'Y'
+		GROUP By d.UserCode
+	</select>
+	
+	<update id="updateObjectIsInherited" parameterType="cmap">
+		<choose>
+			<when test='objectType == "FD"'> 
+				UPDATE sys_object_folder
+				SET IsInherited = #{isInherited}
+				WHERE FolderID = #{objectID}
+			</when>
+			<when test='objectType == "MN"'>
+				UPDATE sys_object_menu
+				SET IsInherited = #{isInherited}
+				WHERE MenuID = #{objectID}
+			</when>
+			<otherwise></otherwise>
+		</choose>
+ 	</update>
+</mapper>

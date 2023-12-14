@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="eum">
+    
+ 	<select id="selectAuthCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM MESSENGER_AUTH
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</select>
+	<update id="updateAuth"  parameterType="cmap">
+		UPDATE MESSENGER_AUTH SET AuthDate = SYSDATE
+								, ExpireTime = SYSDATE+1 
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</update>
+	<update id="createAuth"  parameterType="cmap">
+		INSERT INTO MESSENGER_AUTH (
+										LogonID
+									,   DeviceType
+									,   AuthDate
+									,   ExpireTime
+													) VALUES (
+										#{id}
+									,   #{deviceType}
+									,   SYSDATE
+									,   SYSDATE+1  			
+													)
+	</update>
+	<select id="selectTokenInfo" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(*)AS "cnt", NVL(m.AccessToken,' ')AS "accessToken" , u.LanguageCode AS "lang", #{deviceType} AS "deviceType", #{id} AS "id"
+		FROM MESSENGER_AUTH AS m
+		INNER JOIN SYS_OBJECT_USER AS u ON u.LogonID = m.LogonID AND u.IsUse ='Y' 
+		WHERE m.LogonID = #{id}
+		AND m.DeviceType = #{deviceType}
+		LIMIT 1 
+	</select>
+	<update id="updateAccessToken"  parameterType="cmap">
+		UPDATE MESSENGER_AUTH SET AccessToken = #{accessToken}
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</update>
+</mapper>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="common.entInfo">
+    <!-- domaincode as option value -->
+    <select id="selectEntInfoList" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainCode AS optionValue ,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as optionText, DomainCode as defaultVal
+			FROM covi_smart4j.sys_object_group AS gr
+			INNER JOIN covi_smart4j.sys_object_domain AS dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND date(dn.ServiceStart)  <![CDATA[ <= ]]>   now(3) 
+		AND date(dn.ServiceEnd) <![CDATA[ >= ]]> date_format(now(3), '%Y-%m-%d 00:00:00')
+		
+		ORDER BY gr.SortKey ASC
+	</select>
+	<!-- domainid as option value -->
+    <select id="selectEntInfoListId" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainID AS optionValue ,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as optionText, DomainCode as defaultVal
+			FROM covi_smart4j.sys_object_group AS gr
+			INNER JOIN covi_smart4j.sys_object_domain AS dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND date(dn.ServiceStart)  <![CDATA[ <= ]]>   now(3) 
+		AND date(dn.ServiceEnd) <![CDATA[ >= ]]> date_format(now(3), '%Y-%m-%d 00:00:00')
+		
+		ORDER BY gr.SortKey ASC
+	</select>
+</mapper>
+

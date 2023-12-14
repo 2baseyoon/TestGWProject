@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="manage.orgnotice">
+
+    <resultMap type="cmap" id="bodyResult">
+ 	    <result property="Body" column="Body" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="BodyText" column="BodyText" jdbcType="CLOB" javaType="java.lang.String" />
+ 	</resultMap>
+ 	
+	<select id="getNoticeFolderPath" parameterType="cmap" resultType="cmap">
+		/* queryId : manage.orgnotice.getNoticeFolderPath */
+		SELECT 	Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+        		,F.FolderPath AS "FolderPath"
+        		,Fn_FolderPathByLangGet_S(#{lang},F.FolderPath) AS "FolderPathName"
+        FROM 	SYS_OBJECT_FOLDER F
+        WHERE 	FolderID = #{folderID}
+	</select>
+	
+	<select id="getNotReadSystemNoticeCount" resultType="java.lang.Long">
+	SELECT COUNT(*) 
+	FROM BOARD_MESSAGE BM
+	WHERE 
+		BM.FOLDERID = #{noticeFolderID} AND
+		(BM.EXPIREDDATE IS NULL OR BM.EXPIREDDATE <![CDATA[>=]]> SYSDATE) AND 
+		BM.DELETEDATE IS NULL AND 
+		(BM.RESERVATIONDATE IS NULL OR BM.RESERVATIONDATE <![CDATA[<]]> SYSDATE) AND 
+		BM.ISCURRENT = 'Y' AND
+		NOT EXISTS (
+			SELECT BMR.MESSAGEID FROM BOARD_MESSAGE_READER BMR
+			WHERE BMR.READERCODE = #{userCode} AND BMR.MESSAGEID = BM.MESSAGEID
+		)
+	</select>
+	
+    <select id="getOrgNoticeListCount" resultType="java.lang.Long">
+    	/* queryId : manage.orgnotice.getOrgNoticeListCount */
+        SELECT 	COUNT(1)
+        FROM 	BOARD_MESSAGE BM
+		WHERE 	BM.FolderId = #{folderID}
+		AND   	(BM.ExpiredDate IS NULL OR BM.ExpiredDate >= SYSDATE )
+		AND 	BM.DeleteDate IS NULL
+		AND 	(BM.ReservationDate IS NULL OR BM.ReservationDate &lt; SYSDATE)
+		AND 	BM.IsCurrent = 'Y'
+	    <!-- 검색어 항목 -->
+		<if test="searchText != null and searchText != ''">
+			<choose>
+	       	 	<when test="searchType == 'Total'">
+	  	AND 	( BM.Subject LIKE '%'||#{searchText}||'%' or BM.BodyText LIKE '%'||#{searchText}||'%' )
+	       		</when>
+	       		<when test="searchType == 'Mobile'">
+	  	AND 	( BM.Subject LIKE '%'||#{searchText}||'%' or BM.BodyText LIKE '%'||#{searchText}||'%' or BM.CreatorName LIKE '%'||#{searchText}||'%' )
+	       		</when>
+	       		<otherwise>
+	  	AND 
+					<choose>
+						<when test='searchType.equalsIgnoreCase("BodyText")'>BM.BodyText </when>
+						<when test='searchType.equalsIgnoreCase("CreatorName")'>BM.CreatorName </when>
+						<when test='searchType.equalsIgnoreCase("Number")'>BM.Number </when>
+						<otherwise>BM.Subject </otherwise>
+					</choose>
+					LIKE '%'||#{searchText}||'%'   
+	       		</otherwise>
+			</choose>
+		</if>
+		<if test="startDate != '' or endDate != ''">
+		AND TO_CHAR(BM.RegistDate, 'YYYY-MM-DD HH24:MI:SS') BETWEEN #{startDate} AND #{endDate}
+		</if>
+    </select>
+    
+	<select id="getOrgNoticeList" parameterType="cmap" resultMap="bodyResult">
+    	/* queryId : manage.orgnotice.getOrgNoticeList */
+    	<!-- 폴더/게시판 게시글 목록 조회 -->
+		<include refid="oracle.include.pagingHeader" />
+		SELECT		BM.MessageID AS "MessageID"
+					, BM.Version AS "Version"
+					, FolderID AS "FolderID"
+					, Subject AS "Subject"
+					, NVL(SUBSTR(BodyText, 1, dbms_lob.getlength(BodyText)), '') AS "BodyText"
+					, (CASE IsTop WHEN 'N' THEN 'Z' ELSE (CASE WHEN SYSDATE BETWEEN TopStartDate AND TopEndDate THEN 'A' ELSE 'Z' END) END) AS "ListTop"
+				 	, BM.CreatorCode AS "CreatorCode"
+					, Fn_BaseGetDictionary_S(#{lang}, BM.CreatorName) AS "CreatorName"
+				 	, TO_CHAR(BM.CreateDate, 'YYYY-MM-DD HH24:MI:SS') AS "CreateDate"
+   				 	, (	SELECT 	*
+   				 		FROM 	(	SELECT	historyID 	
+   				 					FROM 	BOARD_MESSAGE_HISTORY BMH
+   				 							, BOARD_MESSAGE	BM
+   				 					WHERE 	BM.MessageID = BMH.MessageID AND BMH.HistoryType = 'Export' AND BMH.DomainID = #{domainID}
+   				 					ORDER BY historyid DESC
+   				 				)
+   				 		WHERE 	ROWNUM = 1 ) AS "HistoryID"
+   				 	, (
+   				 		CASE
+   				 		WHEN (SELECT COUNT(*) FROM BOARD_MESSAGE_READER BMR WHERE BMR.MESSAGEID = BM.MESSAGEID AND BMR.READERCODE = #{userCode}) <![CDATA[>]]> 0 THEN 'Y'
+			   			ELSE 'N' END
+			   		) AS "IsRead"
+       	FROM 		BOARD_MESSAGE	BM
+	   	WHERE 		BM.FolderId =  #{folderID}
+		AND 		( BM.ExpiredDate IS NULL OR BM.ExpiredDate >= SYSDATE ) 
+		AND 		BM.DeleteDate IS NULL
+		AND 		( BM.ReservationDate IS NULL OR BM.ReservationDate &lt; SYSDATE)
+		AND 		BM.IsCurrent = 'Y'
+	    <!-- 검색어 항목 -->
+		<if test="searchText != null and searchText != ''">
+			<choose>
+	       	 	<when test="searchType == 'Total'">
+	   	AND 		( BM.Subject LIKE '%'||#{searchText}||'%' or BM.BodyText LIKE '%'||#{searchText}||'%' )
+	       		</when>
+	       		<when test="searchType == 'Mobile'">
+	    AND 		( BM.Subject LIKE '%'||#{searchText}||'%' or BM.BodyText LIKE '%'||#{searchText}||'%'  or BM.CreatorName LIKE '%'||#{searchText}||'%' )
+	       		</when>
+	       		<otherwise>
+	    AND
+					<choose>
+						<when test='searchType.equalsIgnoreCase("BodyText")'>BM.BodyText </when>
+						<when test='searchType.equalsIgnoreCase("CreatorName")'>BM.CreatorName </when>
+						<when test='searchType.equalsIgnoreCase("Number")'>BM.Number </when>
+						<otherwise>BM.Subject </otherwise>
+					</choose>
+					LIKE '%'||#{searchText}||'%'   
+	       		</otherwise>
+			</choose>
+		</if>
+		<if test="startDate != '' or endDate != ''">
+		AND 		TO_CHAR(BM.RegistDate, 'YYYY-MM-DD HH24:MI:SS') BETWEEN #{startDate} AND #{endDate}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test='useTopNotice == "Y"'>
+					ListTop ASC,
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("BodyText")'>BodyText</when>
+					<when test='sortColumn.equalsIgnoreCase("CreatorName")'>CreatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>MessageID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>,
+			</if>
+			Seq DESC, Step ASC
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getNoticeHistoryListCount" resultType="java.lang.Long">
+    	/* queryId : manage.orgnotice.getNoticeHistoryListCount */
+    	SELECT		count(1)
+        FROM 		SYS_OBJECT_DOMAIN OD
+  		LEFT JOIN 	BOARD_MESSAGE BM ON BM.MessageID = #{messageID}
+  		LEFT JOIN 	BOARD_MESSAGE_HISTORY BMH ON BM.MessageID = BMH.MessageID AND BMH.HistoryType = 'Export' AND BMH.DomainID = OD.DomainID
+    	WHERE 		OD.DomainID > 0
+      	AND 		BM.Registdate BETWEEN OD.ServiceStart AND OD.ServiceEnd
+    </select>
+    
+    <select id="getNoticeHistoryList" parameterType="cmap" resultType="cmap">
+    	/* queryId : manage.orgnotice.getNoticeHistoryList */
+    	<!-- paging -->
+    	<include refid="oracle.include.pagingHeader" />
+    	SELECT 		OD.DomainID AS "DomainID"
+        			, Fn_BaseGetDictionary_S(#{lang}, OD.MultiDisplayName) AS "DomainName"
+         			, (	SELECT 		TO_CHAR(MIN(ReadDate) , 'YYYY-MM-DD HH24:MI:SS')
+                      	FROM 		BOARD_MESSAGE_READER BMR 
+            			INNER JOIN 	SYS_OBJECT_USER SOU ON (SOU.UserCode = BMR.ReaderCode)
+            			INNER JOIN 	SYS_OBJECT_USER_BASEGROUP SOUB ON (SOU.UserCode = SOUB.UserCode) AND SOUB.JobType = 'Origin'
+                 		WHERE 		BMR.MessageID = BM.MessageID AND SOUB.CompanyCode= OD.DomainCode
+                 		) AS "ReadDate"
+         			, BMH.RegisterCode AS "RegisterCode"
+        			, (	SELECT 	Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)
+        				FROM 	SYS_OBJECT_USER
+        				WHERE 	UserCode = BMH.RegisterCode
+        				) AS "RegisterName"
+         			, TO_CHAR(BMH.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+         			, BMH.Comment_ AS "Comment"
+   		FROM 		SYS_OBJECT_DOMAIN OD
+  		LEFT JOIN 	BOARD_MESSAGE BM ON BM.MessageID = #{messageID}
+  		LEFT JOIN 	BOARD_MESSAGE_HISTORY BMH ON BM.MessageID = BMH.MessageID AND BMH.HistoryType = 'Export' AND BMH.DomainID = OD.DomainID
+    	WHERE 		OD.DomainID > 0
+      	AND 		BM.Registdate BETWEEN OD.ServiceStart AND OD.ServiceEnd
+  		<trim prefix="ORDER BY"  prefixOverrides =",">
+      		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+        		<choose>
+          			<when test='sortColumn.equalsIgnoreCase("DomainName")'>DomainName</when>
+          			<when test='sortColumn.equalsIgnoreCase("ReadDate")'>ReadDate</when>
+          			<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+          			<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+          			<otherwise>od.DomainID </otherwise>
+        		</choose>
+        		<choose>
+          			<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+          			<otherwise> DESC</otherwise>
+        		</choose>,
+      		</if>
+      		OD.DomainID 
+    	</trim>  
+    	<!-- paging -->
+    	<include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="selectMenuList" parameterType="cmap" resultType="cmap">
+        WITH recursive AS (SELECT SettingValue vals FROM sys_base_config WHERE settingkey = 'BoardMenu' AND domainid=#{domainID} ),
+        recurs(pos, remain, val) AS (
+				SELECT 	1 as pos, vals as remain, substring_index( vals, ';', 1 ) AS val
+                FROM 	recursive
+                UNION ALL
+                SELECT 	pos + 1, SUBSTR( remain, LENGTH( val ) + 2 ), SUBSTRING_INDEX( SUBSTR( remain, LENGTH( val ) + 2 ), ';', 1 )
+                FROM 	recurs
+                WHERE 	LENGTH( remain ) > LENGTH( val )
+		)
+        SELECT val AS "optionValue", Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS "optionText"
+        FROM recurs
+        JOIN sys_object_menu ON IsUse = 'Y' AND DeleteDate IS NULL AND MenuID = val
+    </select>
+
+</mapper>

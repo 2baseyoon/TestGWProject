@@ -1,0 +1,51 @@
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:p="http://www.springframework.org/schema/p"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+		xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+			http://www.springframework.org/schema/jdbc  http://www.springframework.org/schema/jdbc/spring-jdbc-4.0.xsd">
+    
+    <!-- JTA(Transaction) 사용시 아래 설정 -->
+    
+	<!-- 1. Tomcat 외 WAS 사용시 -->
+	<!--  
+	<bean id="dataSourceLegacyFramework" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.legacyframework.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>
+	<bean id="dataSourceLegacy" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.legacy.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>
+	-->
+	
+	<!-- 2. TOMCAT 사용시 -->
+	<!-- dataSourceLegacyFramework-xa : GW DB 용 설정
+		dataSourceLegacy-xa : 기간계 DB 설정
+		필요시 기간계 DB Append -->
+	<!-- 
+	<bean id="dataSourceLegacyFramework-xa" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.legacyframework.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>
+	<bean id="dataSourceLegacy-xa" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.legacy.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>
+	
+	<bean id="dataSourceLegacyFramework" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close">
+	    <property name="uniqueResourceName" value="legacyFrameworkXAds"/>
+	    <property name="xaDataSource" ref="dataSourceLegacyFramework-xa"></property>
+	    <property name="maxPoolSize" value="10"/>
+	    <property name="minPoolSize" value="0"/>
+	</bean>
+	<bean id="dataSourceLegacy" class="com.atomikos.jdbc.AtomikosDataSourceBean" init-method="init" destroy-method="close">
+	    <property name="uniqueResourceName" value="legacyXAds"/>
+	    <property name="xaDataSource" ref="dataSourceLegacy-xa"></property>
+	    <property name="maxPoolSize" value="10"/>
+	    <property name="minPoolSize" value="0"/>
+	</bean>
+	 -->
+	 
+</beans>

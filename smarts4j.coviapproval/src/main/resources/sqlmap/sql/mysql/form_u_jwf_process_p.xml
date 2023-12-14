@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.process">
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM covi_approval4j.jwf_process
+	    WHERE B.ProcessID = #{ProcessID}
+	</delete>
+	<select id="selectSubjectData" parameterType="cmap" resultType="java.lang.String">
+	    SELECT DocSubject
+	    FROM covi_approval4j.jwf_process
+	    WHERE ProcessID = #{ProcessID};
+	</select>
+	<select id="selectFormInstID" parameterType="cmap" resultType="java.lang.String">
+	   SELECT GROUP_CONCAT(ProcessID, ";") AS ProcessIDs
+		FROM covi_approval4j.jwf_process
+		WHERE FormInstID = #{FormInstID};
+	</select>
+    <select id="selectIsHasSub" parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*) AS CNT
+		FROM covi_approval4j.jwf_process
+		WHERE ParentProcessID = #{processID}
+		AND ProcessName = 'Sub'
+    </select>
+    <update id="updateState" parameterType="cmap">
+	    UPDATE covi_approval4j.jwf_process
+		SET ProcessState = #{State}
+		WHERE ProcessID = #{ProcessID}
+	</update>
+	<select id="selectProcessDes" parameterType="cmap" resultType="cmap">
+	    SELECT *
+		FROM (
+			SELECT ProcessDescriptionID,
+					FormInstID,
+					FormID,
+					FormName,
+					FormSubject,
+					IsSecureDoc,
+					IsFile,
+					FileExt,
+					IsComment,
+					ApproverCode,
+					ApproverName,
+					ApprovalStep,
+					ApproverSIPAddress,
+					IsReserved,
+					ReservedGubun,
+					ReservedTime,
+					Priority,
+					IsModify,
+					Reserved1,
+					Reserved2,
+					BusinessData1,
+					BusinessData2,
+					BusinessData3,
+					BusinessData4,
+					BusinessData5,
+					BusinessData6,
+					BusinessData7,
+					BusinessData8,
+					BusinessData9,
+					BusinessData10
+			FROM covi_approval4j.jwf_processdescription
+			WHERE FormInstID = #{FormInstID}
+		) A
+		ORDER BY processdescriptionid desc
+		LIMIT 1
+	</select>
+	<select id="selectTaskID" parameterType="cmap" resultType="java.lang.String">
+	     SELECT taskID
+		 FROM covi_approval4j.jwf_workitem
+		 WHERE WorkitemId = #{WorkitemID}
+		 AND State = 288;
+	</select>
+	
+	<select id="selectProcessState" parameterType="cmap" resultType="java.lang.String">
+	    SELECT ProcessState
+		FROM covi_approval4j.jwf_process
+		WHERE processID = (SELECT processID
+								 FROM covi_approval4j.jwf_workitem
+								 WHERE taskID = #{TaskID}
+								 ORDER BY created desc
+								 LIMIT 1);
+	</select>
+	
+	<select id="selectWorkitemState" parameterType="cmap" resultType="java.lang.String">
+	     SELECT State
+		 FROM covi_approval4j.jwf_workitem
+		 WHERE taskID = #{TaskID}
+		 ORDER BY created desc
+		 LIMIT 1;
+	</select>
+</mapper>

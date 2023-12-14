@@ -1,0 +1,500 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.formlList">
+    
+        <!-- 양식 조회 -->
+    <select id="selectFormList" parameterType="cmap" resultType="cmap">
+        SELECT
+        	A.FormClassID AS "FormClassID"
+        	, A.FormClassName AS "FormClassName"
+        	, B.FormID AS "FormID"
+        	, B.SchemaID AS "SchemaID"
+        	, B.Revision AS "Revision"
+        	, B.FormName AS "FormName"
+        	, B.FormPrefix AS "FormPrefix"
+        	, B.FormDesc AS "FormDesc"
+        	, B.FileName AS "FileName"
+        	, B.BodyDefault AS "WORK_DESC"
+        	, A.SortKey AS "SortKey"
+        	, B.SortKey AS "SortKey2"
+		FROM
+			JWF_Formclass A,
+			JWF_Forms B
+		WHERE  A.FormClassID = B.FormClassID 
+		AND    B.IsUse = 'Y' 
+		<if test='FormClassID != null and FormClassID != ""'>
+			AND A.FormClassID = #{FormClassID}
+		</if>
+        AND 
+			(
+				(
+					B.AclAllYN = 'Y'
+					<if test='isSaaS == "Y"'>
+					AND	B.CompanyCode IN ('ORGROOT', #{entCode})
+					</if>
+				)
+				OR exists 
+				( 
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = B.FormID and jfa.ObjectType = 'FORM'
+					and 
+					(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+					)
+				)
+			)
+		AND 
+			(
+				(A.AclAllYN = 'Y' and A.EntCode in ('ORGROOT', #{entCode}))
+				OR exists 
+				( 
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = A.FormClassID and jfa.ObjectType = 'CLASS'					
+					and 
+					(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+					)
+				)
+			)
+		<!-- 하위부서 포함하지 않고 권한 체크. 향후에 하위부서 포함이 필요할 경우 수정 --> 
+		ORDER BY A.SortKey, B.FormName
+	</select>
+
+        <!-- 양식 조회 -->
+    <select id="selectClassificationListData" parameterType="cmap" resultType="cmap">
+        SELECT A.FormClassID AS "FormClassID"      -- 양식 분류 ID
+        	, A.FormClassName AS "FormClassName"   -- 양식 분류명
+        FROM JWF_FormClass A 
+        WHERE 
+			(
+				(A.AclAllYN = 'Y' and A.EntCode in ('ORGROOT', #{entCode}))
+				OR exists 
+				( 
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = A.FormClassID and jfa.ObjectType = 'CLASS'
+					and 
+					(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+					)
+				)
+			)
+		    AND (SELECT COUNT(*) 
+        			FROM JWF_Forms B
+        			WHERE A.FormClassID = B.FormClassID 
+        			AND B.IsUse = 'Y'
+        			AND 
+					(
+						(
+							B.AclAllYN = 'Y'
+							<if test='isSaaS == "Y"'>
+							AND	B.CompanyCode IN ('ORGROOT', #{entCode})
+							</if>
+						)
+						OR exists 
+						( 
+							select 1 from jwf_forms_acl jfa 
+							where jfa.TargetID = B.FormID and jfa.ObjectType = 'FORM'
+							and 
+							(
+							jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+							or
+							jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+							)
+						)
+					)
+        		) > 0
+		ORDER BY A.SortKey
+	</select>
+	
+    <!-- 양식 목록 조회 -->
+    <select id="selectFormListData" parameterType="cmap" resultType="cmap">
+		SELECT ROWNUM AS "RowNumber"
+		   , B.FormID AS "FormID"
+		   , B.FormName AS "FormName"
+		   , NVL(B.FormDesc, ' ') AS "FormDesc"   -- 양식설명
+		   , B.FormPrefix AS "FormPrefix"
+		   , B.ExtInfo AS "ExtInfo"
+		   <if test='userCode != null and userCode != ""'>
+		   , CASE WHEN (SELECT Count(*) FROM JWF_UserForms WHERE UserCode = #{userCode} AND FormID = B.FormID) > 0 THEN 'Y' ELSE 'N' END AS "Favorite" -- 즐겨찾기여부
+		   </if>
+		FROM JWF_FormClass A
+		INNER JOIN JWF_Forms B ON A.FormClassID = B.FormClassID
+		WHERE B.IsUse = 'Y'
+		<if test='FormClassID != null and FormClassID != ""'>
+		   AND A.FormClassID = #{FormClassID}
+		 </if>
+		<if test='FormName != null and FormName != ""'>
+		   AND B.FormName LIKE '%' || #{FormName} || '%'
+		</if>	
+		<!-- 하위부서 포함하지 않고 권한 체크. 향후에 하위부서 포함이 필요할 경우 수정 -->	
+        AND 
+			(
+				(
+					B.AclAllYN = 'Y'
+					<if test='isSaaS == "Y"'>
+					AND	B.CompanyCode IN ( 'ORGROOT',  #{entCode} )
+					</if>
+				)
+				OR exists 
+				( 
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = B.FormID and jfa.ObjectType = 'FORM'
+					and 
+					(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+					)
+				)
+			)
+		AND 
+			(
+				(A.AclAllYN = 'Y' and A.EntCode in ('ORGROOT', #{entCode}))
+				OR exists 
+				( 
+					select 1 from jwf_forms_acl jfa 
+					where jfa.TargetID = A.FormClassID and jfa.ObjectType = 'CLASS'
+					and 
+					(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+					)
+				)
+			)		
+		ORDER BY B.SortKey ASC
+	</select>
+	
+    <!-- 최근 사용 양식 조회 -->
+    <select id="selectLastestUsedFormListData" parameterType="cmap" resultType="cmap">
+    		SELECT * FROM (
+	    		SELECT B.FormID AS "FormID"
+					, MAX(B.FormName) AS "LabelText"
+					, MAX(B.FormPrefix) AS "FormPrefix"
+					, MAX(A.StartDate) AS "InitiatedDate"
+				FROM JWf_Process A
+				INNER JOIN JWF_ProcessDescription B ON A.ProcessDescriptionID = B.ProcessDescriptionID
+				INNER JOIN JWF_Forms C ON B.FormID = C.FormID
+				INNER JOIN JWF_Formclass D ON C.FormClassID = D.FormClassID
+				WHERE A.InitiatorID = #{userCode}
+				AND A.ParentProcessID = 0
+				AND C.IsUse = 'Y'
+				AND (B.BusinessData1 IS NULL OR B.BusinessData1 IN ('', 'APPROVAL') )
+				AND 
+					(
+						(
+							C.AclAllYN = 'Y'
+							<if test='isSaaS == "Y"'>
+							AND	C.CompanyCode IN ('ORGROOT', #{entCode})
+							</if>
+						)
+						OR exists 
+						( 
+							select 1 from jwf_forms_acl jfa 
+							where jfa.TargetID = C.FormID and jfa.ObjectType = 'FORM'
+							and 
+							(
+							jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+							or
+							jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+							)
+						)
+					)
+				AND 
+					(
+						(D.AclAllYN = 'Y' and D.EntCode in ('ORGROOT', #{entCode}))
+						OR exists 
+						( 
+							select 1 from jwf_forms_acl jfa 
+							where jfa.TargetID = D.FormClassID and jfa.ObjectType = 'CLASS'
+							and 
+							(
+								jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+								or
+								jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+							)
+						)
+					)
+				GROUP BY B.FormID
+				ORDER BY "InitiatedDate" DESC
+			) A
+       		WHERE ROWNUM <![CDATA[<=]]> 4   		
+    </select>
+    
+        <!-- 즐겨찾기 양식 조회 -->
+    <select id="selectFavoriteUsedFormListData" parameterType="cmap" resultType="cmap">
+        SELECT A.FormID AS "FormID"
+	    	, A.FormName AS "LabelText"
+	    	, A.FormPrefix AS "FormPrefix"
+		FROM JWF_Forms A
+		INNER JOIN JWF_Formclass B ON A.FormClassID = B.FormClassID
+		INNER JOIN JWF_UserForms C ON A.formID = C.FormID
+		WHERE C.UserCode = #{userCode}
+		AND  A.IsUse = 'Y'
+		AND 
+		(
+			(
+				A.AclAllYN = 'Y'
+				<if test='isSaaS == "Y"'>
+				AND	A.CompanyCode IN ('ORGROOT', #{entCode})
+				</if>
+			)
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = A.FormID and jfa.ObjectType = 'FORM'
+				and 
+				(
+				jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+				or
+				jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		AND 
+		(
+			(B.AclAllYN = 'Y' and B.EntCode in ('ORGROOT', #{entCode}))
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = B.FormClassID and jfa.ObjectType = 'CLASS'
+				and 
+				(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		ORDER BY C.CreateDate DESC
+	</select>
+
+	<!-- [결재홈] 즐겨찾기 양식목록 , 별도 Sort -->
+    <select id="getHomeFavoriteFormListData" parameterType="cmap" resultType="cmap">
+		SELECT A.FormID AS "FormID"
+	    	, A.FormName AS "FormName"
+	    	, A.FormPrefix AS "FormPrefix"
+	    	, A.FormDesc AS "FormDesc"
+	    	, B.FormClassName AS "FormClassName"
+	    	, A.FormIcon AS "FormIcon"
+		FROM JWF_Forms A
+		INNER JOIN JWF_Formclass B ON A.FormClassID = B.FormClassID
+		INNER JOIN JWF_UserForms C ON A.formID = C.FormID
+		WHERE C.UserCode = #{userCode}
+		AND  A.IsUse = 'Y'
+		AND 
+		(
+			(
+				A.AclAllYN = 'Y'
+				<if test='isSaaS == "Y"'>
+				AND	A.CompanyCode IN ('ORGROOT', #{entCode})
+				</if>
+			)
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = A.FormID and jfa.ObjectType = 'FORM'
+				and 
+				(
+				jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+				or
+				jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		AND 
+		(
+			(B.AclAllYN = 'Y' and B.EntCode in ('ORGROOT', #{entCode}))
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = B.FormClassID and jfa.ObjectType = 'CLASS'
+				and 
+				(
+					jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+					or
+					jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+				)
+			)
+		)
+		ORDER BY C.SortKey, A.FormName
+	</select>
+	
+    <!-- 즐겨찾기 양식 추가 -->
+    <insert id="insertFavoriteUsedFormListData" parameterType="cmap">
+	    <![CDATA[
+		INSERT INTO JWF_UserForms(			
+			UserCode
+			,FormID
+			,CreateDate
+		)
+		VALUES
+		(
+			#{userCode}
+			,#{formID}
+			,SYSDATE
+		)
+		]]>
+	</insert>
+	
+    <!-- 즐겨찾기 양식 삭제 -->
+    <delete id="deleteFavoriteUsedFormListData" parameterType="cmap">
+	    <![CDATA[
+		DELETE FROM JWF_UserForms		
+		WHERE  UserCode = #{userCode}	
+		AND FormID = #{formID}
+		]]>
+	</delete>
+	
+     <!-- 최근기안(반려,완료) 조회 -->
+    <select id="selectCompleteAndRejectListData" parameterType="cmap" resultType="cmap">
+        SELECT
+        	ProcessArchiveID AS "ProcessArchiveID"
+			, PerformerID AS "PerformerID"
+			, WorkitemArchiveID AS "WorkitemArchiveID"
+			, FormPrefix AS "FormPrefix"
+			, InitiatorID AS "InitiatorID"
+			, InitiatorName AS "InitiatorName"
+			, InitiatorUnitID AS "InitiatorUnitID"
+			, InitiatorUnitName AS "InitiatorUnitName"
+			, UserCode AS "UserCode"
+			, UserName AS "UserName"
+			, SubKind AS "SubKind"
+			, FormSubKind AS "FormSubKind"
+			, ProcessDescriptionArchiveID AS "ProcessDescriptionArchiveID"
+			, FormInstID AS "FormInstID"
+			, FormID AS "FormID"
+			, FormName AS "FormName"
+			, FormSubject AS "FormSubject"
+			, IsSecureDoc AS "IsSecureDoc"
+			, IsFile AS "IsFile"
+			, FileExt AS "FileExt"
+			, IsComment AS "IsComment"
+			, DocNo AS "DocNo"
+			, ApproverCode AS "ApproverCode"
+			, ApproverName AS "ApproverName"
+			, ApprovalStep AS "ApprovalStep"
+			, ApproverSIPAddress AS "ApproverSIPAddress"
+			, IsReserved AS "IsReserved"
+			, ReservedGubun AS "ReservedGubun"
+			, ReservedTime AS "ReservedTime"
+			, Priority AS "Priority"
+			, IsModify AS "IsModify"
+			, Reserved1 AS "Reserved1"
+			, Reserved2 AS "Reserved2"
+			, EndDate AS "EndDate"
+			, RealEndDate AS "RealEndDate"
+			, TYPE AS "TYPE"
+        FROM (
+			SELECT B.ProcessID AS ProcessArchiveID
+				, A.PerformerID
+				, A.WorkitemID AS WorkitemArchiveID
+				, B.InitiatorID
+				, B.InitiatorName
+				, B.InitiatorUnitID
+				, B.InitiatorUnitName
+				, A.UserCode
+				, A.UserName
+				, A.SubKind
+				, A.SubKind AS FormSubKind
+				, C.*
+				, C.ProcessDescriptionID AS ProcessDescriptionArchiveID
+				, B.EndDate AS EndDate
+				, B.EndDate AS RealEndDate
+				, CASE A.PIBusinessState WHEN '02_01' THEN 'Complete' ELSE 'Reject' END AS TYPE
+			FROM JWF_Workitem A
+			INNER JOIN JWF_Process  B ON B.ProcessID = A.ProcessID
+			INNER JOIN JWF_ProcessDescription C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+			INNER JOIN JWF_Forms D ON C.FormID = D.FormID
+			INNER JOIN JWF_Formclass E ON E.FormClassID = D.FormClassID
+			WHERE A.UserCode = #{userCode}
+			AND A.SubKind = 'T006'
+			AND B.InitiatorID = #{userCode}
+			AND A.Deleted IS NULL
+			AND D.isUse = 'Y'
+			AND 
+			(
+			A.PIBusinessState = '02_01' AND (A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021'))
+			OR 
+			A.PIBusinessState = '02_02' AND (A.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T109','T020','T021'))
+			)
+			AND A.PIDeleted IS NULL
+			AND B.ProcessState = 528
+			AND 
+				(
+					(
+						D.AclAllYN = 'Y'
+						<if test='isSaaS == "Y"'>
+						AND	D.CompanyCode IN ('ORGROOT', #{entCode})
+						</if>
+					)
+					OR exists 
+					( 
+						select 1 from jwf_forms_acl jfa 
+						where jfa.TargetID = D.FormID and jfa.ObjectType = 'FORM'
+						and 
+						(
+						jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+						or
+						jfa.GroupType = 'Dept' and jfa.GroupCode = #{deptCode}
+						)
+					)
+				)
+			AND 
+				(
+					(E.AclAllYN = 'Y' and E.EntCode in ('ORGROOT', #{entCode}))
+					OR exists 
+					( 
+						select 1 from jwf_forms_acl jfa 
+						where jfa.TargetID = E.FormClassID and jfa.ObjectType = 'CLASS'
+						and 
+						(
+							jfa.GroupType = 'Company' and jfa.CompanyCode = #{entCode}
+							or
+							jfa.GroupType = 'Dept' and jfa.GroupCode  = #{deptCode}
+						)
+					)
+				)					
+	 		AND (C.BusinessData1 IS NULL OR C.BusinessData1 IN ('', 'APPROVAL') )
+			ORDER BY RealEndDate DESC
+		) A
+		WHERE ROWNUM <![CDATA[<=]]> 3		
+    </select>
+    
+    
+    
+    <select id="selectNotDocReadCnt" resultType="java.lang.Long">
+		SELECT COUNT(DISTINCT R.FormInstID)
+		FROM jwf_docreadhistory R 
+		INNER JOIN jwf_forminstance FI ON R.FormInstID = FI.FormInstID
+		WHERE AdminYN = 'N'
+		AND R.FormInstID IN
+		<foreach collection="FormInstID" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</select>
+    
+	<select id="selectFavoriteAuth" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM JWF_UserForms
+		WHERE USERCODE  = #{userID}
+		AND FORMID = #{formID}
+	</select>
+	
+    <!-- 즐겨찾기 양식 순서설정 -->
+    <update id="updateFavoriteUsedFormSort" parameterType="cmap">
+		<foreach collection="sortList" item="map" index="index" open="begin" close=";end;" separator=";">
+			UPDATE JWF_UserForms
+			SET SortKey = #{map.SortKey}
+			WHERE UserCode = #{UserCode}
+			AND FormID = #{map.FormID}
+		</foreach>
+	</update>
+</mapper>
+

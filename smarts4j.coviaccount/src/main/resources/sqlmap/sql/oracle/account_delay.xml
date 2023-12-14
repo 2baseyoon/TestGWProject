@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.delay">
+	<select id="getSendFlag"  parameterType="cmap" resultType="cmap">
+		SELECT 
+			*
+		FROM (
+			SELECT 
+				TO_CHAR(TO_DATE(DL.DeadlineFinishDate), 'YYYY.MM.DD') AS "DeadlineFinishDate",
+				CASE 
+					WHEN TRUNC(SYSDATE) BETWEEN TO_DATE(DL.DeadlineFinishDate) + #{accountDelayTerm} AND TO_DATE(DL.DeadlineFinishDate) THEN 'Y' 
+					ELSE 'N' 
+				END AS "SendFlag",
+				TO_CHAR(ADD_MONTHS(TO_DATE(DL.DeadlineFinishDate), -1), 'YYYY-MM-DD') AS "StartDate"
+			FROM
+				act_deadline DL
+    		WHERE DL.CompanyCode = #{companyCode}
+			ORDER BY 
+				DL.DeadlineID DESC
+		)
+		WHERE 
+			ROWNUM = 1
+	</select>
+	
+	<select id="getCardReceiptDelayList"  parameterType="cmap" resultType="cmap">
+	/*
+		account.delay.getCardReceiptDelayList
+	*/
+		SELECT	
+			ACR.ReceiptID AS "ReceiptID",
+			ACR.CardUserCode AS "CardUserCode",	
+			CASE
+				WHEN ACR.InfoIndex = 'A' THEN CASE WHEN NVL(NULLIF(ACR.ApproveDate,''), 'NODATA') = 'NODATA' THEN '' ELSE TO_CHAR(TO_DATE(ACR.ApproveDate), 'YYYY.MM.DD') END
+				ELSE CASE WHEN NVL(NULLIF(ACR.UseDate, ''), 'NODATA') = 'NODATA' THEN '' ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD') END
+			END	AS "ApproveDate",
+			TO_CHAR(TO_TIMESTAMP(ACR.ApproveTime, 'HH24:MI:SS'), 'HH24:MI:SS') AS "ApproveTime",
+			CASE
+				WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0 THEN TO_CHAR((ACR.AmountWon * -1), 'FM999,999,999')
+				ELSE TO_CHAR(ACR.AmountWon, 'FM999,999,999')
+			END	AS "AmountWon",	
+			ACR.StoreName AS "StoreName",	
+			ACR.Active AS "Active"
+		FROM	
+			act_card_receipt ACR
+		JOIN	
+			act_corp_card	ACC		
+		ON	
+			ACR.CardNo = ACC.CardNo
+		WHERE
+	    	<choose>
+	    		<!-- 선택 미상신 알림전송 -->
+	            <when test='SendAlamList != null and SendAlamList != ""'>
+	                ACR.ReceiptID IN 
+	                <foreach collection="SendAlamList" item="item" index="index" separator="," open="(" close=")">
+	                    #{item}
+	                </foreach>
+	            </when>
+	            <!-- 전체 미상신 알림전송 -->
+	            <otherwise>
+					<choose>
+						<when test='accountDelayEndLast == "Y"'>
+							((ACR.InfoIndex = 'A' AND ACR.ApproveDate BETWEEN TO_CHAR(TO_DATE(#{accountDelayStartDay}), 'YYYYMMDD') AND TO_CHAR(LAST_DAY(TO_DATE(#{accountDelayStartDay})), 'YYYYMMDD'))
+							OR (ACR.InfoIndex != 'A' AND ACR.UseDate BETWEEN  TO_CHAR(TO_DATE(#{accountDelayStartDay}),'YYYYMMDD') AND  TO_CHAR(LAST_DAY(TO_DATE(#{accountDelayStartDay})),'YYYYMMDD')))
+						</when>
+						<otherwise>
+							((ACR.InfoIndex = 'A' AND ACR.ApproveDate BETWEEN TO_CHAR(TO_DATE(#{accountDelayStartDay}), 'YYYYMMDD') AND TO_CHAR(TO_DATE(#{accountDelayEndDay}), 'YYYYMMDD'))
+							OR (ACR.InfoIndex != 'A' AND ACR.UseDate BETWEEN  TO_CHAR(TO_DATE(#{accountDelayStartDay}), 'YYYYMMDD') AND  TO_CHAR(TO_DATE(#{accountDelayEndDay}), 'YYYYMMDD')))
+						</otherwise>
+					</choose>
+	            </otherwise>
+	        </choose>
+			<if test='companyCode != null and companyCode != ""'>
+				AND	ACC.CompanyCode = #{companyCode}
+			</if>
+			AND	ACR.Active = 'N'
+		ORDER BY 
+			ACR.CardUserCode
+   	</select>
+	
+	<select id="getTaxInvoiceDelayList"  parameterType="cmap" resultType="cmap">
+	/*
+		account.delay.getTaxInvoiceDelayList
+	*/
+		SELECT	
+			ACI.TaxInvoiceID AS "TaxInvoiceID",
+			TO_CHAR(TO_DATE(ACI.WriteDate),'YYYY.MM.DD') AS "WriteDate",
+			ACI.InvoicerCorpName AS "InvoicerCorpName",	
+			ACI.InvoicerContactName AS "InvoicerContactName",	
+			ACI.InvoiceeEmail1 AS "InvoiceeEmail1",  
+			BASE.DisplayName AS "DisplayName",  
+			ACM.ManagerUserCode AS "ManagerUserCode",	
+			TO_CHAR(ACI.TotalAmount, 'FM999,999,999') AS "TotalAmount",
+			ITEM.ItemName AS "ItemName"
+		FROM	
+			act_taxinvoice ACI
+		INNER JOIN 
+			act_taxinvoice_item ITEM ON ACI.TaxInvoiceID = ITEM.TaxInvoiceID
+		INNER JOIN       
+			act_manager ACM ON ACI.InvoiceeEmail1 = acm.TaxMailAddress
+		LEFT OUTER JOIN  
+			sys_object_user BASE ON ACM.ManagerUserCode = BASE.UserCode
+		LEFT OUTER JOIN	     
+			act_expence_application_list	AEAL ON ACI.TaxInvoiceID = AEAL.TaxUID  
+		LEFT OUTER JOIN  
+			act_expence_application AEA ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		WHERE
+			1 = 1
+			AND ACI.WriteDate BETWEEN REPLACE(#{accountDelayStartDay}, '-', '') AND REPLACE(#{accountDelayEndDay}, '-', '')
+			<if test='companyCode != null and companyCode != ""'>
+				 AND ACI.CompanyCode = #{companyCode}
+			</if>
+			<!-- 선택 미상신 알림전송 -->
+			<if test='SendAlamList != null and SendAlamList != ""'>
+				AND ACI.TaxInvoiceID IN 
+				<foreach collection="SendAlamList" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+			</if>
+			<!-- 대상선택(담당자) -->
+			<if test='DelayManagerList != null and DelayManagerList != ""'>
+				AND ACM.ManagerUserCode IN 
+				<foreach collection="DelayManagerList" item="item" index="index" separator="," open="(" close=")">
+					#{item}
+				</foreach>
+			</if>
+			AND	ACI.DataIndex	= 'BUY'
+			AND ( CASE	
+					WHEN ACI.IsOffset = 'Y' THEN 'Y'
+				    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+				    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+				    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+			        ELSE 'R' 
+				  END ) = 'N'
+			AND	(AEA.ApplicationStatus IS NULL OR AEA.ApplicationStatus in ('R', 'C', 'DELETE'))
+		ORDER BY 
+			ACM.ManagerUserCode
+   	</select>
+   	
+   	<select id="selectCorpCardDelayList"  parameterType="cmap" resultType="cmap">
+	   	SELECT 
+	   		*
+		FROM 
+			act_card_receipt ACR
+		WHERE 
+			1 = 1 
+			AND Active = 'N'
+			AND CardNo = #{CardNo}
+		<if test ="approveDateS != null and approveDateS !=''">
+			AND	CASE
+					WHEN ACR.InfoIndex = 'A THEN ACR.ApproveDate
+					ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+			AND	CASE 
+					WHEN ACR.InfoIndex = 'A' THEN ACR.ApproveDate
+					ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+   	</select>
+   	
+ 	<select id="selectCorpCardDelayReturnList"  parameterType="cmap" resultType="cmap">
+	    SELECT count(ReleaseUserCode) as 'Cnt', ReleaseUserCode, ACR.CardNo, ReleaseDate, ReturnDate
+		FROM act_card_receipt as ACR
+		INNER JOIN act_corp_card_return as ACCR 
+		ON ACR.CardNo = ACCR.CardNo
+		WHERE 1=1
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if> 		
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		AND ACCR.ReleaseDate <![CDATA[<]]> ACR.UseDate 
+		AND ACCR.ReturnDate <![CDATA[>]]> ACR.UseDate
+		GROUP BY OwnerUserCode, ACR.CardNo, ReleaseDate, ReturnDate
+
+   	</select>
+   	
+   	<select id="selectCorpCardDelayReturnAllList"  parameterType="cmap" resultType="cmap">
+	    SELECT *
+		FROM (	
+			SELECT count(ReleaseUserCode) as 'Cnt', ReleaseUserCode, ACR.CardNo, ReleaseDate, ReturnDate
+			FROM act_card_receipt AS ACR
+			INNER JOIN act_corp_card_return AS ACCR
+			ON ACR.CardNo = ACCR.CardNo
+			WHERE 1=1
+			GROUP BY OwnerUserCode, ACR.CardNo, ReleaseDate, ReturnDate
+		) AS ReturnCard
+		INNER JOIN act_card_receipt AS ACRR
+		ON ReturnCard.CardNo = ACRR.CardNo
+		WHERE 1=1
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if> 		
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		AND ReturnCard.ReleaseDate <![CDATA[<]]> ACRR.UseDate 
+		AND ReturnCard.ReturnDate <![CDATA[>]]> ACRR.UseDate
+
+   	</select>
+   	
+   	<select id="selectTaxDelayList"  parameterType="cmap" resultType="cmap">
+	   	SELECT	  
+			  ACI.TaxInvoiceID
+			, ACI.CONVERSATION_ID
+			, ACI.InvoicerCorpName
+			, ACI.TotalAmount
+			, TO_CHAR(TO_DATE(ACI.WriteDate),'YYYY.MM.DD') AS WriteDate
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "invoice"'>
+			, ACI.InvoiceeContactName1 AS ReceiversName
+			, ACI.InvoiceeEmail1 AS ReceiversCode
+		</if>	
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "tossuser"'>
+			, USR.DisplayName AS ReceiversName
+			, USR.UserCode AS ReceiversCode
+		</if>	
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "manager"'>
+			, MAGR.DisplayName AS ReceiversName
+			, MAGR.UserCode AS ReceiversCode
+		</if>	
+
+		FROM act_taxinvoice ACI
+		
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "tossuser"'>
+		JOIN sys_object_user USR 
+		  ON ACI.TossUserCode	= USR.UserCode
+		</if> 
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "manager"'>
+		LEFT OUTER JOIN (
+			  SELECT 
+		  		   A.TaxMailAddress
+				 , UR.DisplayName
+				 , UR.MailAddress
+				 , UR.UserCode
+		 	  FROM act_manager A
+			  LEFT OUTER JOIN sys_object_user UR
+		        ON A.ManagerUserCode = UR.UserCode
+			  UNION
+			  SELECT 
+			       SOU.MailAddress
+			  	 , SOU.DisplayName
+			  	 , SOU.MailAddress
+			  	 , SOU.UserCode
+				FROM sys_object_user SOU
+				WHERE NVL(SOU.MailAddress,'') != ''
+		) MAGR
+		ON ACI.InvoiceeEmail1 = MAGR.TaxMailAddress
+		</if> 
+
+		WHERE 
+			<choose>
+                <when test="taxinvoiceID != null">
+					<foreach collection="taxinvoiceID" item="item" index="index" separator="," open="ACI.TaxInvoiceID IN (" close=")">
+						#{item}
+					</foreach>
+                </when>
+                <otherwise>
+            		1=2
+                </otherwise>
+            </choose> 
+		 ORDER BY 
+		
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "invoice"'>
+			ACI.InvoiceeEmail1
+		</if>
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "tossuser"'>
+			USR.UserCode
+		</if>
+		<if test='sendMailType != null and sendMailType != "" and sendMailType == "manager"'>
+			MAGR.UserCode
+		</if>
+   	</select>
+   	
+</mapper>
+

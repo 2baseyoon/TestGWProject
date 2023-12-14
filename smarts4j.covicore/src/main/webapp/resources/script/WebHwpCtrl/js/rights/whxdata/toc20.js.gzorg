@@ -1,0 +1,1 @@
+gXMLBuffer ="<?xml version=\"1.0\" encoding=\"utf-8\" ?><data  src=\"toc16.js\"  name=\"블록 계산식\" url=\"table/blockcal/blockcal.htm\"><item name=\"블록 합계\" url=\"table/blockcal/blockcal(sum).htm\" /><item name=\"블록 평균\" url=\"table/blockcal/blockcal(avg).htm\" /><item name=\"블록 곱\" url=\"table/blockcal/blockcal(product).htm\" /></data>";

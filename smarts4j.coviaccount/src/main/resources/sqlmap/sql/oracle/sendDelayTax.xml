@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.senddelaytax">
+
+	<select id="getSendDelayTaxList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 
+			TaxInvoiceID AS "TaxInvoiceID",
+			MAX(WriteDate) AS "WriteDate",
+			MAX(NTSConfirmNum) AS "NTSConfirmNum",
+			MAX(CONVERSATION_ID) AS "CONVERSATION_ID",
+			MAX(InvoicerCorpName) AS "InvoicerCorpName",
+			MAX(InvoicerCorpNum) AS "InvoicerCorpNum",
+			MAX(InvoiceeContactName1) AS "InvoiceeContactName1",
+			MAX(InvoiceeEmail1) AS "InvoiceeEmail1",
+			MAX(InvoiceEmail2) AS "InvoiceEmail2",
+			MAX(TossUserCode) AS "TossUserCode",
+			MAX(TossUserName) AS "TossUserName",
+			MAX(TossUserMail) AS "TossUserMail",
+			MAX(ManagerMail) AS "ManagerMail",
+			MAX(ManagerName) AS "ManagerName",  
+			MAX(ManagerMailGP) AS "ManagerMailGP",
+			CASE 
+				WHEN MAX(InvoiceeContactName1) = '' OR MAX(InvoiceeContactName1) IS NULL THEN ''
+				ELSE CASE
+						WHEN MAX(InvoiceEmail2) = '' OR MAX(InvoiceEmail2) IS NULL
+						THEN MAX(InvoiceeContactName1 || '(' || InvoiceeEmail1 || ')') 
+						ELSE MAX(InvoiceeContactName1 || '(' || InvoiceeEmail1 || '/' || InvoiceEmail2 || ')') 
+					END
+			END AS "InvoiceInfo", 
+			CASE
+				WHEN MAX(TossUserName) = '' OR MAX(TossUserName) IS NULL THEN ''
+				ELSE MAX(TossUserName || '(' || TossUserMail || ')') 
+			END AS "TossUserInfo", 
+			LISTAGG(ManagerMailGP, ',') WITHIN GROUP(ORDER BY ManagerMailGP) AS "ManagerInfo"
+		FROM (
+			SELECT	
+				ACI.TaxInvoiceID AS TaxInvoiceID,
+				TO_CHAR(TO_DATE(ACI.WriteDate), 'YYYY.MM.DD') AS WriteDate, 
+				ACI.NTSConfirmNum AS NTSConfirmNum,
+				ACI.CONVERSATION_ID AS CONVERSATION_ID,
+				ACI.InvoicerCorpName AS InvoicerCorpName,
+				ACI.InvoicerCorpNum AS InvoicerCorpNum,
+				ACI.InvoiceeContactName1 AS InvoiceeContactName1,
+				ACI.InvoiceeEmail1 AS InvoiceeEmail1,
+				REPLACE(ACI.InvoiceEmail2,' ','') AS InvoiceEmail2,
+				ACI.TossUserCode AS TossUserCode,
+				USR.DisplayName AS TossUserName,
+				USR.MailAddress AS TossUserMail,
+				MAR.MailAddress AS ManagerMail,
+				MAR.DisplayName AS ManagerName,  
+				CASE 
+					WHEN MAR.DisplayName = '' OR MAR.DisplayName IS NULL THEN ''
+					ELSE MAR.DisplayName || '(' || MAR.MailAddress || ')' 
+				END AS ManagerMailGP
+			FROM 
+				act_taxinvoice ACI
+			LEFT OUTER JOIN (
+				SELECT 
+					MA.TaxMailAddress, 
+					MA.ManagerUserCode, 
+					UR.DisplayName, 
+					UR.MailAddress 
+				FROM 
+					act_manager MA 
+				LEFT OUTER JOIN 
+					sys_object_user UR 
+				ON 
+					MA.ManagerUserCode = UR.UserCode  
+				UNION
+				SELECT 
+					MailAddress, 
+					UserCode, 
+					DisplayName,
+					MailAddress 
+				FROM 
+					sys_object_user
+				WHERE 
+					NVL(MailAddress, '') != '' 
+			) MAR
+			ON 
+				(
+				ACI.InvoiceeEmail1 = MAR.TaxMailAddress OR
+				ACI.InvoiceEmail2  = MAR.TaxMailAddress
+				)
+			LEFT OUTER JOIN
+				sys_object_user USR
+			ON 
+				ACI.TossUserCode = USR.UserCode
+			WHERE 
+				1 = 1
+				AND	ACI.DataIndex = 'BUY'
+				AND	(
+					CASE	
+						WHEN ACI.IsOffset = 'Y' THEN 'Y'
+					    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+					    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+					    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+				        ELSE 'R' 
+				    END
+				) = 'N'
+				<if test ="companyCode != null and companyCode !=''">
+					AND	ACI.CompanyCode	= #{companyCode}
+				</if>
+				<choose>
+					<when test="searchStr != null and searchStr !=''">
+						<choose>
+						    <when test="searchType == null or searchType ==''">
+							AND	(
+								ACI.InvoicerCorpName	 LIKE '%' || #{searchStr} || '%'	OR 
+								ACI.InvoiceeContactName1 LIKE '%' || #{searchStr} || '%'	OR
+								ACI.InvoicerCorpNum		 LIKE '%' || #{searchStr} || '%'	OR
+								ACI.NTSConfirmNum		 LIKE '%' || #{searchStr} || '%'	OR
+								ACI.InvoiceeEmail1		 LIKE '%' || #{searchStr} || '%'	OR
+								ACI.InvoiceEmail2		 LIKE '%' || #{searchStr} || '%'	OR
+								MAR.MailAddress			 LIKE '%' || #{searchStr} || '%'	OR
+								MAR.DisplayName			 LIKE '%' || #{searchStr} || '%'	OR
+								USR.MailAddress		 	 LIKE '%' || #{searchStr} || '%'	OR
+								USR.DisplayName		 	 LIKE '%' || #{searchStr} || '%'
+							)
+							</when>
+							<when test="searchType == 'InvoicerCorpName'.toString()">
+								AND	ACI.InvoicerCorpName LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'InvoiceeContactName1'.toString()">
+								AND	ACI.InvoiceeContactName1	LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'InvoicerCorpNum'.toString()">
+								AND	ACI.InvoicerCorpNum	LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'NTSConfirmNum'.toString()">
+								AND	ACI.NTSConfirmNum LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'InvoiceeEmail1'.toString()">
+								AND	(
+									ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%' OR
+									ACI.InvoiceEmail2  LIKE '%' || #{searchStr} || '%'
+									)
+							</when>
+							<when test="searchType == 'InvoiceManager'.toString()">
+								AND	MAR.DisplayName	LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'InvoiceManagerMail'.toString()">
+								AND	MAR.MailAddress	LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'TossUser'.toString()">
+								AND	USR.DisplayName	LIKE '%' || #{searchStr} || '%'
+							</when>
+							<when test="searchType == 'TossUserMail'.toString()">
+								AND	USR.MailAddress	LIKE '%' || #{searchStr} || '%'
+							</when>
+						</choose>
+					</when>
+				</choose>
+				<if test ="writeDateS != null and writeDateS !=''">
+					AND	ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+				</if>
+				<if test ="writeDateE != null and writeDateE !=''">
+					AND	ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+				</if>
+		) TAXLIST
+		GROUP BY 
+			TaxInvoiceID
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, TaxInvoiceID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>"InvoicerCorpName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>"InvoicerCorpNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>"NTSConfirmNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("WriteDate")'>"WriteDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoiceInfo")'>"InvoiceInfo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ManagerInfo")'>"ManagerInfo"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserInfo")'>"TossUserInfo"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getSendDelayTaxListCnt" resultType="java.lang.Long">
+		SELECT 
+			COUNT(TaxInvoiceID) AS CNT
+		FROM (
+			SELECT 
+				TAXLIST.TaxInvoiceID
+			FROM (
+				SELECT	
+					ACI.TaxInvoiceID
+				FROM 
+					act_taxinvoice ACI
+				LEFT OUTER JOIN (
+					SELECT 
+						MA.TaxMailAddress, 
+						MA.ManagerUserCode, 
+						UR.DisplayName, 
+						UR.MailAddress 
+					FROM 
+						act_manager MA 
+					LEFT OUTER JOIN 
+						sys_object_user UR 
+					ON 
+						MA.ManagerUserCode = UR.UserCode  
+					UNION
+					SELECT 
+						MailAddress, 
+						UserCode, 
+						DisplayName,
+						MailAddress 
+					FROM 
+						sys_object_user
+					WHERE 
+						NVL(MailAddress, '') != '' 
+				) MAR
+				ON (
+					ACI.InvoiceeEmail1 = MAR.TaxMailAddress OR
+					ACI.InvoiceEmail2 = MAR.TaxMailAddress
+					)
+				LEFT OUTER JOIN
+					sys_object_user USR
+				ON 
+					ACI.TossUserCode = USR.UserCode
+				WHERE 
+					1 = 1
+					AND	ACI.DataIndex = 'BUY'
+					AND	(
+						CASE	
+							WHEN ACI.IsOffset = 'Y' THEN 'Y'
+						    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+						    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+						    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+					        ELSE 'R' 
+					    END
+					) = 'N'
+					<if test ="companyCode != null and companyCode !=''">
+						AND	ACI.CompanyCode	= #{companyCode}
+					</if>
+					<choose>
+						<when test="searchStr != null and searchStr !=''">
+							<choose>
+							    <when test="searchType == null or searchType ==''">
+								AND	(
+									ACI.InvoicerCorpName	 LIKE '%' || #{searchStr} || '%'	OR
+									ACI.InvoiceeContactName1 LIKE '%' || #{searchStr} || '%'	OR
+									ACI.InvoicerCorpNum		 LIKE '%' || #{searchStr} || '%'	OR
+									ACI.NTSConfirmNum		 LIKE '%' || #{searchStr} || '%'	OR
+									ACI.InvoiceeEmail1		 LIKE '%' || #{searchStr} || '%'	OR
+									ACI.InvoiceEmail2		 LIKE '%' || #{searchStr} || '%'	OR
+									MAR.MailAddress			 LIKE '%' || #{searchStr} || '%'	OR
+									MAR.DisplayName			 LIKE '%' || #{searchStr} || '%'	OR
+									USR.MailAddress		 	 LIKE '%' || #{searchStr} || '%'	OR
+									USR.DisplayName		 	 LIKE '%' || #{searchStr} || '%'
+								)
+								</when>
+								<when test="searchType == 'InvoicerCorpName'.toString()">
+									AND	ACI.InvoicerCorpName LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoiceeContactName1'.toString()">
+									AND	ACI.InvoiceeContactName1	LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoicerCorpNum'.toString()">
+									AND	ACI.InvoicerCorpNum	LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'NTSConfirmNum'.toString()">
+									AND	ACI.NTSConfirmNum LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoiceeEmail1'.toString()">
+									AND	(
+										ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%' OR
+										ACI.InvoiceEmail2  LIKE '%' || #{searchStr} || '%'
+										)
+								</when>
+								<when test="searchType == 'NTSConfirmNum'.toString()">
+									AND	ACI.NTSConfirmNum LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoiceeEmail1'.toString()">
+									AND	ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoiceManager'.toString()">
+									AND	MAR.DisplayName	LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'InvoiceManagerMail'.toString()">
+									AND	MAR.MailAddress	LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'TossUser'.toString()">
+									AND	USR.DisplayName	LIKE '%' || #{searchStr} || '%'
+								</when>
+								<when test="searchType == 'TossUserMail'.toString()">
+									AND	USR.MailAddress	LIKE '%' || #{searchStr} || '%'
+								</when>
+							</choose>
+						</when>
+					</choose>
+					<if test ="writeDateS != null and writeDateS !=''">
+						AND	ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+					</if>
+					<if test ="writeDateE != null and writeDateE !=''">
+						AND	ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+					</if>
+			) TAXLIST
+			GROUP BY 
+				TAXLIST.TaxInvoiceID 
+		) LIST
+	</select>
+		
+	<update id="updateIsOffset" parameterType="cmap" >
+ 		UPDATE act_taxinvoice
+ 			SET
+ 				<if test = "key == 'Y'.toString()">
+ 				IsOffset		= 'Y'
+				</if>
+				<if test = "key == 'N'.toString()">
+				IsOffset		= ''
+				</if>
+				<if test = "key == 'A'.toString()">
+				IsOffset		= 'A'
+				</if>
+ 		WHERE	TaxInvoiceID	= #{taxInvoiceID}
+ 	</update>
+ 	
+ 	<update id="updateExpence" parameterType="cmap" >
+ 		UPDATE act_taxinvoice
+ 			SET
+ 				SerialNum 		= #{tossComment}
+ 			,	IsOffset		= 'A'
+ 		WHERE	TaxInvoiceID	= #{taxInvoiceID}
+ 	</update>
+ 	
+	<update id="updateTaxInvoiceTossUser" parameterType="cmap" >
+ 		UPDATE act_taxinvoice
+ 			SET
+ 				TossUserCode		= #{tossUserCode}
+			,	TossSenderUserCode	= #{UR_Code}
+			,	TossDate			= now(3)
+			,	TossComment			= #{tossComment}
+ 		WHERE	TaxInvoiceID		= #{taxInvoiceID}
+ 	</update>
+	
+	<select id="getTaxInvoiceInterfaceInfoTechSaveCHK" parameterType="cmap" resultType="cmap">
+		SELECT	DISTINCT
+	    		TaxInvoiceID
+	    FROM	act_taxinvoice
+	    WHERE	CONVERSATION_ID	= #{cONVERSATION_ID}
+	</select>
+	
+	<select id="getTaxInvoiceInterfaceSaveCHK" parameterType="cmap" resultType="cmap">
+		SELECT	DISTINCT
+	    		TaxInvoiceID
+	    FROM	act_taxinvoice
+	    WHERE	CONVERSATION_ID	= #{cONVERSATION_ID}
+		AND		SUPBUY_TYPE		= #{sUPBUY_TYPE}
+		AND		DIRECTION		= #{dIRECTION}
+	</select>
+		
+	<delete id="taxInvoiceInterfaceMainDel">
+	    DELETE
+	    FROM	act_taxinvoice
+	    WHERE	TaxInvoiceID = #{TaxInvoiceID}
+	</delete>
+	
+	<delete id="taxInvoiceInterfaceItemDel">
+	    DELETE
+	    FROM	act_taxinvoice_item
+	    WHERE	TaxInvoiceID = #{TaxInvoiceID}
+	</delete>
+	
+	<insert id="taxInvoiceInterfaceMainInsert" parameterType="cmap" >
+		INSERT INTO act_taxinvoice (
+				CompanyCode
+			,	DataIndex
+			,	WriteDate
+			,	IssueDT
+			,	InvoiceType
+			,	TaxType
+			,	TaxTotal
+			,	SupplyCostTotal
+			,	TotalAmount
+			,	PurposeType
+			,	SerialNum
+			,	Cash
+			,	ChkBill
+			,	Credit
+			,	Note
+			,	Remark1
+			,	Remark2
+			,	Remark3
+			,	NTSConfirmNum
+			,	ModifyCode
+			,	OrgNTSConfirmNum
+			,	InvoicerCorpNum
+			,	InvoicerMgtKey
+			,	InvoicerTaxRegID
+			,	InvoicerCorpName
+			,	InvoicerCEOName
+			,	InvoicerAddr
+			,	InvoicerBizType
+			,	InvoicerBizClass
+			,	InvoicerContactName
+			,	InvoicerDeptName
+			,	InvoicerTel
+			,	InvoicerEmail
+			,	InvoiceeCorpNum
+			,	InvoiceeType
+			,	InvoiceeMgtKey
+			,	InvoiceeTaxRegID
+			,	InvoiceeCorpName
+			,	InvoiceeCEOName
+			,	InvoiceeAddr
+			,	InvoiceeBizType
+			,	InvoiceeBizClass
+			,	InvoiceeContactName1
+			,	InvoiceeDeptName1
+			,	InvoiceeTel1
+			,	InvoiceeEmail1
+			,	InvoiceeContactName2
+			,	InvoiceDeptName2
+			,	InvoiceTel2
+			,	InvoiceEmail2
+			,	TrusteeCorpNum
+			,	TrusteeMgtKey
+			,	TrusteeTaxRegID
+			,	TrusteeCorpName
+			,	TrusteeCEOName
+			,	TrusteeAddr
+			,	TrusteeBizType
+			,	TrusteeBizClass
+			,	TrusteeContactName
+			,	TrusteeDeptName
+			,	TrusteeTel
+			,	TrusteeEmail
+			,	TossUserCode
+			,	TossSenderUserCode
+			,	TossDate
+			,	TossComment
+			,	RegistDate
+			,	IntDate
+			,	IsOffset
+			,	CONVERSATION_ID
+			,	SUPBUY_TYPE
+			,	DIRECTION
+		) VALUES (
+				#{companyCode}
+			,	#{dataIndex}
+			,	#{writeDate}
+			,	#{issueDT}
+			,	#{invoiceType}
+			,	#{taxType}
+			,	#{taxTotal}
+			,	#{supplyCostTotal}
+			,	#{totalAmount}
+			,	#{purposeType}
+			,	#{serialNum}
+			,	#{cash}
+			,	#{chkBill}
+			,	#{credit}
+			,	#{note}
+			,	#{remark1}
+			,	#{remark2}
+			,	#{remark3}
+			,	#{nTSConfirmNum}
+			,	#{modifyCode}
+			,	#{orgNTSConfirmNum}
+			,	#{invoicerCorpNum}
+			,	#{invoicerMgtKey}
+			,	#{invoicerTaxRegID}
+			,	#{invoicerCorpName}
+			,	#{invoicerCEOName}
+			,	#{invoicerAddr}
+			,	#{invoicerBizType}
+			,	#{invoicerBizClass}
+			,	#{invoicerContactName}
+			,	#{invoicerDeptName}
+			,	#{invoicerTel}
+			,	#{invoicerEmail}
+			,	#{invoiceeCorpNum}
+			,	#{invoiceeType}
+			,	#{invoiceeMgtKey}
+			,	#{invoiceeTaxRegID}
+			,	#{invoiceeCorpName}
+			,	#{invoiceeCEOName}
+			,	#{invoiceeAddr}
+			,	#{invoiceeBizType}
+			,	#{invoiceeBizClass}
+			,	#{invoiceeContactName1}
+			,	#{invoiceeDeptName1}
+			,	#{invoiceeTel1}
+			,	#{invoiceeEmail1}
+			,	#{invoiceeContactName2}
+			,	#{invoiceDeptName2}
+			,	#{invoiceTel2}
+			,	#{invoiceEmail2}
+			,	#{trusteeCorpNum}
+			,	#{trusteeMgtKey}
+			,	#{trusteeTaxRegID}
+			,	#{trusteeCorpName}
+			,	#{trusteeCEOName}
+			,	#{trusteeAddr}
+			,	#{trusteeBizType}
+			,	#{trusteeBizClass}
+			,	#{trusteeContactName}
+			,	#{trusteeDeptName}
+			,	#{trusteeTel}
+			,	#{trusteeEmail}
+			,	#{tossUserCode}
+			,	#{tossSenderUserCode}
+			,	#{tossDate}
+			,	#{tossComment}
+			,	#{registDate_main}
+			,	NOW(3)
+			,	#{isOffset}
+			,	#{cONVERSATION_ID}
+			,	#{sUPBUY_TYPE}
+			,	#{dIRECTION}
+		)
+	    <selectKey keyProperty="taxInvoiceID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="taxInvoiceInterfaceItemInsert" parameterType="cmap" >
+		INSERT INTO act_taxinvoice_item (
+				TaxInvoiceID
+			,	PurchaseDT
+			,	ItemName
+			,	Spec
+			,	Qty
+			,	UnitCost
+			,	SupplyCost
+			,	Tax
+			,	Remark
+			,	RegistDate
+		) VALUES (
+				#{taxInvoiceID}
+			,	#{purchaseDT}
+			,	#{itemName}
+			,	#{spec}
+			,	#{qty}
+			,	#{unitCost}
+			,	#{supplyCost}
+			,	#{tax}
+			,	#{remark}
+			,	#{registDate_item}
+		)
+	</insert>
+	
+	<delete id="cashBillInterfaceDel">
+	    DELETE
+	    FROM	act_cashbill
+	    WHERE	NTSConfirmNum = #{nTSConfirmNum}
+	</delete>
+	
+	<insert id="cashBillInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO act_cashbill (
+				companyCode
+			,	nTSConfirmNum
+			,	tradeDT
+			,	tradeUsage
+			,	tradeType
+			,	supplyCost
+			,	tax
+			,	serviceFree
+			,	totalAmount
+			,	invoiceType
+			,	franchiseCorpNum
+			,	franchiseCorpName
+			,	franchiseCorpType
+			,	registDate
+		) VALUES (
+				#{companyCode}
+			,	#{nTSConfirmNum}
+			,	#{tradeDT}
+			,	#{tradeUsage}
+			,	#{tradeType}
+			,	#{supplyCost}
+			,	#{tax}
+			,	#{serviceFree}
+			,	#{totalAmount}
+			,	#{invoiceType}
+			,	#{franchiseCorpNum}
+			,	#{franchiseCorpName}
+			,	#{franchiseCorpType}
+			,	#{registDate}
+		)
+	</insert>
+</mapper>

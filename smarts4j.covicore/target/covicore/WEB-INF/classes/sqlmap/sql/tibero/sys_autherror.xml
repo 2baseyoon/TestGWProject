@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="autherror">    
+ 	
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT B.DeptName AS "DeptName"
+		    ,  B.AuthErrorUserName AS "AuthErrorUserName"
+		    ,  B.LogID AS "LogID"
+		    ,  B.UserCode  AS "UserCode"
+		    ,  B.SiteName AS "SiteName"
+		    ,  B.LogonID AS "LogonID"
+		    ,  B.PageURL AS "PageURL"
+		    ,  B.PageParam AS "PageParam"
+		    ,  B.IPAddress AS "IPAddress"
+		    ,  B.CompanyCode AS "CompanyCode"
+		    ,  B.AuditClass AS "AuditClass"
+		    ,  B.AuditMethod AS "AuditMethod"
+		    ,  B.ErrorType AS "ErrorType"
+		    ,  B.ErrorMessage AS "ErrorMessage"
+		    ,  B.ErrorDate AS "ErrorDate"
+		FROM (
+			SELECT A.*
+			     , (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDeptName, '')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode AND JobType = 'Origin') AS DeptName 
+			FROM (
+				SELECT  LogID 
+					  , (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName, '')) FROM sys_object_user WHERE UserCode = a.LogonID ) AS AuthErrorUserName 
+				  	  , a.LogonID AS UserCode
+					  , SiteName 
+					  , a.LogonID 
+					  , PageURL 
+					  , PageParam 
+					  , IPAddress
+					  , Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS CompanyCode
+					  , AuditClass
+					  , AuditMethod
+					  , ErrorType
+					  , ErrorMessage
+					  , ErrorDate
+				FROM LOG_AUTHERROR a
+				INNER JOIN SYS_OBJECT_DOMAIN D ON a.CompanyCode = D.DomainCode
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+						ErrorDate BETWEEN TO_DATE(#{startDate}, 'YY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YY-MM-DD HH24:MI:SS')
+					</if>
+					<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode} </if>
+				</trim>
+			) A
+		) B
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != '' ">
+				( B.AuthErrorUserName LIKE '%'||#{searchText}||'%' OR B.DeptName LIKE '%'||#{searchText}||'%' )
+			</if>
+		</trim>
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PageURL")'>PageURL</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("AuthErrorUserName")'>AuthErrorUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<otherwise>ErrorDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+ 	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+			SELECT B.DeptName AS "DeptName"
+			    ,  B.AuthErrorUserName AS "AuthErrorUserName"
+			    ,  B.LogID AS "LogID"
+			    ,  B.UserCode  AS "UserCode"
+			    ,  B.SiteName AS "SiteName"
+			    ,  B.LogonID AS "LogonID"
+			    ,  B.PageURL AS "PageURL"
+			    ,  B.PageParam AS "PageParam"
+			    ,  B.IPAddress AS "IPAddress"
+			    ,  B.CompanyCode AS "CompanyCode"
+			    ,  B.AuditClass AS "AuditClass"
+			    ,  B.AuditMethod AS "AuditMethod"
+			    ,  B.ErrorType AS "ErrorType"
+			    ,  B.ErrorMessage AS "ErrorMessage"
+			    ,  B.ErrorDate AS "ErrorDate"
+			FROM (
+				SELECT A.*
+			     	, (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDeptName, '')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode AND JobType = 'Origin') AS DeptName 
+				FROM (
+					SELECT  LogID 
+						  , (SELECT Fn_BaseGetDictionary_S(#{lang}, NVL(MultiDisplayName, '')) FROM sys_object_user WHERE UserCode = a.LogonID ) AS AuthErrorUserName 
+					  	  , a.LogonID AS UserCode
+						  , SiteName 
+						  , a.LogonID
+						  , PageURL 
+						  , PageParam 
+						  , IPAddress
+						  , Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS CompanyCode 
+						  , AuditClass
+						  , AuditMethod
+						  , ErrorType
+						  , ErrorMessage
+						  , ErrorDate
+					FROM LOG_AUTHERROR a
+					INNER JOIN SYS_OBJECT_DOMAIN D ON a.CompanyCode = D.DomainCode
+					<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+							ErrorDate BETWEEN TO_DATE(#{startDate}, 'YY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YY-MM-DD HH24:MI:SS')
+						</if>
+						<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode} </if>
+					</trim>
+				) A
+			) B
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="searchText != null and searchText != '' ">
+					( B.AuthErrorUserName LIKE '%'||#{searchText}||'%' OR B.DeptName LIKE '%'||#{searchText}||'%' )
+				</if>
+			</trim>
+		 ) C
+	</select>	
+</mapper>

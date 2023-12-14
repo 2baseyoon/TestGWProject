@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.standardBrief">
+
+	<select id="getStandardBriefList" parameterType="cmap" resultType="cmap">
+		SELECT	INFO.RegistDate
+			,	INFO.AccountID
+			,	INFO.AccountCode
+			,	INFO.AccountName
+			,	INFO.StandardBriefName
+			,	INFO.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',INFO.CompanyCode, #{companyCode})	AS CompanyName
+		FROM	(	SELECT	DATE_FORMAT(AC.RegistDate,'%Y-%m-%d %T') AS RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	AC.CompanyCode
+						,	(	SELECT	GROUP_CONCAT(SB.StandardBriefName ORDER BY SB.StandardBriefID SEPARATOR ',')
+								FROM	covi_account4j_si.act_standard_brief	SB
+								WHERE	SB.AccountID	= AC.AccountID
+							)	AS StandardBriefName
+					FROM	covi_account4j_si.act_account			AC
+		) INFO
+	    WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL	 
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+					INFO.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,INFO.AccountID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getStandardBriefExcelList" parameterType="cmap" resultType="cmap">
+	
+		SELECT	INFO.AccountCode
+			,	INFO.AccountName
+			,	INFO.StandardBriefName
+			,	INFO.StandardBriefDesc
+			,	covi_account4j_si.Fn_GetBaseCodeName('IsUse',INFO.IsUse, #{companyCode}) AS IsUse
+			,	covi_account4j_si.Fn_GetBaseCodeName('IsUse',INFO.IsUseSimp, #{companyCode}) AS IsUseSimp
+	    	,	INFO.RegistDate AS RegistDate
+			,	INFO.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',INFO.CompanyCode, #{companyCode})	AS CompanyName
+			,	covi_account4j_si.Fn_GetBaseCodeName('IsUse',INFO.IsFile, #{companyCode}) AS IsFile
+			,	covi_account4j_si.Fn_GetBaseCodeName('IsUse',INFO.IsDocLink, #{companyCode}) AS IsDocLink
+		FROM	(	SELECT	DATE_FORMAT(AC.RegistDate,'%Y-%m-%d %T') AS RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	SB.StandardBriefID
+						,	SB.StandardBriefName
+						,	SB.StandardBriefDesc
+						,	SB.IsUse
+						,	SB.IsUseSimp
+						,	AC.CompanyCode
+						,	SB.IsFile
+						,	SB.IsDocLink
+					FROM	covi_account4j_si.act_account			AC
+					JOIN	covi_account4j_si.act_standard_brief	SB
+					ON AC.AccountID = SB.AccountID
+		) INFO
+	    WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL	 
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+					INFO.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		ORDER BY INFO.StandardBriefID
+	</select>
+	
+	<select id="getStandardBrieflistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	(	SELECT	
+							AC.RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	AC.TaxType
+						,	AC.CompanyCode
+						,	(	SELECT	GROUP_CONCAT(SB.StandardBriefName ORDER BY SB.StandardBriefID SEPARATOR ',')
+								FROM	covi_account4j_si.act_standard_brief	SB
+								WHERE	SB.AccountID	= AC.AccountID
+							)	AS StandardBriefName
+					FROM	covi_account4j_si.act_account			AC
+
+		) INFO
+	    WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL	 
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+					INFO.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="getStandardBriefDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	SB.StandardBriefID
+			,	SB.StandardBriefName
+			,	SB.StandardBriefDesc
+			,	SB.IsUse
+			,	SB.IsUseSimp
+			,	AC.CompanyCode
+			,	AC.AccountID
+			,	AC.AccountName
+			,	SB.CtrlCode
+			,	SB.IsFile
+			,	SB.IsDocLink
+			,	AC.CompanyCode
+		FROM covi_account4j_si.act_standard_brief	SB
+		JOIN
+				covi_account4j_si.act_account		AC
+		ON		SB.AccountID	= AC.AccountID
+	    WHERE	SB.AccountID	= #{accountID}
+		ORDER BY SB.StandardBriefID
+	</select>
+	
+	<insert id="insertStandardBriefInfo" parameterType="cmap">
+	    INSERT INTO covi_account4j_si.act_standard_brief (
+				AccountID
+			,	StandardBriefName
+			,	StandardBriefDesc
+			,	IsUse
+			,	IsUseSimp
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+			,	CtrlCode
+			,	IsFile
+			,	IsDocLink
+	    ) VALUES (
+				#{accountID}
+			,	#{standardBriefName}
+			,	#{standardBriefDesc}
+			,	#{isUse}
+			,	#{isUseSimp}
+			,	#{UR_Code}
+			,	NOW(3)
+			,	#{UR_Code}
+			,	NOW(3)
+			,	#{ctrlCode}
+			,	#{isfile}
+			,	#{isdocLink}
+	    )
+ 	</insert>
+ 	
+	<update id="updateStandardBriefInfo" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_standard_brief
+ 			SET
+ 				IsUse				= #{isUse}
+ 			,	IsUseSimp			= #{isUseSimp}
+			,	StandardBriefName	= #{standardBriefName}
+			,	StandardBriefDesc	= #{standardBriefDesc}
+			,	CtrlCode			= #{ctrlCode}
+			,	IsFile				= #{isfile}
+			,	IsDocLink			= #{isdocLink}
+ 		WHERE	StandardBriefID		= #{standardBriefID}
+ 	</update>
+	
+	<delete id="deleteStandardBriefInfo">
+	    DELETE FROM covi_account4j_si.act_standard_brief		
+		WHERE	StandardBriefID = #{standardBriefID}	
+	</delete>
+	
+	<delete id="deleteStandardBriefByAccountID">
+	    DELETE FROM covi_account4j_si.act_standard_brief		
+		WHERE	AccountID = #{accountID}	
+	</delete>
+	
+	<select id="getStandardBriefAccountID" parameterType="cmap" resultType="java.lang.String">
+	    SELECT AC.AccountID
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	AC.AccountCode = #{accountCode}
+	    <if test="companyCode != null and companyCode != ''">
+	    	AND AC.CompanyCode = #{companyCode}
+	    </if>
+	</select>
+	
+	<select id="chkStandardBriefAccountCode" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+	    FROM covi_account4j_si.act_account AC
+	    WHERE AC.AccountCode = #{accountCode}
+	    <if test="companyCode != null and companyCode != ''">
+	    	AND AC.CompanyCode = #{companyCode}
+	    </if>
+	</select>
+	
+	<delete id="deleteStandardBriefByAccountIDExcel">
+	    DELETE FROM covi_account4j_si.act_standard_brief		
+		WHERE 
+		<choose>
+			<when test="accountID != null">
+				<foreach collection="accountID" item="item" index="index" separator="," open="AccountID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>	
+	</delete>
+</mapper>

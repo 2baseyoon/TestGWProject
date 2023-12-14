@@ -1,0 +1,102 @@
+<!--실 결재양식 내용 부분 시작 -->
+
+<!--실 결재양식 내용 부분 끝 --><table class="tableStyle linePlus mt10  multi-row-table table_10"><colgroup>
+				<col style="width: 12%;">
+				<col style="width: *;"></colgroup>
+                        
+                    <tbody>
+				<tr style="cursor: default;">
+					<th></th>
+					<td></td></tr>
+				<tr style="cursor: default;">
+					<th>텍스트</th>
+					<td><input type="text" data-type="mField" id="XFORM_ELID_xeAU0" value="{{ doc.BodyContext.XFORM_ELID_xeAU0 }}" style="width:100%"></td></tr>
+				<tr style="cursor: default;">
+					<th>숫자</th>
+					<td><input type="text" data-type="mField" id="XFORM_ELID_80G2C" value="{{ doc.BodyContext.XFORM_ELID_80G2C }}" data-pattern="numeric" style="width:100%"></td></tr>
+				<tr style="cursor: default;">
+					<th>통화</th>
+					<td><input type="text" data-type="mField" id="XFORM_ELID_s8xqj" value="{{ doc.BodyContext.XFORM_ELID_s8xqj }}" data-pattern="currency" style="width:100%"></td></tr>
+				<tr style="cursor: default;">
+					<th>날짜</th>
+					<td><input type="text" data-type="mField" id="XFORM_ELID_aR5bm" value="{{ doc.BodyContext.XFORM_ELID_aR5bm }}" data-pattern="date"></td></tr><tr style="cursor: default;">
+                      <th>TextArea</th><td><textarea data-type="mField" id="XFORM_ELID_PyTbd" rows="4" style=" width:100%" value="">{{ doc.BodyContext.XFORM_ELID_PyTbd }}</textarea></td></tr>
+                      <tr style="cursor: default;"><th>Select</th><td><select data-type="mField" id="XFORM_ELID_exIZl" data-element-type="sel_d_t" style="width: 160px" data-node-name="" value=""><option value="1">그룹웨어</option><option value="2">전자결재</option><option value="3">메일</option></select></td></tr>
+                      <tr style="cursor: default;"><th>Radio 버튼</th><td><label data-type="mField" data-element-type="rdo_d" data-node-name="XFORM_ELID_v5eg1" style="padding-left:2px;padding-right:2px;"><input type="radio" name="XFORM_ELID_v5eg1" value="y" data-text="사용">사용<input type="radio" name="XFORM_ELID_v5eg1" value="n" data-text="미사용">미사용</label></td></tr>
+                      <tr style="cursor: default;"><th>CheckBox</th><td><label data-type="mField" data-element-type="chk_d" data-node-name="XFORM_ELID_IdHKI" style="padding-left:2px;padding-right:2px;"><input type="checkbox" name="XFORM_ELID_IdHKI" value="0" data-text="전자결재">전자결재<input type="checkbox" name="XFORM_ELID_IdHKI" value="1" data-text="그룹웨어">그룹웨어<input type="checkbox" name="XFORM_ELID_IdHKI" value="2" data-text="메일">메일</label></td></tr>
+                      <tr style="cursor: default;"><th>버튼</th><td><input type="button" data-type="mField" id="XFORM_ELID_OGwnp" class="AXButton" value="버튼" onclick="javascript:alert('확인');"></td></tr></tbody></table>
+
+<table class="tableStyle linePlus mt10  multi-row-table table_10" id="TB">
+                        <colgroup>
+                            <col style="width: 5%;">
+                            <col style="width: 40%;">
+                            <col style="width: 10%;">
+                            <col style="width: 15%;">
+                            <col style="width: 15%;">
+                            <col style="width: 15%;">
+                        </colgroup>
+                        <tbody>
+                            <tr class="multi-row-control" data-mode="writeOnly">
+                                <td colspan="6">
+                                    <em class="btn_iws_l" style="float: right">
+                                        <span class="btn_iws_r multi-row-add" id="btnAdd">
+                                            <strong class="txt_btn_ws">
+                                                <img class="ico_btn" alt="" src="/approval/resources/images/xform/ico_plus.gif">추가
+                                            </strong>
+                                        </span>
+                                    </em>
+                                    <em class="btn_iws_l" style="float: right">
+                                        <span class="btn_iws_r multi-row-del" id="btnDel">
+                                            <strong class="txt_btn_ws">
+                                                <img class="ico_btn" alt="" src="/approval/resources/images/xform/ico_x.gif">삭제
+                                            </strong>
+                                        </span>
+                                    </em>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th data-node-name="XFORM_ELNM_1sYa6"><input type="checkbox" class="multi-row-select-all" name="XFORM_ELNM_1sYa6" data-type="rField"></th>
+                                <th>기간</th>
+                                <th>일수</th>
+                                <th>확인여부</th>
+                                <th>사용여부</th>
+                                <th>비고</th>
+                            </tr>
+                            <tr class="multi-row-template">
+                                <td data-node-name="XFORM_ELNM_09byb">
+                                    <input type="checkbox" class="multi-row-selector" name="XFORM_ELNM_09byb" data-type="rField">
+                                    
+                                </td>
+                                <td>
+                                    <input type="text" name="_MULTI_VACATION_SDT" data-pattern="date" data-type="rField" style="width:120px;" value="">
+                                    ~
+                                    <input type="text" name="_MULTI_VACATION_EDT" data-pattern="date" data-type="rField" style="width:120px;" value="">
+                                </td>
+                                <td>
+                                    <input type="text" name="_MULTI_DAYS" data-type="rField" style="width: 15px; border: 0px; text-align: right;" value="0">일
+                                </td>
+                                <td>
+                                    <label data-type="rField" data-element-type="rdo_d" data-node-name="XFORM_ELNM_bcKpf">
+                                        <input type="radio" data-face-for="yesno" data-element-type="rdo_d" value="Yes" text="Yes" name="XFORM_ELNM_bcKpf" data-type="rField">Yes
+                                        <input type="radio" data-face-for="yesno" data-element-type="rdo_d" value="No" text="No" name="XFORM_ELNM_bcKpf" data-type="rField">No
+                                        <input type="text" name="yesno" data-face-real="y" data-type="rField" style="display: none;">
+                                    </label>
+                                </td>
+
+                                <td>
+                                    <label data-node-name="XFORM_ELNM_CBBd3" data-type="rField" data-element-type="chk_d">
+                                        <input type="checkbox" data-face-for="opt" value="use" text="use" name="XFORM_ELNM_CBBd3" data-type="rField">Use
+                                        <input type="checkbox" data-face-for="opt" value="hide" text="hide" name="XFORM_ELNM_CBBd3" data-type="rField">Hide      
+                                        <input type="text" name="opt" data-face-real="y" data-type="rField" style="display: none;">
+                                    </label>
+                                </td>
+                                <td>
+                                    <select name="select" data-type="rField">
+                                        <option value="First">First</option>
+                                        <option value="Second">Second</option>
+                                        <option value="Third">Third</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>

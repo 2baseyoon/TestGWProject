@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.recorddocinfo">
+
+	<insert id="insert" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_record_doc_info (
+			FormInstId,
+			ProcessId,
+			State,
+			RecordSubject,
+			RecordClassNum,
+			RegistCheck,
+			SpecialRecord,
+			KeepPeriod,
+			ReleaseCheck,
+			SecureLevel
+		)
+		VALUES (
+			#{FormInstId},
+			#{ProcessId},
+			#{State},
+			#{RecordSubject},
+			#{RecordClassNum},
+			#{RegistCheck},
+			#{SpecialRecord},
+			#{KeepPeriod},
+			#{ReleaseCheck},
+			#{SecureLevel}
+		)
+	</insert>
+	
+	<!-- 기록물철 편집 -->
+	<update id="updateRecordDocInfo" parameterType="cmap">
+ 	    UPDATE covi_approval4j.jwf_record_doc_info
+ 	    SET ProcessId = #{ProcessId},
+			State = #{State},
+			RecordSubject = #{RecordSubject},
+			RecordClassNum = #{RecordClassNum},
+			RegistCheck = #{RegistCheck},
+			SpecialRecord = #{SpecialRecord},
+			KeepPeriod = #{KeepPeriod},
+			ReleaseCheck = #{ReleaseCheck},
+			SecureLevel = #{SecureLevel}
+		WHERE FormInstID = #{FormInstId} AND STATE = 'P' AND ProcessId = #{ProcessId}
+	</update>
+	
+	<!-- 프로세스 아이디 update -->
+	 <update id="updateRecordDocProcess" parameterType="cmap">
+ 	    UPDATE covi_approval4j.jwf_record_doc_info
+ 	    SET ProcessID = #{ProcessID},
+ 	    	STATE = 'P'
+		WHERE FormInstID = #{FormInstID} AND STATE = 'I'
+	</update>	
+	
+	<!-- 기록물 이관  완료 -->
+	<update id="updateRecordDocState" parameterType="cmap">
+ 	    UPDATE covi_approval4j.jwf_record_doc_info
+ 	    SET STATE = 'E'
+		WHERE ProcessID = #{ProcessID} AND STATE = 'P'
+	</update>
+	
+	<select id="selectRecordDocCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) AS "CNT"
+ 	    FROM covi_approval4j.jwf_record_doc_info
+		WHERE FormInstID = #{FormInstID} AND STATE != 'E'
+	</select>
+	
+	<select id="selectRecordDocPCnt" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) AS "CNT"
+ 	    FROM covi_approval4j.jwf_record_doc_info
+		WHERE FormInstID = #{FormInstID} 
+			  AND STATE != 'E'
+			  AND ProcessID = #{ProcessID}
+	</select>
+	
+	<select id="selectgRecordDocInfo" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+ 	   	 	SELECT * from covi_approval4j.jwf_record_doc_info
+			WHERE FormInstID = #{formInstID} AND STATE != 'E'
+		]]>
+	</select>	
+	
+	<select id="selectRecordDocInfo" parameterType="cmap" resultType="cmap">
+ 	    SELECT * from covi_approval4j.jwf_record_doc_info
+		WHERE ProcessID = #{processID}
+	</select>	
+</mapper>

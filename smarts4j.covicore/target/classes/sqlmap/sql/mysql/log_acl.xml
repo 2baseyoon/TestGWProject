@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogACLChangeLog">
+
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+     	SELECT TB.LogChangeID,
+			   TB.ChangeType,
+			   TB.ObjectID,
+			   CASE WHEN TB.ObjectType = 'MN' 
+		       		THEN 'Menu'
+		            WHEN TB.ObjectType = 'FD' 
+		            THEN (SELECT F.ObjectType FROM covi_smart4j.sys_object_folder F where F.FolderID = TB.ObjectID)
+		            ELSE '' END AS ObjectType,    
+		       CASE WHEN TB.ObjectType = 'MN' 
+		       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_menu WHERE MenuID = TB.ObjectID)
+		            WHEN TB.ObjectType = 'FD' 
+		            THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_folder WHERE FolderID = TB.ObjectID)
+		            ELSE '' END AS ObjectName,
+		       CASE WHEN TB.SubjectType = 'UR' 
+		       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, U.MultiDisplayName ) 
+		       				FROM covi_smart4j.sys_object_user U INNER JOIN covi_smart4j.sys_object_user_basegroup UB
+							  ON UB.UserCode = U.UserCode AND UB.JobType = 'Origin'
+						   WHERE U.UserCode = TB.SubjectCode) 
+					ELSE (SELECT Fn_BaseGetDictionary_S(#{lang}, G.MultiDisplayName ) FROM covi_smart4j.sys_object_group G INNER JOIN covi_smart4j.sys_object_group_type GT
+							  ON GT.GroupType = G.GroupType
+						   where G.GroupCode = TB.SubjectCode)
+					END AS SubjectName,
+			   TB.SubjectType,
+			   TB.`Security`, 
+			   TB.`Create`, 
+			   TB.`Delete`, 
+			   TB.`Modify`, 
+			   TB.`Execute`,
+			   TB.`View`,
+			   TB.`Read`,
+			   TB.IsSubInclude,
+			   TB.InheritedObjectID,
+		       TB.RegisterCode,
+		       Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS RegisterName,
+		       Fn_BaseGetDictionary_S(#{lang}, C.MultiDeptName) AS RegisterDeptName,
+		       DATE_FORMAT(TB.RegistDate, '%Y-%m-%d %H:%i:%s') AS RegistDateDate
+		  FROM (SELECT IFNULL(T.BE_LogChangeID, T.AF_LogChangeID) AS LogChangeID,
+					   CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN 'Insert'
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN 'Delete'            
+				            ELSE (CASE WHEN (T.BE_AclList != T.AF_AclList OR T.BE_IsSubInclude != T.AF_IsSubInclude OR T.BE_InheritedObjectID != T.AF_InheritedObjectID) THEN 'Update'
+				                       ELSE 'NoChange' END)
+				             END ChangeType,
+				       IFNULL(T.BE_ObjectID, T.AF_ObjectID) AS ObjectID,
+				       IFNULL(T.BE_ObjectType, T.AF_ObjectType) AS ObjectType,
+				       IFNULL(T.BE_SubjectCode, T.AF_SubjectCode) AS SubjectCode,
+				       IFNULL(T.BE_SubjectType, T.AF_SubjectType) AS SubjectType,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Security
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Security
+				            ELSE (CASE WHEN T.BE_Security != T.AF_Security THEN CONCAT(T.BE_Security, '|', T.AF_Security)
+				                 	   ELSE IFNULL(T.BE_Security, T.AF_Security) END) END `Security`,         
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Create
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Create
+				            ELSE (CASE WHEN T.BE_Create != T.AF_Create THEN CONCAT(T.BE_Create, '|', T.AF_Create)
+				                 	   ELSE IFNULL(T.BE_Create, T.AF_Create) END) END `Create`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Delete
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Delete
+				            ELSE (CASE WHEN T.BE_Delete != AF_Delete THEN CONCAT(T.BE_Delete, '|', T.AF_Delete)
+				                 	   ELSE IFNULL(T.BE_Delete, T.AF_Delete) END) END `Delete`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Modify
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Modify
+				            ELSE (CASE WHEN T.BE_Modify != T.AF_Modify THEN CONCAT(T.BE_Modify, '|', T.AF_Modify)
+				                 	   ELSE IFNULL(T.BE_Modify, T.AF_Modify) END) END `Modify`,   
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Execute
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Execute
+				            ELSE (CASE WHEN T.BE_Execute != T.AF_Execute THEN CONCAT(T.BE_Execute, '|', T.AF_Execute)
+				                 	   ELSE IFNULL(T.BE_Execute, T.AF_Execute) END) END `Execute`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_View
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_View
+				            ELSE (CASE WHEN T.BE_View != T.AF_View THEN CONCAT(T.BE_View, '|', AF_View)
+				                 	   ELSE IFNULL(T.BE_View, T.AF_View) END) END `View`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Read
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Read
+				            ELSE (CASE WHEN T.BE_Read != T.AF_Read THEN CONCAT(T.BE_Read, '|', T.AF_Read)
+				                 	   ELSE IFNULL(T.BE_Read, T.AF_Read) END) END `Read`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_IsSubInclude
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_IsSubInclude
+				            ELSE (CASE WHEN T.BE_IsSubInclude != T.AF_IsSubInclude THEN CONCAT(T.BE_IsSubInclude, '|', T.AF_IsSubInclude)
+				                 	   ELSE IFNULL(T.BE_IsSubInclude, T.AF_IsSubInclude) END) END IsSubInclude,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN IF(T.AF_InheritedObjectID = '0', 'N', 'Y') 
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN IF(T.BE_InheritedObjectID = '0', 'N', 'Y') 
+				            ELSE (CASE WHEN T.BE_InheritedObjectID != T.AF_InheritedObjectID THEN CONCAT(IF(T.BE_InheritedObjectID = '0', 'N', 'Y'), '|', IF(T.AF_InheritedObjectID = '0', 'N', 'Y'))
+				                 	   ELSE IF(IFNULL(T.BE_InheritedObjectID, T.AF_InheritedObjectID) = '0', 'N', 'Y') END) END InheritedObjectID,
+				       (SELECT RegisterCode FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegisterCode,
+				       (SELECT RegistDate FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegistDate
+				  FROM (
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						LEFT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID	
+					UNION 	
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						RIGHT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID) T ) TB
+					LEFT JOIN covi_smart4j.sys_object_user B ON TB.RegisterCode = B.Usercode
+					LEFT JOIN covi_smart4j.sys_object_user_basegroup C ON B.UserCode = C.Usercode AND C.JobType = 'Origin'
+		 WHERE TB.ChangeType != 'NoChange'
+		<if test="objectID != null and objectID != '' ">AND TB.ObjectID = #{objectID}</if>
+		<if test="objectType != null and objectType != '' ">AND TB.ObjectType = #{objectType}</if>
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">AND TB.RegistDate BETWEEN #{startDate} AND #{endDate}</if>
+		<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode}</if>
+		<if test="searchText != null and searchText != '' ">
+			<if test="searchTarget=='changer'">
+				AND B.DisplayName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+			<if test="searchTarget=='target'">
+				HAVING SubjectName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+		</if>
+		
+		 ORDER BY TB.RegistDate DESC, LogChangeID DESC
+		 		 
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		  FROM (SELECT IFNULL(T.BE_LogChangeID, T.AF_LogChangeID) AS LogChangeID,
+					   CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN 'Insert'
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN 'Delete'            
+				            ELSE (CASE WHEN (T.BE_AclList != T.AF_AclList OR T.BE_IsSubInclude != T.AF_IsSubInclude OR T.BE_InheritedObjectID != T.AF_InheritedObjectID) THEN 'Update'
+				                       ELSE 'NoChange' END)
+				             END ChangeType,
+				       IFNULL(T.BE_ObjectID, T.AF_ObjectID) AS ObjectID,
+				       IFNULL(T.BE_ObjectType, T.AF_ObjectType) AS ObjectType,
+				       IFNULL(T.BE_SubjectCode, T.AF_SubjectCode) AS SubjectCode,
+				       IFNULL(T.BE_SubjectType, T.AF_SubjectType) AS SubjectType,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Security
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Security
+				            ELSE (CASE WHEN T.BE_Security != T.AF_Security THEN CONCAT(T.BE_Security, '|', T.AF_Security)
+				                 	   ELSE IFNULL(T.BE_Security, T.AF_Security) END) END `Security`,         
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Create
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Create
+				            ELSE (CASE WHEN T.BE_Create != T.AF_Create THEN CONCAT(T.BE_Create, '|', T.AF_Create)
+				                 	   ELSE IFNULL(T.BE_Create, T.AF_Create) END) END `Create`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Delete
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Delete
+				            ELSE (CASE WHEN T.BE_Delete != AF_Delete THEN CONCAT(T.BE_Delete, '|', T.AF_Delete)
+				                 	   ELSE IFNULL(T.BE_Delete, T.AF_Delete) END) END `Delete`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Modify
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Modify
+				            ELSE (CASE WHEN T.BE_Modify != T.AF_Modify THEN CONCAT(T.BE_Modify, '|', T.AF_Modify)
+				                 	   ELSE IFNULL(T.BE_Modify, T.AF_Modify) END) END `Modify`,   
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Execute
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Execute
+				            ELSE (CASE WHEN T.BE_Execute != T.AF_Execute THEN CONCAT(T.BE_Execute, '|', T.AF_Execute)
+				                 	   ELSE IFNULL(T.BE_Execute, T.AF_Execute) END) END `Execute`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_View
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_View
+				            ELSE (CASE WHEN T.BE_View != T.AF_View THEN CONCAT(T.BE_View, '|', AF_View)
+				                 	   ELSE IFNULL(T.BE_View, T.AF_View) END) END `View`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Read
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Read
+				            ELSE (CASE WHEN T.BE_Read != T.AF_Read THEN CONCAT(T.BE_Read, '|', T.AF_Read)
+				                 	   ELSE IFNULL(T.BE_Read, T.AF_Read) END) END `Read`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_IsSubInclude
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_IsSubInclude
+				            ELSE (CASE WHEN T.BE_IsSubInclude != T.AF_IsSubInclude THEN CONCAT(T.BE_IsSubInclude, '|', T.AF_IsSubInclude)
+				                 	   ELSE IFNULL(T.BE_IsSubInclude, T.AF_IsSubInclude) END) END IsSubInclude,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN IF(T.AF_InheritedObjectID = '0', 'N', 'Y') 
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN IF(T.BE_InheritedObjectID = '0', 'N', 'Y') 
+				            ELSE (CASE WHEN T.BE_InheritedObjectID != T.AF_InheritedObjectID THEN CONCAT(IF(T.BE_InheritedObjectID = '0', 'N', 'Y'), '|', IF(T.AF_InheritedObjectID = '0', 'N', 'Y'))
+				                 	   ELSE IF(IFNULL(T.BE_InheritedObjectID, T.AF_InheritedObjectID) = '0', 'N', 'Y') END) END InheritedObjectID,
+				       CASE WHEN T.AF_ObjectType = 'MN' 
+				       		THEN 'Menu'
+				            WHEN T.AF_ObjectType = 'FD' 
+				            THEN (SELECT F.ObjectType FROM covi_smart4j.sys_object_folder F where F.FolderID = T.AF_ObjectID)
+				            ELSE '' END AS AF_ObjectType,    
+				       CASE WHEN T.AF_ObjectType = 'MN' 
+				       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_menu WHERE MenuID = T.AF_ObjectID)
+				            WHEN T.AF_ObjectType = 'FD' 
+				            THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_folder WHERE FolderID = T.AF_ObjectID)
+				            ELSE '' END AS ObjectName,
+				       CASE WHEN T.AF_SubjectType = 'UR' 
+				       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, U.MultiDisplayName ) 
+				       				FROM covi_smart4j.sys_object_user U INNER JOIN covi_smart4j.sys_object_user_basegroup UB
+									  ON UB.UserCode = U.UserCode AND UB.JobType = 'Origin'
+								   WHERE U.UserCode = T.AF_SubjectCode) 
+							ELSE (SELECT Fn_BaseGetDictionary_S(#{lang}, G.MultiDisplayName ) FROM covi_smart4j.sys_object_group G INNER JOIN covi_smart4j.sys_object_group_type GT
+									  ON GT.GroupType = G.GroupType where G.GroupCode = T.AF_SubjectCode)
+							END AS SubjectName,
+				       (SELECT RegisterCode FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegisterCode,
+				       (SELECT RegistDate FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegistDate
+				  FROM (
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						LEFT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID	
+					UNION 	
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						RIGHT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID) T ) TB
+					LEFT JOIN covi_smart4j.sys_object_user B ON TB.RegisterCode = B.Usercode
+					LEFT JOIN covi_smart4j.sys_object_user_basegroup C ON B.UserCode = C.Usercode AND C.JobType = 'Origin'
+		WHERE TB.ChangeType != 'NoChange'
+		<if test="objectID != null and objectID != '' ">AND TB.ObjectID = #{objectID}</if>
+		<if test="objectType != null and objectType != '' ">AND TB.ObjectType = #{objectType}</if>
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">AND TB.RegistDate BETWEEN #{startDate} AND #{endDate}</if>
+		<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode}</if>
+		<if test="searchText != null and searchText != '' ">
+			<if test="searchTarget=='changer'">
+				AND B.DisplayName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+			<if test="searchTarget=='target'">
+				AND SubjectName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+		</if>
+	</select>
+	
+	<select id="selectexcelgrid" parameterType="cmap" resultType="cmap">			
+     	SELECT 
+     		  CASE WHEN TB.ChangeType = 'Insert' THEN #{lbl_add}
+					WHEN TB.ChangeType = 'Delete' THEN #{lbl_delete}
+					WHEN TB.ChangeType = 'Update' THEN #{lbl_change}
+					END AS ChangeType,
+			   CASE WHEN TB.ObjectType = 'MN' 
+		       		THEN #{lbl_menu}
+		            ELSE #{lbl_folder} END AS ObjectType,     
+		       CASE WHEN TB.ObjectType = 'MN' 
+		       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_menu WHERE MenuID = TB.ObjectID)
+		            WHEN TB.ObjectType = 'FD' 
+		            THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName ) AS DisplayName FROM covi_smart4j.sys_object_folder WHERE FolderID = TB.ObjectID)
+		            ELSE '' END AS ObjectName,
+		       CASE WHEN TB.SubjectType = 'UR' 
+		       		THEN (SELECT Fn_BaseGetDictionary_S(#{lang}, U.MultiDisplayName ) 
+		       				FROM covi_smart4j.sys_object_user U INNER JOIN covi_smart4j.sys_object_user_basegroup UB
+							  ON UB.UserCode = U.UserCode AND UB.JobType = 'Origin'
+						   WHERE U.UserCode = TB.SubjectCode) 
+					ELSE (SELECT Fn_BaseGetDictionary_S(#{lang}, G.MultiDisplayName ) FROM covi_smart4j.sys_object_group G INNER JOIN covi_smart4j.sys_object_group_type GT
+							  ON GT.GroupType = G.GroupType
+						   where G.GroupCode = TB.SubjectCode)
+					END AS SubjectName,
+			   CASE WHEN TB.SubjectType = 'UR' THEN #{lbl_user}
+			   		ELSE #{lbl_group} END SubjectType,
+			   REPLACE(REPLACE(REPLACE(TB.Security,'S',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Security,
+			   REPLACE(REPLACE(REPLACE(TB.Create,'C',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Create_,
+			   REPLACE(REPLACE(REPLACE(TB.Delete,'D',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Delete_,
+			   REPLACE(REPLACE(REPLACE(TB.Modify,'M',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Modify,
+			   REPLACE(REPLACE(REPLACE(TB.Execute,'E',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Execute,
+			   REPLACE(REPLACE(REPLACE(TB.View,'V',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS View,
+			   REPLACE(REPLACE(REPLACE(TB.Read,'R',#{lbl_allow}),'_',#{lbl_reject}),'|','->') AS Read_,
+			   REPLACE(REPLACE(REPLACE(TB.IsSubInclude,'Y',#{lbl_include}),'N',#{lbl_noInclude}),'|','->') AS IsSubInclude,
+			   REPLACE(REPLACE(REPLACE(TB.InheritedObjectID,'Y',#{lbl_inherited}),'N',#{lbl_noInherited}),'|','->') AS InheritedObjectID,
+		       Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS RegisterName,
+		       DATE_FORMAT(TB.RegistDate, '%Y-%m-%d %H:%i:%s') AS RegistDateDate
+		  FROM (SELECT IFNULL(T.BE_LogChangeID, T.AF_LogChangeID) AS LogChangeID,
+					   CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN 'Insert'
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN 'Delete'            
+				            ELSE (CASE WHEN (T.BE_AclList != T.AF_AclList OR T.BE_IsSubInclude != T.AF_IsSubInclude OR T.BE_InheritedObjectID != T.AF_InheritedObjectID) THEN 'Update'
+				                       ELSE 'NoChange' END)
+				             END ChangeType,
+				       IFNULL(T.BE_ObjectID, T.AF_ObjectID) AS ObjectID,
+				       IFNULL(T.BE_ObjectType, T.AF_ObjectType) AS ObjectType,
+				       IFNULL(T.BE_SubjectCode, T.AF_SubjectCode) AS SubjectCode,
+				       IFNULL(T.BE_SubjectType, T.AF_SubjectType) AS SubjectType,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Security
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Security
+				            ELSE (CASE WHEN T.BE_Security != T.AF_Security THEN CONCAT(T.BE_Security, '|', T.AF_Security)
+				                 	   ELSE IFNULL(T.BE_Security, T.AF_Security) END) END `Security`,         
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Create
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Create
+				            ELSE (CASE WHEN T.BE_Create != T.AF_Create THEN CONCAT(T.BE_Create, '|', T.AF_Create)
+				                 	   ELSE IFNULL(T.BE_Create, T.AF_Create) END) END `Create`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Delete
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Delete
+				            ELSE (CASE WHEN T.BE_Delete != AF_Delete THEN CONCAT(T.BE_Delete, '|', T.AF_Delete)
+				                 	   ELSE IFNULL(T.BE_Delete, T.AF_Delete) END) END `Delete`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Modify
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Modify
+				            ELSE (CASE WHEN T.BE_Modify != T.AF_Modify THEN CONCAT(T.BE_Modify, '|', T.AF_Modify)
+				                 	   ELSE IFNULL(T.BE_Modify, T.AF_Modify) END) END `Modify`,   
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Execute
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Execute
+				            ELSE (CASE WHEN T.BE_Execute != T.AF_Execute THEN CONCAT(T.BE_Execute, '|', T.AF_Execute)
+				                 	   ELSE IFNULL(T.BE_Execute, T.AF_Execute) END) END `Execute`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_View
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_View
+				            ELSE (CASE WHEN T.BE_View != T.AF_View THEN CONCAT(T.BE_View, '|', AF_View)
+				                 	   ELSE IFNULL(T.BE_View, T.AF_View) END) END `View`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_Read
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_Read
+				            ELSE (CASE WHEN T.BE_Read != T.AF_Read THEN CONCAT(T.BE_Read, '|', T.AF_Read)
+				                 	   ELSE IFNULL(T.BE_Read, T.AF_Read) END) END `Read`,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN T.AF_IsSubInclude
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN T.BE_IsSubInclude
+				            ELSE (CASE WHEN T.BE_IsSubInclude != T.AF_IsSubInclude THEN CONCAT(T.BE_IsSubInclude, '|', T.AF_IsSubInclude)
+				                 	   ELSE IFNULL(T.BE_IsSubInclude, T.AF_IsSubInclude) END) END IsSubInclude,
+				       CASE WHEN T.BE_ObjectID IS NULL AND T.AF_ObjectID IS NOT NULL THEN IF(T.AF_InheritedObjectID = '0', 'N', 'Y') 
+				            WHEN T.BE_ObjectID IS NOT NULL AND T.AF_ObjectID IS NULL THEN IF(T.BE_InheritedObjectID = '0', 'N', 'Y') 
+				            ELSE (CASE WHEN T.BE_InheritedObjectID != T.AF_InheritedObjectID THEN CONCAT(IF(T.BE_InheritedObjectID = '0', 'N', 'Y'), '|', IF(T.AF_InheritedObjectID = '0', 'N', 'Y'))
+				                 	   ELSE IF(IFNULL(T.BE_InheritedObjectID, T.AF_InheritedObjectID) = '0', 'N', 'Y') END) END InheritedObjectID,
+				       (SELECT RegisterCode FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegisterCode,
+				       (SELECT RegistDate FROM log_acl WHERE LogChangeID = IFNULL(T.BE_LogChangeID, T.AF_LogChangeID)) AS RegistDate
+				  FROM (
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						LEFT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID	
+					UNION 	
+					SELECT *
+					  FROM (
+						SELECT
+							LogChangeID AS BE_LogChangeID,
+							ObjectID AS BE_ObjectID,
+							ObjectType AS BE_ObjectType,
+							SubjectCode AS BE_SubjectCode,
+							SubjectType AS BE_SubjectType,
+							AclList AS BE_AclList,
+							`Security` AS BE_Security,
+							`Create` AS BE_Create,
+							`Delete` AS BE_Delete,
+							`Modify` AS BE_Modify,
+							`Execute` AS BE_Execute,
+							`View` AS BE_View,
+							`Read` AS BE_Read,
+							IsSubInclude AS BE_IsSubInclude,
+							InheritedObjectID AS BE_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'Before') BE
+						RIGHT OUTER JOIN
+						(SELECT
+							LogChangeID AS AF_LogChangeID,
+							ObjectID AS AF_ObjectID,
+							ObjectType AS AF_ObjectType,
+							SubjectCode AS AF_SubjectCode,
+							SubjectType AS AF_SubjectType,
+							AclList AS AF_AclList,
+							`Security` AS AF_Security,
+							`Create` AS AF_Create,
+							`Delete` AS AF_Delete,
+							`Modify` AS AF_Modify,
+							`Execute` AS AF_Execute,
+							`View` AS AF_View,
+							`Read` AS AF_Read,
+							IsSubInclude AS AF_IsSubInclude,
+							InheritedObjectID AS AF_InheritedObjectID
+						FROM log_acl_detail
+						WHERE LogType = 'After') AF	
+						ON BE.BE_SubjectCode = AF.AF_SubjectCode and BE.BE_LogChangeID = AF.AF_LogChangeID) T ) TB
+					LEFT JOIN covi_smart4j.sys_object_user B ON TB.RegisterCode = B.Usercode
+					LEFT JOIN covi_smart4j.sys_object_user_basegroup C ON B.UserCode = C.Usercode AND C.JobType = 'Origin'
+		 WHERE TB.ChangeType != 'NoChange'
+		<if test="objectID != null and objectID != '' ">AND TB.ObjectID = #{objectID}</if>
+		<if test="objectType != null and objectType != '' ">AND TB.ObjectType = #{objectType}</if>
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">AND TB.RegistDate BETWEEN #{startDate} AND #{endDate}</if>
+		<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode}</if>
+		<if test="searchText != null and searchText != '' ">
+			<if test="searchTarget=='changer'">
+				AND B.DisplayName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+			<if test="searchTarget=='target'">
+				HAVING SubjectName LIKE CONCAT('%', #{searchText}, '%')
+			</if>
+		</if>
+		 ORDER BY TB.RegistDate DESC, LogChangeID DESC
+	</select>
+	
+</mapper>

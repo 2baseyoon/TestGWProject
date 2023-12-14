@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.SsoSaml">
+  
+   <select id="selectTokenKey"  parameterType="cmap" resultType="String">
+       SELECT TOKEN 
+       FROM sso_token_his
+       WHERE EMPNO = #{empno}
+       ORDER BY MODIFIERDATE DESC
+       LIMIT 1      
+   </select>
+   <select id="checkUserCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM sys_object_user
+			WHERE EmpNo = #{empno} AND UserCode = #{code}
+		]]>
+   </select>
+   <select id="selectSSOValue" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT SettingValue
+			FROM sso_config
+			WHERE Code = #{Code}
+		]]>
+	</select>
+	<select id="selectSSO" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+					SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = SOUBG.CompanyCode) AS DN_ID
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobTitleCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,'' AS UR_ManagerName
+				,'False' AS UR_IsManager
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,covi_smart4j.sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IF((SELECT COUNT(0) from sys_object_group_member  WHERE UserCode = SOU.UserCode AND GroupCode IN ('SysAdmin','Admin','Developer') > 0), 'Y', 'N') AS IsAdmin
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			WHERE SOU.LogonID = #{code} 
+		]]>
+	</select>
+	<insert id="ssoTokenHistory" parameterType="cmap" >
+	   <![CDATA[ INSERT INTO sso_token_his (     TOKEN
+				   									, UserID
+				   									, UserName
+				   									, UserCode
+				   									, EMPNO
+				   									, MAXAGE	) VALUES (
+				   									   
+				   									  #{token}
+				   									, #{urid}
+				   									, #{urname}
+				   									, #{urcode}
+				   									, #{empno}
+				   									, #{maxage}
+				   								  ) 
+	 	]]>  								  
+	</insert>
+</mapper>

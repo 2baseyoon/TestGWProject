@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.cache">
+	
+ 	<select id="selectBaseConfig" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT BizSection, DomainID, SettingKey, SettingValue
+		FROM covi_smart4j.sys_base_config 
+		WHERE IsUse = 'Y' ]]>
+	  	<if test="domainId != null and domainId != ''">
+		AND		DomainID		= #{domainId}
+		</if>
+   
+	</select>
+	
+ 	<select id="selectDic" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT *
+		FROM covi_smart4j.sys_base_dictionary
+		WHERE IsUse = 'Y'
+    ]]>
+	  	<if test="domainId != null and domainId != ''">
+		AND		DomainID		= #{domainId}
+		</if>
+	</select>
+	
+ 	<select id="selectBaseCode" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT *
+		FROM covi_smart4j.sys_base_code sbc
+		WHERE IsUse = 'Y'
+    ]]>
+	  	<if test="domainId != null and domainId != ''">
+	  	AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code ORDER BY IF(DomainID = #{domainId}, 0, 1) LIMIT 1 )
+		</if>
+		ORDER BY SortKey ASC
+	</select>
+	
+	<select id="selectObjectType" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ObjectType FROM covi_smart4j.sys_object_folder GROUP BY ObjectType
+	    ]]>
+	</select>
+	
+	<select id="selectDomain" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT DomainID FROM covi_smart4j.sys_object_domain WHERE IsUse = 'Y'
+	    ]]>
+	</select>
+	
+	
+	<select id="selectAuthMenu" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT DISTINCT MenuID,  case when INSTR(url,'?') >0 then SUBSTRING(url,1,INSTR(url,'?')-1)  ELSE url END UrlKey,  DomainId, URL
+		FROM (
+				SELECT case when reserved5 is not null and reserved5 != '' then reserved5 else URL  end AS URL , DomainId, MenuID
+				FROM   covi_smart4j.sys_object_menu
+				WHERE URL IS NOT NULL AND URL !=''
+				AND  (domainid=0 OR (domainid>0 AND OriginMenuID IS NULL))
+			) a
+	    ]]>
+	</select>
+	
+	<select id="selectAuditUrl" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT Url as "Url"	, ModuleName as "ModuleName", AuditClass as "AuditClass", AuditMethod as "AuditMethod", IsAudit as "IsAudit", IsBlock as "IsBlock", IsAdmin as "IsAdmin"
+			     ,(SELECT group_concat(d.menuid , ',') 
+			     	FROM covi_smart4j.sys_object_program_map b 	
+			        join covi_smart4j.sys_object_program c on b.PRGMID = c.PRGMID
+			        JOIN covi_smart4j.sys_object_program_menu d on d.PRGMID = c.PRGMID
+			       WHERE a.moduleid = b.moduleid) as  "AuditMenuIDs"
+		  FROM covi_smart4j.sys_object_module a
+		 WHERE a.IsUse = 'Y'
+	    ]]>
+	</select>
+</mapper>

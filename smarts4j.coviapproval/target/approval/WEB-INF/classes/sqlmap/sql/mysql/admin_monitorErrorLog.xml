@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monitorErrorLog">
+    <select id="selectMonitorErrorLogList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+						  ServerIP
+						, ErrorKind
+						, ErrorTime
+						, ErrorMessage
+						, ErrorStackTrace
+						, ProcessInsID
+						, B.FormInstID
+						, ErrorID
+					FROM COVI_APPROVAL4J.jwf_error A
+					INNER JOIN covi_approval4j.jwf_process B
+						ON A.ProcessInsID = B.ProcessID
+					WHERE 1=1
+					AND DeleteTime IS NULL
+					<if test="txtSDate != null and txtSDate != '' and txtSDate.length() gt 0">
+						 <![CDATA[
+							 AND (DATE_FORMAT(ErrorTime,'%Y-%m-%d') >= #{txtSDate}  AND DATE_FORMAT(ErrorTime,'%Y-%m-%d') <= #{txtSDate} )
+						 ]]>		
+					</if>
+					<if test="search != null and search != '' and search.length() gt 0">
+						AND ErrorMessage LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+					</if>
+					<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+						AND ErrorMessage LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')
+					</if>
+					AND EXISTS (
+						select 'x' from covi_approval4j.jwf_forminstance fi
+						where fi.forminstid = b.forminstid
+						<if test="EntCode != null and EntCode != ''">
+							and fi.EntCode = #{EntCode}
+						</if>
+					)
+				
+				ORDER BY ErrorTime DESC
+		) A		
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("ServerIP")'>ServerIP</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessInsID")'>ProcessInsID</when>
+					<otherwise>ErrorTime</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				ErrorTime DESC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectMonitorErrorLogLisCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+						  ServerIP
+						, ErrorKind
+						, ErrorTime
+						, ErrorMessage
+					FROM COVI_APPROVAL4J.jwf_error A
+					INNER JOIN covi_approval4j.jwf_process B
+						ON A.ProcessInsID = B.ProcessID
+					WHERE 1=1
+					AND DeleteTime IS NULL
+					<if test="txtSDate != null and txtSDate != '' and txtSDate.length() gt 0">
+						 <![CDATA[
+							 AND (DATE_FORMAT(ErrorTime,'%Y-%m-%d') >= #{txtSDate}  AND DATE_FORMAT(ErrorTime,'%Y-%m-%d') <= #{txtSDate} )
+						 ]]>		
+					</if>
+					<if test="search != null and search != '' and search.length() gt 0">
+						AND ErrorMessage LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+					</if>
+					<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+						AND ErrorMessage LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')
+					</if>
+					AND EXISTS (
+						select 'x' from covi_approval4j.jwf_forminstance fi
+						where fi.forminstid = B.forminstid
+						<if test="EntCode != null and EntCode != ''">
+							and fi.EntCode = #{EntCode}
+						</if>
+					)
+				
+				ORDER BY ErrorTime DESC
+		) A		
+		
+	</select>
+	
+	<update id="deleteErrorLog" parameterType="cmap">
+		update covi_approval4j.jwf_error
+		set DeleteTime = now(3)
+		where errorid = #{errorID}
+	</update>
+</mapper>
+

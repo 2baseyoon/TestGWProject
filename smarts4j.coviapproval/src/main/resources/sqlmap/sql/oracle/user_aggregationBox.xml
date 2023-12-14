@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.aggregation">
+
+    <!-- 특정 사용자의 권한이 부여된 집계함 양식 개수 조회(집계함에서 조회)  -->
+    <select id="selectAggregationFormsCnt" parameterType="cmap" resultType="java.lang.Long">
+    	select count(AggAuthId) as "count"
+		from gwuser.jwf_aggregation_forms jaf  
+		inner join gwuser.jwf_aggregation_auth jaa on jaf.AggFormId = jaa.AggFormId
+		where 
+		(
+			(jaa.AuthType = 'U' and jaa.AuthTarget = #{UserID})
+			or
+			(jaa.AuthType = 'D' and jaa.AuthTarget = #{DeptID})
+			or
+			(
+				jaa.AuthType = 'E'
+				and 
+				(
+					<choose>
+			            <when test='isSaaS == "Y"'>
+			                jaa.AuthTarget = #{entCode}
+			            </when>
+			            <otherwise>
+							jaa.AuthTarget IN ('ORGROOT', #{entCode})
+			            </otherwise>
+		        	</choose> 
+				)
+			)
+		)
+		and DisplayYN = 'Y'
+		<if test='FormPreFix != null and FormPreFix != ""'>
+			and jaf.FormPrefix = #{FormPreFix}
+		</if>
+	</select>
+	
+	<!-- 특정 사용자의 권한이 부여된 집계함 양식 목록 조회(집계함에서 조회)  -->
+    <select id="selectAggregationForms" parameterType="cmap" resultType="cmap">
+	    select jaf.FormPrefix as "formPrefix", jaf.AggFormId as "aggFormId", jf.FormName as "formName"
+		from gwuser.jwf_aggregation_forms jaf  
+		inner join gwuser.jwf_forms jf 
+		on jf.FormPrefix = jaf.FormPrefix
+		<if test='isSaas == "Y"'>
+			and jf.CompanyCode = jaf.EntCode
+		</if>
+		where 
+		EXISTS (
+			SELECT 1 FROM gwuser.jwf_aggregation_auth jaa
+			WHERE jaf.AggFormId = jaa.AggFormId
+			and
+			(
+				(jaa.AuthType = 'U' and jaa.AuthTarget = #{userCode})
+				or
+				(jaa.AuthType = 'D' and jaa.AuthTarget = #{groupCode})
+				or
+				(
+					jaa.AuthType = 'E'
+					and 
+					(
+						<choose>
+				            <when test='isSaaS == "Y"'>
+				                jaa.AuthTarget = #{companyCode}
+				            </when>
+				            <otherwise>
+								jaa.AuthTarget IN ('ORGROOT', #{companyCode})
+				            </otherwise>
+			        	</choose> 
+					)
+				)
+			)
+		)
+		<choose>
+            <when test="aggFormId != null and aggFormId != '' ">
+                and jaf.AggFormId = #{aggFormId}
+            </when>
+            <otherwise>
+				and DisplayYN = 'Y'
+            </otherwise>
+       	</choose> 
+	</select>
+	
+	<!-- 집계함 양식 필드 조회 -->
+    <select id="selectAggregationFormFieldsByAggFormId" parameterType="cmap" resultType="cmap">
+		select 
+			jafields.FieldName as "fieldName", 
+			jafields.FieldID as "fieldId", 
+			jafields.isCommon as "isCommon",
+			jafields.SortKey as "sortKey",
+			jafields.FieldWidth as "fieldWidth",
+			jafields.FieldAlign as "fieldAlign",
+			NVL(jac.DataFormat, '') as "dataFormat"
+		from gwuser.jwf_aggregation_forms jaf
+		inner join gwuser.jwf_aggregation_fields jafields on jaf.AggFormId = jafields.AggFormId 
+		left outer join gwuser.jwf_aggregation_commonfields jac on jac.deletedDate is null and jafields.isCommon = 'Y' and jafields.FieldID = jac.FieldID and jaf.EntCode = jac.EntCode
+		where jaf.AggFormId = #{aggFormId} and jafields.DisplayYN = 'Y'
+		order by jafields.SortKey 
+    </select>
+    
+    <!-- 집계함 양식 목록 조회(카운트) -->
+	<select id="selectAggregationFormCount" parameterType="cmap" resultType="java.lang.Long">
+		select
+		count(sub.FormInstID) as "count"
+		from gwuser.${tableName} sub
+		inner join gwuser.jwf_forminstance jf on sub.FormInstID = jf.FormInstID
+		inner join gwuser.jwf_process jp on jf.processID = jp.processID
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	jp.DeleteDate is null
+	    	AND jf.DeletedDate is null
+	    	<if test='!searchGroupType.equalsIgnoreCase("All")'>
+	    		<choose>
+	    			<when test='searchGroupType.equalsIgnoreCase("Pending")'>
+	    				AND jf.CompletedDate IS NULL
+	    			</when>
+	    			<when test='searchGroupType.equalsIgnoreCase("Completed")'>
+	    				AND jp.ProcessState = 528 AND jp.BusinessState LIKE '02_01%'
+	    			</when>
+	    			<when test='searchGroupType.equalsIgnoreCase("Rejected")'>
+	    				AND jp.ProcessState = 528 AND jp.BusinessState LIKE '02_02%'
+	    			</when>
+	    		</choose>
+	    	</if>
+	    	<if test='searchWord != null and searchWord != ""'>
+	    		<choose>
+	    			<when test='searchType.equalsIgnoreCase("InitiatorName")'>
+	    				AND jf.InitiatorName LIKE '%'||#{searchWord}||'%' 
+	    			</when><when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>
+	    				AND jf.InitiatorUnitName LIKE '%'||#{searchWord}||'%' 
+	    			</when>
+	    			<when test='searchType.equalsIgnoreCase("Subject")'>
+	    				AND jf.Subject LIKE '%'||#{searchWord}||'%' 
+	    			</when>
+	    		</choose>
+	    	</if>
+	    </trim>
+    </select>
+	
+	<!-- 집계함 양식 목록 조회 -->
+	<select id="selectAggregationFormList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		select
+		<trim prefixOverrides=",">
+			<foreach collection="fields" item="item" separator="," >
+				<if test='item.isCommon == "Y"'>
+					<choose>
+						<when test='item.dataFormat != null and item.dataFormat == "dateFormat"'>
+							TO_CHAR(jf.${item.fieldId}, 'YYYY-MM-DD HH24:MI:SS') AS "${item.fieldId}"
+						</when>
+						<when test='item.dataFormat != null and item.dataFormat == "linkFile"'> 
+							d.${item.fieldId} AS "${item.fieldId}"
+						</when>
+						<otherwise>
+							jf.${item.fieldId} AS "${item.fieldId}" 
+						</otherwise>
+					</choose>
+		    	</if>
+		    	<if test='item.isCommon == "N"'>
+		    		sub.${item.fieldId} AS "${item.fieldId}"
+		    	</if>
+		    </foreach>
+		    , jf.formInstId as "formInstId"
+		    , jf.processId as "processId"
+		    , jf.formId	as "formId"
+	    </trim>
+		from gwuser.${tableName} sub
+		inner join gwuser.jwf_forminstance jf on sub.FormInstID = jf.FormInstID
+		inner join gwuser.jwf_process jp on jf.processID = jp.processID
+		inner join gwuser.JWF_ProcessDescription d ON jp.ProcessDescriptionID = d.ProcessDescriptionID
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	jp.DeleteDate is null
+	    	AND jf.DeletedDate is null
+	    	<if test='!searchGroupType.equalsIgnoreCase("All")'>
+	    		<choose>
+	    			<when test='searchGroupType.equalsIgnoreCase("Pending")'>
+	    				AND jf.CompletedDate IS NULL
+	    			</when>
+	    			<when test='searchGroupType.equalsIgnoreCase("Completed")'>
+	    				AND jp.ProcessState = 528 AND jp.BusinessState LIKE '02_01%'
+	    			</when>
+	    			<when test='searchGroupType.equalsIgnoreCase("Rejected")'>
+	    				AND jp.ProcessState = 528 AND jp.BusinessState LIKE '02_02%'
+	    			</when>
+	    		</choose>
+	    	</if>
+	    	<if test='searchWord != null and searchWord != ""'>
+	    		<choose>
+	    			<when test='searchType.equalsIgnoreCase("InitiatorName")'>
+	    				AND jf.InitiatorName LIKE '%'||#{searchWord}||'%' 
+	    			</when><when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>
+	    				AND jf.InitiatorUnitName LIKE '%'||#{searchWord}||'%' 
+	    			</when>
+	    			<when test='searchType.equalsIgnoreCase("Subject")'>
+	    				AND jf.Subject LIKE '%'||#{searchWord}||'%' 
+	    			</when>
+	    		</choose>
+	    	</if>
+	    </trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortIsCommon.equalsIgnoreCase("Y")'> , jf.${sortColumn} </when>
+					<otherwise> , sub.${sortColumn} </otherwise>
+				</choose>
+			 	<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			, jf.InitiatedDate DESC 
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+    </select>
+
+	<!-- 권한 있는 집계함 양식 정보 가져오기  -->
+    <select id="selectFormInfoForAggregation" parameterType="cmap" resultType="cmap">
+	    select jaf.FormPrefix as "formPrefix", jf.ExtInfo as "extInfo"
+		from gwuser.jwf_aggregation_forms jaf  
+		inner join gwuser.jwf_aggregation_auth jaa on jaf.AggFormId = jaa.AggFormId
+		inner join gwuser.jwf_forms jf 
+		on jf.FormPrefix = jaf.FormPrefix
+		<if test='isSaas == "Y"'>
+			and jf.CompanyCode = jaf.EntCode
+		</if>
+		where
+			jaf.AggFormId = #{aggFormId}
+		and
+		(
+			(jaa.AuthType = 'U' and jaa.AuthTarget = #{userCode})
+			or
+			(jaa.AuthType = 'D' and jaa.AuthTarget = #{groupCode})
+			or
+			(
+				jaa.AuthType = 'E'
+				and 
+				(
+					<choose>
+			            <when test='isSaaS == "Y"'>
+			                jaa.AuthTarget = #{companyCode}
+			            </when>
+			            <otherwise>
+							jaa.AuthTarget IN ('ORGROOT', #{companyCode})
+			            </otherwise>
+		        	</choose> 
+				)
+			)
+		)
+		AND ROWNUM = 1
+	</select>
+
+	<!-- 해당 양식이 특정 사용자에게 권한이 있는지 확인  -->
+    <select id="hasAggregationFormAuth" parameterType="cmap" resultType="boolean">
+	    select CASE WHEN exists(select 1
+								from gwuser.jwf_aggregation_forms jaf  
+								inner join gwuser.jwf_aggregation_auth jaa on jaf.AggFormId = jaa.AggFormId
+								where
+									jaf.AggFormId = #{aggFormId} and jaf.FormPrefix = #{aggFormPrefix}
+								and
+								(
+									(jaa.AuthType = 'U' and jaa.AuthTarget = #{userCode})
+									or
+									(jaa.AuthType = 'D' and jaa.AuthTarget = #{groupCode})
+									or
+									(
+										jaa.AuthType = 'E'
+										and 
+										(
+											<choose>
+									            <when test='isSaaS == "Y"'>
+									                jaa.AuthTarget = #{companyCode}
+									            </when>
+									            <otherwise>
+													jaa.AuthTarget IN ('ORGROOT', #{companyCode})
+									            </otherwise>
+								        	</choose> 
+										)
+									)
+								))
+				THEN 1
+				ELSE 0 END
+		FROM DUAL
+	</select>
+</mapper>
+

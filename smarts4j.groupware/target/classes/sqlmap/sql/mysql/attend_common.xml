@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.common">
+
+	<!-- 근태관리 사용자 권한 조회 -->
+	<select id="getUserAuthType" parameterType="cmap" resultType="int">
+		SELECT  
+			count(1) cnt
+		FROM 
+		(
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, IFNULL(UR.DisplayName, '') AS CodeName
+					, IFNULL(UR.MailAddress, '') AS MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM sys_object_group_member AS GM
+					LEFT JOIN sys_object_user AS UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = #{AuthType}
+			UNION 
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, IFNULL(GR.DisplayName, '') AS CodeName
+					, IFNULL(GR.PrimaryMail, '') AS MailAddress
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup AS GM
+					LEFT JOIN sys_object_group AS GR ON GM.MemberGroupCode = GR.GroupCode
+			WHERE GM.GroupCode = #{AuthType}
+		) AS A WHERE Code = #{UserCode}
+	</select>
+	
+	<!-- 하위부서 리스트 조회 -->
+	<select id="getSubDeptList" parameterType="cmap" resultType="cmap">
+		/* attend.common.getSubDeptList */
+		SELECT  
+			GroupID
+			,GroupCode
+			,CompanyCode
+			,GroupType
+			,MemberOf
+			,DisplayName
+			,MultiDisPlayName
+			,Fn_BaseGetDictionary_S(#{lang},MultiDisPlayName) AS TransMultiDisplayName  
+			,CHAR_LENGTH(SortPath) - CHAR_LENGTH(REPLACE(SortPath,';','')) SortDepth
+			,GroupPath
+		FROM covi_smart4j.sys_object_group 
+		WHERE 1=1
+		AND GroupType IN ('Dept','Company')
+		<if test='CompanyCode != null'>
+			AND CompanyCode = #{CompanyCode}
+		</if>
+		<if test='attendAuth eq "USER"'>
+			<if test='jobType neq "DEVISION"' > <!-- 팀장, 팀원인 경우 -->
+				AND GroupCode = #{DeptCode}
+			</if>
+			<if test='jobType eq "DEVISION"' > <!-- 본부장인경우 본인포함 하위 부서 리스트 조회 -->
+				AND (GroupCode = #{DeptCode} 
+					OR (CONCAT(';',GroupPath) LIKE CONCAT('%;',#{DeptCode},';%') AND IsUse = 'Y' AND IsDisplay = 'Y'))
+			</if>			
+		</if>
+		<if test='attendAuth eq "ADMIN"'>
+			AND (GroupCode = #{DeptCode} OR IsUse = 'Y')
+		</if>
+		ORDER BY SortPath asc  
+	</select>
+	
+	<!-- 부서별 사용자 리스트 -->
+	<select id="getUserListByDept" parameterType="cmap" resultType="cmap">
+		/* attend.common.getUserListByDept */
+		SELECT
+		sou.UserCode
+		,sou.PhotoPath
+		,sou.EnterDate
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) DeptName
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiJobPositionName) JobPositionName
+		<!--2021.08.03 사용자명 다국어 세팅 없을시, 대응 추가. 이전:,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) DisplayName-->
+		,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName))>0,
+		   covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName), sou.DisplayName) as DisplayName
+		,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath
+		,sou.IsUse
+		,sou.IsDisplay
+		,sou.EnterDate
+		,DeptCode
+		FROM (select * from covi_smart4j.sys_object_user_basegroup where JobType = 'Origin' group by UserCode) soub
+		JOIN covi_smart4j.sys_object_user sou
+			ON soub.UserCode = sou.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog
+			ON soub.DeptCode = sog.GroupCode
+		WHERE soub.CompanyCode = #{CompanyCode}
+		<if test='groupPath != null and groupPath != ""'>
+			  AND  sog.GroupPath LIKE CONCAT(#{groupPath},'%')
+		</if>		
+		<if test='deptList != null and deptList.size != 0'>
+			<foreach collection="deptList" item="dept" open="AND DeptCode IN (" close=")" separator=",">
+				#{dept.GroupCode}
+			</foreach>
+		</if>
+		<if test='retireUser != null and retireUser != ""'>
+			<choose>
+				<when test='retireUser eq "INOFFICE"'>
+					AND sou.IsUse = 'Y'
+					AND sou.IsDisplay = 'Y'
+				</when>
+				<when test='retireUser eq "RETIRE"'>
+					AND sou.IsUse = 'N'
+					AND sou.IsDisplay = 'N'
+				</when>
+			</choose>
+		</if>
+		<!-- 직책   -->
+		<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+			AND soub.JobTitleCode = #{sJobTitleCode}
+		</if>
+		<!-- 직급 -->
+		<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+			AND soub.JobLevelCode = #{sJobLevelCode}
+		</if>
+		<!-- PRAMETER 별 검색 필터 -->
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DeptCode = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.UserCode = #{sUserCode}
+		</if>
+		<if test='sUserTxt != null and sUserTxt != ""'>
+			AND sou.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+		</if>
+		<if test="KeyWord != null and KeyWord != '' ">
+		 	AND sou.MultiDisplayName LIKE concat('%', #{KeyWord} ,'%')
+		</if>
+		<!--2021.08.02 nkpark 근무일정 sorting과 맵핑 처리 //기존: ORDER BY DeptFullPath,soub.DeptSortKey,soub.JobPositionSortKey,sou.SortKey,sou.UserCode-->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			DisplayName ASC
+				  		</if>
+				  	</foreach>
+				  	, soub.SortKey, soub.JobTitlecode, sou.EnterDate, DisplayName ASC
+			  	</when>
+			</choose>
+		</trim>		
+		<!--/-->
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>	
+	</select>
+
+	<select id="getUserListByDeptCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(*)
+		FROM (select * from covi_smart4j.sys_object_user_basegroup where JobType = 'Origin' group by UserCode) soub
+		JOIN covi_smart4j.sys_object_user sou
+		ON soub.UserCode = sou.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog
+		ON soub.DeptCode = sog.GroupCode
+		WHERE soub.CompanyCode = #{CompanyCode}
+		<if test='groupPath != null and groupPath != ""'>
+			AND  sog.GroupPath LIKE CONCAT(#{groupPath},'%')
+		</if>
+		<if test='deptList != null and deptList.size != 0'>
+			<foreach collection="deptList" item="dept" open="AND DeptCode IN (" close=")" separator=",">
+				#{dept.GroupCode}
+			</foreach>
+		</if>
+		<if test='retireUser != null and retireUser != ""'>
+			<choose>
+				<when test='retireUser eq "INOFFICE"'>
+					AND sou.IsUse = 'Y'
+					AND sou.IsDisplay = 'Y'
+				</when>
+				<when test='retireUser eq "RETIRE"'>
+					AND sou.IsUse = 'N'
+					AND sou.IsDisplay = 'N'
+				</when>
+			</choose>
+		</if>
+		<!-- 직책   -->
+		<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+			AND soub.JobTitleCode = #{sJobTitleCode}
+		</if>
+		<!-- 직급 -->
+		<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+			AND soub.JobLevelCode = #{sJobLevelCode}
+		</if>
+		<!-- PRAMETER 별 검색 필터 -->
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DeptCode = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.UserCode = #{sUserCode}
+		</if>
+		<if test='sUserTxt != null and sUserTxt != ""'>
+			AND sou.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+		</if>
+		<if test="KeyWord != null and KeyWord != '' ">
+			AND sou.MultiDisplayName LIKE concat('%', #{KeyWord} ,'%')
+		</if>
+	</select>
+	
+	<!-- 내  사용자 정보 조회 -->
+	<select id="getMyUserInfo" parameterType="cmap" resultType="cmap">
+		/* attend.common.getMyUserInfo */
+		SELECT 
+			sou.UserCode
+			,sou.PhotoPath
+			,sou.EnterDate
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) DeptName
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiJobPositionName) JobPositionName
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) DisplayName
+			,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath 
+			,sou.IsUse
+			,sou.IsDisplay
+			,DeptCode
+		FROM
+			(
+				SELECT * FROM covi_smart4j.sys_object_user_basegroup 
+				WHERE DeptCode = #{DeptCode}
+			) soub
+		JOIN
+			(
+				SELECT * FROM covi_smart4j.sys_object_user
+				WHERE UserCode = #{UserCode}
+			) sou
+			ON soub.UserCode = sou.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog
+			ON soub.DeptCode = sog.GroupCode
+		WHERE soub.CompanyCode = #{CompanyCode}
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DeptCode = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.UserCode = #{sUserCode}
+		</if>
+	</select>
+
+	<select id="getMyUserInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(*)
+		FROM
+		(
+		SELECT * FROM covi_smart4j.sys_object_user_basegroup
+		WHERE DeptCode = #{DeptCode}
+		) soub
+		JOIN
+		(
+		SELECT * FROM covi_smart4j.sys_object_user
+		WHERE UserCode = #{UserCode}
+		) sou
+		ON soub.UserCode = sou.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog
+		ON soub.DeptCode = sog.GroupCode
+		WHERE soub.CompanyCode = #{CompanyCode}
+		<if test='sDeptCode != null and sDeptCode != ""'>
+			AND soub.DeptCode = #{sDeptCode}
+		</if>
+		<if test='sUserCode != null and sUserCode != ""'>
+			AND sou.UserCode = #{sUserCode}
+		</if>
+	</select>
+	<!-- 근무마스터 키
+	<select id="chkAttendanceBaseInfoYn" parameterType="cmap" resultType="String">
+		SELECT 
+			amm.AttSeq
+		FROM
+			(
+				SELECT * FROM covi_smart4j.attendance_mng_mst
+				WHERE ValidYn = #{ValidYn}
+				AND CompanyCode = #{CompanyCode}	
+			) amm
+			,(
+				SELECT * FROM covi_smart4j.attendance_mng_schedule
+				WHERE ValidYn = 'Y'
+				AND BaseYn = 'Y'
+			) ams
+		WHERE
+			1=1
+		AND
+			amm.AttSeq = ams.AttSeq
+ 	</select>  -->
+	<select id="chkAttendanceBaseInfoYn" parameterType="cmap" resultType="String">
+		SELECT
+		AttSeq
+		FROM covi_smart4j.attendance_mng_mst
+		WHERE ValidYn = #{ValidYn}
+		AND CompanyCode = #{CompanyCode}
+	</select>
+	
+	<!-- 근무 템플릿 조회 -->
+	<select id="getScheduleList" parameterType="cmap" resultType="cmap">
+		SELECT distinct ams.SchSeq, SchName, AttDayStartTime, AttDayEndTime
+				, concat(ams.StartSunHour,':',StartSunMin,'~',EndSunHour,':',EndSunMin) WorkTimeSun
+				, concat(ams.StartMonHour,':',StartMonMin,'~',EndMonHour,':',EndMonMin) WorkTimeMon
+				, concat(ams.StartTueHour,':',StartTueMin,'~',EndTueHour,':',EndTueMin) WorkTimeTue
+				, concat(ams.StartWedHour,':',StartWedMin,'~',EndWedHour,':',EndWedMin) WorkTimeWed
+				, concat(ams.StartThuHour,':',StartThuMin,'~',EndThuHour,':',EndThuMin) WorkTimeThu
+				, concat(ams.StartFriHour,':',StartFriMin,'~',EndFriHour,':',EndFriMin) WorkTimeFri
+				, concat(ams.StartSatHour,':',StartSatMin,'~',EndSatHour,':',EndSatMin) WorkTimeSat
+				, case when NextDayYnSun = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartSunHour,StartSunMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndSunHour,EndSunMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartSunHour,StartSunMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndSunHour,EndSunMin),'%Y%m%d%H%i')) end AcTimeSun
+				, case when NextDayYnMon = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartMonHour,StartMonMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndMonHour,EndMonMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartMonHour,StartMonMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndMonHour,EndMonMin),'%Y%m%d%H%i')) end AcTimeMon
+				, case when NextDayYnTue = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartTueHour,StartTueMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndTueHour,EndTueMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartTueHour,StartTueMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndTueHour,EndTueMin),'%Y%m%d%H%i')) end AcTimeTue
+				, case when NextDayYnWed = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartWedHour,StartWedMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndWedHour,EndWedMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartWedHour,StartWedMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndWedHour,EndWedMin),'%Y%m%d%H%i')) end AcTimeWed
+				, case when NextDayYnThu = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartThuHour,StartThuMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndThuHour,EndThuMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartThuHour,StartThuMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndThuHour,EndThuMin),'%Y%m%d%H%i')) end AcTimeThu
+				, case when NextDayYnFri = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartFriHour,StartFriMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndFriHour,EndFriMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartFriHour,StartFriMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndFriHour,EndFriMin),'%Y%m%d%H%i')) end AcTimeFri
+				, case when NextDayYnSat = 'Y' 
+				   then fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartSatHour,StartSatMin),'%Y%m%d%H%i'), str_to_date(concat('20200102',EndSatHour,EndSatMin),'%Y%m%d%H%i'))
+					else fn_attend_getAttDayACTime(str_to_date(concat('20200101',StartSatHour,StartSatMin),'%Y%m%d%H%i'), str_to_date(concat('20200101',EndSatHour,EndSatMin),'%Y%m%d%H%i')) end AcTimeSat
+				, ams.BaseYn		
+		  FROM attendance_mng_schedule  ams
+		LEFT  JOIN
+			(  select AllocSEQ, SchSeq, AllocType, AllocID, GroupCode, GroupPath
+				from attendance_mng_schedule_alloc a
+				LEFT JOIN (select CompanyCode, GroupType, GroupCode, GroupPath  from sys_object_group) sog
+				ON  sog.CompanyCode = #{CompanyCode} AND GroupType = 'Dept' AND GroupCode <![CDATA[<>]]> a.AllocID AND GroupPath like CONCAT('%',a.AllocID,';%')
+			) amsa ON ams.SchSeq = amsa.SchSeq
+
+		<if test='UserCode != null and UserCode != ""'>
+			AND ((amsa.AllocType = 'UR' AND amsa.AllocID=#{UserCode} ) OR (amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})) )
+		  </if>
+		  <if test='(UserCode == null or UserCode == "") and (DeptID != null and DeptID != "")'>
+		  	AND amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})
+		  </if>
+		 WHERE ams.CompanyCode = #{CompanyCode}
+		   <if test='SchName != null and SchName != ""'>
+			AND ams.SchName like concat ('%',#{SchName},'%')
+		    </if>
+		   AND ams.ValidYn = 'Y'
+		<if test='UserCode != null and UserCode != ""'>
+		   AND (ams.BaseYn = 'Y' OR (((amsa.AllocType = 'UR' AND amsa.AllocID=#{UserCode} ) OR (amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID})) ) ))
+		</if>
+		<if test='(UserCode == null or UserCode == "") and (DeptID != null and DeptID != "")'>
+			AND (ams.BaseYn = 'Y' OR ( amsa.AllocType != 'UR' AND (amsa.GroupCode=#{DeptID} OR amsa.AllocID=#{DeptID}) ))
+		</if>
+		ORDER BY ams.BaseYn desc, ams.SchName
+	</select>
+
+	<!-- 관리자 여부 확인 -->
+	<select id="selectGroupMemberList" parameterType="cmap" resultType="int">
+		SELECT  
+			count(1) cnt
+		FROM 
+		(
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, IFNULL(UR.DisplayName, '') AS CodeName
+					, IFNULL(UR.MailAddress, '') AS MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM sys_object_group_member AS GM
+					LEFT JOIN sys_object_user AS UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = CONCAT(#{domainID},'_Attendance_Admin')
+			UNION 
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, IFNULL(GR.DisplayName, '') AS CodeName
+					, IFNULL(GR.PrimaryMail, '') AS MailAddress
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup AS GM
+					LEFT JOIN sys_object_group AS GR ON GM.MemberGroupCode = GR.GroupCode
+			WHERE GM.GroupCode = CONCAT(#{domainID},'Attendance_Admin')
+		) AS A WHERE Code = #{UserCode}
+	</select>	
+	
+	<select id="getDayScope" parameterType="cmap" resultType="String">
+		SELECT covi_smart4j.fn_attend_getDayScope(#{DayTerm},#{TargetDate},#{CompanyCode}) AS dayScope FROM DUAL
+	</select>
+	
+	<!-- 기타근무 리스트조회 -->
+	<select id="getOtherJobList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			amjs.JobStsSeq
+			,amjs.JobStsName
+			,amjs.ValidYn
+			,amjs.Memo
+			,amjs.ReqMethod
+			,amjs.UpdMethod
+			,amjs.DelMethod
+		FROM covi_smart4j.attendance_mng_job_status amjs 
+		JOIN covi_smart4j.attendance_mng_mst amm
+			ON amm.AttSeq = amjs.AttSeq 
+			AND amm.CompanyCode = #{CompanyCode}
+		WHERE 1=1
+		<if test="JobStsSeq != null and JobStsSeq != ''">
+	    AND JobStsSeq        = #{JobStsSeq}  
+		</if>
+		<if test="ValidYn != null and ValidYn != ''">
+	    AND amjs.ValidYn        = #{ValidYn}  
+		</if>        
+		ORDER BY amjs.JobStsSeq DESC
+	</select>
+
+	<!-- 회사 휴무일 조회 -->	
+	<select id="getHolidaySchedule"  parameterType="cmap" resultType= "cmap" >
+		/* queryID : attend.common.getHolidaySchedule */
+		SELECT		dayList, HolidayStart, HolidayEnd, HolidayName
+		FROM		covi_smart4j.attendance_mng_holiday_schedule
+		LEFT   JOIN covi_smart4j.attendance_daylist ad ON ad.dayList BETWEEN HolidayStart AND HolidayEnd
+		WHERE		CompanyCode = #{CompanyCode}
+		<if test="StartDate != null and StartDate != ''">
+		AND	        #{StartDate} BETWEEN DATE_FORMAT(HolidayStart,'%Y%m') AND DATE_FORMAT(HolidayEnd,'%Y%m')	
+		</if>
+	</select>
+	
+	<!-- 근태 달력조회 -->
+	<select id="getJobCalendar"  parameterType="cmap" resultType= "cmap" >
+	   SELECT   DATE_FORMAT(aj.JobDate  , '%Y-%m-%d')         JobDate
+	   			,aj.SchSeq          SchSeq
+			   , ash.SchName      SchName
+			   , aj.WorkSts          WorkSts
+			   -- , date_format(case when VacOffFlag like '%AM%' then DATE_ADD(aj.AttDayEndTime,INTERVAL -4 hour)  else aj.AttDayStartTime end ,'%H%i') AttDayStartTime
+			   -- , date_format(case when VacOffFlag like '%PM%' then DATE_ADD(aj.AttDayEndTime,INTERVAL -4 hour)  else aj.AttDayEndTime end,'%H%i')   AttDayEndTime
+			   , date_format(aj.AttDayStartTime,'%H%i') AttDayStartTime
+			   , date_format(aj.AttDayEndTime,'%H%i') AttDayEndTime
+			   , WorkSts
+			   , aj.ConfmYn
+			   , ifnull(VacFlag,'N') VacFlag
+			   , VacOffFlag
+			   , ifnull(VacDay,0) VacDay
+			   , CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VacFlag,'|',1)) END CodeName
+			   , DATE_FORMAT(am.AttStartTime,'%Y-%m-%d %H:%i:%S') AttStartTime
+			   , DATE_FORMAT(am.AttEndTime,'%Y-%m-%d %H:%i:%S') AttEndTime
+			   , am.StartSts, am.EndSts
+			   , am.HoliAc
+			   , am.ExtenAC
+			   , ash.AssYn
+			   , aj.AttDayAC
+	     FROM covi_smart4j.attendance_mng_job        aj
+	LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+    LEFT JOIN (SELECT  dayList, ur_code
+						, SUM(VacDay) as VacDay
+						, GROUP_CONCAT(vv.VacFlag ORDER BY vv.VacOffFlag SEPARATOR '|') as VacFlag
+						, GROUP_CONCAT(vv.VacOffFlag ORDER BY vv.VacOffFlag SEPARATOR '|') as VacOffFlag
+		              FROM  covi_smart4j.attendance_daylist d JOIN covi_smart4j.vm_vacationinfo_day vv ON d.dayList = vv.VacDate
+		  	         WHERE  vv.UR_Code = #{UR_Code}  
+		  	           AND  d.dayList BETWEEN STR_TO_DATE(CONCAT(#{StartDate},'01'),'%Y%m%d')  AND LAST_DAY( STR_TO_DATE(#{StartDate},'%Y%m'))
+		  	      GROUP BY dayList, ur_code ) vv ON aj.JobDate = vv.dayList
+    LEFT JOIN covi_smart4j.attendance_commuting_mst am ON aj.UserCode = am.UserCode AND aj.JobDate = am.TargetDate
+	    WHERE aj.UserCode = #{UR_Code}
+		  AND aj.JobDate BETWEEN STR_TO_DATE(CONCAT(SUBSTR(#{StartDate},1,6),'01'),'%Y%m%d')  AND LAST_DAY(STR_TO_DATE(CONCAT(SUBSTR(#{StartDate},1,6),'01'),'%Y%m%d'))
+	 ORDER BY JobDate
+	</select>
+	
+	<!-- 사용자 timezone 적용 시간 조회 -->
+	<select id="getUserNowDateTime" parameterType="cmap" resultType="String">
+		SELECT 
+			DATE_FORMAT(ADDTIME(NOW(),IFNULL(c.Reserved1,'00:00:00')), #{DateFormat}) UserDateTime
+		FROM covi_smart4j.sys_object_user u 
+		LEFT JOIN covi_smart4j.sys_base_code c ON u.TimeZoneCode = c.CODE
+		LEFT JOIN covi_smart4j.sys_object_user_basegroup ub ON ub.UserCode = u.UserCode AND ub.JobType = 'ORIGIN'
+		LEFT JOIN covi_smart4j.sys_object_domain d ON d.DomainCode = ub.CompanyCode
+		WHERE u.UserCode = #{UserCode}
+		AND c.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = c.Code ORDER BY IF(DomainID = d.DomainID, 0, 1) LIMIT 1 )
+	</select>
+	
+	<select id="getMyManagerName" parameterType="cmap" resultType="cmap">
+		SELECT
+				S.LogonID
+				, Fn_BaseGetDictionary_S(#{lang}, S.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiDeptName) AS DeptName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobLevelName) AS JobLevelName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobTitleName) AS JobTitleName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobPositionName) AS JobPositionName
+				, S.Description
+				, S.Birthdate
+				, S.PhoneNumber
+				, S.Mobile
+				, S.Fax
+				, S.PhotoPath
+				, S.MailAddress
+				, S.Address
+				, S.ChargeBusiness
+			FROM SYS_OBJECT_USER S
+			INNER JOIN SYS_OBJECT_USER_BASEGROUP UB ON S.UserCode = UB.UserCode
+			WHERE   S.UserCode = #{userId}
+			AND UB.JobType = 'Origin'
+			LIMIT 1
+	</select>	
+	
+	<select id="getBaseConfig" parameterType="cmap" resultType="cmap">
+		SELECT ConfigID, BizSection, SettingKey ,SettingValue
+		  FROM covi_smart4j.sys_base_config a
+	INNER JOIN covi_smart4j.sys_object_domain B ON A.DomainID = B.DomainID
+		 WHERE b.DomainCode =  #{CompanyCode}
+		   AND a.SettingKey =  #{settingVal}
+		
+	</select>
+
+	<!-- 월 법정근로시간 계산 -->
+	<select id="getMonthlyMaxWorkTime" parameterType="cmap" resultType="int">
+		SELECT
+			ROUND(40 * (date_format(LAST_DAY(#{TargetDate}), '%d') / 7), 1) * 60
+	</select>
+
+	<!-- 회사설정 휴게시간관리 정보 가져오기 -->
+	<select id="getRewardTimeInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			OverTime, RewardTime
+		FROM covi_smart4j.attendance_mng_mst_reward
+		WHERE
+			CompanyCode = #{CompanyCode} AND  RewardCode = 'rest'
+		limit 1;
+	</select>
+</mapper>
+

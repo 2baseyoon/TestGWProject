@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="groupware.privacy">
+	
+	<select id="selectUserPrivacySetting" parameterType="cmap" resultType="cmap">
+		SELECT A.UserID AS "UserID"
+		     , A.UserCode AS "UserCode"
+		     , A.MailAddress AS "MailAddress"
+		     , A.BirthDiv AS "BirthDiv"
+		     , A.BirthDate AS "BirthDate"
+		     , A.IsBirthLeapMonth AS "IsBirthLeapMonth"
+		     , A.ExternalMailAddress AS "ExternalMailAddress"
+		     , A.Mobile AS "Mobile"
+		     , A.Fax AS "Fax"
+		     , A.PhoneNumberInter AS "PhoneNumberInter"
+		     , A.IPPhone AS "IPPhone"
+		     , A.PhoneNumber AS "PhoneNumber"
+		     , A.PhotoFileID AS "updateFileId"
+		     , A.MultiDisplayName AS "MultiDisplayName"
+		     , B.MultiCompanyName AS "MultiCompanyName"
+		     , B.MultiDeptName AS "MultiDeptName"
+		     , B.MultiJobPositionName AS "MultiJobPositionName"
+		     , B.MultiJobTitleName AS "MultiJobTitleName"
+		     , C.Mail AS "Mail"
+		     , D.AbsenseUseYN AS "AbsenseUseYN"
+		     , D.AbsenseDuty AS "AbsenseDuty"
+		     , TO_CHAR(D.AbsenseTermStart,'YYYY.MM.DD') AS "AbsenseTermStart"
+			 , TO_CHAR(D.AbsenseTermEnd,'YYYY.MM.DD')  AS "AbsenseTermEnd"
+		     , D.AbsenseReason AS "AbsenseReason"
+		     , D.AbsenseType AS "AbsenseType"
+		     , DECODE (D.AbsenseDuty, NULL, '', D.AbsenseDuty||';'||(SELECT DisplayName 
+																		  FROM SYS_OBJECT_USER E 
+																		 WHERE D.AbsenseDuty = E.UserCode)) AS "absenseDutyText"
+             , PhotoPath AS "updateFilePath"
+             , ChargeBusiness AS "ChargeBusiness"
+             , D.PushAllowYN AS "PushAllowYN"
+             , D.PushAllowWeek AS "PushAllowWeek"
+             , D.PushAllowStartTime AS "PushAllowStartTime"
+             , D.PushAllowEndTime AS "PushAllowEndTime"
+		  FROM SYS_OBJECT_USER A
+		  JOIN SYS_OBJECT_USER_BASEGROUP B ON A.UserCode = B.UserCode
+		  LEFT JOIN SYS_OBJECT_USER_GOOGLE C ON A.UserCode = C.UserCode
+		  LEFT JOIN SYS_OBJECT_USER_INFO D ON A.UserCode = D.UserCode    
+		 WHERE B.UserCode = #{userCode}
+		 AND B.Seq = #{seq}
+	</select>
+	
+	<select id="selectUserBaseGroupAll" parameterType="cmap" resultType="cmap">
+	    SELECT Seq AS "Seq"
+	    	 , UserCode AS "UserCode"
+	    	 , FN_BASEGETDICTIONARY_S(#{lang}, MultiCompanyName) AS "CompanyName"
+	    	 , FN_BASEGETDICTIONARY_S(#{lang}, MultiDeptName) AS "DeptName"
+	    	 , FN_BASEGETDICTIONARY_S(#{lang}, MultiJobLevelName) AS "JobLevelName"
+	    	 , CompanyCode AS "CompanyCode"
+	    	 , DeptCode AS "DeptCode"
+	    	 , JobLevelCode AS "JobLevelCode"
+	    FROM SYS_OBJECT_USER_BASEGROUP
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	   	ORDER BY DECODE(JobType, 'Origin' ,1,2)
+	</select>
+	
+	<select id="selectUserBaseGroup" parameterType="cmap" resultType="cmap">
+	    SELECT    (SELECT GroupPath FROM SYS_OBJECT_GROUP WHERE GroupCode = SOUB.DeptCode) AS "GroupPath"
+			    , FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiDeptName) AS "DeptName"
+			    , FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiJobLevelName) AS "JobLevelName"
+			    , FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiJobPositionName) AS "JobPositionName"
+			    , FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiJobTitleName) AS "JobTitleName"
+		        , FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiCompanyName) AS "CompanyName"
+		        , (SELECT DomainID FROM SYS_OBJECT_DOMAIN WHERE DomainCode = SOUB.CompanyCode) AS "DomainID"
+		        , SOUB.CompanyCode AS "CompanyCode"
+			    , SOUB.JobLevelCode AS "JobLevelCode"
+			    , SOUB.JobPositionCode AS "JobPositionCode"
+			    , SOUB.JobTitleCode AS "JobTitleCode"
+			    , SOUB.DeptCode AS "DeptCode"
+				, SYS_GETFULLPATH(SOUB.DeptCode) AS "GroupFullName"
+				, Fn_GetApprvalDeptInfo_S(SOUB.DeptCode,'CODE') AS "ApprovalParentGR_Code"
+				, Fn_GetApprvalDeptInfo_S(SOUB.DeptCode,'NAME') AS "ApprovalParentGR_Name"
+				, SOUB.MultiJobPositionName AS "UR_MultiJobPositionName"
+				, SOUB.MultiJobTitleName AS "UR_MultiJobTitleName"
+				, SOUB.MultiJobLevelName AS "UR_MultiJobLevelName"
+				, SOUB.MultiDeptName AS "GR_MultiName"
+		FROM SYS_OBJECT_USER_BASEGROUP SOUB
+		WHERE 1=1 
+		AND SOUB.Seq = #{seq}
+	</select>
+	
+	<select id="selectUserGroupName" parameterType="cmap" resultType="cmap">
+		SELECT Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS "UR_Name"
+				 ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS "DeptName"
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS "JobLevelName"
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS "JobPositionName"
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS "JobTitleName"
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS "CompanyName"
+		FROM sys_object_user SOU
+		LEFT JOIN sys_object_user_basegroup  SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+		WHERE SOUBG.Seq = #{seq}
+	</select>	
+	
+	<update id="updateUserInfo" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER
+		   SET BirthDiv = #{birthDiv}
+		   	   , BirthDate = #{birthDate}
+		   	   , ExternalMailAddress = #{externalMailAddress}
+		   	   , Mobile = #{mobile}
+		   	   , Fax = #{fax}
+		   	   , PhoneNumberInter = #{phoneNumberInter}
+		   	   , PhoneNumber = #{phoneNumber}
+		   	   , chargeBusiness = #{chargeBusiness}
+		   	   <if test="timeZoneCode != null and timeZoneCode != '' ">
+		   	   , TimeZoneCode = #{timeZoneCode}
+		   	   </if>
+			   <if test='isBirthLeapMonth != null and isBirthLeapMonth !=""'>
+			   , IsBirthLeapMonth = #{isBirthLeapMonth}
+			   </if>
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- 부재설정 수정 -->
+	<update id="updateUserAbsense" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER_INFO
+		   SET AbsenseUseYN = #{absenseUseYn},
+		   
+			<if test='absenseUseYn != null and absenseUseYn !="" and absenseUseYn =="Y"'>
+		   	   AbsenseDuty = #{absenseDuty},
+		   	   AbsenseTermStart = #{absenseTermStart},
+		   	   AbsenseTermEnd = #{absenseTermEnd},
+		   	   AbsenseReason = #{absenseReason},
+		   	   AbsenseType = #{absenseType}
+			</if>
+			
+			<if test='absenseUseYn != null and absenseUseYn !="" and absenseUseYn =="N"'>
+		   	   AbsenseDuty = NULL,
+		   	   AbsenseTermStart = NULL,
+		   	   AbsenseTermEnd = NULL,
+		   	   AbsenseReason = NULL,
+		   	   AbsenseType = NULL
+			</if>
+			
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- PUSH알림설정 수정 -->
+	<update id="updateUserPush" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER_INFO
+		   SET PushAllowYN = #{pushAllowYN},
+		   	   PushAllowWeek = #{pushAllowWeek},
+		   	   PushAllowStartTime = #{pushAllowStartTime},
+		   	   PushAllowEndTime = #{pushAllowEndTime}
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- 테마 변경 정보 저장 -->
+	<update id="updateThemeType" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER_INFO
+		   SET ThemeType = #{themeType}
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<select id="selectUserLoginPassword" parameterType="cmap" resultType="cmap">
+		SELECT LogonPassword AS "LogonPassword",
+			   REPLACE(BirthDate, '.', '') AS "BirthDate", 
+			   REPLACE(Mobile, '-', '') AS "Mobile"
+		  FROM SYS_OBJECT_USER A
+		 WHERE UserCode = #{userCode}	  
+	</select>
+	
+	<update id="updateUserPassword" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER
+		  		SET LogonPassword = CRYPTO.ENC_AES128(#{loginPassword},#{aeskey})
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<select id="selectUserMessagingSetting" parameterType="cmap" resultType="cmap">
+		SELECT A.CodeID AS "CodeID"
+					, A.BizSection  AS "BizSection"
+					, A.CodeGroup AS "CodeGroup"
+					, A.Code AS "Code"
+					, A.CodeName AS "CodeName"
+					, A.MultiCodeName AS "MultiCodeName"
+					, A.Reserved1 AS "EnableMedia" --  예비1: 모든 발송 가능 매체 
+					, A.Reserved2 AS "EditableMedia" --  예비2: 사용자가 설정 가능한 매체 
+					, A.Reserved3 AS "DefaultMedia" --  예비3: 초기설정값 
+					, A.Description AS "Description"
+					, TO_CHAR(A.ModifyDate,'YYYY-MM-DD') AS "ModifyDate"
+					, B.CodeName AS "parentCodeName"
+					, B.MultiCodeName AS "parentMultiCodeName"
+					, NVL(C.MediaType, A.Reserved3) AS "MediaType"
+					, NVL(D.DisplayName,'Default') AS "ModifyName"
+		FROM SYS_BASE_CODE A
+        LEFT JOIN (
+        			SELECT Code, CodeName, MultiCodeName
+					FROM SYS_BASE_CODE sbc
+					WHERE codeGroup = 'TodoCategory'
+					AND IsUse = 'Y'
+					AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoCategory' AND DomainID = #{domainID})
+					ORDER BY SortKey ASC
+				) B ON A.BizSection = B.Code
+        LEFT JOIN (SELECT ServiceType, MediaType 
+                   FROM SYS_MESSAGING_SETTING 
+                   WHERE UserCode = #{userCode}) C ON A.Code = C.ServiceType
+        LEFT JOIN SYS_OBJECT_USER D ON A.ModifierCode = D.UserCode
+        WHERE A.codeGroup = 'TodoMsgType'
+        AND A.IsUse = 'Y'
+        AND A.ReservedInt = 1
+        AND B.CodeName IS NOT NULL
+        AND A.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = A.Code AND CodeGroup = 'TodoMsgType' AND DomainID = #{domainID})
+        ORDER BY A.BizSection, A.SortKey ASC
+	</select>
+	
+	<update id="updateUserMessagingSetting" parameterType="cmap">
+		MERGE INTO SYS_MESSAGING_SETTING G
+		USING DUAL ON (G.UserCode = #{settingVO.serviceTypes[0].userCode} AND G.ServiceType = #{settingVO.serviceTypes[0].serviceType}) 
+		WHEN MATCHED THEN 
+		UPDATE SET G.MediaType = #{settingVO.serviceTypes[0].mediaType} 
+		         , G.ModifierCode = #{settingVO.serviceTypes[0].userCode}
+		         , G.ModifiedDate = SYSDATE
+		WHEN NOT MATCHED THEN 
+		INSERT (G.UserCode, G.ServiceType, G.MediaType, G.RegisterCode, G.ModifierCode)
+		VALUES (#{settingVO.serviceTypes[0].userCode}, #{settingVO.serviceTypes[0].serviceType}, #{settingVO.serviceTypes[0].mediaType}, #{settingVO.serviceTypes[0].userCode}, #{settingVO.serviceTypes[0].userCode})		   
+	</update>
+	
+	<update id="updateUserMessagingSettings" parameterType="cmap">
+		BEGIN
+			DELETE 
+			FROM SYS_MESSAGING_SETTING
+			WHERE UserCode = #{settingVO.userCode}
+			<if test='settingVO.reqTr != null and settingVO.reqTr !="" and settingVO.reqTr =="body"'>
+				AND ServiceType IN (
+					SELECT Code
+					FROM SYS_BASE_CODE sbc
+					WHERE CodeGroup = 'TodoMsgType'
+					AND BizSection = #{settingVO.serviceType}
+					AND sbc.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' AND DomainID = sod.DomainID)
+				)
+			</if>
+			;
+			
+			<foreach collection="settingVO.serviceTypes" item="item" open="INSERT ALL " separator=" " close="SELECT * FROM DUAL;">
+				INTO SYS_MESSAGING_SETTING (UserCode, ServiceType, MediaType, RegisterCode, ModifierCode  )
+				VALUES (#{item.userCode}, #{item.serviceType}, #{item.mediaType}, #{item.userCode},		#{item.userCode})
+			</foreach>
+		END;
+	</update>
+	
+	<delete id="deleteUserMessagingSetting" parameterType="cmap">
+		DELETE 
+		  FROM SYS_MESSAGING_SETTING
+		 WHERE UserCode = #{settingVO.userCode}
+	</delete>
+	
+	<select id="selectConnectionLogList" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		SELECT A.days AS "days"
+		     , A.LogonDate AS "LogonDate"
+		     , A.LogoutDate AS "LogoutDate"
+		     , A.LogonID AS "LogonID"
+	 		  FROM (SELECT TRIM(Year)||'-'||TRIM(Month)||'-'||TRIM(Day) AS days,
+				 		   TO_CHAR(MIN(LogonDate),'YYYY-MM-DD HH24:MI') AS LogonDate, 
+				 		   TO_CHAR(MAX(LogoutDate),'YYYY-MM-DD HH24:MI') AS LogoutDate, 
+						   LogonID
+					  FROM LOG_CONNECT
+					 WHERE LogonID = #{userId}
+					 GROUP BY Year, Month, Day, LogonID
+	 		  	   ) A
+		 WHERE 1 = 1
+		 <if test='startDate != null and startDate !=""'>
+	  	    AND days <![CDATA[>=]]> TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')	   
+		 </if>
+		 <if test='endDate != null and endDate !=""'>
+		    AND days <![CDATA[<=]]> TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')
+		 </if>
+		 <trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+	 			<choose>
+					<when test='sortColumn.equalsIgnoreCase("LogonDate")'>LogonDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LogoutDate")'>LogoutDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<otherwise>days</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		 </trim>
+	     <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectConnectionLogListCnt" resultType="java.lang.Long">
+		SELECT count(*)
+ 			FROM (SELECT Year||'-'||Month||'-'||Day AS days,
+		 		   TO_CHAR(MIN(LogonDate),'YYYY-MM-DD HH24:MI') AS LogonDate, 
+		 		   TO_CHAR(MAX(LogoutDate),'YYYY-MM-DD HH24:MI') AS LogoutDate, 
+				   LogonID
+			FROM LOG_CONNECT
+			WHERE LogonID = 'superadmin'
+			GROUP BY Year, Month, Day, LogonID
+ 		 ) A
+		 WHERE 1 = 1
+		 <if test='startDate != null and startDate !=""'>
+	  	    AND days <![CDATA[>=]]> TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')	   
+		 </if>
+		 <if test='endDate != null and endDate !=""'>
+		    AND days <![CDATA[<=]]> TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')
+		 </if>		   		  		 
+	</select>
+	
+	<update id="updateTopMenuManage" parameterType="cmap">
+	    UPDATE SYS_OBJECT_USER_INFO SET
+	    	TopMenuConf = #{topMenuConf}
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	</update>	
+	
+	<select id="selectAnniversaryList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	MessageID AS "MessageID", 
+				AnniDate AS "AnniDate", 
+				AnniDateType AS "AnniDateType",
+				AnniDateTypeText AS "AnniDateTypeText",
+				Subject AS "Subject", 
+				Priority AS "Priority", 
+				dDay AS "dDay",
+				PriorityText AS "PriorityText", 
+				alarmDay AS "alarmDay",
+				AlarmYN AS "AlarmYN", 
+				Description AS "Description",
+				IsLeapMonth AS "IsLeapMonth"
+		FROM (
+			SELECT	AnniID AS MessageID,
+					REPLACE(AnniDate, '-', '.') AS AnniDate, 
+					AnniDateType,
+					DECODE(AnniDateType, 'S', '양력', DECODE(IsLeapMonth, 'Y', '음력/윤달', '음력')) AS AnniDateTypeText,
+					Subject, 
+					Priority, 
+					(CASE
+						WHEN AnniDateType = 'S' THEN
+							(CASE WHEN (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE(AnniDate,'-',''), 'YYYYMMDD')) = 0 
+										THEN 'D-Day'
+										WHEN (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE(AnniDate, '-', ''), 'YYYYMMDD'))  <![CDATA[<]]>  0 
+										THEN CONCAT('D', (1 * (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE(AnniDate, '-', ''), 'YYYYMMDD'))))
+										ELSE CONCAT('D+', (1 * (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE(AnniDate, '-', ''), 'YYYYMMDD'))))
+										END)
+						ELSE 
+							(CASE WHEN (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth),'-',''), 'YYYYMMDD')) = 0 
+										THEN 'D-Day'
+										WHEN (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), '-', ''), 'YYYYMMDD'))   <![CDATA[<]]>  0 
+										THEN CONCAT('D', (1 * (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), '-', ''), 'YYYYMMDD'))))
+										ELSE CONCAT('D+', (1 * (TO_DATE(TO_CHAR(SYSDATE, 'YYYYMMDD'), 'YYYYMMDD') - TO_DATE(REPLACE((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), '-', ''), 'YYYYMMDD'))))
+										END)
+					END)	AS dDay,
+					(CASE WHEN Priority = 1 THEN '매우 높음'
+						WHEN Priority = 2 THEN '높음'
+						WHEN Priority = 3 THEN '보통'
+						WHEN Priority = 4 THEN '낮음'
+						ELSE '매우 낮음' 
+						END) AS PriorityText, 
+					(CASE WHEN NVL(REPLACE(AlarmDate, ' ', ''), 'N') != 'N'
+						THEN TO_CHAR(TO_DATE(REPLACE(AnniDate, '-', ''), 'YYYYMMDD') - TO_DATE(REPLACE(AlarmDate, '-', ''), 'YYYYMMDD'))
+						ELSE '' 
+						END) AS alarmDay,
+					AlarmYN, 
+					Description,
+					IsLeapMonth
+			FROM SYS_OBJECT_USER_ANNIVERSARY soua
+			WHERE UserCode = #{userId}
+			<if test='messageId != null and messageId !=""'>
+				AND AnniID = #{messageId}
+			</if>
+			<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+				<choose>
+					<when test='schTypeSel == "subject"'>
+						AND Subject LIKE '%'||#{schTxt}||'%'
+					</when>
+					<otherwise>
+						AND Description LIKE '%'||#{schTxt}||'%'
+					</otherwise>
+				</choose>
+			</if>
+		)A
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortColumn != "" and sortDirection != null and sortDirection != ""'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("AnniDateTypeText")'>AnniDateTypeText</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("PriorityText")'>PriorityText</when>
+					<when test='sortColumn.equalsIgnoreCase("alarmDay")'>alarmDay</when>
+					<otherwise>AnniDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="selectAnniversaryListCnt" resultType="java.lang.Long">
+		SELECT COUNT(AnniID) AS cnt
+		  FROM SYS_OBJECT_USER_ANNIVERSARY
+		 WHERE UserCode = #{userId}
+		 <if test='messageId != null and messageId !=""'>
+		 	AND AnniID = #{messageId}
+		 </if>		 
+		 <if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+			<choose>
+				<when test='schTypeSel == "subject"'>
+				   AND Subject LIKE '%'||#{schTxt}||'%'
+	            </when>
+	            <otherwise>
+	               AND Description LIKE '%'||#{schTxt}||'%'
+	            </otherwise>
+			</choose>
+		 </if>		 		 
+	</select>
+	
+	<insert id="insertAnniversary" parameterType="cmap">	
+		INSERT INTO SYS_OBJECT_USER_ANNIVERSARY (
+			UserCode, Subject, Description, 
+			AlarmDate, 
+			AnniDate, AnniDateType, Priority, AlarmYN
+			<if test='isLeapMonth != null and isLeapMonth !=""'>,isLeapMonth</if>
+		)
+	    VALUES (
+	    	#{urCode}, NVL(#{subject},' '), #{description},
+			<choose>
+				<when test='alarmYn == "Y"'>
+				    TO_CHAR(TO_DATE(#{anniDate}, 'YYYY/MM/DD')-#{alramPeriod}, 'YYYY-MM-DD'),
+	         	</when>
+	         	<otherwise>
+					' ',
+	         	</otherwise>
+	    	</choose>	    
+    		#{anniDate}, #{anniDateType}, #{priority}, #{alarmYn}
+    		<if test='isLeapMonth != null and isLeapMonth !=""'>,#{isLeapMonth}</if>
+		)
+	</insert>
+	
+	<update id="updateAnniversary" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER_ANNIVERSARY
+		   SET Subject = #{subject},
+		   	   Description = #{description},
+			   <choose>
+			   	<when test='alarmYn == "Y"'>
+					AlarmDate =   TO_CHAR(TO_DATE(#{anniDate}, 'YYYY/MM/DD')-#{alramPeriod}, 'YYYY-MM-DD'),
+	         	</when>
+	           <otherwise>
+					AlarmDate = ' ',
+	           </otherwise>
+	    	   </choose>
+		   	   AnniDate = #{anniDate},
+		   	   AnniDateType = #{anniDateType},
+		   	   Priority = #{priority},
+		   	   AlarmYN = #{alarmYn}
+		   	   <if test='isLeapMonth != null and isLeapMonth !=""'>,isLeapMonth = #{isLeapMonth}</if>
+		 WHERE AnniID = #{messageId}
+	</update>
+	
+	<delete id="deleteAnniversary" parameterType="cmap">
+		DELETE 
+		  FROM SYS_OBJECT_USER_ANNIVERSARY
+		 WHERE AnniID IN
+         <foreach collection="messageIdArr" item="messageId" open="(" close=")" separator=",">
+         	#{messageId}
+         </foreach>
+	</delete>
+	
+	<insert id="insertAnniversaryByExcel" parameterType="cmap">
+        <foreach collection="dataList" item="item" open="INSERT ALL " separator=" " close="SELECT * FROM DUAL">
+        	 INTO SYS_OBJECT_USER_ANNIVERSARY (UserCode, Subject, Description, 
+		  										   AlarmDate, 
+		  										   AnniDate, AnniDateType, Priority, AlarmYN
+			  						   			  )
+	   		 VALUES (#{urCode}, #{item.subject}, #{item.description}, 
+			<choose>
+				<when test='item.alarmYn == "Y"'>
+				    TO_CHAR(TO_DATE(#{item.anniDate}, 'YYYY/MM/DD')-#{item.alarmPeriod}, 'YYYY-MM-DD'),
+	         	</when>
+	         	<otherwise>
+					' ',
+	         	</otherwise>
+	    	</choose>
+    		#{item.anniDate}, #{item.anniDateType}, #{item.priority}, #{item.alarmYn})
+        </foreach>
+	</insert>
+	
+	<update id="updateUserPhotoPath" parameterType="cmap">
+		UPDATE SYS_OBJECT_USER
+		   SET PhotoPath = #{photoPath}
+		 WHERE UserCode = #{userCode}
+	</update>	
+	
+	<select id="selectSSOValue" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT SettingValue AS "SettingValue"
+			FROM SSO_CONFIG sso
+			WHERE Code = #{Code}
+			AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SSO_CONFIG WHERE Code = sso.Code AND DomainID = #{DomainID})
+		]]>
+	</select>
+	
+	<select id="selectTokenInForMation" parameterType="cmap" resultType="cmap">
+	   <![CDATA[ 
+	  	 	SELECT   TOKEN AS "TOKEN"
+			       , UserID AS "LogonID"
+			       , UserName AS "UserName"
+			       , UserCode AS "UserCode"
+			       , EMPNO AS "UR_EmpNo"
+			       , MAXAGE AS "MAXAGE"
+			       , MODIFIERDATE AS "MODIFIERDATE"
+			FROM SSO_TOKEN_HIS 
+			WHERE TOKEN = #{key}
+			ORDER BY MODIFIERDATE DESC 
+	 	]]>  								  
+	</select>
+	
+	<delete id="removeGmail" parameterType="cmap" >
+	    DELETE FROM SYS_OBJECT_USER_GOOGLE WHERE USERCODE = #{UR_CODE}
+	</delete>
+	
+</mapper>

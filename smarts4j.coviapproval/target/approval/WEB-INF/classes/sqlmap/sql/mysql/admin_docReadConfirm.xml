@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.docReadConfirm">
+    <select id="selectDocReadConfirmList" parameterType="cmap" resultType="cmap">
+			SELECT R.DocReadID 
+				   		,R.UserID 
+						,R.UserName 
+				   		,R.ReadDate AS  ReadDate
+						,R.AdminYN 
+				   		,R.ProcessID
+				   		,R.FormInstID
+				   		,FI.FormID
+						,F.FormName
+						,F.FormPrefix
+				   		,FI.Subject
+				   		,F.Revision
+				   		,FI.InitiatorID
+						,FI.InitiatorName
+				   		,FI.InitiatorUnitID
+						,FI.InitiatorUnitName
+				   		,FI.InitiatedDate AS  InitiatedDate
+				   		,FI.CompletedDate AS  CompletedDate
+				FROM covi_approval4j.jwf_docreadhistory R 
+				   	INNER JOIN covi_approval4j.jwf_forminstance FI 
+				   		ON R.FormInstID = FI.FormInstID
+				   	INNER JOIN covi_approval4j.jwf_forms F
+				   		ON FI.FormID = F.FormID
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				    <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+				    	FI.EntCode = #{EntCode}
+				    </if>
+					<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+						AND R.AdminYN = #{sel_State}		
+					</if>
+					
+					<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+						AND 
+						<choose>
+							<when test='sel_Search.equalsIgnoreCase("Subject")'>FI.Subject</when>
+							<when test='sel_Search.equalsIgnoreCase("InitiatorName")'>FI.InitiatorName</when>
+							<when test='sel_Search.equalsIgnoreCase("FormName")'>F.FormName</when>
+							<otherwise>R.UserName</otherwise>
+						</choose> 
+						LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')	
+					</if>
+					<if test="sel_Date != null and sel_Date != '' and sel_Date.length() gt 0">
+					    <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">				
+							AND 
+							<choose>
+								<when test='sel_Date.equalsIgnoreCase("InitiatedDate")'>FI.InitiatedDate</when>
+								<otherwise>R.ReadDate</otherwise>
+							</choose> 
+							BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})					
+						</if>		
+					</if>
+					<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+						AND (
+							FI.Subject LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+							FI.InitiatorName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR
+							F.FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+							R.UserName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+						)
+					</if>					
+				</trim>
+		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+		  		<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>FI.Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>FI.InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatedDate")'>FI.InitiatedDate</when>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>R.UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("ReadDate")'>R.ReadDate</when>
+					<when test='sortColumn.equalsIgnoreCase("AdminYN")'>R.AdminYN</when>
+					<otherwise>R.DocReadID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				R.DocReadID DESC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectDocReadConfirmListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+				   		R.DocReadID 
+				   		,R.UserID 
+						,R.UserName 
+				   		,DATE_FORMAT(R.ReadDate,'%Y-%m-%d %H:%i') AS  ReadDate
+						,R.AdminYN 
+				   		,R.ProcessID
+				   		,R.FormInstID
+				   		,FI.FormID
+						,F.FormName
+						,F.FormPrefix
+				   		,FI.Subject
+				   		,F.Revision
+				   		,FI.InitiatorID
+						,FI.InitiatorName
+				   		,FI.InitiatorUnitID
+						,FI.InitiatorUnitName
+				   		,DATE_FORMAT(FI.InitiatedDate,'%Y-%m-%d %H:%i') AS  InitiatedDate
+				   		,DATE_FORMAT(FI.CompletedDate,'%Y-%m-%d %H:%i') AS  CompletedDate
+				FROM covi_approval4j.jwf_docreadhistory R 
+				   	INNER JOIN covi_approval4j.jwf_forminstance FI 
+				   		ON R.FormInstID = FI.FormInstID
+				   	INNER JOIN covi_approval4j.jwf_forms F
+				   		ON FI.FormID = F.FormID	
+				   	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					   <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+				    	FI.EntCode = #{EntCode}
+				    	</if>
+						<if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+							AND R.AdminYN = #{sel_State}		
+						</if>					
+					</trim>
+		) A		
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sel_Search.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>UserName</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')	
+			</if>
+			<if test="sel_Date != null and sel_Date != '' and sel_Date.length() gt 0">
+			    <if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">				
+					AND 
+					<choose>
+						<when test='sel_Date.equalsIgnoreCase("InitiatedDate")'>InitiatedDate</when>
+						<otherwise>ReadDate</otherwise>
+					</choose> 
+					BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})					
+				</if>		
+			</if>	
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					Subject LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					InitiatorName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR
+					FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					UserName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>					
+		</trim>
+			
+	</select>
+	
+</mapper>
+

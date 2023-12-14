@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogFileDownloadLog">
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+     	SELECT A.*
+		FROM (
+			SELECT A.LogID
+				, A.UserCode
+				, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang}, C.MultiDeptName) AS DeptName
+				, A.FileID
+				, A.FileUUID
+				, A.ServiceType
+				, A.FileName
+				, A.IsMobile
+				, A.IPAddress
+				, A.ReferURL
+				, A.DownloadResult
+				, A.FailReason
+				, DATE_FORMAT(A.RequestDate, '%Y-%m-%d %H:%i:%s') AS RequestDate
+			FROM covi_smart4j.log_filedownload A
+			LEFT JOIN covi_smart4j.sys_object_user B ON A.UserCode = B.Usercode
+			LEFT JOIN covi_smart4j.sys_object_user_basegroup C ON B.UserCode = C.Usercode AND C.JobType = 'Origin'
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+					A.RequestDate BETWEEN #{startDate} AND #{endDate}
+				</if>
+			</trim>
+		)A 
+     	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+     		<if test="searchText != null and searchText != '' ">
+     			( A.DisplayName LIKE CONCAT('%', #{searchText}, '%') OR A.DeptName LIKE CONCAT('%', #{searchText}, '%') )
+     		</if>
+    	</trim>
+    	<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+					<when test='sortColumn.equalsIgnoreCase("FileName")'>FileName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsMobile")'>IsMobile</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("ReferURL")'>ReferURL</when>
+					<when test='sortColumn.equalsIgnoreCase("DownloadResult")'>DownloadResult</when>
+					<when test='sortColumn.equalsIgnoreCase("FailReason")'>FailReason</when>
+					<otherwise>RequestDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	     <if test="pageSize != null and pageOffset != null">
+	     		LIMIT #{pageSize} OFFSET #{pageOffset}
+	     </if>
+	</select>
+	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT A.LogID
+				, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang}, C.MultiDeptName) AS DeptName
+			FROM covi_smart4j.log_filedownload A
+			LEFT JOIN covi_smart4j.sys_object_user B ON A.UserCode = B.Usercode
+			LEFT JOIN covi_smart4j.sys_object_user_basegroup C ON B.UserCode = C.Usercode AND C.JobType = 'Origin'
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+					A.RequestDate BETWEEN #{startDate} AND #{endDate}
+				</if>
+			</trim>
+		)A 
+     	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+     		<if test="searchText != null and searchText != '' ">
+     			( A.DisplayName LIKE CONCAT('%', #{searchText}, '%') OR A.DeptName LIKE CONCAT('%', #{searchText}, '%') )
+     		</if>
+    	</trim>
+	</select>
+		
+</mapper>

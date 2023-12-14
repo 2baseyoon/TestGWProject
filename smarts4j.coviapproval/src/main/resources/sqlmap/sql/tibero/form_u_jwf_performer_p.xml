@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.performer">
+	<delete id="delete" parameterType="cmap">
+	       DELETE FROM jwf_performer
+		   WHERE WorkItemID IN (
+		            SELECT WorkItemID 
+		            FROM jwf_workitem
+		            WHERE ProcessID = #{ProcessID}
+		    )
+	</delete>
+	
+	<select id="selectWorkitemAbortCount" parameterType="cmap" resultType="cmap">
+        SELECT count(*) AS "CNT"
+		FROM jwf_performer A
+			INNER JOIN jwf_workitem B ON A.WorkitemID = B.WorkItemID
+		WHERE B.processid = #{ProcessID}
+		AND A.SubKind  IN ('T000','T004','T009')
+		AND B.State = 528 
+		AND A.ActualKind <![CDATA[<>]]> '4'
+		AND B.Created > (SELECT Created FROM jwf_workitem WHERE taskid = #{taskID})
+	</select>
+	
+	<update id="updatePerformer" parameterType="cmap">			
+		UPDATE jwf_performer
+		SET UserCode = #{userCode}
+			, UserName = #{userName}
+		WHERE WorkitemID = #{workitemId}
+	</update>
+	
+	<insert id="insert" parameterType="hashmap">
+        INSERT jwf_performer
+        (
+            WorkitemID,
+            AllotKey,
+            UserCode,
+            UserName,
+            ActualKind,
+            State,
+            SubKind
+        )
+        VALUES
+        (
+        	#{workitemID},
+        	#{allotKey},
+            #{userCode}, 
+            #{userName}, 
+            #{actualKind},
+            #{state},
+            #{subKind}
+        )
+        <selectKey keyProperty="PerformerID" resultType="Integer" order="AFTER">
+			SELECT JWF_PERFORMER_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+    </insert>
+    
+	<delete id="deleteUserWorkItemID" parameterType="cmap">
+	    DELETE FROM jwf_performer
+		WHERE WorkItemID IN (
+			SELECT JW.WorkItemID 
+			FROM jwf_workitem JW
+			WHERE JW.BusinessData5 = #{workitemID}
+			AND JW.WorkItemID IN
+			<foreach collection="deleteInfos" item="item" index="index"  open="(" close=")" separator=",">
+	           #{item.wiid}
+	        </foreach>
+		)
+	</delete>
+</mapper>

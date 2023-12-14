@@ -1,0 +1,865 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.record.gfile">
+	<select id="selectRecordGFileListData" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT	  A.RecordDeptCode AS "RecordDeptCode"
+					, A.RecordProductName AS "RecordProductName"
+					, A.ProductYear AS "ProductYear"
+					, A.SeriesName AS "SeriesName"
+					, A.SeriesCode AS "SeriesCode"
+					, A.RecordSeq AS "RecordSeq"
+					, A.RecordCount AS "RecordCount"
+					, A.RecordSubject AS "RecordSubject"
+					, A.RecordType AS "RecordType"
+					, A.RecordTypeTxt AS "RecordTypeTxt"
+					, A.EndYear AS "EndYear"
+					, A.KeepPeriod AS "KeepPeriod"
+					, A.KeepPeriodTxt AS "KeepPeriodTxt"
+					, A.KeepMethod AS "KeepMethod"
+					, A.KeepMethodTxt AS "KeepMethodTxt"
+					, A.KeepPlace AS "KeepPlace"
+					, A.KeepPlaceTxt AS "KeepPlaceTxt"
+					, A.RecordClass AS "RecordClass"
+					, A.RecordClassTxt AS "RecordClassTxt"
+					, A.EditCheck AS "EditCheck"
+					, A.EditCheckTxt AS "EditCheckTxt"
+					, A.RecordRegisteredCount AS "RecordRegisteredCount"
+					, A.RecordPageCount AS "RecordPageCount"
+					, A.RecordFileCount AS "RecordFileCount"
+					, A.TakeoverCheck AS "TakeoverCheck"
+					, A.TakeoverCheckTxt AS "TakeoverCheckTxt"
+					, A.RecordClassNum AS "RecordClassNum"
+					, A.SeriesPath AS "SeriesPath"
+					, A.RecordStatus AS "RecordStatus"
+					, A.RecordStatusTxt AS "RecordStatusTxt"
+					, A.ProvideYN AS "ProvideYN"
+					, A.WorkCharger AS "WorkCharger"
+					, A.RegistDate AS "RegistDate"
+					, A.RCnt AS "RCnt"
+			FROM(
+				SELECT	  GRG.RecordDeptCode
+						, GRG.RecordProductName
+						, GRG.ProductYear
+						, GRG.SeriesName
+						, GRG.SeriesCode
+						, GRG.RecordSeq
+						, GRG.RecordCount
+						, GRG.RecordSubject
+						, GRG.RecordType
+						, CASE GRG.RecordType WHEN '1' THEN '일반문서'
+											  WHEN '2' THEN '도면류'
+											  WHEN '3' THEN '사진·필름류 시청각기록물 '
+											  WHEN '4' THEN '녹음·동영상류 시청각기록물'
+											  WHEN '5' THEN '카드류'
+											  ELSE ''
+						  END AS RecordTypeTxt
+						, GRG.EndYear
+						, GRG.KeepPeriod
+						, CASE GRG.KeepPeriod WHEN '01' THEN '01년'
+											  WHEN '03' THEN '03년'
+											  WHEN '05' THEN '05년'
+											  WHEN '10' THEN '10년'
+											  WHEN '20' THEN '20년'
+											  WHEN '25' THEN '25년'
+											  WHEN '30' THEN '준영구'
+											  WHEN '40' THEN '영구'
+											  ELSE ''
+						  END AS KeepPeriodTxt
+						, GRG.KeepMethod
+						, CASE GRG.KeepMethod WHEN '1' THEN '원본과 보존매체를 함께 보존하는 방법'
+											  WHEN '2' THEN '원본은 폐기하고 보존매체만 보존하는 방법'
+											  WHEN '3' THEN '원본을 그대로 보존하는 방법'
+											  ELSE ''
+						  END AS KeepMethodTxt
+						, GRG.KeepPlace
+						, CASE GRG.KeepPlace WHEN '1' THEN '자료관'
+											 WHEN '2' THEN '전문관리기관'
+											 ELSE ''
+						  END AS KeepPlaceTxt
+						, GRG.RecordClass
+						, CASE GRG.RecordClass WHEN '1' THEN '신기록물'
+											   WHEN '2' THEN '구기록물'
+											   ELSE ''
+						  END AS RecordClassTxt
+						, GRG.EditCheck
+						, CASE GRG.EditCheck WHEN '0' THEN '해당없음'
+											 WHEN '1' THEN '수정함'
+											 ELSE ''
+						  END AS EditCheckTxt
+						, GRG.RecordRegisteredCount
+						, GRG.RecordPageCount
+						, GRG.RecordFileCount
+						, GRG.TakeoverCheck
+						, CASE GRG.TakeoverCheck WHEN '0' THEN '해당없음'
+												 WHEN '1' THEN '인수'
+												 WHEN '2' THEN '인계'
+												 ELSE ''
+						  END AS TakeoverCheckTxt
+						, GRG.RecordClassNum
+						, GRG.SeriesPath
+						, GRG.RecordStatus
+						, CASE GRG.RecordStatus WHEN '0' THEN '처리 중'
+													WHEN '1' THEN '편철 중'
+													WHEN '2' THEN '편철'
+													WHEN '3' THEN '현황보고완료'
+													WHEN '4' THEN '이관완료'
+													WHEN '5' THEN '폐지'
+													WHEN '6' THEN '현황보고반려'
+													WHEN '7' THEN '이관반려'
+													WHEN '8' THEN '현황보고오류'
+													WHEN '9' THEN '이관오류'
+												ELSE ''
+						  END AS RecordStatusTxt
+						, GRG.ProvideYN
+						, GRG.WorkCharger
+						, GRG.RegistDate
+						, NVL(GRD.RCnt, 0) AS RCnt
+				FROM GOV_RECORD_GFILE GRG
+				LEFT OUTER JOIN (
+					SELECT COUNT(*) AS RCnt
+						 , GRD.RecordClassNum
+					FROM GOV_RECORD_DOC GRD
+					GROUP BY GRD.RecordClassNum
+				) GRD ON GRD.RecordClassNum = GRG.RecordClassNum
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="recordClassNum != null and recordClassNum != ''">
+					AND A.RecordClassNum = #{recordClassNum}
+				</if>
+				<if test="deptCode != null and deptCode != ''">
+					AND A.RecordDeptCode = #{deptCode}
+				</if>
+				<if test="seriesCode != null and seriesCode != ''">
+					AND A.SeriesCode = #{seriesCode}
+				</if>
+				<if test="takeOverCheck != null and takeOverCheck != ''">
+					AND A.TakeoverCheck = #{takeOverCheck}
+				</if>
+				<if test="recordStatus != null and recordStatus != ''">
+					AND A.RecordStatus = #{recordStatus}
+				</if>
+				<if test="baseYear != null and baseYear != ''">
+					AND A.EndYear = #{baseYear}
+				</if>
+				<if test="searchMode != null and searchMode !=''">
+					<choose>
+						<when test="searchMode == 'NotFile'">
+							AND A.RecordStatus IN ('1', '5')
+						</when>
+						<when test="searchMode == 'File'">
+							AND A.RecordStatus IN ('0', '2', '3', '4', '6', '7', '8', '9')
+						</when>
+					</choose>
+				</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+					<choose>
+						<when test="searchType == 'all'">
+							AND (
+								A.RecordSubject LIKE '%'||#{searchWord}||'%' OR
+								A.SeriesName LIKE '%'||#{searchWord}||'%' 
+							)
+						</when>
+						<otherwise>
+							<choose>
+								<when test="searchType == 'RecordSubject'">
+									AND A.RecordSubject LIKE '%' || #{searchWord} || '%'
+								</when>
+								<when test="searchType == 'SeriesName'">
+									AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+								</when>
+							</choose>
+						</otherwise>
+					</choose>
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("RecordSubject")'>, A.RecordSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordStatusTxt")'>, A.RecordStatusTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("RCnt")'>, A.RCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordProductName")'>, A.RecordProductName</when>
+					<when test='sortColumn.equalsIgnoreCase("SeriesName")'>, A.SeriesName</when>
+					<when test='sortColumn.equalsIgnoreCase("EndYear")'>, A.EndYear</when>
+					<when test='sortColumn.equalsIgnoreCase("KeepPeriodTxt")'>, A.KeepPeriodTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("TakeoverCheckTxt")'>, A.TakeoverCheckTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("RecordSeq")'>, A.RecordSeq</when>
+					<otherwise>, A.RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose> 
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectRecordGFileListDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM(
+			SELECT	  RecordDeptCode
+					, RecordProductName
+					, ProductYear
+					, SeriesName
+					, SeriesCode
+					, RecordSeq
+					, RecordCount
+					, RecordSubject
+					, RecordType
+					, CASE RecordType WHEN '1' THEN '일반문서'
+									  WHEN '2' THEN '도면류'
+									  WHEN '3' THEN '사진·필름류 시청각기록물 '
+									  WHEN '4' THEN '녹음·동영상류 시청각기록물'
+									  WHEN '5' THEN '카드류'
+									  ELSE ''
+					  END AS RecordTypeTxt
+					, EndYear
+					, KeepPeriod
+					, CASE KeepPeriod WHEN '01' THEN '01년'
+									  WHEN '03' THEN '03년'
+									  WHEN '05' THEN '05년'
+									  WHEN '10' THEN '10년'
+									  WHEN '20' THEN '20년'
+									  WHEN '30' THEN '준영구'
+									  WHEN '40' THEN '영구'
+									  ELSE ''
+					  END AS KeepPeriodTxt
+					, KeepMethod
+					, CASE KeepMethod WHEN '1' THEN '원본과 보존매체를 함께 보존하는 방법'
+									  WHEN '2' THEN '원본은 폐기하고 보존매체만 보존하는 방법'
+									  WHEN '3' THEN '원본을 그대로 보존하는 방법'
+									  ELSE ''
+					  END AS KeepMethodTxt
+					, KeepPlace
+					, CASE KeepPlace WHEN '1' THEN '자료관'
+									 WHEN '2' THEN '전문관리기관'
+									 ELSE ''
+					  END AS KeepPlaceTxt
+					, RecordClass
+					, CASE RecordClass WHEN '1' THEN '신기록물'
+									   WHEN '2' THEN '구기록물'
+									   ELSE ''
+					  END AS RecordClassTxt
+					, EditCheck
+					, CASE EditCheck WHEN '0' THEN '해당없음'
+									 WHEN '1' THEN '수정함'
+									 ELSE ''
+					  END AS EditCheckTxt
+					, RecordRegisteredCount
+					, RecordPageCount
+					, RecordFileCount
+					, TakeoverCheck
+					, CASE TakeoverCheck WHEN '0' THEN '해당없음'
+										 WHEN '1' THEN '인수'
+										 WHEN '2' THEN '인계'
+										 ELSE ''
+					  END AS TakeoverCheckTxt
+					, RecordClassNum
+					, SeriesPath
+					, RecordStatus
+					, CASE RecordStatus WHEN '1' THEN '편철 중'
+										WHEN '2' THEN '편철'
+										WHEN '3' THEN '현황보고완료'
+										WHEN '4' THEN '이관완료'
+										WHEN '5' THEN '폐지'
+										ELSE ''
+					  END AS RecordStatusTxt
+			FROM GOV_RECORD_GFILE GRG
+		) A
+	   	<!-- 검색 데이터 Where 절 -->
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="recordClassNum != null and recordClassNum != ''">
+				AND A.RecordClassNum = #{recordClassNum}
+			</if>
+			<if test="deptCode != null and deptCode != ''">
+				AND A.RecordDeptCode = #{deptCode}
+			</if>
+			<if test="seriesCode != null and seriesCode != ''">
+				AND A.SeriesCode = #{seriesCode}
+			</if>
+			<if test="takeOverCheck != null and takeOverCheck != ''">
+				AND A.TakeoverCheck = #{takeOverCheck}
+			</if>
+			<if test="recordStatus != null and recordStatus != ''">
+				AND A.RecordStatus = #{recordStatus}
+			</if>
+			<if test="baseYear != null and baseYear != ''">
+				AND A.EndYear = #{baseYear}
+			</if>
+			<if test="searchMode != null and searchMode !=''">
+				<choose>
+					<when test="searchMode == 'NotFile'">
+						AND A.RecordStatus IN ('1', '5')
+					</when>
+					<when test="searchMode == 'File'">
+						AND A.RecordStatus IN ('0', '2', '3', '4', '6', '7', '8', '9')
+					</when>
+				</choose>
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+				<choose>
+					<when test="searchType == 'all'">
+						AND (
+							A.RecordSubject LIKE '%'||#{searchWord}||'%' OR
+							A.SeriesName LIKE '%'||#{searchWord}||'%' 
+						)
+					</when>
+					<otherwise>
+						<choose>
+							<when test="searchType == 'RecordSubject'">
+								AND A.RecordSubject LIKE '%' || #{searchWord} || '%'
+							</when>
+							<when test="searchType == 'SeriesName'">
+								AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+							</when>
+						</choose>
+					</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectRecordHistoryList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT A.GFileHistoryID AS "GFileHistoryID"
+				 , A.ModifyReason AS "ModifyReason"
+				 , A.ModifierName AS "ModifierName"
+				 , A.ModifyDate AS "ModifyDate"
+				 , A.BeforeSubject AS "BeforeSubject"
+				 , A.AfterSubject AS "AfterSubject"
+				 , A.BeforeType AS "BeforeType"
+				 , A.AfterType AS "AfterType"
+				 , A.BeforeTypeTxt AS "BeforeTypeTxt"
+				 , A.AfterTypeTxt AS "AfterTypeTxt"
+				 , A.BeforeKeepPeriod AS "BeforeKeepPeriod"
+				 , A.AfterKeepPeriod AS "AfterKeepPeriod"
+				 , A.BeforeKeepPeriodTxt AS "BeforeKeepPeriodTxt"
+				 , A.AfterKeepPeriodTxt AS "AfterKeepPeriodTxt"
+			FROM(
+				SELECT GRGH.GFileHistoryID 
+					 , GRGH.ModifyReason
+					 , SOU.DisplayName AS ModifierName
+					 , TO_CHAR(GRGH.ModifyDate, 'YYYY-MM-DD HH24:MI:SS') AS ModifyDate
+					 , GRGH.BeforeSubject
+					 , GRGH.AfterSubject
+					 , GRGH.BeforeType
+					 , CASE GRGH.BeforeType WHEN '1' THEN '일반문서'
+											WHEN '2' THEN '도면류'
+											WHEN '3' THEN '사진·필름류 시청각기록물 '
+											WHEN '4' THEN '녹음·동영상류 시청각기록물'
+											WHEN '5' THEN '카드류'
+											ELSE ''
+					   END AS BeforeTypeTxt
+					 , GRGH.AfterType
+					 , CASE GRGH.AfterType WHEN '1' THEN '일반문서'
+								 		   WHEN '2' THEN '도면류'
+								  		   WHEN '3' THEN '사진·필름류 시청각기록물 '
+									 	   WHEN '4' THEN '녹음·동영상류 시청각기록물'
+									 	   WHEN '5' THEN '카드류'
+										   ELSE ''
+					   END AS AfterTypeTxt
+					 , GRGH.BeforeKeepPeriod
+					 , CASE GRGH.BeforeKeepPeriod WHEN '01' THEN '01년'
+									 			  WHEN '03' THEN '03년'
+												  WHEN '05' THEN '05년'
+												  WHEN '10' THEN '10년'
+												  WHEN '20' THEN '20년'
+												  WHEN '30' THEN '준영구'
+												  WHEN '40' THEN '영구'
+												  ELSE ''
+					   END AS BeforeKeepPeriodTxt
+					 , GRGH.AfterKeepPeriod
+					 , CASE GRGH.AfterKeepPeriod WHEN '01' THEN '01년'
+												 WHEN '03' THEN '03년'
+											 	 WHEN '05' THEN '05년'
+												 WHEN '10' THEN '10년'
+												 WHEN '20' THEN '20년'
+												 WHEN '30' THEN '준영구'
+												 WHEN '40' THEN '영구'
+												 ELSE ''
+					   END AS AfterKeepPeriodTxt
+				FROM GOV_RECORD_GFILE_HISTORY GRGH
+				LEFT OUTER JOIN SYS_OBJECT_USER SOU ON SOU.UserCode = GRGH.ModifierID
+				WHERE GRGH.RecordClassNum = #{RecordClassNum}
+			) A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("rowNum")'>rowNum</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyReason")'>ModifyReason</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifierName")'>ModifierName</when>
+					<otherwise>, A.ModifyDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectRecordHistoryListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM(
+			SELECT GRGH.ModifyReason
+				 , SOU.DisplayName AS ModifierName
+				 , TO_CHAR(GRGH.ModifyDate, 'YYYY-MM-DD HH24:MI:SS') AS ModifyDate
+			FROM GOV_RECORD_GFILE_HISTORY GRGH
+			LEFT OUTER JOIN SYS_OBJECT_USER SOU ON SOU.UserCode = GRGH.ModifierID
+			WHERE GRGH.RecordClassNum = #{RecordClassNum}
+		) A
+	</select>
+		
+	<select id="selectBaseYearList" parameterType="cmap" resultType="cmap">
+		SELECT EndYear AS "BaseYear"
+		FROM GOV_RECORD_GFILE
+		<if test="selBaseYear != null and selBaseYear !=''">
+			WHERE EndYear BETWEEN #{selBaseYear} - 2 AND  #{selBaseYear} + 2
+		</if>
+		GROUP BY EndYear
+		ORDER BY EndYear ASC
+	</select>
+	
+	<insert id="insertRecordGFileData" parameterType="cmap">
+		INSERT INTO GOV_RECORD_GFILE
+		(
+			  RecordSubject
+			, RecordDeptCode
+			, RecordProductName
+			, SeriesCode
+			, SeriesName
+			, ProductYear
+			, RecordSeq
+			, RecordCount
+			, RecordType
+			, EndYear
+			, KeepPeriod
+			, KeepMethod
+			, KeepPlace
+			, WorkCharger
+			, RecordClass
+			, EditCheck
+			, RecordRegisteredCount
+			, RecordPageCount
+			, RecordFileCount
+			, TakeoverCheck
+			, RecordClassNum
+			, SeriesPath
+			, RecordStatus
+			, RegisterID
+			, RegistDate
+		)
+		VALUES
+		(
+			  #{RecordSubject}
+			, #{RecordDeptCode}
+			, #{RecordDeptName}
+			, #{SeriesCode}
+			, #{SeriesName}
+			, TO_CHAR(SYSDATE, 'YYYY')
+			, #{RecordSeq}
+			, LPAD('1', 3, '0')
+			, #{RecordType}
+			, #{EndYear}
+			, #{KeepPeriod}
+			, #{KeepMethod}
+			, #{KeepPlace}
+			, #{WorkCharger}
+			, '1'
+			, '0'
+			, LPAD('1', 3, '0')
+			, LPAD('1', 6, '0')
+			, LPAD('1', 6, '0')
+			, '0'
+			, #{RecordClassNum}
+			, #{SeriesPath}
+			, '1'
+			, #{userCode}
+			, SYSDATE
+		)
+	</insert>
+	
+	<update id="updateRecordGFileData" parameterType="cmap">
+		UPDATE GOV_RECORD_GFILE
+		SET   RecordSubject = #{RecordSubject}
+			, RecordDeptCode = #{RecordDeptCode}
+			, RecordProductName = #{RecordDeptName}
+			, SeriesCode = #{SeriesCode}
+			, SeriesName = #{SeriesName}
+			, RecordType = #{RecordType}
+			, EndYear = #{EndYear}
+			, KeepPeriod = #{KeepPeriod}
+			, KeepMethod = #{KeepMethod}
+			, KeepPlace = #{KeepPlace}
+			, WorkCharger = #{WorkCharger}
+			, SeriesPath = #{SeriesPath}
+			, ModifierID = #{userCode}
+			, ModifyDate = SYSDATE
+		WHERE 1 = 1
+		AND RecordClassNum = #{RecordClassNum}
+	</update>
+	
+	<insert id="insertRecordGFileHistory" parameterType="cmap">
+		INSERT INTO GOV_RECORD_GFILE_HISTORY
+		(
+			  RecordClassNum
+			, ModifierID
+			, ModifyDate
+			, ModifyReason
+			<if test="RecordSubject != null and RecordSubject != ''">
+				, BeforeSubject
+				, AfterSubject
+			</if>
+			<if test="RecordType != null and RecordType != ''">
+				, BeforeType
+				, AfterType
+			</if>
+			<if test="KeepPeriod != null and KeepPeriod != ''">
+				, BeforeKeepPeriod
+				, AfterKeepPeriod
+			</if>
+		)
+		SELECT	#{RecordClassNum}
+			  , #{userCode}
+			  , SYSDATE
+			  , #{ModifyReason}
+			  <if test="RecordSubject != null and RecordSubject != ''">
+				 , RecordSubject
+			 	 , #{RecordSubject}
+			  </if>
+			  <if test="RecordType != null and RecordType != ''">
+				 , RecordType
+			  	 , #{RecordType}
+			  </if>
+			  <if test="KeepPeriod != null and KeepPeriod != ''">
+				 , KeepPeriod
+			  	 , #{KeepPeriod}
+			  </if>
+		FROM GOV_RECORD_GFILE
+		WHERE RecordClassNum = #{RecordClassNum}
+	</insert>
+	
+	<update id="updateRecordStatus" parameterType="cmap">
+		UPDATE GOV_RECORD_GFILE
+		SET RecordStatus = #{RecordStatus}
+		WHERE 1 = 1
+		AND RecordClassNum IN
+		<foreach collection="RecordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</update>
+	
+	<update id="updateExtendWork" parameterType="cmap">
+		UPDATE GOV_RECORD_GFILE
+		SET EndYear = EndYear + 1
+		WHERE 1 = 1
+		AND RecordClassNum IN
+		<foreach collection="RecordClassNumArr" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+	</update>
+	
+	<insert id="insertRecordTakeover" parameterType="cmap">
+		INSERT INTO GOV_RECORD_GFILE
+		(
+			   RecordSubject
+			 , RecordDeptCode
+			 , RecordProductName
+			 , SeriesCode
+			 , SeriesName
+			 , ProductYear
+			 , RecordSeq
+			 , RecordCount
+			 , RecordType
+			 , EndYear
+			 , KeepPeriod
+			 , KeepMethod
+			 , KeepPlace
+			 , WorkCharger
+			 , RecordClass
+			 , EditCheck
+			 , RecordRegisteredCount
+			 , RecordPageCount
+			 , RecordFileCount
+			 , TakeoverCheck
+			 , RecordClassNum
+			 , SeriesPath
+			 , RecordStatus
+			 , RegisterID
+			 , RegistDate
+		)
+		SELECT GRG.RecordSubject
+			 , #{AfterDeptCode}
+			 , SOG.DisplayName
+			 , #{SeriesCode}
+			 , GS.SeriesName
+			 , GRG.ProductYear
+			 , GRG.RecordSeq
+			 , GRG.RecordCount
+			 , GRG.RecordType
+			 , GRG.EndYear
+			 , GRG.KeepPeriod
+			 , GRG.KeepMethod
+			 , GRG.KeepPlace
+			 , #{WorkCharger}
+			 , GRG.RecordClass
+			 , GRG.EditCheck
+			 , GRG.RecordRegisteredCount
+			 , GRG.RecordPageCount
+			 , GRG.RecordFileCount
+			 , '1'
+			 , #{AfterDeptCode}||#{SeriesCode}||GRG.ProductYear||GRG.RecordSeq||GRG.RecordCount
+			 , #{SeriesPath}
+			 , '1'
+			 , #{userCode}
+			 , SYSDATE
+		FROM GOV_RECORD_GFILE GRG
+		LEFT OUTER JOIN GOV_SERIES GS ON GS.SeriesCode = #{SeriesCode}
+		LEFT OUTER JOIN SYS_OBJECT_GROUP SOG ON SOG.GroupCode = #{AfterDeptCode}
+		WHERE RecordClassNum = #{RecordClassNum}
+		AND GS.BaseYear = #{BaseYear}
+		<selectKey resultType="String" keyProperty="RecordClassNum" order="AFTER">
+			SELECT #{AfterDeptCode}||#{SeriesCode}||GRG.ProductYear||GRG.RecordSeq||GRG.RecordCount AS RecordClassNum
+			FROM GOV_RECORD_GFILE GRG
+			WHERE RecordClassNum = #{RecordClassNum}
+		</selectKey>
+	</insert>
+	
+	<update id="updateRecordTakeover" parameterType="cmap">
+		MERGE INTO GOV_RECORD_GFILE GRG
+		USING(
+			SELECT	  GRG.RecordClassNum
+					, GRG.RecordDeptCode
+					, GRG.ProductYear
+					, GRG.RecordSeq
+					, GRG.RecordCount
+			FROM GOV_RECORD_GFILE GRG
+			WHERE 1 = 1
+			AND GRG.RecordClassNum = #{RecordClassNum}
+			AND GRG.RecordDeptCode = #{BeforeDeptCode}
+		)A ON (A.RecordClassNum = GRG.RecordClassNum)
+		WHEN MATCHED THEN
+		UPDATE SET	  GRG.TakeoverCheck = '2'
+					, GRG.RecordDeptCode_1 = #{AfterDeptCode}
+					, GRG.SeriesCode_1 = #{SeriesCode}
+					, GRG.ProductYear_1 = A.ProductYear
+					, GRG.RecordSeq_1 = A.RecordSeq
+					, GRG.RecordCount_1 = A.RecordCount
+	</update>
+	
+	<insert id="insertRecordGFileByExcel" parameterType="cmap">
+		MERGE INTO GOV_RECORD_GFILE GRG
+		USING(
+			<foreach collection="dataList" item="item" open="" separator="UNION" close="">
+				SELECT	  #{item.RecordDeptCode} AS RecordDeptCode
+						, #{item.RecordProductName} AS RecordProductName
+						, #{item.RecordSubject} AS RecordSubject
+						, #{item.SeriesName} AS SeriesName
+						, #{item.SeriesCode} AS SeriesCode
+						, LPAD(#{item.RecordSeq}, 6, '0') AS RecordSeq
+						, LPAD(#{item.RecordCount}, 3, '0') AS RecordCount
+						, #{item.ProductYear} AS ProductYear
+						, #{item.RecordType} AS RecordType
+						, #{item.EndYear} AS EndYear
+						, LPAD(#{item.KeepPeriod}, 2, '0') AS KeepPeriod
+						, #{item.KeepMethod} AS KeepMethod
+						, #{item.KeepPlace} AS KeepPlace
+						, #{item.RecordClass} AS RecordClass
+						, #{item.EditCheck} AS EditCheck
+						, LPAD(#{item.RecordRegisteredCount}, 3, '0') AS RecordRegisteredCount
+						, LPAD(#{item.RecordPageCount}, 6, '0') AS RecordPageCount
+						, LPAD(#{item.RecordFileCount}, 6, '0') AS RecordFileCount
+						, #{item.TakeoverCheck} AS TakeoverCheck
+						, #{item.RecordClassNum} AS RecordClassNum
+						, '1' AS RecordStatus
+						, #{item.SeriesPath} AS SeriesPath
+				FROM DUAL
+			</foreach>
+		)A ON (GRG.RecordClassNum = A.RecordClassNum)
+		WHEN MATCHED THEN
+		UPDATE 
+			<set>
+				  GRG.RecordDeptCode = A.RecordDeptCode
+				, GRG.RecordProductName = A.RecordProductName
+				, GRG.RecordSubject = A.RecordSubject
+				, GRG.SeriesName = A.SeriesName
+				, GRG.SeriesCode = A.SeriesCode
+				, GRG.RecordSeq = A.RecordSeq
+				, GRG.RecordCount = A.RecordCount
+				, GRG.ProductYear = A.ProductYear
+				, GRG.RecordType = A.RecordType
+				, GRG.EndYear = A.EndYear
+				, GRG.KeepPeriod = A.KeepPeriod
+				, GRG.KeepMethod = A.KeepMethod
+				, GRG.KeepPlace = A.KeepPlace
+				, GRG.RecordClass = A.RecordClass
+				, GRG.EditCheck = A.EditCheck
+				, GRG.RecordRegisteredCount = A.RecordRegisteredCount
+				, GRG.RecordPageCount = A.RecordPageCount
+				, GRG.RecordFileCount = A.RecordFileCount
+				, GRG.TakeoverCheck = A.TakeoverCheck
+				, GRG.RecordStatus = A.RecordStatus
+				, GRG.SeriesPath = A.SeriesPath
+				, GRG.ModifierID = #{userCode}
+				, GRG.ModifyDate = SYSDATE
+			</set>
+		WHEN NOT MATCHED THEN
+			INSERT
+				<trim prefix="(" suffix=")" suffixOverrides="," >
+					  GRG.RecordDeptCode
+					, GRG.RecordProductName
+					, GRG.RecordSubject
+					, GRG.SeriesName
+					, GRG.SeriesCode
+					, GRG.RecordSeq
+					, GRG.RecordCount
+					, GRG.ProductYear
+					, GRG.RecordType
+					, GRG.EndYear
+					, GRG.KeepPeriod
+					, GRG.KeepMethod
+					, GRG.KeepPlace
+					, GRG.RecordClass
+					, GRG.EditCheck
+					, GRG.RecordRegisteredCount
+					, GRG.RecordPageCount
+					, GRG.RecordFileCount
+					, GRG.TakeoverCheck
+					, GRG.RecordClassNum
+					, GRG.RecordStatus
+					, GRG.SeriesPath
+					, GRG.RegisterID
+					, GRG.RegistDate
+				</trim>
+				<trim  prefix="VALUES (" suffix=")" suffixOverrides=",">
+					  A.RecordDeptCode
+					, A.RecordProductName
+					, A.RecordSubject
+					, A.SeriesName
+					, A.SeriesCode
+					, A.RecordSeq
+					, A.RecordCount
+					, A.ProductYear
+					, A.RecordType
+					, A.EndYear
+					, A.KeepPeriod
+					, A.KeepMethod
+					, A.KeepPlace
+					, A.RecordClass
+					, A.EditCheck
+					, A.RecordRegisteredCount
+					, A.RecordPageCount
+					, A.RecordFileCount
+					, A.TakeoverCheck
+					, A.RecordClassNum
+					, A.RecordStatus
+					, A.SeriesPath
+					, #{userCode}
+					, SYSDATE
+				</trim>
+	</insert>
+	
+	<insert id="insertRecordGFileByYear" parameterType="cmap">
+		MERGE INTO GOV_RECORD_GFILE GRG
+		USING(
+			SELECT REPLACE(RecordSubject, #{BaseYear}-1, #{BaseYear}) AS RecordSubject
+				 , RecordDeptCode
+				 , RecordProductName
+				 , SeriesCode
+				 , SeriesName
+				 , #{BaseYear} AS ProductYear
+				 , RecordSeq
+				 , RecordCount
+				 , RecordType
+				 , EndYear + 1 AS EndYear
+				 , KeepPeriod
+				 , KeepMethod
+				 , KeepPlace
+				 , WorkCharger
+				 , RecordClass
+				 , EditCheck
+				 , RecordRegisteredCount
+				 , RecordPageCount
+				 , RecordFileCount
+				 , TakeoverCheck
+				 , RecordDeptCode||SeriesCode||#{BaseYear}||RecordSeq||RecordCount AS RecordClassNum
+				 , SeriesPath
+				 , RecordStatus
+				 , RegisterID
+				 , SYSDATE AS RegistDate
+			FROM GOV_RECORD_GFILE
+			WHERE ProductYear = #{BaseYear} - 1
+			AND RecordStatus != '5'
+		)A ON (GRG.RecordClassNum = A.RecordClassNum)
+		WHEN NOT MATCHED THEN
+			INSERT
+			(
+				   GRG.RecordSubject
+				 , GRG.RecordDeptCode
+				 , GRG.RecordProductName
+				 , GRG.SeriesCode
+				 , GRG.SeriesName
+				 , GRG.ProductYear
+				 , GRG.RecordSeq
+				 , GRG.RecordCount
+				 , GRG.RecordType
+				 , GRG.EndYear
+				 , GRG.KeepPeriod
+				 , GRG.KeepMethod
+				 , GRG.KeepPlace
+				 , GRG.WorkCharger
+				 , GRG.RecordClass
+				 , GRG.EditCheck
+				 , GRG.RecordRegisteredCount
+				 , GRG.RecordPageCount
+				 , GRG.RecordFileCount
+				 , GRG.TakeoverCheck
+				 , GRG.RecordClassNum
+				 , GRG.SeriesPath
+				 , GRG.RecordStatus
+				 , GRG.RegisterID
+				 , GRG.RegistDate
+			)
+			VALUES(
+				   A.RecordSubject
+				 , A.RecordDeptCode
+				 , A.RecordProductName
+				 , A.SeriesCode
+				 , A.SeriesName
+				 , A.ProductYear
+				 , A.RecordSeq
+				 , A.RecordCount
+				 , A.RecordType
+				 , A.EndYear
+				 , A.KeepPeriod
+				 , A.KeepMethod
+				 , A.KeepPlace
+				 , A.WorkCharger
+				 , A.RecordClass
+				 , A.EditCheck
+				 , A.RecordRegisteredCount
+				 , A.RecordPageCount
+				 , A.RecordFileCount
+				 , A.TakeoverCheck
+				 , A.RecordClassNum
+				 , A.SeriesPath
+				 , A.RecordStatus
+				 , A.RegisterID
+				 , A.RegistDate
+			)
+	</insert>
+			
+	<select id="selectRecordSeq" parameterType="cmap" resultType="String">
+		SELECT RecordSeq AS "RecordSeq"
+		FROM GOV_RECORD_GFILE
+		WHERE 1=1
+		AND ProductYear = #{ProductYear}
+		AND RecordDeptCode = #{RecordDeptCode}
+		AND SeriesCode = #{SeriesCode}
+		AND ROWNUM = 1
+		ORDER BY RecordSeq DESC
+	</select>
+</mapper>

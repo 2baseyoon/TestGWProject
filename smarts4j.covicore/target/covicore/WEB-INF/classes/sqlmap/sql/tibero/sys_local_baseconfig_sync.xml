@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sys.local.base.sync">
+
+    <select id="selectSyncInfo" parameterType="egovframework.core.common.enums.SyncObjectType" resultType="cmap">
+        SELECT
+            SyncID AS "syncId", SyncTime AS "SyncTime", SyncDate  AS "SyncDate"
+        FROM sys_local_base_sync
+        WHERE SyncType = #{sot}
+        AND ROWNUM=1
+        ORDER BY SyncDate DESC
+    </select>
+
+    <select id="selectSyncTarget" parameterType="cmap" resultType="cmap">
+        <if test="sot eq 1">
+            SELECT
+                  DomainId AS "DomainId"
+                , SettingKey AS "SettingKey"
+                , SettingValue AS "SettingValue"
+            FROM SYS_BASE_CONFIG
+            WHERE IsUse = 'Y'
+            AND DomainID = #{domainId}
+        </if>
+
+        <if test="sot eq 0">
+            SELECT
+                  DomainId AS "DomainId"
+                , SettingKey AS "SettingKey"
+                , SettingValue AS "SettingValue"
+            FROM SYS_BASE_CODE sbc
+            WHERE IsUse = 'Y'
+            AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE BizSection = sbc.BizSection AND Code = sbc.Code AND CodeGroup = sbc.CodeGroup AND DomainID = #{domainId})
+        </if>
+
+    </select>
+
+    <select id="selectSyncTime" parameterType="cmap" resultType="String">
+        SELECT (SYSDATE - TO_DATE('01-01-1970 00:00:00', 'DD-MM-YYYY HH24:MI:SS')) * 24 * 60 * 60 * 1000 AS "SyncTime" FROM DUAL
+    </select>
+
+    <insert id="insertSyncInfo">
+        INSERT INTO sys_local_base_sync (
+            SyncType, SyncTime, SyncDate
+        ) VALUES (
+            #{sot}, (SYSDATE - TO_DATE('01-01-1970 00:00:00', 'DD-MM-YYYY HH24:MI:SS')) * 24 * 60 * 60 * 1000, SYSDATE
+        )
+    </insert>
+
+    <update id="updateSyncDate" parameterType="cmap">
+        UPDATE sys_local_base_sync
+        SET
+            SyncTime = (SYSDATE - TO_DATE('01-01-1970 00:00:00', 'DD-MM-YYYY HH24:MI:SS')) * 24 * 60 * 60 * 1000
+            , SyncDate = SYSDATE
+        WHERE SyncID = #{syncId}
+    </update>
+
+</mapper>

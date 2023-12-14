@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.manager">
+    
+    <!-- 담당자 검색 -->
+    <select id="getManagerList" parameterType="cmap" resultType="cmap">
+        /*
+        account.manager.getManagerList
+        */
+        SELECT	
+        		MA.CompanyCode	
+        ,		covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', MA.CompanyCode, #{companyCode}) AS CompanyName
+        ,		MA.ManagerID	 AS ManagerID	
+        ,		MA.TaxMailAddress
+        ,		BASE.DisplayName AS DisplayName
+        ,		DATE_FORMAT(MA.RegistDate,'%Y-%m-%d %T') AS RegistDate
+        FROM covi_account4j_si.act_manager MA
+        LEFT OUTER JOIN covi_smart4j.sys_object_user BASE
+        ON BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND		(	
+						UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))	OR 
+						UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+					)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND		UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND		UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test="startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate between #{startDD} AND #{endDD} 
+    	</if>
+    	<if test="startDD == null or startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate <= #{endDD}
+    	    ]]>
+    	</if>
+    	<if test="startDD != null or startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate >= #{startDD}
+    	    ]]>
+    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ManagerID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxMailAddress")'>TaxMailAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+    </select>
+    
+    <!-- 카운트 -->
+    <select id="getManagerListCnt" resultType="java.lang.Long">
+        /*
+        account.manager.getManagerListCnt
+        */
+        SELECT COUNT(*)
+        FROM covi_account4j_si.act_manager MA
+        LEFT OUTER JOIN
+        		covi_smart4j.sys_object_user BASE
+        ON		BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND		(	
+						UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))	OR
+						UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+					)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND		UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND		UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test="startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate between #{startDD} AND #{endDD} 
+    	</if>
+    	<if test="startDD == null or startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate <= #{endDD}
+    	    ]]>
+    	</if>
+    	<if test="startDD != null or startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate >= #{startDD}
+    	    ]]>
+    	</if>
+	</select>
+	
+    <!-- 담당자 등록 -->
+    <insert id="insertManagerInfo" parameterType="cmap">
+        /*
+        account.manager.insertManagerInfo
+        */
+        INSERT INTO covi_account4j_si.act_manager (
+        		CompanyCode
+	        ,	ManagerUserCode
+	        ,	TaxMailAddress
+	        ,	RegisterID
+	        ,	RegistDate
+        
+        ) VALUES (
+        		#{CompanyCode}
+	        ,	#{ManagerUserCode}
+	        ,	#{TaxMailAddress}
+	        ,	#{UR_Code}
+	        ,	NOW(3)
+        )
+        
+    </insert>
+    
+	<update id="updateManagerInfo" parameterType="cmap">
+		/*
+		account.manager.updateManagerInfo
+		담당자 수정
+		*/
+		UPDATE covi_account4j_si.act_manager
+		SET   CompanyCode = #{CompanyCode}
+			, ManagerUserCode = #{ManagerUserCode}
+			, TaxMailAddress = #{TaxMailAddress}
+		WHERE ManagerID = #{ManagerID}
+	</update>
+        
+    <!-- 담당자 삭제 -->
+    <delete id="deleteManagerInfo">
+        /*
+        account.manager.deleteManagerInfo
+        */
+    	DELETE FROM covi_account4j_si.act_manager
+    	WHERE ManagerID = #{managerID}
+    </delete>
+    
+    <!-- 담당자 카운트 -->
+    <select id="getManagerCnt" resultType="java.lang.Long">
+        /*
+        account.manager.getManagerCnt
+        */
+        SELECT COUNT(*)
+        FROM 	covi_account4j_si.act_manager
+        WHERE 	CompanyCode		= #{CompanyCode}
+        AND		ManagerUserCode	= #{ManagerUserCode}
+        AND 	UPPER(TaxMailAddress) = UPPER(#{TaxMailAddress})
+        
+    </select>
+    
+    <!-- 담당자 엑셀 다운로드 -->
+    <select id="managerExcelDownload" parameterType="cmap" resultType="cmap">
+        /*
+        account.manager.managerExcelDownload
+        */
+        SELECT	
+        		MA.CompanyCode
+        ,		covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', MA.CompanyCode, #{companyCode}) AS CompanyName
+        ,		MA.ManagerID	 AS ManagerID	
+        ,		MA.TaxMailAddress
+        ,		BASE.DisplayName AS DisplayName
+        ,		MA.RegistDate AS RegistDate
+        FROM covi_account4j_si.act_manager MA
+        LEFT OUTER JOIN
+        		covi_smart4j.sys_object_user BASE
+        ON		BASE.UserCode = MA.ManagerUserCode
+        WHERE 1=1
+        
+        <choose>
+			<when test="searchStr != null and searchStr !=''">
+			    <choose>
+				    <when test="managerSearchType == null or managerSearchType ==''">
+			AND		(	
+						UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))	OR
+						UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+					)
+				    </when>
+				    <when test="managerSearchType == 'MAIL'.toString()">
+			AND		UPPER(MA.TaxMailAddress) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				    <when test="managerSearchType == 'NAME'.toString()">
+			AND		UPPER(DisplayName) LIKE UPPER (CONCAT('%',#{searchStr},'%'))
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test="companyCode != null and companyCode != ''">
+				AND MA.CompanyCode = #{companyCode}
+		</if>
+		<if test="startDD != null and startDD !='' and endDD != null and endDD != ''"> 
+    			AND MA.RegistDate between #{startDD} AND #{endDD} 
+    	</if>
+    	<if test="startDD == null or startDD =='' and endDD != null and endDD != ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate <= #{endDD}
+    	    ]]>
+    	</if>
+    	<if test="startDD != null or startDD !='' and endDD == null and endDD == ''">
+    	    <![CDATA[
+    	    	AND MA.RegistDate >= #{startDD}
+    	    ]]>
+    	</if>
+		ORDER BY ManagerID
+	</select>
+		
+	<select id="selectManagerInfo" parameterType="cmap" resultType="cmap">
+		/*
+		account.manager.selectManagerInfo
+		담당자 상세조회
+		*/
+		
+		SELECT
+			  MA.CompanyCode 
+			, MA.ManagerID
+			, MA.TaxMailAddress
+			, MA.ManagerUserCode
+			, USR.DisplayName ManagerUserName
+		FROM covi_account4j_si.act_manager MA
+		INNER JOIN covi_smart4j.sys_object_user USR
+		ON USR.UserCode = MA.ManagerUserCode
+		WHERE MA.ManagerID = #{ManagerID}
+	</select>
+    
+</mapper>

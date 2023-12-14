@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.affiliatesAggregateInformation">
+    <select id="selectEntCountList" parameterType="cmap" resultType="cmap">
+        SELECT A.* FROM
+		(
+			  	SELECT DN.DisplayName DN_Name, WF_LIST.* 
+				FROM (
+					SELECT U.CompanyCode AS DN_Code
+						, SUM( CASE SubKind WHEN 'A' THEN 1 ELSE 0 END) AS A_Count
+						, SUM( CASE SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS REQCMP_count
+						, avg( timestampdiff( minute,P.startDate,P.endDate )) AS document_leadtime
+					FROM covi_approval4j.jwf_workitem PF 
+					INNER JOIN  covi_approval4j.jwf_process P ON PF.ProcessID = P.ProcessID
+					INNER JOIN covi_smart4j.sys_object_group U ON PF.UserCode = U.GroupCode
+					WHERE PF.SubKind IN ('A', 'REQCMP')
+						AND P.BusinessState LIKE '02_01%'
+						AND P.endDate IS NOT NULL
+						AND P.ProcessState = 528
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND ( P.endDate >= #{startDate} AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>		
+						<if test="companyCode != null and companyCode != ''">
+						    AND U.CompanyCode = #{companyCode}
+						</if>
+					GROUP BY U.CompanyCode
+				) AS WF_LIST
+				INNER JOIN covi_smart4j.sys_object_domain DN ON WF_LIST.DN_Code = DN.DomainCode
+		) A
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("A_Count")'>A_Count</when>
+					<when test='sortColumn.equalsIgnoreCase("REQCMP_count")'>REQCMP_count</when>
+					<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>document_leadtime</when>
+					<otherwise>DN_Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				DN_Name ASC
+			</if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectEntCountListCnt" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM
+		(
+			 SELECT DN.DisplayName DN_Name, WF_LIST.* 
+				FROM (
+					SELECT U.CompanyCode AS DN_Code
+						, SUM( CASE SubKind WHEN 'A' THEN 1 ELSE 0 END) AS A_Count
+						, SUM( CASE SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS REQCMP_count
+						, avg( timestampdiff( minute,P.startDate,P.endDate )) AS document_leadtime
+					FROM covi_approval4j.jwf_workitem PF 
+					INNER JOIN  covi_approval4j.jwf_process P ON PF.ProcessID = P.ProcessID
+					INNER JOIN covi_smart4j.sys_object_group U ON PF.UserCode = U.GroupCode
+					WHERE PF.SubKind IN ('A', 'REQCMP')
+						AND P.BusinessState LIKE '02_01%'
+						AND P.endDate IS NOT NULL
+						AND P.ProcessState = 528
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						    <![CDATA[ AND ( P.endDate >= #{startDate} AND P.endDate < DATE_ADD(#{endDate}, INTERVAL 1 DAY) ) ]]>
+						</if>
+						<if test="companyCode != null and companyCode != ''">
+						    AND U.CompanyCode = #{companyCode}
+						</if>
+					GROUP BY U.CompanyCode
+				) AS WF_LIST
+				INNER JOIN covi_smart4j.sys_object_domain DN ON WF_LIST.DN_Code = DN.DomainCode
+		) A
+	</select>
+	
+    
+    <select id="selectEntMonthlyCountList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			      SELECT A.DN_Code, DN.DisplayName as DN_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P
+							INNER JOIN covi_smart4j.sys_object_group U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND YEAR(endDate) = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, MONTH(endDate)
+					) AS TMP_LIST
+					GROUP BY DN_Code
+				) AS A
+				INNER JOIN covi_smart4j.sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			      SELECT A.DN_Code, DN.DisplayName as DN_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, MONTH(P.endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_workitem PF 
+							INNER JOIN covi_approval4j.jwf_process P ON PF.ProcessID = P.ProcessID
+							INNER JOIN covi_smart4j.sys_object_group U ON PF.UserCode = U.GroupCode
+							WHERE PF.SubKind IN ('REQCMP')
+								AND P.BusinessState LIKE '02_01%'
+								AND P.endDate IS NOT NULL
+								AND P.ProcessState = 528
+								AND YEAR(P.endDate) = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, MONTH(P.endDate)
+					) AS TMP_LIST
+					GROUP BY DN_Code
+				) AS A
+				INNER JOIN covi_smart4j.sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+		) A
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("Month1")'>Month1</when>
+					<when test='sortColumn.equalsIgnoreCase("Month2")'>Month2</when>
+					<when test='sortColumn.equalsIgnoreCase("Month3")'>Month3</when>
+					<when test='sortColumn.equalsIgnoreCase("Month4")'>Month4</when>
+					<when test='sortColumn.equalsIgnoreCase("Month5")'>Month5</when>
+					<when test='sortColumn.equalsIgnoreCase("Month6")'>Month6</when>
+					<when test='sortColumn.equalsIgnoreCase("Month7")'>Month7</when>
+					<when test='sortColumn.equalsIgnoreCase("Month8")'>Month8</when>
+					<when test='sortColumn.equalsIgnoreCase("Month9")'>Month9</when>
+					<when test='sortColumn.equalsIgnoreCase("Month10")'>Month10</when>
+					<when test='sortColumn.equalsIgnoreCase("Month11")'>Month11</when>
+					<when test='sortColumn.equalsIgnoreCase("Month12")'>Month12</when>
+					<otherwise>DN_Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				DN_Name ASC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectEntMonthlyCountListCnt" resultType="java.lang.Long">
+		SELECT COUNT(DN_Name) FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			      SELECT A.DN_Code, DN.DisplayName as DN_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P
+							INNER JOIN covi_smart4j.sys_object_group U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL 
+								AND P.ProcessState = 528 
+								AND YEAR(endDate) = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, MONTH(endDate)
+					) AS TMP_LIST
+					GROUP BY DN_Code
+				) AS A
+				INNER JOIN covi_smart4j.sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			      SELECT A.DN_Code, DN.DisplayName as DN_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, MONTH(P.endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_workitem PF 
+							INNER JOIN covi_approval4j.jwf_process P ON PF.ProcessID = P.ProcessID
+							INNER JOIN covi_smart4j.sys_object_group U ON PF.UserCode = U.GroupCode
+							WHERE PF.SubKind IN ('REQCMP')
+								AND P.BusinessState LIKE '02_01%'
+								AND P.endDate IS NOT NULL
+								AND P.ProcessState = 528
+								AND YEAR(P.endDate) = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, MONTH(P.endDate)
+					) AS TMP_LIST
+					GROUP BY DN_Code
+				) AS A
+				INNER JOIN covi_smart4j.sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+		) A
+	</select>
+</mapper>
+

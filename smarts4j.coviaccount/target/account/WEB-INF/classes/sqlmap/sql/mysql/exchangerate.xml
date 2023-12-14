@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.exchangerate">
+    
+    <!-- 환율 정보 등록 -->
+	<insert id="insertExchangeRateInfo" parameterType="cmap">
+       INSERT INTO covi_account4j_si.act_exchange_rate (
+       		ExchangeRateDate
+       	,	USD
+       	,	EUR
+       	,	AED
+       	,	AUD
+       	,	BRL
+       	,	CAD
+       	,	CHF
+       	,	CNY
+       	,	JPY
+       	,	SGD
+       ) VALUES (
+       		#{exchangeRateDate}
+       	,	#{usd}
+       	,	#{eur}
+       	,	#{aed}
+       	,	#{aud}
+       	,	#{brl}
+       	,	#{cad}
+       	,	#{chf}
+       	,	#{cny}
+       	,	#{jpy}
+       	,	#{sgd}
+       )
+	</insert>
+    
+	
+	<!-- 환율 정보 수정 -->
+	
+	<update id="updateExchangeRateInfo" parameterType="cmap">
+	    UPDATE covi_account4j_si.act_exchange_rate
+	    	SET USD = #{usd}
+	    	,	EUR = #{eur}
+	    	,	AED = #{aed}
+	    	,	AUD = #{aud}
+	    	,	BRL = #{brl}
+	    	,	CAD = #{cad}
+	    	,	CHF = #{chf}
+	    	,	CNY = #{cny}
+	    	,	JPY = #{jpy}
+	    	,	SGD = #{sgd}
+	    	WHERE ExchangeRateID = #{exchangeRateID}
+	    
+	</update>
+	
+	<!-- 환율 정보 조회 -->
+	<select id="getExchangeRatelist" parameterType="cmap" resultType="cmap" >    
+		SELECT  ExchangeRateID
+	    	,	ExchangeRateDate
+	    	,	DATE_FORMAT(ExchangeRateDate,'%Y.%m.%d') AS ExchangeRateDate_VIEW
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(USD,INSTR(USD,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(USD,1,INSTR(USD,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(USD,INSTR(USD,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(USD,1,INSTR(USD,'.')-1),0)
+				END	AS USD
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(EUR,INSTR(EUR,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(EUR,1,INSTR(EUR,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(EUR,INSTR(EUR,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(EUR,1,INSTR(EUR,'.')-1),0)
+				END	AS EUR
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(AED,INSTR(AED,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(AED,1,INSTR(AED,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(AED,INSTR(AED,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(AED,1,INSTR(AED,'.')-1),0)
+				END	AS AED
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(AUD,INSTR(AUD,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(AUD,1,INSTR(AUD,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(AUD,INSTR(AUD,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(AUD,1,INSTR(AUD,'.')-1),0)
+				END	AS AUD
+			,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(BRL,INSTR(BRL,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(BRL,1,INSTR(BRL,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(BRL,INSTR(BRL,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(BRL,1,INSTR(BRL,'.')-1),0)
+				END	AS BRL
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(CAD,INSTR(CAD,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(CAD,1,INSTR(CAD,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(CAD,INSTR(CAD,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(CAD,1,INSTR(CAD,'.')-1),0)
+				END	AS CAD
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(CHF,INSTR(CHF,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(CHF,1,INSTR(CHF,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(CHF,INSTR(CHF,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(CHF,1,INSTR(CHF,'.')-1),0)
+				END	AS CHF
+	    	,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(CNY,INSTR(CNY,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(CNY,1,INSTR(CNY,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(CNY,INSTR(CNY,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(CNY,1,INSTR(CNY,'.')-1),0)
+				END	AS CNY
+			,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(JPY,INSTR(JPY,'.')+1)) AS SIGNED INTEGER)) > 0
+			 			THEN CONCAT (	FORMAT(SUBSTR(JPY,1,INSTR(JPY,'.')-1),0),
+			 							'.',
+			 							REVERSE(CAST(REVERSE(SUBSTR(JPY,INSTR(JPY,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(JPY,1,INSTR(JPY,'.')-1),0)
+				END	AS JPY
+			,	CASE	WHEN REVERSE(CAST(REVERSE(SUBSTR(SGD,INSTR(SGD,'.')+1)) AS SIGNED INTEGER)) > 0
+						THEN CONCAT (	FORMAT(SUBSTR(SGD,1,INSTR(SGD,'.')-1),0),
+										'.',
+										REVERSE(CAST(REVERSE(SUBSTR(SGD,INSTR(SGD,'.')+1)) AS SIGNED INTEGER)))
+						ELSE FORMAT(SUBSTR(SGD,1,INSTR(SGD,'.')-1),0)
+				END	AS SGD
+	    FROM covi_account4j_si.act_exchange_rate
+	    WHERE 1=1
+	    
+	    
+	  		<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate >= #{exchangeRateDateStart}
+	    	    ]]>
+	    	</if>
+	  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+	    	    ]]>
+	    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ExchangeRateDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ExchangeRateDate")'>ExchangeRateDate</when>
+					<when test='sortColumn.equalsIgnoreCase("USD")'>USD</when>
+					<when test='sortColumn.equalsIgnoreCase("EUR")'>EUR</when>
+					<when test='sortColumn.equalsIgnoreCase("AED")'>AED</when>
+					<when test='sortColumn.equalsIgnoreCase("AUD")'>AUD</when>
+					<when test='sortColumn.equalsIgnoreCase("BRL")'>BRL</when>
+					<when test='sortColumn.equalsIgnoreCase("CAD")'>CAD</when>
+					<when test='sortColumn.equalsIgnoreCase("CHF")'>CHF</when>
+					<when test='sortColumn.equalsIgnoreCase("CNY")'>CNY</when>
+					<when test='sortColumn.equalsIgnoreCase("JPY")'>JPY</when>
+					<when test='sortColumn.equalsIgnoreCase("SGD")'>SGD</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim> 
+	    <if test = "pageSize != null and pageSize != '' or pageOffset != null and pageOffset != ''">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	<!-- 환율 정보 카운트 -->
+	<select id="getExchangeRatelistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_account4j_si.act_exchange_rate
+	    WHERE 1=1
+	    
+	  		<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate >= #{exchangeRateDateStart}
+	    	    ]]>
+	    	</if>
+	  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+	    	    ]]>
+	    	</if>
+	</select>
+	
+	<!-- 환율 정보 삭제 -->
+	<delete id="deleteExchangeRateInfo">
+	    DELETE FROM covi_account4j_si.act_exchange_rate
+	    WHERE ExchangeRateID = #{exchangeRateID}
+	</delete>
+	
+	<!-- 환율 팝업창 정보 조회 -->
+	<select id="getExchangeRatePopupInfo" parameterType="cmap" resultType="cmap">
+	    SELECT  ExchangeRateID
+	    	,	DATE_FORMAT(ExchangeRateDate, '%Y.%m.%d') AS ExchangeRateDate
+	    	,	USD
+	    	,	EUR
+	    	,	AED
+	    	,	AUD
+	    	,	BRL
+	    	,	CAD
+	    	,	CHF
+	    	,	CNY
+	    	,	JPY
+	    	,	SGD
+	    FROM covi_account4j_si.act_exchange_rate
+	    WHERE ExchangeRateID = #{exchangeRateID}
+	    
+	</select>
+	
+	<!-- 중복 체크 -->
+	<select id="getExchangeRateCnt" resultType="java.lang.Long">
+	    SELECT  COUNT(*)
+	    FROM 	covi_account4j_si.act_exchange_rate
+	    WHERE 	ExchangeRateDate = #{exchangeRateDate}
+	</select>
+	
+	<!-- 환율 정보 엑셀리스트 -->
+	<!-- 
+	<select id="getExchangeRateExcelList" parameterType="cmap" resultType="cmap">
+	    SELECT  ExchangeRateID
+	    	,	ExchangeRateDate
+	    	,	USD
+	    	,	EUR
+	    	,	AED
+	    	,	AUD
+	    	,	BRL
+	    	,	CAD
+	    	,	CHF
+	    	,	CNY
+	    	,	JPY
+	    	,	SGD
+	    FROM covi_account4j_si.act_exchange_rate
+	    WHERE 1=1
+	    	<if test = "exchangeRateDateStart != null and exchangeRateDateStart !='' and exchangeRateDateFinish != null and exchangeRateDateFinish != ''"> 
+	    		AND ExchangeRateDate between #{exchangeRateDateStart} AND #{exchangeRateDateFinish}
+	   		</if>
+	   		<if test = "exchangeRateDateStart == null or exchangeRateDateStart =='' and exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+	    	    ]]>
+	    	</if>
+	    ORDER BY ExchangeRateDate
+	</select>
+	 -->
+	 
+	 <update id="updateExchangeRateInfoInterface" parameterType="cmap">
+	    UPDATE covi_account4j_si.act_exchange_rate
+	    	SET
+	    		USD = #{usd}
+	    	,	EUR = #{eur}
+	    	,	AED = #{aed}
+	    	,	AUD = #{aud}
+	    	,	BRL = #{brl}
+	    	,	CAD = #{cad}
+	    	,	CHF = #{chf}
+	    	,	CNY = #{cny}
+	    	,	JPY = #{jpy}
+	    	,	SGD = #{sgd}
+	    WHERE ExchangeRateDate = #{exchangeRateDate}
+	</update>
+	
+	<select id="exchangesList" parameterType="cmap" resultType="cmap" >
+		SELECT
+			A.YYYYMMDD,
+			<foreach collection="pivotList" item="pivot" separator=",">
+				SUM(A.${pivot}) AS ${pivot}
+			</foreach>
+		FROM (
+			SELECT
+				A.YYYYMMDD,
+				<foreach collection="pivotList" item="pivot" separator=",">
+					CASE WHEN CURRENCY = #{pivot} THEN A.PRICE END AS ${pivot}
+				</foreach>
+			FROM
+				covi_account4j_si.act_exchanges A
+			WHERE
+				1 = 1
+				<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD >= #{exchangeRateDateStart}
+		    	    ]]>
+		    	</if>
+		  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD <= #{exchangeRateDateFinish}
+		    	    ]]>
+		    	</if>
+		) A
+		GROUP BY
+			A.YYYYMMDD
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,A.YYYYMMDD DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<foreach collection="pivotList" item="pivot">
+					<if test = 'sortColumn.equalsIgnoreCase(pivot)'>${pivot}</if>
+				</foreach>
+				<if test = "sortColumn == 'YYYYMMDD'">A.YYYYMMDD</if>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test = "pageSize != null and pageSize != '' or pageOffset != null and pageOffset != ''">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	<select id="exchangesListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(*)
+		FROM (
+			SELECT
+				A.YYYYMMDD
+			FROM
+				covi_account4j_si.act_exchanges A
+			WHERE
+				1 = 1
+				<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD >= #{exchangeRateDateStart}
+		    	    ]]>
+		    	</if>
+		  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD <= #{exchangeRateDateFinish}
+		    	    ]]>
+		    	</if>
+			GROUP BY
+				A.YYYYMMDD
+		) A
+	</select>
+	
+	<select id="exchangesRead" parameterType="cmap" resultType="cmap" >
+		SELECT
+			A.YYYYMMDD,
+			<foreach collection="pivotList" item="pivot" separator=",">
+				SUM(A.${pivot}) AS ${pivot}
+			</foreach>
+		FROM (
+			SELECT
+				A.YYYYMMDD,
+				<foreach collection="pivotList" item="pivot" separator=",">
+					CASE WHEN CURRENCY = #{pivot} THEN A.PRICE END AS ${pivot}
+				</foreach>
+			FROM
+				covi_account4j_si.act_exchanges A
+			WHERE
+				A.YYYYMMDD = #{YYYYMMDD} 
+		) A
+		GROUP BY
+			A.YYYYMMDD
+	</select>
+	
+	<insert id="exchangesRegister" parameterType="cmap">
+		<selectKey keyProperty="SEQ" resultType="Integer" order="BEFORE">
+			SELECT IFNULL(MAX(SEQ) + 1, 1) AS SEQ FROM covi_account4j_si.act_exchanges
+		</selectKey>
+		INSERT INTO covi_account4j_si.act_exchanges (
+			SEQ,
+			YYYYMMDD,
+			CURRENCY,
+			PRICE,
+			REGISTERID,
+			REGISTDATE,
+			MODIFIERID,
+			MODIFYDATE
+		) VALUES (
+			#{SEQ},
+			#{YYYYMMDD},
+			#{CURRENCY},
+			#{PRICE},
+			#{REGISTERID},
+			NOW(),
+			#{MODIFIERID},
+			NOW()
+		)
+	</insert>
+	
+	<update id="exchangesModify" parameterType="cmap">
+		UPDATE
+			covi_account4j_si.act_exchanges
+		SET
+			PRICE = #{PRICE},
+			MODIFIERID = #{MODIFIERID},
+			MODIFYDATE = NOW()
+		WHERE
+			YYYYMMDD = #{YYYYMMDD}
+			AND CURRENCY = #{CURRENCY}
+	</update>
+	
+	<delete id="exchangesRemove" parameterType="cmap">
+		DELETE FROM
+			covi_account4j_si.act_exchanges
+		WHERE
+			YYYYMMDD = #{YYYYMMDD}
+	</delete>
+</mapper>

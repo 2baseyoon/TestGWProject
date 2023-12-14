@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="slip">
+	<select id="selectSlipCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			count(*)
+		FROM 
+			covi_account4j_si.act_expence_application
+		WHERE 
+			ApplicationStatus = 'E'
+			AND IFNULL(SlipNo, '') = ''
+		<if test="expenceApplicationID != '' ">
+			AND ExpenceApplicationID = #{expenceApplicationID}
+		</if>
+	</select>
+	
+	<select id="selectSlip" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM 
+			covi_account4j_si.act_expence_application
+		WHERE 
+			ApplicationStatus = 'E'
+			AND IFNULL(SlipNo, '') = ''
+		<if test="expenceApplicationID != '' ">
+			AND ExpenceApplicationID = #{expenceApplicationID}
+		</if>
+		ORDER BY
+			ExpenceApplicationID ASC
+		<if test="pageNo !=null and pageSize != null">
+			LIMIT #{pageSize} OFFSET #{pageOffSet};
+		</if>
+	</select>
+	
+	<select id="selectSlipList" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_expence_application_list
+		WHERE
+			ExpenceApplicationID = #{ExpenceApplicationID}
+		ORDER BY
+			ExpenceApplicationListID ASC
+	</select>
+	
+	<select id="selectSlipDiv" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_expence_application_div
+		WHERE
+			ExpenceApplicationListID = #{ExpenceApplicationListID}
+		ORDER BY
+			ExpenceApplicationDivID ASC
+	</select>
+	
+	<update id="slipComplete" parameterType="cmap">
+		UPDATE
+			covi_account4j_si.act_expence_application
+		SET
+			SlipNo = #{slipNo}
+		WHERE
+			ExpenceApplicationID = #{expenceApplicationId}
+	</update>
+	
+	<update id="slipCancel" parameterType="cmap">
+		UPDATE
+			covi_account4j_si.act_expence_application
+		SET
+			UnSlipNo = #{unSlipNo},
+			ApplicationStatus = 'C'
+		WHERE
+			SlipNo = #{slipNo}
+	</update>
+	
+	<select id="selectVendorInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_vendor
+		WHERE
+			VendorNo = #{VendorNo}
+	</select>
+	
+	<select id="selectCorpCardInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_card_receipt
+		WHERE
+			ReceiptID = #{CardUID}
+	</select>
+	
+	<select id="selectTaxInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_taxinvoice
+		WHERE
+			TaxInvoiceID = #{TaxUID}
+	</select>
+	
+	<select id="selectReceiptInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			covi_account4j_si.act_receipt
+		WHERE
+			ReceiptID = #{ReceiptID}
+	</select>
+</mapper>

@@ -1,0 +1,809 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.portalManager">
+	<select id="getTotalSummery" parameterType="cmap"  resultType="cmap">
+		SELECT 	IFNULL(SUM(Amount),0) amount,COUNT(*) cnt
+		FROM       	covi_account4j_si.act_expence_application AEA
+		INNER JOIN 	covi_account4j_si.act_expence_application_list AEAL				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  covi_account4j_si.act_expence_application_div AEAD 				ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID		
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 				ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+		WHERE       AEA.CompanyCode =  #{companyCode}
+		AND         ProofDate	LIKE CONCAT(#{payDate},'%')
+		AND         AEA.ApplicationStatus = 'E'
+		<if test=" deptCode != null and deptCode != '' ">
+		AND			AEAD.CostCenterCode = #{deptCode} 
+		</if>
+		<if test=" searchType == 'user' ">
+		AND			AEA.RegisterID = #{UR_Code} 
+		</if>
+		<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	covi_smart4j.sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+		)   	
+      	</if>
+      	
+	</select>
+
+	<select id="getProofCodeCount" parameterType="cmap"  resultType="cmap">
+		SELECT 	CASE
+					WHEN AccountCode = 'Total' THEN 'Total'
+					ELSE AccountCode
+				END AS AccountCode 
+				,Cnt
+				,Amount
+				,AccountName
+		FROM   (
+				SELECT   IFNULL(A.AccountCode, 'Total') AccountCode
+						,COUNT(*) Cnt
+						,SUM(Amount) Amount
+						,AccountName
+				FROM      (SELECT ProofCode, 1
+							,	AEAD.Amount AS Amount	
+							<choose>
+				                <when test='IsUseStandardBrief == "Y" '>
+									,AEAD.StandardBriefID AccountCode, AEAD.StandardBriefName AccountName
+				                </when>
+				                <otherwise>
+									,AEAD.AccountCode AccountCode, AEAD.AccountName AccountName
+				                </otherwise>
+				            </choose>
+						FROM		covi_account4j_si.act_expence_application AEA
+						INNER JOIN	covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+						INNER JOIN	covi_account4j_si.act_expence_application_div AEAD 			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+						LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+				        WHERE		AEA.CompanyCode =  #{companyCode}
+						AND			ProofDate	LIKE CONCAT(#{payDate},'%')
+   				        <if test=" deptCode != null and deptCode != '' ">
+   				        AND			AEAD.CostCenterCode = #{deptCode} </if>
+   				        <if test=" searchType == 'user' ">
+   				        AND			AEA.RegisterID = #{UR_Code} </if>
+				   		<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+				   		AND			USR_CUD.DeptCode IN (			
+									SELECT  GroupCode
+									FROM 	covi_smart4j.sys_object_group
+									WHERE 	GroupType = 'Dept'
+									AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+						)   	
+				      	</if>
+						AND			AEA.ApplicationStatus = 'E'
+						) A
+			GROUP BY   AccountCode with ROLLUP) AA
+		ORDER BY 	Amount DESC
+	</select>
+	
+	<select id="getAccountCodeCount" parameterType="cmap" resultType="cmap">
+			SELECT Code, (SELECT CostCenterName FROM covi_account4j_si.act_cost_center acc WHERE acc.CostCenterCode = Code) Name, Cnt, Amount
+			FROM 
+				(SELECT IFNULL(Code,'Total') Code, COUNT(*) Cnt, SUM(Amount) Amount
+				FROM (
+						SELECT AEAD.CostCenterCode Code
+								, 1
+								,	AEAD.Amount Amount	
+						FROM        covi_account4j_si.act_expence_application AEA
+						INNER JOIN  covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+						INNER JOIN  covi_account4j_si.act_expence_application_div AEAD 			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+						LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+				        WHERE		AEA.CompanyCode =  #{companyCode}
+						AND			ProofDate	LIKE CONCAT(#{payDate},'%')
+				        <if test=" accountCode != null and accountCode != '' "> 
+							<choose>
+				                <when test='IsUseStandardBrief == "Y" '>
+						        	AND		AEAD.StandardBriefID = #{accountCode} 
+				                </when>
+				                <otherwise>
+						        	AND		AEAD.AccountCode = #{accountCode} 
+				                </otherwise>
+				            </choose>
+				        </if>    
+				        <if test=" searchType == 'user' "> 
+				        AND			AEA.RegisterID = #{UR_Code}  
+				        </if>
+				        <if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+				   		AND			USR_CUD.DeptCode IN (			
+									SELECT  GroupCode
+									FROM 	covi_smart4j.sys_object_group
+									WHERE 	GroupType = 'Dept'
+									AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+						)   	
+				      	</if> 
+						AND			AEA.ApplicationStatus = 'E'
+						) A
+				GROUP BY    A.Code with ROLLUP) aa
+			ORDER BY Amount DESC
+
+	</select>
+	
+	<select id="getApprovalListCnt" parameterType="cmap"  resultType="java.lang.Long">
+			SELECT count(*)
+			FROM covi_approval4j.jwf_process AS A
+			INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+			INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+			INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+			WHERE 1=1			
+			AND	C.UserCode = #{UR_Code}			
+			AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+			AND C.State = 1
+			AND B.State = #{state}    #진행:288/완료:528
+			AND A.ProcessState = 288
+			AND A.DeleteDate IS NULL
+		
+	</select>
+
+	<select id="getApprovalList" parameterType="cmap"  resultType="cmap">
+		SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, C.SubKind AS FormSubKind
+				, B.Created
+				, B.TaskID
+				, FormSubject
+				, DATE_FORMAT(B.Created,'%m-%d %H:%i') Created
+				, B.TaskID
+				, U.PhotoPath
+				, D.BusinessData1 
+				, D.BusinessData2
+		FROM covi_approval4j.jwf_process AS A
+		INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user AS U ON U.UserCode = A.InitiatorID
+		WHERE 1=1
+		AND	C.UserCode = #{UR_Code}
+		AND      C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND      C.State = 1
+		AND 	 D.BusinessData1 = 'APPROVAL'
+		AND      B.State = #{state}    #진행:288/완료:528
+		AND      A.ProcessState = 288
+		AND      A.DeleteDate IS NULL
+		ORDER BY A.EndDate desc 
+		LIMIT 3
+	</select>
+	<select id="getProofCodeList" parameterType="cmap"  resultType="cmap">
+			SELECT AEA.ExpenceApplicationID 
+					, AEA.CompanyCode
+					, AEA.ApplicationTitle
+					, AEA.ApplicationType
+					, AEA.ApplicationStatus
+					, AEA.RegisterID
+					, USR.DisplayName RegisterName
+					, AEA.ProcessID
+					
+					, DATE_FORMAT( IFNULL(AEA.ApplicationDate, AEA.RegistDate), '%m-%d %H:%i') AS ApplicationDate
+					, AEA.RequestType
+					, AEA.RegistDate
+					, AEA.ChargeJob
+					
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ExpenceApplicationListID cdRownum
+					, DATE_FORMAT( AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+					, DATE_FORMAT( AEAL.PostingDate, '%Y.%m.%d') AS PostingDate
+					, AEAL.ProofCode
+					
+					, AEAL.CardUID
+					, AEAL.CashUID
+					, AEAL.TaxUID
+					, AEAL.TaxType
+					, AEAL.TaxCode
+					, AEAL.PayAdjustMethod
+					, AEAL.PayMethod
+					, AEAL.IsWithholdingTax
+					, AEAL.IncomeTax
+					, AEAL.LocalTax
+					, AEAL.PayDate
+					, AEAL.VendorNo
+					, AEAL.TotalAmount					
+					, AEAD.Amount	AS Amount	
+					, AEAD.AccountCode
+					, c.AccountName	
+		FROM       covi_account4j_si.act_expence_application AEA
+		INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  covi_account4j_si.act_expence_application_div AEAD 	ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN covi_account4j_si.act_account c                 ON AEAD.AccountCode = c.AccountCode
+		LEFT OUTER JOIN covi_smart4j.sys_object_user USR				ON AEA.RegisterID = USR.UserCode
+        WHERE      AEA.CompanyCode =  #{companyCode}
+		AND        ProofDate	LIKE CONCAT(#{payDate},'%')
+        AND        AEA.RegisterID = #{UR_Code}
+		AND        AEA.ApplicationStatus = 'E'
+		AND        AEAL.ProofCode		= #{proofCode}			  
+		limit 4  
+	</select>
+	<select id="getMobileReceiptList" parameterType="cmap"  resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				AR.PhotoDate AS PhotoDate,
+				AR.PhotoDate AS PhotoDateStr,
+				AR.ReceiptType,
+				AR.ReceiptFileID,
+				AR.Active,				
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, 'ALL') AS ActiveName,
+				AR.RegisterID,
+				DATE_FORMAT(AR.RegistDate, '%m.%d %h:%m') AS RegistDateMDHM,
+				DATE_FORMAT(AR.RegistDate, '%Y.%m.%d') AS RegistDate,
+				concat(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath , SF.SavedName) URLPath
+				,AR.AccountCode
+				,c.AccountName
+				,TotalAmount	
+				,(SELECT StandardBriefName
+				FROM covi_account4j_si.act_standard_brief SB
+				WHERE SB.StandardBriefID = AR.StandardBriefID ) StandardBriefName
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN      covi_smart4j.sys_file SF  ON ar.ReceiptFileID =  sf.fileid
+		LEFT OUTER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+		LEFT OUTER JOIN covi_account4j_si.act_account c                 ON AR.AccountCode = c.AccountCode
+		WHERE	1=1
+		AND      AR.RegisterID  = #{UR_Code}
+		ORDER BY AR.ReceiptID DESC 
+		limit 3 
+	</select>
+	
+	<select id="getAccountSum" parameterType="cmap"  resultType="cmap">
+		SELECT    SUM(Amount) AS AmountSum
+					<choose>
+		                <when test='IsUseStandardBrief == "Y" '>
+							,AEAD.StandardBriefID Code, AEAD.StandardBriefName Name
+		                </when>
+		                <otherwise>
+							,AEAD.AccountCode Code, AEAD.AccountName Name
+		                </otherwise>
+		            </choose>
+		FROM		covi_account4j_si.act_expence_application AEA
+		INNER JOIN	covi_account4j_si.act_expence_application_list AEAL	 		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN	covi_account4j_si.act_expence_application_div AS AEAD 		ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+        WHERE		AEA.CompanyCode =  #{companyCode}
+		AND			ProofDate	LIKE CONCAT(#{payYear},'%')        
+        <if test=" searchType == 'user' "> 
+        AND			AEA.RegisterID = #{UR_Code}
+        </if>		
+		<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	covi_smart4j.sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+		)   	
+      	</if>
+		AND			AEA.ApplicationStatus = 'E'
+		GROUP BY   					
+		<choose>
+			<when test='IsUseStandardBrief == "Y" '>
+			AEAD.StandardBriefID 
+			</when>
+			<otherwise>
+			AEAD.AccountCode 
+			</otherwise>
+		</choose>
+		ORDER BY   SUM(Amount) desc		
+	</select>
+	
+	<select id="getAccountMonthSum" parameterType="cmap"  resultType="cmap">
+		SELECT A.payDate,B.*
+		FROM (	
+			SELECT CONCAT(#{payYear},payDate) AS payDate
+			FROM (
+				SELECT '01' AS payDate UNION ALL
+				SELECT '02' UNION ALL
+				SELECT '03' UNION ALL
+				SELECT '04' UNION ALL
+				SELECT '05' UNION ALL
+				SELECT '06' UNION ALL
+				SELECT '07' UNION ALL					
+				SELECT '08' UNION ALL					
+				SELECT '09' UNION ALL					
+				SELECT '10' UNION ALL					
+				SELECT '11' UNION ALL					
+				SELECT '12'
+			) DT
+		) A
+		LEFT OUTER JOIN (			
+			SELECT     SUBSTRING(ProofDate ,1,6) paydt,
+					   SUM(Amount) AS AmountSum
+					   <foreach collection="Codes" item="item" index="index" separator="," open="," close="">
+					   		<choose>
+				                <when test='IsUseStandardBrief == "Y" '>
+			        	            SUM(case when StandardBriefID = #{item} then Amount else 0 end) AS   SUM_${item}
+			    	            </when>
+				                <otherwise>
+				                    SUM(case when AccountCode = #{item} then Amount else 0 end) AS   SUM_${item}
+				                </otherwise>
+				            </choose>
+			           </foreach>
+			FROM		covi_account4j_si.act_expence_application AEA
+			INNER JOIN	covi_account4j_si.act_expence_application_list AEAL	 		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			INNER JOIN	covi_account4j_si.act_expence_application_div AS AEAD 		ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+			LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+	        WHERE		AEA.CompanyCode =  #{companyCode}
+			AND			ProofDate	LIKE CONCAT(#{payYear},'%')            	                
+	        <if test=" searchType == 'user' "> 
+	        AND			AEA.RegisterID = #{UR_Code}
+	        </if>		
+			<if test=" searchType == 'dept' and stdCode != null and stdCode != '' " >
+	   		AND			USR_CUD.DeptCode IN (			
+						SELECT  GroupCode
+						FROM 	covi_smart4j.sys_object_group
+						WHERE 	GroupType = 'Dept'
+						AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+			)   	
+	      	</if>       	        
+			AND			AEA.ApplicationStatus = 'E'
+			GROUP BY SUBSTRING(ProofDate ,1,6)			
+		) B ON A.payDate = B.paydt
+	</select>
+	
+	<select  id="getDeptList" parameterType="cmap"  resultType="cmap">
+		SELECT '' AS DeptCode,'전체' AS DeptName
+		UNION ALL
+		SELECT acc.CostCenterCode,CostCenterName
+		FROM   covi_account4j_si.act_cost_center acc 
+		JOIN  (
+					SELECT		DISTINCT AEAD.CostCenterCode 
+					FROM		covi_account4j_si.act_expence_application AEA
+					INNER JOIN	covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+					INNER JOIN	covi_account4j_si.act_expence_application_div AS AEAD		ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+					WHERE		AEA.CompanyCode =  #{companyCode}
+					AND			ProofDate	LIKE CONCAT(#{payDate},'%')
+					<if test="stdCode != null and stdCode != ''" >
+			   		AND			USR_CUD.DeptCode IN (			
+								SELECT  GroupCode
+								FROM 	covi_smart4j.sys_object_group
+								WHERE 	GroupType = 'Dept'
+								AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+					)
+			       	</if>
+				) A ON acc.CostCenterCode = a.CostCenterCode
+	</select>
+	
+	<select  id="getAccountList" parameterType="cmap"  resultType="cmap">
+		SELECT '' AS AccountCode,'전체' AS AccountName
+		UNION ALL
+		SELECT 
+		<choose>
+			<when test='IsUseStandardBrief == "Y" '>
+			a.StandardBriefID, sb.StandardBriefName 
+			</when>
+			<otherwise>
+			a.AccountCode, c.AccountName 
+			</otherwise>
+		</choose>
+		FROM  (
+				SELECT		DISTINCT AEAD.AccountCode <if test='IsUseStandardBrief == "Y" '>, AEAD.StandardBriefID</if>
+				FROM		covi_account4j_si.act_expence_application AEA
+				INNER JOIN	covi_account4j_si.act_expence_application_list AEAL		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN	covi_account4j_si.act_expence_application_div AEAD 		ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID 
+				LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 		ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'	
+				WHERE		AEA.CompanyCode =  #{companyCode}
+				AND			ProofDate	LIKE CONCAT(#{payDate},'%')	
+				<if test="stdCode != null and stdCode != ''" >
+		   		AND			USR_CUD.DeptCode IN (			
+							SELECT  GroupCode
+							FROM 	covi_smart4j.sys_object_group
+							WHERE 	GroupType = 'Dept'
+							AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+				)
+		       	</if>
+				AND AEA.ApplicationStatus = 'E'
+		) A 
+		JOIN covi_account4j_si.act_account c	ON c.AccountCode = a.AccountCode	
+        <if test='IsUseStandardBrief == "Y" '>
+		JOIN  covi_account4j_si.act_standard_brief sb ON c.AccountID = sb.AccountID AND a.StandardBriefID = sb.StandardBriefID
+        </if>
+		WHERE  c.IsUse = 'Y'		
+	</select>
+	
+	<select id="getTopCategory"  parameterType="cmap"  resultType="cmap">
+		SELECT 	deptCode	AS UserCode
+				, deptName	AS DisplayName
+				, 'dept'	AS type 
+		FROM covi_smart4j.sys_object_user_basegroup
+		WHERE UserCode = #{UR_Code}		
+	</select>
+
+	<select id="getBudgetMonthSum"  parameterType="cmap"  resultType="cmap">
+		SELECT IFNULL(ExecuteDate,'TOTAL') ExecuteDate
+		  		,SUM( UsedAmount) UsedAmount 
+		   		,SUM( CASE WHEN Status = 'C' THEN UsedAmount ELSE 0 END ) complete
+		   		,SUM( CASE WHEN Status = 'P' THEN UsedAmount ELSE 0 END ) pending
+		FROM (
+			SELECT ExecuteDate
+				   ,IFNULL(UsedAmount,0) UsedAmount
+				   ,Status
+			FROM (
+				SELECT 	CONCAT(#{payYear},mon) AS ExecuteDate 
+				FROM (
+					SELECT '01' AS mon UNION ALL
+					SELECT '02' UNION ALL
+					SELECT '03' UNION ALL
+					SELECT '04' UNION ALL
+					SELECT '05' UNION ALL
+					SELECT '06' UNION ALL
+					SELECT '07' UNION ALL					
+					SELECT '08' UNION ALL					
+					SELECT '09' UNION ALL					
+					SELECT '10' UNION ALL					
+					SELECT '11' UNION ALL
+					SELECT '12' 			
+				) DT
+			)DT
+			LEFT OUTER JOIN (
+				SELECT 	DATE_FORMAT( EXR.ExecuteDate, '%Y%m') AS ExecuteYM
+						,EXR.UsedAmount 
+						,EXR.Status 
+				FROM covi_budget4j.bem_execute_regist EXR
+				WHERE exr.CompanyCode = #{companyCode}
+				AND   AccountCode = #{accountCode}
+				<foreach collection="sbCodeList" item="list" open="AND StandardBriefID IN(" close=")"  separator=",">
+					 #{list}
+				</foreach>
+				AND Status != 'R'				
+				<if test=" searchType == 'user' "> AND	InitiatorID = #{UR_Code} </if>
+				<if test=" searchType == 'dept' "> AND	InitiatorDeptCode = #{stdCode} </if>
+				AND DATE_FORMAT( EXR.ExecuteDate, '%Y') = #{payYear}
+			) A ON DT.ExecuteDate = A.ExecuteYM
+		) A
+		GROUP BY ExecuteDate with ROLLUP
+	</select>
+	
+	<select id="getBudgetTotal"  parameterType="cmap"  resultType="cmap">
+		SELECT 		IFNULL( SUM(BudgetAmount),0 ) BudgetAmount, BaseTerm, covi_account4j_si.Fn_GetBaseCodeName('BaseTerm', BaseTerm,'ALL') BaseTermName
+		FROM 		covi_budget4j.bem_regist REG
+		INNER JOIN 	covi_smart4j.sys_object_user_basegroup USR_CUD ON REG.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'
+		WHERE 		reg.CompanyCode = #{companyCode}
+		AND         REG.FiscalYear = #{payYear}
+		AND			REG.BaseTerm = 'Year'
+		AND			REG.IsUse	=	'Y'
+		AND			REG.AccountCode = #{accountCode}
+		<foreach collection="sbCodeList" item="list" open="AND StandardBriefID IN(" close=")"  separator=",">
+			 #{list}
+		</foreach>
+		<if test=" searchType == 'user' ">
+		AND	USR_CUD.UserCode = #{UR_Code} 
+		</if>
+		<if test=" searchType == 'dept' ">
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	covi_smart4j.sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE CONCAT('%;',#{stdCode},';%')
+		)
+		</if>
+	</select>
+	
+	<select id="getAuditList" parameterType="cmap" resultType="cmap">	
+		SELECT	AD.AuditID
+				,	AD.RuleCode			
+				,	AD.StdDescription												
+		FROM	covi_account4j_si.act_audit	AD		
+	 	WHERE    ad.CompanyCode = #{companyCode}
+		AND	     IsUse = 'Y'					
+		ORDER BY AuditID DESC 
+		LIMIT 5	
+	</select>
+	
+	<select id="getBudgetStdCode" parameterType="cmap" resultType="cmap">	
+		SELECT CD.Code, cd.CodeName
+				, CD.Reserved1
+				, CD.Reserved2
+		FROM  covi_account4j_si.act_base_code CD
+	 	WHERE CD.CodeGroup = 'budgetStd'
+	 	AND   CODE != 'budgetStd'
+	 	AND   IsUse = 'Y'
+	 	<choose>
+		    <when test='isSaaS == "Y"'>
+				AND CD.CompanyCode =	#{companyCode}
+			</when>
+			<otherwise>
+				AND CD.CompanyCode in ('ALL', 	#{companyCode})
+	 			ORDER BY CASE WHEN CD.CompanyCode = #{companyCode} THEN 0 ELSE 1 END
+			</otherwise>
+		</choose>
+	 	limit 1		
+	</select>
+	
+	<select id="getReportDetailList" parameterType="cmap" resultType="cmap">
+		SELECT AEAD.CostCenterCode
+				, (SELECT CostCenterName FROM covi_account4j_si.act_cost_center ACC WHERE ACC.CostCenterCode = AEAD.CostCenterCode) AS CostCenterName
+				, AEA.RegisterID
+				, SOU.DisplayName AS RegisterName
+				, DATE_FORMAT( AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+				, AEAD.AccountCode
+				, AEAD.AccountName
+				, AEAD.StandardBriefID
+				, AEAD.StandardBriefName
+				, AEAD.UsageComment
+				, AEAD.Amount
+		FROM        covi_account4j_si.act_expence_application AEA
+		INNER JOIN  covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  covi_account4j_si.act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU 						ON AEA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'						
+		WHERE   AEA.CompanyCode = #{CompanyCode}
+		AND     AEA.ApplicationStatus = 'E'
+		AND     AEAL.ProofDate	LIKE CONCAT(#{ProofMonth},'%')		
+		<choose>
+			<when test="CostCenterCode != null and CostCenterCode != ''">
+	    AND		AEAD.CostCenterCode = #{CostCenterCode}
+			</when>
+			<otherwise>
+				<if test="DeptCode != null and DeptCode != ''">
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	covi_smart4j.sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE CONCAT('%;',#{DeptCode},';%')
+		)
+				</if>
+			</otherwise>
+		</choose>
+		<if test=" AccountName != null and AccountName != '' "> 
+		AND		AEAD.AccountName = #{AccountName}
+		</if>
+        <if test=" RegisterName != null and RegisterName != '' "> 
+		AND		SOU.DisplayName LIKE CONCAT('%', #{RegisterName}, '%')
+		</if>
+        <if test=" AccountCode != null and AccountCode != '' "> 
+		AND		AEAD.AccountCode = #{AccountCode}
+		</if>
+		<if test=" StandardBriefName != null and StandardBriefName != '' "> 
+		AND		AEAD.StandardBriefName = #{StandardBriefName}
+		</if>
+        <if test=" StandardBriefID != null and StandardBriefID != '' "> 
+		AND		AEAD.StandardBriefID = #{StandardBriefID}
+		</if>
+        <if test=" UsageComment != null and UsageComment != '' "> 
+		AND		AEAD.UsageComment LIKE CONCAT('%', #{UsageComment}, '%')
+		</if>
+	  	<if test=" SearchAmtSt != null and SearchAmtSt != '' ">
+		AND		AEAD.Amount <![CDATA[ >= ]]> #{SearchAmtSt} 
+		</if>
+	  	<if test=" SearchAmtEd != null and SearchAmtEd != '' ">
+		AND		AEAD.Amount <![CDATA[ <= ]]> #{SearchAmtEd} 
+		</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AEAD.Amount DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageComment")'>UsageComment</when>
+					<when test='sortColumn.equalsIgnoreCase("Amount")'>Amount</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	<select id="getReportDetailListCnt" parameterType="cmap"  resultType="java.lang.Long">	
+		SELECT COUNT(*)
+		FROM        covi_account4j_si.act_expence_application AEA
+		INNER JOIN  covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  covi_account4j_si.act_expence_application_div AEAD			ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU 						ON AEA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup USR_CUD 			ON AEA.RegisterID = USR_CUD.UserCode AND USR_CUD.JobType = 'Origin'	
+		WHERE   AEA.CompanyCode = #{CompanyCode}
+		AND     AEA.ApplicationStatus = 'E'
+		AND     AEAL.ProofDate	LIKE CONCAT(#{ProofMonth},'%')		
+		<choose>
+			<when test="CostCenterCode != null and CostCenterCode != ''">
+    	AND		AEAD.CostCenterCode = #{CostCenterCode}
+			</when>
+			<otherwise>
+				<if test="DeptCode != null and DeptCode != ''">
+   		AND			USR_CUD.DeptCode IN (			
+					SELECT  GroupCode
+					FROM 	covi_smart4j.sys_object_group
+					WHERE 	GroupType = 'Dept'
+					AND		GroupPath LIKE CONCAT('%;',#{DeptCode},';%')
+		)
+				</if>
+			</otherwise>
+		</choose>
+        <if test=" AccountName != null and AccountName != '' "> 
+		AND		AEAD.AccountName = #{AccountName}
+		</if>
+        <if test=" RegisterName != null and RegisterName != '' "> 
+		AND		SOU.DisplayName LIKE CONCAT('%', #{RegisterName}, '%')
+		</if>
+        <if test=" AccountCode != null and AccountCode != '' "> 
+		AND		AEAD.AccountCode = #{AccountCode}
+		</if>
+		<if test=" StandardBriefName != null and StandardBriefName != '' "> 
+		AND		AEAD.StandardBriefName = #{StandardBriefName}
+		</if>
+        <if test=" StandardBriefID != null and StandardBriefID != '' "> 
+		AND		AEAD.StandardBriefID = #{StandardBriefID}
+		</if>	
+        <if test=" UsageComment != null and UsageComment != '' "> 
+		AND		AEAD.UsageComment LIKE CONCAT('%', #{UsageComment}, '%')
+		</if>
+	  	<if test=" SearchAmtSt != null and SearchAmtSt != '' ">
+		AND		AEAD.Amount <![CDATA[ >= ]]> #{SearchAmtSt} 
+		</if>
+	  	<if test=" SearchAmtEd != null and SearchAmtEd != '' ">
+		AND		AEAD.Amount <![CDATA[ <= ]]> #{SearchAmtEd} 
+		</if>
+	</select>
+	
+	<select id="reportTransferExcelDownload" parameterType="cmap" resultType="cmap">
+		SELECT 
+			VB.BankName 
+			, VB.BankAccountNo
+			, TRUNCATE(EAL.RealPayAmount,0) AS TotalAmount
+			, ( CASE WHEN VB.BankAccountName IS NULL OR VB.BankAccountName = '' THEN 
+					(CASE WHEN EAL.VendorName IS NULL OR EAL.VendorName = '' THEN ATI.InvoicerCorpName ELSE EAL.VendorName END) 
+				ELSE VB.BankAccountName END ) AS BankAccountName
+		FROM covi_account4j_si.act_expence_application_list EAL
+		LEFT OUTER JOIN covi_account4j_si.act_vendor V
+			ON V.VendorNo  = EAL.VendorNo  
+		LEFT OUTER JOIN (
+			SELECT VENDORID, MAX(BANKID) AS BankID FROM covi_account4j_si.act_vendor_bank SUB
+			GROUP BY SUB.VENDORID
+		) VB2
+			ON VB2.VendorID = V.VendorID
+		LEFT OUTER JOIN covi_account4j_si.act_vendor_bank VB
+			ON VB.VendorID = V.VendorID
+			AND VB.BankID = VB2.BankID
+		LEFT OUTER JOIN covi_account4j_si.act_taxinvoice ATI
+			ON EAL.TaxUID = ATI.TaxInvoiceID
+		WHERE EAL.ExpenceApplicationListID IN 
+		<foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY ExpenceApplicationListID
+	</select>
+	
+	<!-- 직원경비 지출내역 구분별(일반,접대비,프로젝트,출장) 이체자료 다운로드  -->
+	<select id="employeeExpenceExcelDownload" parameterType="cmap" resultType="cmap">
+		SELECT a.VendorNo
+			, (Select FormName from covi_account4j_si.act_expence_forms AEF
+						WHERE a.RequestType = AEF.FormCode and AEF.CompanyCode = a.CompanyCode) AS RequestTypeName
+			, bgroup.DeptName
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, usr.MultiDisplayName) AS UserName
+			, TRUNCATE(a.RealPayAmount,0) AS RealPayAmount
+			, VD.BankName
+			, VD.BankAccountNo
+			, VD.BankAccountName
+		FROM (		
+			SELECT AEAL.VendorNo AS VendorNo, AEA.RequestType, AEA.CompanyCode
+				, SUM(CASE WHEN AEAL.RealPayAmount IS NULL
+					THEN (
+						SELECT 
+						CASE 
+							WHEN (AEAL.ProofCode = 'TaxBill' AND SUM(AEAD.Amount) != AEAL.TotalAmount) THEN SUM(AEAD.Amount) + AEAL.TaxAmount 
+							ELSE SUM(AEAD.Amount) 
+						END
+						FROM covi_account4j_si.act_expence_application_div AEAD
+						WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					)
+					ELSE AEAL.RealPayAmount END) AS RealPayAmount
+			FROM covi_account4j_si.act_expence_application AEA
+				INNER JOIN covi_account4j_si.act_expence_application_list AEAL 
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			# 일반, 프로젝트, 접대비, 출장
+			WHERE AEAL.ExpenceApplicationListID IN <foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">#{item}</foreach>
+			GROUP BY AEAL.VendorNo, AEA.RequestType, AEA.CompanyCode
+		) a
+		LEFT OUTER JOIN (
+			SELECT VD.VendorID, MAX(VD.VendorNo) AS VendorNo, MIN(VDB.BankID) AS BankID, MAX(VD.VendorName) AS VendorName, MAX(VDB.BankName) AS BankName
+				, MAX(VDB.BankAccountNo) AS BankAccountNo
+				, MAX(VDB.BankAccountName) AS BankAccountName
+			FROM covi_account4j_si.act_vendor_bank VDB
+			JOIN covi_account4j_si.act_vendor VD
+			ON VD.VendorID = VDB.VendorID
+			AND VD.VendorType = 'OR' # 임직원 거래처 Type
+			GROUP BY VD.VendorID
+		) VD
+		ON VD.VendorNo = a.VendorNo
+		LEFT OUTER JOIN covi_smart4j.sys_object_user usr
+		ON usr.UserCode = a.VendorNo
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup bgroup
+		ON bgroup.UserCode = usr.UserCode
+		AND bgroup.JobType = 'Origin'
+		ORDER BY deptname, username
+	</select>
+	<!-- 거래처지급내역 이체자료 다운로드, 자금지출결의시 쿼리와 동일하게 Group by 처리  -->
+	<select id="vendorExpenceExcelDownload" parameterType="cmap" resultType="cmap">
+		<!--  "VendorName","RealPayAmount","BankName", "BankAccountNo","BankAccountName"  -->
+		SELECT
+			MAX(A.VendorName) AS VendorName,
+		  	TRUNCATE(SUM(A.RealPayAmount),0) AS RealPayAmount,
+			MAX(A.BankName) AS BankName,
+			MAX(A.BankAccountNo) AS BankAccountNo,
+			MAX(A.BankAccountName) AS BankAccountName
+		FROM
+		  (
+		    SELECT
+		      AEA.ExpenceApplicationID,
+		      AEA.RegisterID,
+		      AEAL.ExpenceApplicationListID,
+		      CASE WHEN AEAL.PayMethod IS NULL THEN CASE WHEN AEAL.ProofCode = 'CorpCard' THEN 'D' ELSE 'C' END ELSE AEAL.PayMethod END AS PayMethod,
+		      CASE
+		        WHEN AEAL.RealPayAmount IS NULL THEN (
+		          SELECT
+		            CASE
+		              WHEN (
+		                AEAL.ProofCode = 'TaxBill' AND SUM(AEAD.Amount) != AEAL.TotalAmount
+		              ) THEN SUM(AEAD.Amount) + AEAL.TaxAmount ELSE SUM(AEAD.Amount)
+		            END
+		          FROM covi_account4j_si.act_expence_application_div AEAD
+		          WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		        )
+		        ELSE AEAL.RealPayAmount
+		      END AS RealPayAmount,
+		      IFNULL(AEAL.VendorNo, AEA.RegisterID) AS VendorNo,
+		      IFNULL(IFNULL(VD.VendorName, ATI.InvoicerCorpName), AEAL.VendorName) AS VendorName,
+		      (
+		        SELECT StandardBriefID FROM covi_account4j_si.act_expence_application_div AEAD WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		        LIMIT 1
+		      ) StandardBriefID
+			  ,CASE WHEN IFNULL(LENGTH(AEAL.BankAccountNo),0) > 0 THEN (
+					SELECT A.CodeName FROM covi_account4j_si.act_base_code A 
+					WHERE A.CodeGroup='Bank' AND A.IsUse='Y' AND A.Code= AEAL.BankCode 
+					AND CompanyCode = (
+						CASE WHEN EXISTS (
+							SELECT CompanyCode FROM covi_account4j_si.act_base_code 
+							WHERE CodeGroup='Bank' AND IsUse='Y' AND Code= AEAL.BankCode AND CompanyCode = AEA.CompanyCode
+						) THEN AEA.CompanyCode 
+						ELSE 'ALL' END
+					) 
+				) ELSE VD.BankName END AS BankName
+			  , CASE WHEN IFNULL(LENGTH(AEAL.BankAccountNo),0) > 0 THEN AEAL.BankAccountNo ELSE VD.BankAccountNo END AS BankAccountNo
+			  , CASE WHEN IFNULL(LENGTH(AEAL.BankAccountNo),0) > 0 THEN AEAL.BankAccountName ELSE VD.BankAccountName END AS BankAccountName
+		    FROM
+		      covi_account4j_si.act_expence_application AEA
+		      INNER JOIN covi_account4j_si.act_expence_application_list AEAL ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		      #INNER JOIN covi_smart4j.sys_object_user USR ON AEA.RegisterID = USR.UserCode
+		      INNER JOIN covi_account4j_si.act_expence_forms AEF ON AEA.RequestType = AEF.FormCode and AEF.CompanyCode = AEA.CompanyCode
+		      LEFT OUTER JOIN covi_account4j_si.act_taxinvoice ATI ON AEAL.TaxUID = ATI.TaxInvoiceID
+		      LEFT OUTER JOIN (
+					SELECT
+						AV.VendorID, AV.VendorNo, AB.BankID, AV.VendorName, AB.BankName
+						, AB.BankAccountNo
+						, AB.BankAccountName
+					FROM covi_account4j_si.act_vendor AV 
+					INNER JOIN (
+						SELECT A.VendorID, A.BankID, A.BankName, A.BankAccountNo, A.BankAccountName
+						FROM covi_account4j_si.act_vendor_bank A
+						WHERE A.BankID = (SELECT MIN(BankID) FROM covi_account4j_si.act_vendor_bank B WHERE A.VendorID = B.VendorID)
+					) AB ON AV.VendorID = AB.VendorID
+			  ) VD ON VD.VendorNo = AEAL.VendorNo
+		    WHERE
+		      1 = 1
+		      AND AEF.MenuType = 'V'
+		      AND AEA.RequestType IN ('VENDOR')
+		      AND AEAL.ExpenceApplicationListID IN <foreach collection="expListIDsArr" item="item" open="(" close=")" separator=",">#{item}</foreach>
+		  ) A
+		WHERE PayMethod = 'C'
+		GROUP BY
+		  A.ExpenceApplicationID,
+		  A.RegisterID,
+		  A.PayMethod,
+		  A.VendorNo,
+		  A.StandardBriefID
+	</select>
+</mapper>

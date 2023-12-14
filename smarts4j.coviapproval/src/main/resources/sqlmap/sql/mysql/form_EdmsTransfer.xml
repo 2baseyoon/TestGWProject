@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.edmstransfer">
+	
+   <!-- 이관대상 조회  -->
+	<select id="getEdmsTrasferTarget" parameterType="cmap" resultType="cmap">
+		SELECT 	edms.DocId
+				,edms.ProcessId
+				,'7' AS EndFlag
+				,now(3) AS FlagDate
+				,DraftId
+				,sod.DOMAINID AS DNID
+				,jf.EntCode  AS DN_Code
+		FROM covi_approval4j.jwf_edmsmeta edms 
+		INNER JOIN covi_approval4j.jwf_process jp ON jp.processid = edms.processid
+		INNER JOIN covi_approval4j.jwf_forminstance jf ON jf.forminstid = jp.forminstid
+		INNER JOIN covi_smart4j.sys_object_domain sod on sod.DomainCode = jf.EntCode 
+		WHERE EndFlag = 0
+		ORDER BY RegDate
+   </select>
+	
+   <!-- 본문정보 Update -->
+   <update id="updateDocBody" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_edmsmeta
+		SET DocBody = #{DocBody}
+			, EndFlag = #{EndFlag}
+			, FlagDate = #{FlagDate}
+		WHERE DocId =  #{DocId}
+   </update>
+   
+   <!-- 상태값 Update -->
+   <update id="updateFlagMulti" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_edmsmeta
+		SET EndFlag = #{EndFlag}
+			, FlagDate = #{FlagDate}
+			, ErrMessage = #{ErrMessage}
+		WHERE DocId IN 
+		<foreach collection="pkList" item="item" index="index" separator="," open="(" close=")">
+         #{item}
+      </foreach>
+   </update>
+   
+   <!-- 상태값 Update -->
+   <update id="updateFlag" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_edmsmeta
+		SET EndFlag = #{EndFlag}
+			, FlagDate = #{FlagDate}
+			, ErrMessage = #{ErrMessage}
+		WHERE DocID =  #{DocId}
+   </update>
+   
+   <!-- 기타정보 Update (최종) -->
+   <update id="updateDocInfo" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_edmsmeta
+		SET DocType 		= #{DocType}
+			,DocNo 			= #{DocNo}
+			,DocClass 		= #{DocClass}
+			,DocSecurity 	= #{DocSecurity}
+			,DraftName 		= #{DraftName}
+			,DraftDeptID 	= #{DraftDeptID}
+			,DraftDeptName = #{DraftDeptName}
+			,DraftDate 		= #{DraftDate}
+			,DocTitle 		= #{DocTitle}
+			,DocAttach 		= #{DocAttach}
+			,ApvLine 		= #{ApvLine}
+			,EndDate 		= #{EndDate}
+			,EndFlag 		= #{EndFlag}
+			,FlagDate 		= #{FlagDate}
+		WHERE DocID =  #{DocId}
+   </update>
+   
+	<!-- 이관대상 정보 가져오기  -->
+	<select id="selectDocInfo" parameterType="cmap" resultType="cmap">
+		SELECT DocClass
+			 , DocNo
+			 , DraftID
+			 , DraftName
+			 , DraftDeptID
+			 , DraftDeptName
+			 , DocTitle
+			 , DocBody
+			 , DocAttach
+			 , ApvLine
+			 , EndDate
+			 , ProcessID
+		FROM covi_approval4j.jwf_edmsmeta
+		WHERE DocID = #{DocID}
+	</select>
+</mapper>
+

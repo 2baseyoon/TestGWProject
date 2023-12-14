@@ -1,0 +1,926 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monthlyTrendComparison">
+    <select id="selectMonthlyDeptList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+				  SELECT A.GR_Code, A.GR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.InitiatorUnitID AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(endDate) AS Approval_month
+							, COUNT(*) AS Approval_count
+						FROM covi_approval4j.jwf_process as P
+						INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode  
+			   			WHERE P.BusinessState LIKE '02_01%'  
+							AND P.ParentProcessID = 0
+							AND P.endDate IS NOT NULL  
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(P.endDate) = #{Year}
+							AND P.InitiatorUnitID IS NOT NULL
+						GROUP BY P.InitiatorUnitID,  MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			  SELECT A.GR_Code, A.GR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT W.UserCode AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(P.endDate) AS Approval_month
+							, COUNT(*) AS Approval_count
+						FROM covi_approval4j.jwf_performer as PF
+							INNER JOIN covi_approval4j.jwf_workitem as W ON W.WorkitemID = PF.WorkitemID
+							INNER JOIN covi_approval4j.jwf_process as P ON W.ProcessID = P.ProcessID
+							INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+						WHERE PF.ActualKind = '1' 
+							AND W.SubKind IN ('REQCMP')
+							AND P.BusinessState LIKE '02_01%'
+							AND P.endDate IS NOT NULL
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(P.endDate) = #{Year}
+						GROUP BY W.UserCode, MONTH(P.endDate)
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'C'.toString())">
+			  SELECT A.GR_Code, A.GR_Name
+					,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+				 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+				 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+				 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+				 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+				 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+				 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+				 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+				 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+				 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+				 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+					,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+					FROM ( 
+						SELECT P.InitiatorUnitID AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(endDate) AS Approval_month
+							, avg( timestampdiff(minute ,P.startDate,P.endDate )) AS Approval_time
+						FROM covi_approval4j.jwf_process P 
+						INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+						WHERE P.BusinessState LIKE '02_01%'  
+							AND P.ParentProcessID = 0  
+							AND P.endDate IS NOT NULL  
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(endDate) = #{Year}
+							AND P.InitiatorUnitID IS NOT NULL
+						GROUP BY P.InitiatorUnitID, MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>			  
+		) A		
+	
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("Month1")'>Month1</when>
+					<when test='sortColumn.equalsIgnoreCase("Month2")'>Month2</when>
+					<when test='sortColumn.equalsIgnoreCase("Month3")'>Month3</when>
+					<when test='sortColumn.equalsIgnoreCase("Month4")'>Month4</when>
+					<when test='sortColumn.equalsIgnoreCase("Month5")'>Month5</when>
+					<when test='sortColumn.equalsIgnoreCase("Month6")'>Month6</when>
+					<when test='sortColumn.equalsIgnoreCase("Month7")'>Month7</when>
+					<when test='sortColumn.equalsIgnoreCase("Month8")'>Month8</when>
+					<when test='sortColumn.equalsIgnoreCase("Month9")'>Month9</when>
+					<when test='sortColumn.equalsIgnoreCase("Month10")'>Month10</when>
+					<when test='sortColumn.equalsIgnoreCase("Month11")'>Month11</when>
+					<when test='sortColumn.equalsIgnoreCase("Month12")'>Month12</when>
+					<otherwise>GR_Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				GR_Name ASC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectMonthlyDeptListcnt" resultType="java.lang.Long">
+		SELECT COUNT(GR_Code) FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			  SELECT A.GR_Code, A.GR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.InitiatorUnitID AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(endDate) AS Approval_month
+							, COUNT(*) AS Approval_count
+						FROM covi_approval4j.jwf_process as P
+						INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode  
+			   			WHERE P.BusinessState LIKE '02_01%'  
+							AND P.ParentProcessID = 0
+							AND P.endDate IS NOT NULL  
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(P.endDate) = #{Year}
+							AND P.InitiatorUnitID IS NOT NULL
+						GROUP BY P.InitiatorUnitID,  MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			  SELECT A.GR_Code, A.GR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT W.UserCode AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(P.endDate) AS Approval_month
+							, COUNT(*) AS Approval_count
+						FROM covi_approval4j.jwf_performer as PF
+							INNER JOIN covi_approval4j.jwf_workitem as W ON W.WorkitemID = PF.WorkitemID
+							INNER JOIN covi_approval4j.jwf_process as P ON W.ProcessID = P.ProcessID
+							INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+						WHERE PF.ActualKind = '1' 
+							AND W.SubKind IN ('REQCMP')
+							AND P.BusinessState LIKE '02_01%'
+							AND P.endDate IS NOT NULL
+							AND P.ProcessState = 528
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(P.endDate) = #{Year}
+						GROUP BY W.UserCode, MONTH(P.endDate)
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'C'.toString())">
+			  SELECT A.GR_Code, A.GR_Name
+					,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+				 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+				 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+				 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+				 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+				 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+				 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+				 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+				 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+				 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+				 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+					,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+				FROM(
+					select 
+							GR_Code,GR_Name,
+							SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+					FROM ( 
+						SELECT P.InitiatorUnitID AS GR_Code
+							, U.DisplayName AS GR_Name
+							, MONTH(endDate) AS Approval_month
+							, avg( timestampdiff(minute ,P.startDate,P.endDate )) AS Approval_time
+						FROM covi_approval4j.jwf_process P 
+						INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+						WHERE P.BusinessState LIKE '02_01%'  
+							AND P.ParentProcessID = 0  
+							AND P.endDate IS NOT NULL
+							AND P.ProcessState = 528  
+							AND U.CompanyCode = #{EntCode}
+							AND YEAR(endDate) = #{Year}
+							AND P.InitiatorUnitID IS NOT NULL
+						GROUP BY P.InitiatorUnitID, MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY GR_Code
+				) AS A
+			</if>	
+		) A		
+		
+	</select>
+	
+    
+    <select id="selectMonthlyFormList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			      SELECT A.FormPrefix, A.FormName
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							FormPrefix,FormName,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.FormPrefix
+								, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, P.FormName) as FormName
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P  
+								INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+				   			WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0  
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND U.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.FormPrefix, MONTH(endDate)
+					) AS TMP_LIST
+					GROUP BY FormPrefix
+				) AS A
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			      SELECT A.FormPrefix, A.FormName
+						,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+					 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+					 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+					 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+					 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+					 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+					 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+					 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+					 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+					 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+					 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+						,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+					FROM(
+						select 
+								FormPrefix,FormName,
+								SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+								SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+								SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+								SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+								SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+								SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+								SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+								SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+								SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+								SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+								SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+								SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+						FROM ( 
+							SELECT P.FormPrefix
+								, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, P.FormName) as FormName
+								, MONTH(endDate) AS Approval_month
+								, avg( timestampdiff( minute ,P.startDate,P.endDate )) AS Approval_time
+							FROM covi_approval4j.jwf_process P 
+								INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND U.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.FormPrefix, MONTH(endDate)
+						) AS TMP_LIST
+						GROUP BY FormPrefix
+					) AS A
+			  </if>
+			  
+		) A		
+		
+		
+		
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("Month1")'>Month1</when>
+					<when test='sortColumn.equalsIgnoreCase("Month2")'>Month2</when>
+					<when test='sortColumn.equalsIgnoreCase("Month3")'>Month3</when>
+					<when test='sortColumn.equalsIgnoreCase("Month4")'>Month4</when>
+					<when test='sortColumn.equalsIgnoreCase("Month5")'>Month5</when>
+					<when test='sortColumn.equalsIgnoreCase("Month6")'>Month6</when>
+					<when test='sortColumn.equalsIgnoreCase("Month7")'>Month7</when>
+					<when test='sortColumn.equalsIgnoreCase("Month8")'>Month8</when>
+					<when test='sortColumn.equalsIgnoreCase("Month9")'>Month9</when>
+					<when test='sortColumn.equalsIgnoreCase("Month10")'>Month10</when>
+					<when test='sortColumn.equalsIgnoreCase("Month11")'>Month11</when>
+					<when test='sortColumn.equalsIgnoreCase("Month12")'>Month12</when>
+					<otherwise>FormName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				FormName ASC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectMonthlyFormListcnt" resultType="java.lang.Long">
+		SELECT COUNT(FormPrefix) FROM
+			  (<if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			      SELECT A.FormPrefix, A.FormName
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							FormPrefix,FormName,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.FormPrefix, P.FormName
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P  
+								INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode 
+				   			WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0  
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND U.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.FormPrefix, MONTH(endDate)
+					) AS TMP_LIST
+					GROUP BY FormPrefix
+				) AS A
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			      SELECT A.FormPrefix, A.FormName
+						,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+					 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+					 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+					 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+					 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+					 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+					 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+					 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+					 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+					 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+					 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+						,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+					FROM(
+						select 
+								FormPrefix,FormName,
+								SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+								SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+								SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+								SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+								SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+								SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+								SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+								SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+								SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+								SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+								SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+								SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+						FROM ( 
+							SELECT P.FormPrefix, P.FormName
+								, MONTH(endDate) AS Approval_month
+								, avg( timestampdiff( minute ,P.startDate,P.endDate )) AS Approval_time
+							FROM covi_approval4j.jwf_process P 
+								INNER JOIN covi_smart4j.sys_object_group as U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND U.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.FormPrefix, MONTH(endDate)
+						) AS TMP_LIST
+						GROUP BY FormPrefix
+					) AS A
+			  </if>
+		) A		
+		
+	</select>
+	
+    
+    
+    
+    
+    <select id="selectMonthlyPersonList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			  	SELECT A.UR_Code, A.UR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.InitiatorID AS UR_Code
+								, U.DisplayName AS UR_Name
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P  
+							INNER JOIN covi_smart4j.sys_object_user U ON P.InitiatorID = U.UserCode
+							INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND BG.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.InitiatorID, U.DisplayName, MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			  	SELECT A.UR_Code, A.UR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT W.UserCode AS UR_Code
+								, U.DisplayName AS UR_Name
+								, MONTH(W.Finished) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_workitem as W
+							INNER JOIN covi_smart4j.sys_object_user U ON W.UserCode = U.UserCode
+							INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+							WHERE BG.CompanyCode = #{EntCode}
+								AND YEAR(W.Finished) = #{Year}
+								AND W.SubKind NOT IN ('T006', 'T009')  -- 기안자, 참조자 등을 빼기 위한 작업
+								AND W.State = 528
+							GROUP BY W.UserCode, U.DisplayName, MONTH(W.Finished)
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'C'.toString())">
+			  SELECT A.UR_Code, A.UR_Name
+					,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+				 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+				 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+				 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+				 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+				 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+				 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+				 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+				 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+				 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+				 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+					,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+					FROM ( 
+						SELECT W.UserCode AS UR_Code
+							, U.DisplayName UR_Name
+							, MONTH(W.Finished) AS Approval_month
+							, AVG(timestampdiff( minute ,W.Created,W.Finished )) AS Approval_time
+						FROM covi_approval4j.jwf_workitem as W
+						INNER JOIN covi_smart4j.sys_object_user U ON W.UserCode = U.UserCode
+						INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+						WHERE BG.CompanyCode = #{EntCode}
+							AND YEAR(W.Finished) = #{Year}
+							AND W.SubKind NOT IN ('T006', 'T009')  -- 기안자, 참조자 등을 빼기 위한 작업
+							AND W.State = 528
+						GROUP BY W.UserCode, U.DisplayName, MONTH(W.Finished)
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>	
+		) A		
+		
+			
+		
+	<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("Month1")'>Month1</when>
+					<when test='sortColumn.equalsIgnoreCase("Month2")'>Month2</when>
+					<when test='sortColumn.equalsIgnoreCase("Month3")'>Month3</when>
+					<when test='sortColumn.equalsIgnoreCase("Month4")'>Month4</when>
+					<when test='sortColumn.equalsIgnoreCase("Month5")'>Month5</when>
+					<when test='sortColumn.equalsIgnoreCase("Month6")'>Month6</when>
+					<when test='sortColumn.equalsIgnoreCase("Month7")'>Month7</when>
+					<when test='sortColumn.equalsIgnoreCase("Month8")'>Month8</when>
+					<when test='sortColumn.equalsIgnoreCase("Month9")'>Month9</when>
+					<when test='sortColumn.equalsIgnoreCase("Month10")'>Month10</when>
+					<when test='sortColumn.equalsIgnoreCase("Month11")'>Month11</when>
+					<when test='sortColumn.equalsIgnoreCase("Month12")'>Month12</when>
+					<otherwise>UR_Name</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				UR_Name ASC
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectMonthlyPersonListcnt" resultType="java.lang.Long">
+		SELECT COUNT(UR_Code) FROM
+			  (<if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			  SELECT A.UR_Code, A.UR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT P.InitiatorID AS UR_Code
+								, U.DisplayName AS UR_Name
+								, MONTH(endDate) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_process P  
+							INNER JOIN covi_smart4j.sys_object_user U ON P.InitiatorID = U.UserCode
+							INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528
+								AND BG.CompanyCode = #{EntCode}
+								AND YEAR(endDate) = #{Year}
+							GROUP BY P.InitiatorID, U.DisplayName, MONTH(endDate) 
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			 SELECT A.UR_Code, A.UR_Name
+						,IFNULL(`1`,0) AS Month1
+						,IFNULL(`2`,0) as Month2
+						,IFNULL(`3`,0) as Month3
+						,IFNULL(`4`,0) as Month4
+						,IFNULL(`5`,0) as Month5
+						,IFNULL(`6`,0) as Month6
+						,IFNULL(`7`,0) as Month7
+						,IFNULL(`8`,0) as Month8
+						,IFNULL(`9`,0) as Month9
+						,IFNULL(`10`,0) as Month10
+						,IFNULL(`11`,0) as Month11
+						,IFNULL(`12`,0) as Month12	 
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_count end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_count end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_count end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_count end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_count end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_count end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_count end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_count end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_count end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_count end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_count end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_count end) as `12`					
+					FROM ( 
+							SELECT W.UserCode AS UR_Code
+								, U.DisplayName AS UR_Name
+								, MONTH(W.Finished) AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM covi_approval4j.jwf_workitem as W
+							INNER JOIN covi_smart4j.sys_object_user U ON W.UserCode = U.UserCode
+							INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+							WHERE BG.CompanyCode = #{EntCode}
+								AND YEAR(W.Finished) = #{Year}
+								AND W.SubKind NOT IN ('T006', 'T009')  -- 기안자, 참조자 등을 빼기 위한 작업
+								AND W.State = 528
+							GROUP BY W.UserCode, U.DisplayName, MONTH(W.Finished)
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>
+			<if test="CompareItem != null and  (CompareItem eq 'C'.toString())">
+			  SELECT A.UR_Code, A.UR_Name
+					,CONVERT(ROUND(IFNULL(`1`,0)/60.0, 1),DECIMAL(7,1)) AS Month1
+				 	,CONVERT(ROUND(IFNULL(`2`,0)/60.0, 1),DECIMAL(7,1)) AS Month2
+				 	,CONVERT(ROUND(IFNULL(`3`,0)/60.0, 1),DECIMAL(7,1)) AS Month3
+				 	,CONVERT(ROUND(IFNULL(`4`,0)/60.0, 1),DECIMAL(7,1)) AS Month4
+				 	,CONVERT(ROUND(IFNULL(`5`,0)/60.0, 1),DECIMAL(7,1)) AS Month5
+				 	,CONVERT(ROUND(IFNULL(`6`,0)/60.0, 1),DECIMAL(7,1)) AS Month6
+				 	,CONVERT(ROUND(IFNULL(`7`,0)/60.0, 1),DECIMAL(7,1)) AS Month7
+				 	,CONVERT(ROUND(IFNULL(`8`,0)/60.0, 1),DECIMAL(7,1)) AS Month8
+				 	,CONVERT(ROUND(IFNULL(`9`,0)/60.0, 1),DECIMAL(7,1)) AS Month9
+				 	,CONVERT(ROUND(IFNULL(`10`,0)/60.0, 1),DECIMAL(7,1)) AS Month10
+				 	,CONVERT(ROUND(IFNULL(`11`,0)/60.0, 1),DECIMAL(7,1)) AS Month11
+					,CONVERT(ROUND(IFNULL(`12`,0)/60.0, 1),DECIMAL(7,1)) AS Month12
+				FROM(
+					select 
+							UR_Code,UR_Name,
+							SUM(case when Approval_month = 1 then Approval_time end) as `1`,
+							SUM(case when Approval_month = 2 then Approval_time end) as `2`,
+							SUM(case when Approval_month = 3 then Approval_time end) as `3`,
+							SUM(case when Approval_month = 4 then Approval_time end) as `4`,
+							SUM(case when Approval_month = 5 then Approval_time end) as `5`,
+							SUM(case when Approval_month = 6 then Approval_time end) as `6`,
+							SUM(case when Approval_month = 7 then Approval_time end) as `7`,
+							SUM(case when Approval_month = 8 then Approval_time end) as `8`,
+							SUM(case when Approval_month = 9 then Approval_time end) as `9`,
+							SUM(case when Approval_month = 10 then Approval_time end) as `10`,
+							SUM(case when Approval_month = 11 then Approval_time end) as `11`,
+							SUM(case when Approval_month = 12 then Approval_time end) as `12`					
+					FROM ( 
+						SELECT W.UserCode AS UR_Code
+							, U.DisplayName AS UR_Name
+							, MONTH(W.Finished) AS Approval_month
+							, AVG(timestampdiff( minute ,W.Created,W.Finished )) AS Approval_time
+						FROM covi_approval4j.jwf_workitem as W
+						INNER JOIN covi_smart4j.sys_object_user U ON W.UserCode = U.UserCode
+						INNER JOIN covi_smart4j.sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+						WHERE BG.CompanyCode = #{EntCode}
+							AND YEAR(W.Finished) = #{Year}
+							AND W.SubKind NOT IN ('T006', 'T009')  -- 기안자, 참조자 등을 빼기 위한 작업
+							AND W.State = 528
+						GROUP BY W.UserCode, U.DisplayName, MONTH(W.Finished)
+					) AS TMP_LIST
+					GROUP BY UR_Code
+				) AS A
+			</if>	
+		) A			
+		
+	</select>
+</mapper>
+

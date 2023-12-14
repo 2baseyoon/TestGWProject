@@ -1,0 +1,112 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 tableStyle linePlus mt10" style="opacity: 1;"><!-- class="table_10" -->
+    <colgroup>
+        <col style="width:12%">
+        <col style="width:38%">
+      	<col style="width:12%">
+      	<col style="width:38%">
+    </colgroup>
+    <tbody>
+      	<tr>
+	    	<th style="width: 86px;">요청 본부</th>
+          	<td style="width: 277px;">
+              	<input type="text" readonly="readonly" data-type="mField" id="Central" value="{{ doc.BodyContext.Central }}" name="Central" style="width:100px; border:0;">
+          	</td>
+          	<th style="width: 86px;">요청 부서</th>
+          	<td colspan="1" style="width: 277px;">
+              	<input type="text" readonly="readonly" data-type="mField" id="Dept" value="{{ doc.BodyContext.Dept }}" name="Dept" style="width:100px; border:0;">
+          	</td>
+      	</tr>
+        <tr>
+          	<th>업무 구분</th>
+          	<td>
+              	<select required="required" class="input-required" data-type="mField" id="JobType" name="JobType" data-element-type="sel_d_t" style="width: 90%" data-node-name="" value="{{ doc.BodyContext.JobType}}" title="업무 구분">
+                  <option value="JAVA개발자">JAVA개발자</option>
+                  <option value=".NET개발자">.NET개발자</option>
+                  <option value="기타">기타</option>
+            	</select>
+          	</td>
+          	<th>외주 등급</th>
+          	<td>
+              	<select required="required" class="input-required" data-type="mField" id="UserGradeFrom" name="UserGradeFrom" data-element-type="sel_d_t" style="width: 85px" data-node-name="" value="{{ doc.BodyContext.UserGradeFrom}}" title="등급">
+                  <option value="초급">초급</option>
+                  <option value="중급">중급</option>
+                  <option value="고급">고급</option>
+                  <option value="특급">특급</option>
+            	</select>
+				~ 
+              	<select required="required" class="input-required" data-type="mField" id="UserGradeTo" name="UserGradeTo" data-element-type="sel_d_t" style="width: 85px" data-node-name="" value="{{ doc.BodyContext.UserGradeTo}}" title="등급">
+                  <option value="초급">초급</option>
+                  <option value="중급">중급</option>
+                  <option value="고급">고급</option>
+                  <option value="특급">특급</option>
+            	</select>
+          	</td>
+      	</tr>
+        <tr>
+          	<th>요청 인원</th>
+          	<td>
+              	<input type="text" data-type="mField" required="required" class="input-required" id="ReqNumber" value="{{ doc.BodyContext.ReqNumber }}" data-pattern="currency" name="ReqNumber" style="width:50px;" title="요청인원">
+          	</td>
+          	<th>근무 유형</th>
+          	<td>
+              	<select required="required" class="input-required" data-type="mField" id="SMYN" name="SMYN" data-element-type="sel_d_t" style="width: 90%" data-node-name="" value="{{ doc.BodyContext.SMYN}}" title="SM여부">
+                  <option value="개발자">개발자</option>
+                  <option value="SM">SM</option>
+            	</select>
+          	</td>
+      	</tr>
+        <tr>
+          	<th>최초 투입일</th>
+          	<td>
+              	<input type="text" data-type="mField" required="required" class="input-required" id="InitDate" data-model="" value="{{ doc.BodyContext.InitDate }}" data-pattern="date" style="width:100px;" name="InitDate" title="최초투입일">
+	            (
+              	<span data-type="mField" data-element-type="chk_d" data-node-name="ASAP" title="ASAP">
+	            	<label><input type="checkbox" name="ASAP" value="ASAP">ASAP</label>
+	            </span>
+              	)
+          	</td>
+          	<th>투입 기간</th>
+          	<td colspan="1">
+            	<input type="text" data-type="mField" required="required" class="input-required" id="InputStartDate" data-model="" value="{{ doc.BodyContext.InputStartDate }}" data-pattern="date" style="width:100px;" name="InputStartDate" title="투입시작일">
+            	~ <input type="text" data-type="mField" required="required" class="input-required" id="InputEndDate" data-model="" value="{{ doc.BodyContext.InputEndDate }}" data-pattern="date" style="width:100px;" name="InputEndDate" title="투입종료일">
+         	</td>
+      	</tr>
+      	<tr>
+    		<th>프로젝트 투입<br>고객사</th>
+    		<td colspan="1">
+    			<input type="text" data-type="mField" required="required" class="input-required" id="Customer" value="{{ doc.BodyContext.Customer }}" style="width:100%;" name="Customer" title="프로젝트 투입 고객사">
+    		</td>
+			<th>프로젝트 기간</th>
+          	<td colspan="1">
+            	<input type="text" data-type="mField" required="required" class="input-required" id="PrjStartDate" data-model="" value="{{ doc.BodyContext.PrjStartDate }}" data-pattern="date" style="width:100px;" name="PrjStartDate" title="프로젝트시작일">
+            	~ <input type="text" data-type="mField" required="required" class="input-required" id="PrjEndDate" data-model="" value="{{ doc.BodyContext.PrjEndDate }}" data-pattern="date" style="width:100px;" name="PrjEndDate" title="프로젝트종료일">
+         	</td>
+    	</tr>
+      	<tr>
+    		<th>프로젝트 명</th>
+    		<td colspan="3">
+    			<input type="text" id="ProjectName" name="ProjectName" required="required" class="input-required" onchange="setTitle()" data-type="mField" style="width: 98%;" value="{{ doc.BodyContext.ProjectName }}" title="프로젝트명">
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>근무 주소</th>
+    		<td colspan="3">
+    			<input type="text" id="Address" name="Address" required="required" class="input-required" data-type="mField" style="width: 98%;" value="{{ doc.BodyContext.Address }}" title="근무주소">
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>업무 내용</th>
+    		<td colspan="3">
+    			<textarea id="JobDesc" name="JobDesc" required="required" class="input-required" rows="3" data-type="mField" style="width: 98%;" title="업무내용">{{ doc.BodyContext.JobDesc }}</textarea>
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>기타 사항</th>
+    		<td colspan="3">
+    			<textarea id="EtcComments" name="EtcComments" rows="3" data-type="mField" style="width: 98%;">{{ doc.BodyContext.EtcComments }}</textarea>
+    		</td>
+    	</tr>
+	</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

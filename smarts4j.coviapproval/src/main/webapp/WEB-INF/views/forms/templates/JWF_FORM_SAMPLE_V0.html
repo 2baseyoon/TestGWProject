@@ -1,0 +1,485 @@
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">기본</p>
+<table class="tableStyle linePlus mt10 table_3"> <!-- class="table_10" cellpadding="0" cellspacing="0"-->
+	<colgroup>
+		<col style="width: 12%;">
+		<col>
+	</colgroup>
+	<tbody>
+	<tr>
+		<th>일반입력,히든</th>
+		<td>
+			<input id="txt_sample" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sample }}" data-type="mField"> 
+			<input id="hdn_sample" type="hidden" value="{{ doc.BodyContext.hdn_sample }}" data-type="mField">
+		</td>
+		<th>숫자입력</th>
+		<td style="text-align:right;">
+			<input id="txt_currency" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_currency }}" data-type="mField" data-pattern="numeric">
+		</td>
+	</tr>
+	<tr>
+		<th>숫자입력 콤마</th>
+		<td style="text-align:right;">
+			<input id="txt_comma" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_comma }}" data-type="mField" data-pattern="numeral">
+		</td>
+		<th>숫자입력 소수점</th>
+		<td style="text-align:right;">
+			<input id="txt_decimal" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_decimal }}" data-type="mField" data-pattern="numeral" data-format="0.0">
+		</td>
+	</tr>
+	<tr>
+		<th>달력</th>
+		<td>
+			<input id="txt_date" style="width: 85px;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_date }}" data-type="mField" data-pattern="date">
+		</td>
+		<th>달력 포멧변경</th>
+		<td>
+			<input id="txt_date2" style="width: 85px;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_date2 }}" data-type="mField" data-pattern="date" data-date-format="yy/mm/dd">
+		</td>
+	</tr>
+	<tr>
+		<th>시간(30)</th>
+		<td>
+			<input id="timepicker01" type="text" value="{{ doc.BodyContext.timepicker01 }}" data-type="mField" data-pattern="time" autocomplete="off">
+		</td>
+		<th>시간(15)</th>
+		<td>
+			<input id="timepicker02" type="text" value="{{ doc.BodyContext.timepicker02 }}" data-type="mField" data-pattern="time" autocomplete="off" data-time-step="15">
+		</td>
+	</tr>
+	<tr>
+		<th>textarea</th>
+		<td style="-ms-word-break: break-all;" colspan="3">
+			<textarea id="txta_test" style="width: 98%; overflow: auto;" rows="3" data-type="mField">{{ doc.BodyContext.txta_test }}</textarea>
+		</td>
+	</tr>
+	<tr>
+		<th>radio d</th>
+		<td>
+			<div data-element-type="rdo_d" data-type="mField" data-node-name="RDO_dTest">
+				<input name="RDO_dTest" id="RDO_dID1" type="radio" value="value1">text1
+				<input name="RDO_dTest" id="RDO_dID2" type="radio" value="value2">text2
+			</div>
+		</td>
+		<th>radio v</th>
+		<td>
+			<div data-element-type="rdo_v" data-type="mField" data-node-name="RDO_vTest">
+				<input name="RDO_vTest" id="RDO_vID1" type="radio" value="value1" data-text="view1">text1 
+				<input name="RDO_vTest" id="RDO_vID2" type="radio" value="value2" data-text="view2">text2
+			</div>
+		</td>
+	</tr>
+	<tr>
+		<th>check d</th>
+		<td>
+			<div data-element-type="chk_d" data-type="mField" data-node-name="CHK_dTest">
+				<input name="CHK_dTest" id="CHK_dID1" type="checkbox" value="value1">text1
+				<input name="CHK_dTest" id="CHK_dID2" type="checkbox" value="value2">text2
+			</div>
+		</td>
+		<th>check v</th>
+		<td>
+			<div data-element-type="chk_v" data-type="mField" data-node-name="CHK_vTest">
+				<input name="CHK_vTest" id="CHK_vID1" type="checkbox" value="value1">text1
+				<input name="CHK_vTest" id="CHK_vID2" type="checkbox" value="value2">text2
+			</div>
+		</td>
+	</tr>
+	<tr>
+		<th>select t</th>
+		<td>
+			<select data-element-type="sel_d_t" data-type="mField" data-node-name="SELECT_tTest">
+				<option value="0">선택</option>
+				<option value="value1">text1</option>
+				<option value="value2">text2</option>
+			</select>
+		</td>
+		<th>select v</th>
+		<td>
+			<select data-element-type="sel_d_v" data-type="mField" data-node-name="SELECT_vTest">
+				<option value="0">선택</option>
+				<option value="value1">text1</option>
+				<option value="value2">text2</option>
+			</select>
+		</td>
+	</tr>
+	<tr data-mode="writeOnly">
+		<th>기타</th>
+		<td colspan="3">작성모드에서만 보이는 행</td>
+	</tr>
+	<tr data-mode="readOnly">
+		<th>기타</th>
+		<td colspan="3">열람모드에서만 보이는 행</td>
+	</tr>
+</tbody></table>
+
+
+
+
+
+
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">기간계산</p>
+<table class="tableStyle linePlus mt10 table_3" cellspacing="0" cellpadding="0" summary="내용">
+	<tbody><tr>
+		<td>
+			<!-- 기간 계산 필드의 부모 노드는 반드시 multi-period 라는 클래스를 가지고 있어야 함 -->
+			<div class="multi-period">
+				<input name="start_date_1" type="text" value="{{ doc.BodyContext.start_date_1 }}" data-type="mField" data-pattern="date" readonly="readonly">
+				~ <input name="end_date_1" type="text" value="{{ doc.BodyContext.end_date_1 }}" data-type="mField" data-pattern="date" data-date-months="3" readonly="readonly">
+				--&gt; <input id="period_days_1" type="text" value="{{ doc.BodyContext.period_days_1 }}" data-type="mField" data-pattern="period" data-period-ref="start_date_1,end_date_1">
+				(일)
+			</div>
+		</td>
+	</tr>
+</tbody></table>
+
+
+
+
+
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">합계테이블</p>
+<table class="tableStyle linePlus mt10 table_3 RowSumTable" id="sum_table" cellspacing="0" cellpadding="0" summary="내용">
+	<colgroup>
+		<col style="width: 20%;">
+		<col style="width: 20%;">
+		<col style="width: 20%;">
+		<col style="width: 20%;">
+		<col style="width: 20%;">
+	</colgroup>
+	<tbody><tr>
+		<th>순번</th>
+		<th>경비1</th>
+		<th>경비2</th>
+		<th>경비3</th>
+		<th>합계</th>
+	</tr>
+	<tr>
+		<td>1</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum1" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum1 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum2" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum2 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum3" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum3 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-rowsum" id="txt_sum4" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum4 }}" data-type="mField" data-pattern="currency">
+		</td>
+	</tr>
+	<tr>
+		<td>2</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum5" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum5 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum6" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum6 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum7" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum7 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-rowsum" id="txt_sum8" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum8 }}" data-type="mField" data-pattern="currency">
+		</td>
+	</tr>
+	<tr>
+		<td>3</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum9" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum9 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum10" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum10 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-cell" id="txt_sum11" style="width: 98%;" type="text" value="{{ doc.BodyContext.txt_sum11 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-rowsum" id="txt_sum12" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum12 }}" data-type="mField" data-pattern="currency">
+		</td>
+	</tr>
+	<tr>
+		<th id="total_sum">합계 <!--<input class="table-sum-button" type="button" value="계산하기" data-mode="writeOnly">--></th>
+		<td>
+			<input class="sum-table-colsum" id="txt_sum13" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum13 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-colsum" id="txt_sum14" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum14 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-colsum" id="txt_sum15" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum15 }}" data-type="mField" data-pattern="currency">
+		</td>
+		<td>
+			<input class="sum-table-total" id="txt_sum16" style="width: 98%;" type="text" readonly="readonly" value="{{ doc.BodyContext.txt_sum16 }}" data-type="mField" data-pattern="currency">
+		</td>
+	</tr>
+</tbody></table>
+
+
+
+
+
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">
+	* 멀티로우 테이블(소스에서 <span style="color: red; font-weight: bold;">[멀티로우처리]</span>로 검색) 
+	**add,delete시 콜백함수는 <span style="color: red; font-weight: bold;">[멀티로우추가처리]</span>로 검색
+</p>
+<!-- 멀티로우처리 -->
+<table class="tableStyle linePlus mt10 table_3 multi-row-table" id="multi_table" style="margin-top: 0px;" cellspacing="0" cellpadding="0" summary="멀티로우 샘플">
+	<colgroup>
+		<col style="width: 5%;" data-mode="writeOnly" class="removeRead"> <!-- 체크박스 -->
+		<col style="width: 5%;"> <!-- 순번 -->
+		<col style="width: 17%;"> <!-- 텍스트 -->
+		<col style="width: 17%;"> <!-- textarea -->
+		<col style="width: 17%;"> <!-- radio -->
+		<col style="width: 17%;"> <!-- check -->
+		<col style="width: 17%;"> <!-- select -->
+	</colgroup>
+	<!-- 멀티로우 컨트롤 버튼 -->
+	<tbody>
+	<tr class="multi-row-control" data-mode="writeOnly">
+		<td colspan="7">
+			<span style="float: right;"> 
+				<input class="multi-row-add" type="button" value="+추가"> 
+				<input class="multi-row-del-auto" type="button" value="-삭제"> 
+				<input class="multi-row-del" type="button" value="-삭제(체크된것)">
+			</span>
+		</td>
+	</tr>
+	<!-- 멀티로우 헤더 -->
+	<tr>
+		<th data-mode="writeOnly" class="removeRead"><input class="multi-row-select-all" type="checkbox"></th> <!-- 체크박스 -->
+		<th>순번</th> <!-- 순번 -->
+		<th>텍스트</th> <!-- 텍스트 -->
+		<th>textarea</th> <!-- textarea -->
+		<th>radio</th> <!-- radio -->
+		<th>check</th> <!-- check -->
+		<th>select</th> <!-- select -->
+	</tr>
+	<!-- 멀티로우 템플릿 -->
+	<tr class="multi-row-template">
+		<td style="width: 10px; text-align: center;" data-mode="writeOnly" class="removeRead"> <!-- 체크박스 --> 
+			<input class="multi-row-selector" type="checkbox">
+		</td>
+		<td class="multi-row-seq" style="text-align: center;">1</td> <!-- 순번 -->
+		<td> <!-- 텍스트 --> 
+			<input name="r_txt_sample" style="width: 98%;" type="text" data-type="rField">
+		</td>
+		<td style="-ms-word-break: break-all;"> <!-- textarea --> 
+			<textarea name="r_txta_sample" style="width: 92%; overflow: auto;" rows="3" data-type="rField"></textarea>
+		</td>
+		<td> <!-- radio -->
+			<!-- <div class="group" data-element-type="rdo_v" data-type="rField" data-node-name="r_rdo_sample">
+				<input name="r_rdo_sample" type="radio" value="value1" data-face-for="r_rdo_sample">text1 
+				<input name="r_rdo_sample" type="radio" value="value2" data-face-for="r_rdo_sample">text2 
+				<input name="r_rdo_sample" style="display: none;" type="text" data-face-real="y">
+			</div>  -->
+			<div class="group" data-element-type="rdo_v" data-type="rField" data-node-name="r_rdo_sample">
+				<input name="r_rdo_sample" type="radio" value="value1" data-face-for="r_rdo_sample">text1 
+				<input name="r_rdo_sample" type="radio" value="value2" data-face-for="r_rdo_sample">text2 
+				<input name="r_rdo_sample" style="display: none;" type="text" data-face-real="y">
+			</div>
+		</td>
+		<td> <!-- check -->
+			<!-- <div class="group" data-element-type="chk_d" data-type="rField" data-node-name="r_chk_sample">
+				<input name="r_chk_sample" type="checkbox" value="value1" data-face-for="r_chk_sample">text1 
+				<input name="r_chk_sample" type="checkbox" value="value2" data-face-for="r_chk_sample">text2 
+				<input name="r_chk_sample" style="display: none;" type="text" data-face-real="y">
+			</div> -->
+			<div class="group" data-element-type="chk_d" data-type="rField" data-node-name="r_chk_sample">
+				<input name="r_chk_sample" type="checkbox" value="value1" data-face-for="r_chk_sample">text1 
+				<input name="r_chk_sample" type="checkbox" value="value2" data-face-for="r_chk_sample">text2 
+				<input name="r_chk_sample" style="display: none;" type="text" data-face-real="y">
+			</div>
+		</td>
+		<td> <!-- select --> 
+			<select name="r_sel_sample" data-element-type="sel_d_t" data-type="rField">
+				<option value="00">선택</option>
+				<option value="value1">text1</option>
+				<option value="value2">text2</option>
+			</select>
+		</td>
+	</tr>
+	</tbody>
+</table>
+
+
+
+
+<!--  <input type="text" data-type="smField" id="DRAFTER_ID" data-model="DRAFTER_ID" value="{{ doc.BodyData.MainTable.DRAFTER_ID }}" title="신청자 사번" maxlength="50" data-max-char="20" style="width: 98%;" data-binding="pre"> -->
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">smField</p>
+<table class="tableStyle linePlus mt10 table_3"> <!-- class="table_10" cellpadding="0" cellspacing="0"-->
+	<colgroup>
+		<col style="width: 12%;">
+		<col>
+	</colgroup>
+	<tbody>
+	<tr>
+		<th>일반입력</th>
+		<td>
+			<input id="SM_1" data-model="SM_1" style="width: 98%;" type="text" data-type="smField"   value="{{ doc.BodyData.MainTable.SM_1 }}" maxlength="100" data-max-char="100" style="width: 98%;" data-binding="pre">
+		</td>
+		<th>select t</th>
+		<td>
+			<select data-type="smField" data-element-type="sel_d_t" data-node-name="SM_2"> 
+				<option value="11">선택...</option> 
+				<option value="22">신규</option> 
+				<option value="33">재발급</option> 
+			</select>			 
+		</td>
+	</tr>
+	<tr>
+		<th>check d</th>
+		<td>
+			<div data-element-type="chk_d" data-type="smField" data-node-name="SM_3">
+				<input name="SM_3" id="SM_3ID1" type="checkbox" value="value1">text1
+				<input name="SM_3" id="SM_3ID2" type="checkbox" value="value2">text2
+			</div>
+		</td>
+		<th>radio d</th>
+		<td>
+			<div data-element-type="rdo_d" data-type="smField" data-node-name="SM_4">
+				<input name="SM_4" id="SM_4ID1" type="radio" value="value1">text1
+				<input name="SM_4" id="SM_4ID2" type="radio" value="value2">text2
+			</div>
+		</td>
+	</tr>
+	<tr>
+		<th>textarea</th>
+		<td style="-ms-word-break: break-all;" colspan="3">
+			<textarea id="SM_5" data-model="SM_5" style="width: 98%; overflow: auto;" rows="3" data-type="smField">{{ doc.BodyData.MainTable.SM_5 }}</textarea>
+		</td>
+	</tr>
+	<tr>
+		<th>달력</th>
+		<td>
+			<input id="SM_6" data-model="SM_6" style="width: 85px;" type="text" readonly="readonly" value="{{ doc.BodyData.MainTable.SM_6 }}" data-type="smField" data-pattern="date">
+		</td>
+		<th>숫자</th>
+		<td>
+			<input id="SM_7" data-model="SM_7" style="width: 98%;" type="text" value="{{ doc.BodyData.MainTable.SM_7 }}" data-type="smField" data-pattern="numeric" maxlength="100" data-max-char="100">
+		</td>
+	</tr>
+	<tr>
+		<th>통화</th>
+		<td>
+			<input id="SM_8" data-model="SM_8" style="width: 98%;" type="text" value="{{ doc.BodyData.MainTable.SM_8 }}" data-type="smField" data-pattern="numeral" maxlength="100" data-max-char="100">
+		</td>
+		<th>일반입력</th>
+		<td>
+			<input id="SM_9" data-model="SM_9" style="width: 98%;" type="text" data-type="smField"   value="{{ doc.BodyData.MainTable.SM_9 }}" maxlength="100" data-max-char="100" style="width: 98%;" data-binding="pre">
+		</td>
+	</tr>
+</tbody></table>
+
+
+
+
+
+
+<!-- <input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_BODY_CONTEXT_HWP" />  -->
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">
+	stField
+</p>
+<table class="tableStyle linePlus mt10 table_3 multi-row-table" id="SubTable1" style="margin-top: 0px;" cellspacing="0" cellpadding="0" summary="멀티로우 샘플">
+	<colgroup>
+		<col style="width: 4%;" data-mode="writeOnly" class="removeRead"> <!-- 체크박스 -->
+		<col style="width: 4%;"> <!-- 순번 -->
+		<col style="width: 12%;"> <!-- 텍스트 -->
+		<col style="width: 12%;"> <!-- select -->
+		<col style="width: 12%;"> <!-- check -->
+		<col style="width: 12%;"> <!-- radio -->
+		<col style="width: 12%;"> <!-- textarea -->
+		<col style="width: 12%;"> <!-- date -->
+		<col style="width: 12%;"> <!-- numeric -->
+		<col style="width: 12%;"> <!-- currency -->
+	</colgroup>
+	<!-- 멀티로우 컨트롤 버튼 -->
+	<tbody>
+	<tr class="multi-row-control" data-mode="writeOnly">
+		<td colspan="10">
+			<span style="float: right;"> 
+				<input class="multi-row-add" type="button" value="+추가"> 
+				<input class="multi-row-del-auto" type="button" value="-삭제"> 
+				<input class="multi-row-del" type="button" value="-삭제(체크된것)">
+			</span>
+		</td>
+	</tr>
+	<!-- 멀티로우 헤더 -->
+	<tr>
+		<th data-mode="writeOnly" class="removeRead"><input class="multi-row-select-all" type="checkbox"></th> <!-- 체크박스 -->
+		<th>순번</th> <!-- 순번 -->
+		<th>텍스트</th> <!-- 텍스트 -->
+		<th>select</th> <!-- select -->
+		<th>check</th> <!-- check -->
+		<th>radio</th> <!-- radio -->
+		<th>textarea</th> <!-- textarea -->
+		<th>달력</th> <!-- date -->
+		<th>숫자</th> <!-- numeric -->
+		<th>숫자</th> <!-- currency -->
+	</tr>
+	<!-- 멀티로우 템플릿 -->
+	<tr class="multi-row-template">
+		
+		<td style="width: 10px; text-align: center;" data-mode="writeOnly" class="removeRead"> <!-- 체크박스 --> 
+			<input class="multi-row-selector" type="checkbox">
+		</td>
+		<td class="multi-row-seq" style="text-align: center;">1</td> <!-- 순번 -->
+		<td> <!-- 텍스트 --> 
+			<input name="ST_1" style="width: 98%;" type="text" data-type="stField" maxlength="100" data-max-char="100"  />
+			<input name="ST_9" style="width: 98%;" type="text" data-type="stField" maxlength="100" data-max-char="100"  />
+		</td>
+		<td> <!-- select --> 
+			<select name="ST_2" data-element-type="sel_d_t" data-type="stField"> 
+				<option value="00">선택</option> 
+				<option value="value1">text1</option>
+				<option value="value2">text2</option> 
+			</select> 
+		</td>
+		<td> <!-- check -->
+			<div class="group" data-element-type="chk_d" data-type="stField" data-node-name="ST_3">
+				<input name="ST_3" type="checkbox" value="value1" data-face-for="ST_3">text1 
+				<input name="ST_3" type="checkbox" value="value2" data-face-for="ST_3">text2 
+				<input name="ST_3" style="display: none;" type="text" data-face-real="y">
+			</div>
+		</td>
+		<td> <!-- radio -->
+			<div class="group" data-element-type="rdo_v" data-type="stField" data-node-name="ST_4">
+				<input name="ST_4" type="radio" value="value1" data-face-for="ST_4">text1 
+				<input name="ST_4" type="radio" value="value2" data-face-for="ST_4">text2 
+				<input name="ST_4" style="display: none;" type="text" data-face-real="y">
+			</div>
+		</td>
+		<td style="-ms-word-break: break-all;"> <!-- textarea --> 
+			<textarea name="ST_5" style="width: 92%; overflow: auto;" rows="3" data-type="stField"></textarea>
+		</td>
+		<td> <!-- date --> 
+			<input name="ST_6" style="width: 85px;" type="text" data-type="stField" data-pattern="date" readonly="readonly" />
+		</td>
+		<td> <!-- numeric --> 
+			<input name="ST_7" style="width: 98%;" type="text" data-type="stField" data-pattern="numeric" maxlength="100" data-max-char="100" />
+		</td>
+		<td> <!-- currency --> 
+			<input name="ST_8" style="width: 98%;" type="text" data-type="stField" data-pattern="numeral" maxlength="100" data-max-char="100" />
+		</td>
+	</tr>
+	</tbody>
+</table>
+
+
+
+
+
+<br>
+<p class="subtitle" style="margin-bottom: 0px;">
+	* 에디터영역(소스에서 <span style="color: red; font-weight: bold;">[에디터처리]</span>검색)
+</p>
+<div> <!-- style="margin-top:4px; padding:4px 6px 4px 6px;vertical-align:text-top;border:1px solid #888888;" -->
+	<div id="divWebEditorContainer" data-element-type="editor"></div> <!-- 에디터처리 -->
+</div>
+
+

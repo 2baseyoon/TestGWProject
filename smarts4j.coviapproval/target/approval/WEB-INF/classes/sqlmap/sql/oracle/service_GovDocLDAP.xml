@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="service.ldap">
+	<select id="selectLDAPOUName" parameterType="cmap" resultType="cmap">
+		SELECT *
+		FROM JWF_PROCESSGOV_LDAP
+		WHERE OUCODE = #{ouCode}
+	</select>
+	
+	<update id="updateLDAP" parameterType="cmap">
+		MERGE INTO JWF_PROCESSGOV_LDAP a
+	    USING DUAL
+	       ON ( a.OUCODE = #{OUCODE} )
+	    WHEN MATCHED THEN
+	        UPDATE SET OUCODE = #{OUCODE}
+				  ,OUORDER = #{OUORDER}
+				  ,UCORGFULLNAME = #{UCORGFULLNAME}
+				  ,OU = #{OU}
+				  ,TOPOUCODE = #{TOPOUCODE}
+				  ,DN = #{DN}
+				  ,REPOUCODE = #{REPOUCODE}
+				  ,PARENTOUCODE = #{PARENTOUCODE}
+				  ,PARENTOUNAME = #{PARENTOUNAME}
+				  ,OULEVEL = #{OULEVEL}
+				  ,REGDATE = SYSDATE
+				  ,OUReceiveDocumentYN = #{OUReceiveDocumentYN}
+				  ,UCCHIEFTITLE = #{UCCHIEFTITLE}
+	    WHEN NOT MATCHED THEN
+	        INSERT (OUCODE,OUORDER,UCORGFULLNAME,OU,TOPOUCODE,DN,REPOUCODE,PARENTOUCODE,PARENTOUNAME,OULEVEL,REGDATE,OUReceiveDocumentYN,UCCHIEFTITLE)
+			VALUES (#{OUCODE},#{OUORDER},#{UCORGFULLNAME},#{OU},#{TOPOUCODE},#{DN},#{REPOUCODE},#{PARENTOUCODE},#{PARENTOUNAME},#{OULEVEL},SYSDATE,#{OUReceiveDocumentYN},#{UCCHIEFTITLE})
+	</update>
+	
+	<insert id="insertLDAPTemp" parameterType="java.util.List">
+		INSERT INTO JWF_PROCESSGOV_LDAP_TEMP
+			(OUCODE,OUORDER,UCORGFULLNAME,OU,TOPOUCODE,DN,REPOUCODE,PARENTOUCODE,PARENTOUNAME,OULEVEL,REGDATE,OUReceiveDocumentYN,UCCHIEFTITLE,SUBCOUNT,OUSTEP)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.ouCode}
+				,#{item.ouOrder}
+				,#{item.ucOrgFullName}
+				,#{item.ou}
+				,#{item.topouCode}
+				,#{item.dn}
+				,#{item.repouCode}
+				,#{item.parentouCode}
+				,#{item.parentouName}
+				,#{item.ouLevel}
+				,SYSDATE
+				,#{item.ouReceiveDocumentYN}
+				,#{item.ucChieftitle}
+				,#{item.subCount}
+				,#{item.ouStep}
+			FROM DUAL
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteLDAPAll" parameterType="cmap">
+		TRUNCATE TABLE JWF_PROCESSGOV_LDAP
+	</delete>
+	
+	<insert id="insertLDAPCopy" parameterType="cmap">
+		INSERT INTO JWF_PROCESSGOV_LDAP
+		SELECT * FROM JWF_PROCESSGOV_LDAP_TEMP
+	</insert>
+	
+	<delete id="deleteLDAPTempAll" parameterType="cmap">
+		TRUNCATE TABLE JWF_PROCESSGOV_LDAP_TEMP
+	</delete>
+	
+
+	<delete id="deleteGov24TempAll" parameterType="cmap">
+		TRUNCATE TABLE JWF_PROCESSGOV_GOV24_TEMP
+	</delete>
+		
+	<insert id="insertGov24Temp" parameterType="java.util.List">
+		INTO JWF_PROCESSGOV_GOV24_TEMP
+			(ORGCD,CMPNYNM,SENDERNM,BIZNO,ADRES,DELETEFLAG,UPDATEDE,DELETEDE)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.orgCd}
+				,#{item.cmpnyNm}
+				,#{item.senderNm}
+				,#{item.bizrno}
+				,#{item.adres}
+				,#{item.deleteFlag}
+				,#{item.updateDe}
+				,#{item.deleteDe}
+			FROM DUAL
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteGov24All" parameterType="cmap">
+		TRUNCATE TABLE JWF_PROCESSGOV_GOV24
+	</delete>
+	
+	<insert id="insertGov24Copy" parameterType="cmap">
+		INSERT INTO JWF_PROCESSGOV_GOV24
+		SELECT * FROM JWF_PROCESSGOV_GOV24_TEMP
+	</insert>
+	
+	<select id="selectGov24Sender" parameterType="cmap" resultType="cmap">
+		SELECT 
+			ORGCD, CMPNYNM, SENDERNM, BIZNO, ADRES, 
+			DELETEFLAG, '0' AS HASSUBOU, '0000000' AS PARENTOUCODE, ORGCD AS AN, 
+			CMPNYNM AS DN, CMPNYNM AS OUSTEP, CMPNYNM || '(' || SENDERNM || ')' AS DISPLAY_UCCHIEFTITLE 
+		FROM JWF_PROCESSGOV_GOV24 
+		WHERE ORGCD = #{ORGCD}
+	</select>	
+	
+    <!-- 대외전자 개인수신처 멤버삭제 (LDAP 동기화된 문서유통 수신처에 없는 개인배포 groupmember 삭제) -->
+    <delete id = "deletePrivateDistributionMemberLDAP" parameterType="cmap">
+		DELETE 	
+		FROM 	JWF_PRIVATEGROUPMEMBER AA
+		WHERE 	
+		EXISTS	(	SELECT 	1
+					FROM 	JWF_PRIVATEGROUPMEMBER A
+					INNER
+					JOIN	JWF_PRIVATEGROUP B
+					ON		A.GROUPID = B.GROUPID 
+					LEFT
+					OUTER
+					JOIN	JWF_PROCESSGOV_LDAP C
+					ON		A.RECEIPTID = C.OUCODE
+					WHERE 	B.TYPE = 'G'
+					AND 	C.OUCODE IS NULL
+					AND		A.GROUPMEMBERID = AA.GROUPMEMBERID 
+				)
+    </delete>
+    
+	<!-- 대외전자 개인수신처 멤버가 없는 그룹 삭제 (개인배포 groupmember 삭제 후 groupmember가 하나도 없는 group 삭제) -->
+    <delete id = "deletePrivateDistributionLDAP" parameterType="cmap">
+        DELETE
+		FROM	JWF_PRIVATEGROUP AA
+		WHERE 	
+		EXISTS	(	SELECT	1
+					FROM 	JWF_PRIVATEGROUP A
+					LEFT 
+					OUTER	
+					JOIN	JWF_PRIVATEGROUPMEMBER B
+					ON		A.GROUPID = B.GROUPID 
+					WHERE 	A."TYPE" = 'G'
+					AND 	B.GROUPID IS NULL
+					AND		A.GROUPID = AA.GROUPID 
+				)
+    </delete>
+    
+</mapper>

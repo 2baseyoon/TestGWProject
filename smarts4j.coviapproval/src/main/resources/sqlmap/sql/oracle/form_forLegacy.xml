@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.forLegacy">
+    <select id="selectLegacyForm"  parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM JWF_FormsLegacy FL
+        INNER JOIN JWF_Forms F ON FL.FormID = F.FormID
+        WHERE FL.LegacyForm = #{legacyFormID}
+        <if test='isSaaS != null and isSaaS == "Y" and DN_Code != null and DN_Code != "" '>
+			AND ( F.CompanyCode = #{DN_Code} OR F.CompanyCode = 'ORGROOT' )  
+		</if>
+        AND FL.IsUse = 'Y'
+    </select>
+    <select id="selectLegacyFormInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+        	CASE WHEN FI.CompletedDate IS NULL THEN 'PROCESS' ELSE 'COMPLETE' END AS "Mode"
+        	, F.FormPrefix AS "FormPrefix"
+		FROM jwf_process P
+		LEFT JOIN jwf_forminstance FI ON P.FormInstID = FI.FormInstID
+		LEFT JOIN jwf_forms F ON FI.FormID = F.FormID
+		WHERE P.ProcessID = #{processID}
+    </select>
+    <select id="selectFormInstID" parameterType="cmap" resultType="java.lang.String">
+        SELECT FormInstID AS "FormInstID"
+		FROM jwf_process
+		WHERE ProcessID = #{processID}
+    </select>
+    <select id="selectFormInstID_archive" parameterType="cmap" resultType="java.lang.String">
+        SELECT FormInstID AS "FormInstID"
+		FROM jwf_process
+		WHERE ProcessID = #{processID}
+    </select>
+    <select id="selectBodyContext" parameterType="cmap" resultType="java.lang.String">
+        SELECT BodyContext
+		FROM jwf_forminstance
+		WHERE FormInstID = #{FormInstID}
+    </select>
+    <update id="updateModifyProcessDesc" parameterType="cmap">
+        UPDATE jwf_processdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </update>
+    <insert id="updateModifyCirculationDesc" parameterType="cmap">
+        UPDATE jwf_circulationboxdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </insert>
+    <update id="updateModifyProcessDesc_archive" parameterType="cmap">
+        UPDATE jwf_processdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </update>
+    <select id="selectJobFunctionData" parameterType="cmap" resultType="cmap">
+    	  SELECT LISTAGG(JobFunctionCode || '@' || JobFunctionName, '^') WITHIN GROUP (ORDER BY JobFunctionCode) AS "JobFunctionData"
+		  FROM jwf_jobfunction
+		  WHERE 
+		  <choose>
+			<when test="JobFunctionCode != null and JobFunctionCode.size() > 0">
+				<foreach collection="JobFunctionCode" item="item" index="index" separator="," open="JobFunctionCode IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose> 
+		  <!-- WHERE JobFunctionCode like '%' || #{JobFunctionCode} || '%'  -->
+          <if test="CompanyCode != null and CompanyCode != ''">
+             AND EntCode = #{CompanyCode}
+          </if>
+    </select>
+    <select id="selectLogonID"  parameterType="cmap" resultType="cmap">
+        SELECT LogonID AS "LogonID", DeptCode AS "DeptCode"
+		FROM sys_object_user a
+			inner join sys_object_user_basegroup b
+				on a.usercode = b.usercode
+		WHERE a.IsUse = 'Y'
+		<choose>
+             <when test="deptId != null and deptId != '' and deptId.length() gt 0 ">
+                AND b.DeptCode = #{deptId}
+             </when>
+             <otherwise>
+				AND b.JobType = 'Origin' 
+			</otherwise>
+        </choose>
+        <choose>
+             <when test="empNo != null and empNo != '' and empNo.length() gt 0 ">
+                AND empno = #{empNo}
+             </when>
+             <when test="logonId != null and logonId != '' and logonId.length() gt 0 ">
+             	AND logonId = #{logonId}
+             </when>
+             <when test="empNo != null and empNo != '' and empNo.length() gt 0 and logonId != null and logonId != '' and logonId.length() gt 0 ">
+             	AND empno = #{empNo} AND logonId = #{logonId}
+             </when>
+             <when test="usercode != null and usercode != ''">
+                AND a.UserCode = #{usercode}
+             </when>
+         </choose>
+    </select>
+    <!-- Teams 연동  -->
+	<resultMap type="cmap" id="legacyConfigResult">
+ 	    <result property="DomainContext" column="DomainContext" jdbcType="CLOB" javaType="java.lang.String" />
+ 	</resultMap>
+	<select id="getDomain"  parameterType="cmap" resultType="cmap" resultMap="legacyConfigResult">
+        SELECT 
+        	B.DomainContext "DomainContext" 
+       	FROM ( SELECT 
+       			CASE WHEN A.apvCount > 0 THEN (SELECT DOMAINDATACONTEXT FROM jwf_domaindata WHERE ProcessID = #{piid}) END DomainContext 
+       			FROM (SELECT COUNT(*) apvCount FROM jwf_process WHERE ProcessID = #{piid} and ProcessState = 288) A ) B
+		WHERE DomainContext IS NOT NULL
+	</select>
+	
+	<select id="selectDraftLegacySystemCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT 
+			COUNT(*)
+		FROM (
+			SELECT	A.LegacyID
+			FROM gwuser.jwf_draft_legacy_target A
+			LEFT JOIN gwuser.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+			LEFT JOIN gwuser.sys_object_user C ON A.ModifierCode = C.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("SystemCode")'>A.SystemCode</when>
+						<when test='SearchType.equalsIgnoreCase("DataTableName")'>A.DataTableName</when>
+						<when test='SearchType.equalsIgnoreCase("MultiTableName")'>A.MultiTableName</when>
+						<when test='SearchType.equalsIgnoreCase("FormPrefix")'>A.FormPrefix</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			LIKE '%' || #{SearchText} || '%'
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.SystemCode LIKE '%' || #{icoSearch} || '%' OR
+						A.DataTableName LIKE '%' || #{icoSearch} || '%' OR
+						A.MultiTableName LIKE '%' || #{icoSearch} || '%' OR
+						A.FormPrefix LIKE '%' || #{icoSearch} || '%' OR
+						A.Description LIKE '%' || #{icoSearch} || '%' 
+					)
+				</if>
+			</trim>	
+		) A
+	</select>
+	
+    <select id="selectDraftLegacySystemList" parameterType="cmap" resultType="cmap">
+    	<include refid="oracle.include.pagingHeader"/>
+		SELECT 
+			LegacyID AS "LegacyID" 
+			,SystemCode AS "SystemCode"
+			,DatasourceSeq AS "DatasourceSeq"
+			,DataTableName AS "DataTableName"
+			,DataTableKeyName AS "DataTableKeyName"
+			,SubjectKeyName AS "SubjectKeyName"
+			,EmpnoKeyName AS "EmpnoKeyName"
+			,DeptKeyName AS "DeptKeyName"
+			,MultiTableName AS "MultiTableName"
+			,MultiTableKeyName AS "MultiTableKeyName"
+			,FormPrefix AS "FormPrefix"
+			,Description AS "Description"
+			,ModifyDate AS "ModifyDate"
+			,ModifierCode AS "ModifierCode"
+			,ConnectionPoolName AS "ConnectionPoolName" 
+			,MultiDisplayName AS "ModifierName"
+		FROM (
+			SELECT	A.LegacyID
+					,A.SystemCode
+					,A.DatasourceSeq
+					,A.DataTableName
+					,A.DataTableKeyName
+					,A.SubjectKeyName
+					,A.EmpnoKeyName
+					,A.DeptKeyName
+					,A.MultiTableName
+					,A.MultiTableKeyName
+					,A.FormPrefix
+					,A.Description
+					,A.ModifyDate
+					,A.ModifierCode
+					,B.ConnectionPoolName 
+					,C.MultiDisplayName
+			FROM gwuser.jwf_draft_legacy_target A
+			LEFT JOIN gwuser.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+			LEFT JOIN gwuser.sys_object_user C ON A.ModifierCode = C.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("SystemCode")'>A.SystemCode</when>
+						<when test='SearchType.equalsIgnoreCase("DataTableName")'>A.DataTableName</when>
+						<when test='SearchType.equalsIgnoreCase("MultiTableName")'>A.MultiTableName</when>
+						<when test='SearchType.equalsIgnoreCase("FormPrefix")'>A.FormPrefix</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			LIKE '%' || #{SearchText} || '%'
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.SystemCode LIKE '%' || #{icoSearch} || '%' OR
+						A.DataTableName LIKE '%' || #{icoSearch} || '%' OR
+						A.MultiTableName LIKE '%' || #{icoSearch} || '%' OR
+						A.FormPrefix LIKE '%' || #{icoSearch} || '%' OR
+						A.Description LIKE '%' || #{icoSearch} || '%' 
+					)
+				</if>
+			</trim>	
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+	    			<when test='sortColumn.equalsIgnoreCase("SystemCode")'>SystemCode</when>
+					<when test='sortColumn.equalsIgnoreCase("ConnectionPoolName")'>ConnectionPoolName</when>
+					<when test='sortColumn.equalsIgnoreCase("DataTableName")'>DataTableName</when>
+					<when test='sortColumn.equalsIgnoreCase("DataTableKeyName")'>DataTableKeyName</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiTableName")'>MultiTableName</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiTableKeyName")'>MultiTableKeyName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<otherwise>ModifyDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				ModifyDate DESC
+			</if>
+		</trim>
+	    <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectDraftLegacySystem" resultType="cmap">
+		<![CDATA[
+		SELECT	A.LegacyID AS "LegacyID"
+				,A.SystemCode AS "SystemCode"
+				,A.DatasourceSeq AS "DatasourceSeq"
+				,A.DataTableName AS "DataTableName"
+				,A.DataTableKeyName AS "DataTableKeyName"
+				,A.SubjectKeyName AS "SubjectKeyName"
+				,A.EmpnoKeyName AS "EmpnoKeyName"
+				,A.DeptKeyName AS "DeptKeyName"
+				,A.MultiTableName AS "MultiTableName"
+				,A.MultiTableKeyName AS "MultiTableKeyName"
+				,A.FormPrefix AS "FormPrefix"
+				,A.Description AS "Description"
+				,A.ModifyDate AS "ModifyDate"
+				,A.ModifierCode AS "ModifierCode"
+				,B.ConnectionPoolName AS "ConnectionPoolName"
+				,C.MultiDisplayName AS "ModifierName"
+		FROM gwuser.jwf_draft_legacy_target A
+		LEFT JOIN gwuser.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+		LEFT JOIN gwuser.sys_object_user C ON A.ModifierCode = C.UserCode
+		WHERE A.LegacyID = 	#{LegacyID}		
+		]]>	
+	</select>
+	
+	<insert id="insertDraftLegacySystem" parameterType="cmap" >         
+		INSERT INTO gwuser.jwf_draft_legacy_target (
+			SystemCode
+			,DatasourceSeq
+			,DataTableName
+			,DataTableKeyName
+			,SubjectKeyName
+			,EmpnoKeyName
+			,DeptKeyName
+			,MultiTableName
+			,MultiTableKeyName
+			,FormPrefix
+			,Description
+			,ModifyDate
+			,ModifierCode
+		)
+		SELECT 
+			#{SystemCode}
+			,#{DatasourceSeq}
+			,#{DataTableName}
+			,#{DataTableKeyName}
+			,#{SubjectKeyName}
+			,#{EmpnoKeyName}
+			,#{DeptKeyName}
+			,#{MultiTableName}
+			,#{MultiTableKeyName}
+			,#{FormPrefix}
+			,#{Description}
+			,SYSDATE
+			,#{ModifierCode}
+		FROM dual
+	</insert>
+	
+  	<update id="updateDraftLegacySystem" parameterType="cmap">
+  	    UPDATE gwuser.jwf_draft_legacy_target
+		SET
+			SystemCode = #{SystemCode}
+			,DatasourceSeq = #{DatasourceSeq}
+			,DataTableName = #{DataTableName}
+			,DataTableKeyName = #{DataTableKeyName}
+			,SubjectKeyName = #{SubjectKeyName}
+			,EmpnoKeyName = #{EmpnoKeyName}
+			,DeptKeyName = #{DeptKeyName}
+			,MultiTableName = #{MultiTableName}
+			,MultiTableKeyName = #{MultiTableKeyName}
+			,FormPrefix = #{FormPrefix}
+			,Description = #{Description}
+			,ModifyDate = SYSDATE
+			,ModifierCode = #{ModifierCode}
+		WHERE LegacyID=#{LegacyID}
+  	</update>
+  	
+  	<delete id="deleteDraftLegacySystem" parameterType="cmap" >
+      	DELETE 
+    	FROM gwuser.jwf_draft_legacy_target
+  		WHERE LegacyID = #{LegacyID}		
+	</delete>
+	
+	<select id="selectDraftLegacyList" parameterType="cmap" resultType="cmap">
+		SELECT LegacyID AS "LegacyID"
+			, SystemCode AS "SystemCode"
+			, LEGACYKEY AS "LEGACYKEY"
+			, EMPNO AS "EMPNO"
+			, DEPT_ID AS "DEPT_ID"
+			, FORM_PREFIX AS "FORM_PREFIX"
+			, SUBJECT AS "SUBJECT"
+			, BODY_CONTEXT AS "BODY_CONTEXT"
+			, STATE AS "STATE"
+			, DATA_TYPE AS "DATA_TYPE"
+			, PROCESS_ID AS "PROCESS_ID"
+		FROM gwuser.jwf_draft_legacy_list
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="Key != null and Key != '' and Key.length() gt 0">
+				AND LegacyKey = #{Key}
+			</if>
+			<if test="SystemCode != null and SystemCode != '' and SystemCode.length() gt 0">
+				AND SystemCode = #{SystemCode}
+			</if>
+			AND rownum &lt;= 10
+		</trim>	
+		ORDER BY LegacyID DESC
+	</select>
+	
+	<select id="selectDraftSampleList" parameterType="cmap" resultType="cmap">
+		SELECT InstanceID AS "InstanceID"
+			, SUBJECT AS "SUBJECT"
+			, BT_PERSON AS "BT_PERSON"
+			, BT_PERSON_EMPNO AS "BT_PERSON_EMPNO"
+			, BT_DEPT AS "BT_DEPT"
+			, BT_DEPT_CODE AS "BT_DEPT_CODE"
+			, BT_AREA AS "BT_AREA"
+			, BT_PERPOSE AS "BT_PERPOSE"
+			, BT_S_DATE AS "BT_S_DATE"
+			, BT_E_DATE AS "BT_E_DATE"
+		FROM gwuser.LEGACY_TARGET_SAMPLEDATA
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="Key != null and Key != '' and Key.length() gt 0">
+				AND InstanceID = #{Key}
+			</if>
+			AND rownum &lt;= 10
+		</trim>	
+		ORDER BY InstanceID DESC
+	</select>
+	
+	<select id="selectDraftLegacyTarget" parameterType="cmap" resultType="cmap">
+		SELECT LegacyID AS "LegacyID"
+			, SystemCode AS "SystemCode"
+			, DatasourceSeq AS "DatasourceSeq"
+			, DataTableName AS "DataTableName"
+			, DataTableKeyName AS "DataTableKeyName"
+			, SubjectKeyName AS "SubjectKeyName"
+			, EmpnoKeyName AS "EmpnoKeyName"
+			, DeptKeyName AS "DeptKeyName"
+			, MultiTableName AS "MultiTableName"
+			, MultiTableKeyName AS "MultiTableKeyName"
+			, FormPrefix AS "FormPrefix"
+			, Description AS "Description"
+			, ModifyDate AS "ModifyDate"
+			, ModifierCode AS "ModifierCode"
+		FROM gwuser.jwf_draft_legacy_target
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="SystemCode != null and SystemCode != '' and SystemCode.length() gt 0">
+				AND SystemCode = #{SystemCode}
+			</if>
+		</trim>	
+	</select>
+	
+	<select id="selectUserInfoDetail" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.UserCode AS "UserCode", A.DisplayName AS "UserName", B.DeptCode AS "DeptCode", B.DeptName AS "DeptName", B.CompanyCode AS "CompanyCode", B.CompanyCode AS "CompanyCode", C.GroupPath AS "GroupPath",
+			B.JobPositionCode AS "JobPositionCode", B.MultiJobPositionName AS "MultiJobPositionName",
+			B.JobTitleCode AS "JobTitleCode", B.MultiJobTitleName AS "MultiJobTitleName",
+			B.JobLevelCode AS "JobLevelCode", B.MultiJobLevelName AS "MultiJobLevelName", A.MailAddress AS "MailAddress"
+		FROM sys_object_user A
+		INNER JOIN sys_object_user_basegroup B
+			ON A.UserCode = B.UserCode
+		INNER JOIN sys_object_group C
+			ON B.DeptCode = C.GroupCode and C.GroupType ='Dept'
+		<choose>
+             <when test="UserCode != null and UserCode != ''">
+                WHERE B.UserCode = #{UserCode}
+             </when>
+             <otherwise>
+				WHERE A.EMPNO = #{empNo} 
+             </otherwise>
+        </choose>
+		<choose>
+             <when test="DeptCode != null and DeptCode != '' and DeptCode.length() gt 0">
+                AND B.DeptCode = #{DeptCode}
+             </when>
+             <otherwise>
+	             AND b.JobType = 'Origin'
+             </otherwise>
+        </choose>
+	</select>
+	
+	<select id="selectDeptInfoDetail" parameterType="cmap" resultType="cmap">
+		SELECT GroupCode AS "DeptCode", MultiDisplayName AS "DeptName"
+		FROM sys_object_group 
+		WHERE GroupType ='Dept' and GroupCode = #{DeptCode}
+	</select>
+	
+	<select id="selectSchemaContext" parameterType="cmap" resultType="cmap">
+		SELECT 
+			CASE WHEN A.CompanyCode = #{entCode} THEN 1
+			WHEN A.CompanyCode = 'ORGROOT' THEN 2
+			ELSE 3 END AS "Companysort", b.SchemaContext AS "SchemaContext"
+		FROM jwf_forms A 
+		INNER JOIN jwf_formsschema B on A.SchemaID = B.SchemaID 
+		<choose>
+             <when test="FormInstID != null and FormInstID != ''">
+				INNER JOIN jwf_forminstance C ON A.FORMID = C.FORMID
+                WHERE C.FormInstID = #{FormInstID}
+             </when>
+             <otherwise>
+				WHERE A.FormPrefix = #{formPrefix}
+             </otherwise>
+        </choose>
+		AND ROWNUM = 1
+		ORDER BY "Companysort", Revision desc
+	</select>
+	
+	<select id="selectFormTempInstBoxID" parameterType="cmap" resultType="cmap">
+		SELECT B.FormTempInstBoxID AS "FormTempInstBoxID"
+		FROM jwf_forminstance A
+		INNER JOIN jwf_formstempinstbox B on A.FormInstID = B.FormInstID 
+		WHERE A.FormInstID = #{FormInstID}
+	</select>
+	
+	<select id="selectCancelData" parameterType="cmap" resultType="cmap">
+		SELECT max(A.TaskID) AS TaskID, MAX(A.State) AS State
+		FROM jwf_workitem A
+		INNER JOIN jwf_performer B ON A.PerformerID = B.PerformerID 
+		INNER JOIN (
+			SELECT w.Name, p.subkind, w.WorkItemID
+			FROM jwf_workitem w 
+			INNER JOIN jwf_performer p ON  w.PerformerID = p.PerformerID 
+			WHERE w.ProcessID = #{ProcessID} AND w.State = '288' 
+		) C ON A.WorkItemID = C.WorkItemID AND A.Name = C.name AND B.SubKind = C.SubKind 
+	</select>
+	
+	<select id="selectOrgDeptInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			gr.CompanyCode AS "CompanyCode"
+			,gr.GroupCode AS "GroupCode"
+			,gr.GroupType AS "GroupType"
+			,gr.GroupCode AS "AN"
+			,gr.MultiDisplayName AS "DN"
+			,cn.CompanyCode AS "ETID"
+			,gr.GroupPath AS "GroupPath"
+			,(SELECT COUNT(0) FROM sys_object_group self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y' AND self.IsDisplay = 'Y') AS "hasChild"
+		FROM sys_object_group gr
+		LEFT JOIN sys_object_group cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		WHERE gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+	    AND (gr.MemberOf != 'NOUSE' OR gr.MemberOf is null)
+	    AND (gr.MemberOf != 'NOUNIT' OR gr.MemberOf is null)
+	  	AND gr.GroupType IN ('Dept','Company')
+	  	AND gr.CompanyCode = #{entCode}
+		AND gr.GroupCode = #{deptCode}
+	</select>
+</mapper>
+

@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="biztrip">
+	<select id="selectBizTripChk" resultType="java.lang.Long">
+		SELECT COUNT(ABR.BizTripRequestID) 
+		FROM act_biztrip_request ABR
+		WHERE FormInstanceID = #{FormInstanceID}
+	</select>
+	
+    <insert id="insertBizTripRequest" parameterType="cmap">
+		INSERT INTO act_biztrip_request
+		(
+			  CompanyCode
+			, BizTripType
+			, ProjectCode
+			, ProjectName
+			, RequestTitle
+			, RequestStatus
+			, RequestDate
+			, FormInstanceID
+			, ProcessID
+			, RequesterDeptID
+			, RequesterDeptName
+			, RequesterID
+			, RequesterName
+			, BusinessAreaType
+			, BusinessArea
+			, BusinessPurpose
+			, StartDate
+			, EndDate
+			, BusinessDay
+			, WorkingDay
+			, RequestAmount
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			  #{CompanyCode}
+			, #{BizTripType}
+			, #{ProjectCode}
+			, #{ProjectName}
+			, #{RequestTitle}
+			, #{RequestStatus}
+			, #{RequestDate}
+			, #{FormInstanceID}
+			, #{ProcessID}
+			, #{RequesterDeptID}
+			, #{RequesterDeptName}
+			, #{RequesterID}
+			, #{RequesterName}
+			, #{BusinessAreaType}
+			, #{BusinessArea}
+			, #{BusinessPurpose}
+			, #{StartDate}
+			, #{EndDate}
+			, #{BusinessDay}
+			, #{WorkingDay}
+			, #{RequestAmount}
+			, #{RequesterID}
+			, #{RequestDate}
+			, #{SessionUser}
+			, SYSDATE
+		)
+	</insert>
+	
+    <update id="updateBizTripRequest" parameterType="cmap">
+		UPDATE act_biztrip_request
+		SET
+			  CompanyCode = #{CompanyCode}
+			, BizTripType = #{BizTripType}
+			, ProjectCode = #{ProjectCode}
+			, ProjectName = #{ProjectName}
+			, RequestTitle = #{RequestTitle}
+			, RequestStatus = #{RequestStatus}
+			, RequestDate = #{RequestDate}
+			, ProcessID = #{ProcessID}
+			, RequesterDeptID = #{RequesterDeptID}
+			, RequesterDeptName = #{RequesterDeptName}
+			, RequesterID = #{RequesterID}
+			, RequesterName = #{RequesterName}
+			, BusinessAreaType = #{BusinessAreaType}
+			, BusinessArea = #{BusinessArea}
+			, BusinessPurpose = #{BusinessPurpose}
+			, StartDate = #{StartDate}
+			, EndDate = #{EndDate}
+			, BusinessDay = #{BusinessDay}
+			, WorkingDay = #{WorkingDay}
+			, RequestAmount = #{RequestAmount}
+			, ModifierID = #{SessionUser}
+			, ModifyDate =  SYSDATE
+		WHERE FormInstanceID = #{FormInstanceID}
+	</update>
+	
+	<select id="selectBizTripList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			A.BizTripRequestID AS "BizTripRequestID",
+			A.BizTripApplicationID AS "BizTripApplicationID",
+			A.RequestTitle AS "RequestTitle",
+			A.ProcessID AS "ProcessID",
+			A.FormInstID AS "FormInstID",
+			A.RequesterDeptName AS "RequesterDeptName",
+			A.RequesterName AS "RequesterName",
+			A.BizTripType AS "BizTripType",
+			FN_GETACTBASECODENAME('BizTripType', A.BizTripType, #{companyCode}) AS "BizTripTypeName",
+			A.ProjectCode AS "ProjectCode",
+			A.ProjectName AS "ProjectName",
+			A.StartDate AS "StartDate",
+			A.EndDate AS "EndDate",
+			A.BusinessAreaType AS "BusinessAreaType",
+			FN_GETACTBASECODENAME('BusinessAreaType', A.BusinessAreaType, #{companyCode}) AS "BusinessAreaTypeName",
+			A.BusinessArea AS "BusinessArea",
+			A.RequestDate AS "RequestDate", 
+			A.RequestAmount AS "RequestAmount",
+			A.IsExceptApplication AS "IsExceptApplication",
+			A.ApplicationDate AS "ApplicationDate",
+			A.Amount AS "Amount",
+			A.RequestStatus AS "RequestStatus",
+			FN_GETACTBASECODENAME('ExpenceApplicationStatus', A.RequestStatus, #{companyCode}) AS "RequestStatusName",
+			A.ApplicationStatus AS "ApplicationStatus",
+			FN_GETACTBASECODENAME('ExpenceApplicationStatus', A.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName",
+			A.AppProcessID AS "AppProcessID",
+			A.AppFormInstID AS "AppFormInstID",
+			A.ExpenceApplicationID AS "ExpenceApplicationID",
+			A.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', A.CompanyCode, #{companyCode}) AS "CompanyName"
+		FROM (
+			SELECT 
+				ABR.BizTripRequestID,
+				ABA.BizTripApplicationID,
+				ABR.CompanyCode,
+				ABR.RequestTitle,
+				ABR.ProcessID,
+				(SELECT FormInstID FROM jwf_process P WHERE ABR.ProcessID = P.ProcessID) FormInstID,
+				ABR.RequesterDeptName,
+				ABR.RequesterName,
+				ABR.BizTripType,
+				ABR.ProjectCode,
+				ABR.ProjectName,
+				ABR.StartDate,
+				ABR.EndDate,
+				ABR.BusinessAreaType,
+				ABR.BusinessArea,
+				ABR.RequestDate,
+				ABR.RequestAmount,
+				ABR.IsExceptApplication,
+				ABA.ApplicationDate,
+				ABA.Amount,
+				ABR.RequestStatus,
+				ABA.ApplicationStatus,
+				ABA.ProcessID AS AppProcessID,
+				(SELECT FormInstID FROM jwf_process P WHERE ABA.ProcessID = P.ProcessID) AS AppFormInstID,
+				ABA.ExpenceApplicationID
+			FROM act_biztrip_request ABR
+			LEFT OUTER JOIN act_biztrip_application ABA
+			ON ABR.BizTripRequestID = ABA.BizTripRequestID AND ABA.ApplicationStatus != 'DELETE'
+			WHERE 1=1
+			<if test="companyCode != null and companyCode != ''">
+			AND ABR.CompanyCode = #{companyCode}
+			</if>
+			<if test="SessionUser != null and SessionUser != ''">
+			AND ABR.RequesterID = #{SessionUser}
+			</if>
+			<if test="RequestTitle != null and RequestTitle != ''">
+			AND ABR.RequestTitle LIKE '%'||#{RequestTitle}||'%'
+			</if>
+			<if test="RequesterDeptName != null and RequesterDeptName != ''">
+			AND ABR.RequesterDeptName LIKE '%'||#{RequesterDeptName}||'%'
+			</if>
+			<if test="RequesterName != null and RequesterName != ''">
+			AND ABR.RequesterName LIKE '%'||#{RequesterName}||'%'
+			</if>
+			<if test="BizTripType != null and BizTripType != ''">
+			AND ABR.BizTripType = #{BizTripType}
+			</if>
+			<if test="ProjectCode != null and ProjectCode != ''">
+			AND ABR.ProjectCode = #{ProjectCode}
+			</if>
+			<if test="BusinessAreaType != null and BusinessAreaType != ''">
+			AND ABR.BusinessAreaType = #{BusinessAreaType}
+			</if>
+			<if test="StartDate != null and StartDate != ''">
+			AND ABR.StartDate <![CDATA[>=]]> #{StartDate}
+			</if>
+			<if test="EndDate != null and EndDate != ''">
+			AND ABR.EndDate <![CDATA[<=]]> #{EndDate}
+			</if>
+			<if test="RequestStatus != null and RequestStatus != ''">
+			AND ABR.RequestStatus = #{RequestStatus}
+			</if>
+			<if test="ApplicationStatus != null and ApplicationStatus != ''">
+			AND ABA.ApplicationStatus = #{ApplicationStatus}
+			</if>
+		) A	
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, A.RequestDate DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestTitle")'>"RequestTitle"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequesterDeptName")'>"RequesterDeptName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequesterName")'>"RequesterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("BizTripTypeName")'>"BizTripTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ProjectName")'>"ProjectName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>"ApplicationStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>"StartDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>"EndDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessAreaTypeName")'>"BusinessAreaTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessArea")'>"BusinessArea"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestDate")'>"RequestDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestAmount")'>"RequestAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationDate")'>"ApplicationDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("Amount")'>"Amount"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="selectBizTripListExcel" parameterType="cmap" resultType="cmap">
+		SELECT
+			A.BizTripRequestID AS "BizTripRequestID",
+			A.BizTripApplicationID AS "BizTripApplicationID",
+			A.RequestTitle AS "RequestTitle",
+			A.ProcessID AS "ProcessID",
+			A.FormInstID AS "FormInstID",
+			A.RequesterDeptName AS "RequesterDeptName",
+			A.RequesterName AS "RequesterName",
+			A.BizTripType AS "BizTripType",
+			FN_GETACTBASECODENAME('BizTripType', A.BizTripType, #{companyCode}) AS "BizTripTypeName",
+			A.ProjectCode AS "ProjectCode",
+			A.ProjectName AS "ProjectName",
+			A.StartDate AS "StartDate",
+			A.EndDate AS "EndDate",
+			A.BusinessAreaType AS "BusinessAreaType",
+			FN_GETACTBASECODENAME('BusinessAreaType', A.BusinessAreaType, #{companyCode}) AS "BusinessAreaTypeName",
+			A.BusinessArea AS "BusinessArea",
+			A.RequestDate AS "RequestDate", 
+			A.RequestAmount AS "RequestAmount",
+			A.IsExceptApplication AS "IsExceptApplication",
+			A.ApplicationDate AS "ApplicationDate",
+			A.Amount AS "Amount",
+			A.RequestStatus AS "RequestStatus",
+			FN_GETACTBASECODENAME('ExpenceApplicationStatus', A.RequestStatus, #{companyCode}) AS "RequestStatusName",
+			A.ApplicationStatus AS "ApplicationStatus",
+			FN_GETACTBASECODENAME('ExpenceApplicationStatus', A.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName",
+			A.AppProcessID AS "AppProcessID",
+			A.AppFormInstID AS "AppFormInstID",
+			A.ExpenceApplicationID AS "ExpenceApplicationID",
+			A.CompanyCode AS "CompanyCode",
+			FN_GETACTBASECODENAME('CompanyCode', A.CompanyCode, #{companyCode}) AS "CompanyName"
+		FROM (
+			SELECT 
+				ABR.BizTripRequestID,
+				ABA.BizTripApplicationID,
+				ABR.CompanyCode,
+				ABR.RequestTitle,
+				ABR.ProcessID,
+				(SELECT FormInstID FROM jwf_process P WHERE ABR.ProcessID = P.ProcessID) FormInstID,
+				ABR.RequesterDeptName,
+				ABR.RequesterName,
+				ABR.BizTripType,
+				ABR.ProjectCode,
+				ABR.ProjectName,
+				ABR.StartDate,
+				ABR.EndDate,
+				ABR.BusinessAreaType,
+				ABR.BusinessArea,
+				ABR.RequestDate,
+				ABR.RequestAmount,
+				ABR.IsExceptApplication,
+				ABA.ApplicationDate,
+				ABA.Amount,
+				ABR.RequestStatus,
+				ABA.ApplicationStatus,
+				ABA.ProcessID AS AppProcessID,
+				(SELECT FormInstID FROM jwf_process P WHERE ABA.ProcessID = P.ProcessID) AppFormInstID,
+				ABA.ExpenceApplicationID
+			FROM act_biztrip_request ABR
+			LEFT OUTER JOIN act_biztrip_application ABA
+			ON ABR.BizTripRequestID = ABA.BizTripRequestID AND ABA.ApplicationStatus != 'DELETE'
+			WHERE 1=1
+			<if test="companyCode != null and companyCode != ''">
+			AND ABR.CompanyCode = #{companyCode}
+			</if>
+			<if test="SessionUser != null and SessionUser != ''">
+			AND ABR.RequesterID = #{SessionUser}
+			</if>
+			<if test="RequestTitle != null and RequestTitle != ''">
+			AND ABR.RequestTitle LIKE '%'||#{RequestTitle}||'%'
+			</if>
+			<if test="RequesterDeptName != null and RequesterDeptName != ''">
+			AND ABR.RequesterDeptName LIKE '%'||#{RequesterDeptName}||'%'
+			</if>
+			<if test="RequesterName != null and RequesterName != ''">
+			AND ABR.RequesterName LIKE '%'||#{RequesterName}||'%'
+			</if>
+			<if test="BizTripType != null and BizTripType != ''">
+			AND ABR.BizTripType = #{BizTripType}
+			</if>
+			<if test="ProjectCode != null and ProjectCode != ''">
+			AND ABR.ProjectCode = #{ProjectCode}
+			</if>
+			<if test="BusinessAreaType != null and BusinessAreaType != ''">
+			AND ABR.BusinessAreaType = #{BusinessAreaType}
+			</if>
+			<if test="StartDate != null and StartDate != ''">
+			AND ABR.StartDate <![CDATA[>=]]> #{StartDate}
+			</if>
+			<if test="EndDate != null and EndDate != ''">
+			AND ABR.EndDate <![CDATA[<=]]> #{EndDate}
+			</if>
+			<if test="RequestStatus != null and RequestStatus != ''">
+			AND ABR.RequestStatus = #{RequestStatus}
+			</if>
+			<if test="ApplicationStatus != null and ApplicationStatus != ''">
+			AND ABA.ApplicationStatus = #{ApplicationStatus}
+			</if>
+		) A	
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, A.RequestDate DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestTitle")'>"RequestTitle"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequesterDeptName")'>"RequesterDeptName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequesterName")'>"RequesterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("BizTripTypeName")'>"BizTripTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ProjectName")'>"ProjectName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>"ApplicationStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>"StartDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>"EndDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessAreaTypeName")'>"BusinessAreaTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessArea")'>"BusinessArea"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestDate")'>"RequestDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("RequestAmount")'>"RequestAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationDate")'>"ApplicationDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("Amount")'>"Amount"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectBizTripListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(ABR.BizTripRequestID)
+		FROM act_biztrip_request ABR
+		LEFT OUTER JOIN act_biztrip_application ABA
+		ON ABR.BizTripRequestID = ABA.BizTripRequestID AND ABA.ApplicationStatus != 'DELETE'
+		WHERE 1=1
+		<if test="companyCode != null and companyCode != ''">
+		AND ABR.CompanyCode = #{companyCode}
+		</if>
+		<if test="SessionUser != null and SessionUser != ''">
+		AND ABR.RequesterID = #{SessionUser}
+		</if>
+		<if test="RequestTitle != null and RequestTitle != ''">
+		AND ABR.RequestTitle LIKE '%'||#{RequestTitle}||'%'
+		</if>
+		<if test="RequesterDeptName != null and RequesterDeptName != ''">
+		AND ABR.RequesterDeptName LIKE '%'||#{RequesterDeptName}||'%'
+		</if>
+		<if test="RequesterName != null and RequesterName != ''">
+		AND ABR.RequesterName LIKE '%'||#{RequesterName}||'%'
+		</if>
+		<if test="BizTripType != null and BizTripType != ''">
+		AND ABR.BizTripType = #{BizTripType}
+		</if>
+		<if test="ProjectCode != null and ProjectCode != ''">
+		AND ABR.ProjectCode = #{ProjectCode}
+		</if>
+		<if test="BusinessAreaType != null and BusinessAreaType != ''">
+		AND ABR.BusinessAreaType = #{BusinessAreaType}
+		</if>
+		<if test="StartDate != null and StartDate != ''">
+		AND ABR.StartDate <![CDATA[>=]]> #{StartDate}
+		</if>
+		<if test="EndDate != null and EndDate != ''">
+		AND ABR.EndDate <![CDATA[<=]]> #{EndDate}
+		</if>
+		<if test="RequestStatus != null and RequestStatus != ''">
+		AND ABR.RequestStatus = #{RequestStatus}
+		</if>
+		<if test="ApplicationStatus != null and ApplicationStatus != ''">
+		AND ABA.ApplicationStatus = #{ApplicationStatus}
+		</if>
+	</select>
+	
+	<select id="selectBizTripRequestInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			ABR.BizTripRequestID AS "BizTripRequestID", 
+			ABR.BizTripType AS "BizTripType",
+			ABR.ProjectCode AS "ProjectCode",
+			ABR.ProjectName AS "ProjectName",
+			ABR.RequesterDeptName AS "RequesterDeptName",
+			ABR.RequesterName AS "RequesterName",
+			ABR.StartDate AS "StartDate",
+			ABR.EndDate AS "EndDate",
+			ABR.BusinessDay AS "BusinessDay",
+			ABR.WorkingDay AS "WorkingDay",
+			ABR.BusinessArea AS "BusinessArea",
+			ABR.BusinessPurpose AS "BusinessPurpose"
+		FROM act_biztrip_request ABR
+		WHERE ABR.BizTripRequestID = #{bizTripRequestID}
+	</select>
+	
+    <insert id="insertBizTripApplication" parameterType="cmap">
+		INSERT INTO act_biztrip_application
+		(
+			  BizTripRequestID
+			, ExpenceApplicationID
+			, CompanyCode
+			, ApplicationTitle
+			, ApplicationStatus
+			, ApplicationDate
+			, FormInstanceID
+			, ProcessID
+			, UserID
+			, UserName
+			, StartDate
+			, EndDate
+			, BusinessArea
+			, BusinessPurpose
+			, BusinessDay
+			, WorkingDay
+			, Amount
+			, BizTripNoteMap
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		SELECT 
+			BizTripRequestID
+			, #{ExpenceApplicationID}
+			, #{CompanyCode}
+			, #{ApplicationTitle}
+			, #{ApplicationStatus}
+			, SYSDATE
+			, #{FormInstanceID}
+			, #{ProcessID}
+			, RequesterID
+			, RequesterName
+			, StartDate
+			, EndDate
+			, BusinessArea
+			, BusinessPurpose
+			, BusinessDay
+			, WorkingDay
+			, #{ReqAmt}
+			, #{BizTripNoteMap}
+			, #{SessionUser}
+			, SYSDATE
+			, #{SessionUser}
+			, SYSDATE
+		FROM act_biztrip_request ABR
+		WHERE ABR.BizTripRequestID = #{BizTripRequestID}
+	</insert>
+	
+    <update id="updateBizTripApplication" parameterType="cmap">
+   		UPDATE act_biztrip_application A
+		SET (
+			CompanyCode
+			, ApplicationTitle
+			, ApplicationStatus
+			<if test="ApplicationStatus == 'T'.toString() or ApplicationStatus == 'D'.toString()">
+			, ApplicationDate
+			</if>
+			, ProcessID
+			, UserID
+			, UserName
+			, StartDate
+			, EndDate
+			, BusinessArea
+			, BusinessPurpose
+			, BusinessDay
+			, WorkingDay
+			, Amount
+			, BizTripNoteMap
+			, ModifierID
+			, ModifyDate
+		) = (
+			SELECT 
+				#{CompanyCode} AS CompanyCode
+				, #{ApplicationTitle} AS ApplicationTitle
+				, #{ApplicationStatus} AS ApplicationStatus
+				<if test="ApplicationStatus == 'T'.toString() or ApplicationStatus == 'D'.toString()">
+				, SYSDATE AS ApplicationDate
+				</if>
+				, #{ProcessID} AS ProcessID
+				, B.RequesterID
+				, B.RequesterName
+				, B.StartDate
+				, B.EndDate
+				, B.BusinessArea
+				, B.BusinessPurpose
+				, B.BusinessDay
+				, B.WorkingDay
+				, #{ReqAmt} AS Amount
+				, #{BizTripNoteMap} AS BizTripNoteMap
+				, #{SessionUser} AS ModifierID
+				, SYSDATE AS ModifyDate
+			FROM act_biztrip_request B
+			WHERE A.BizTripRequestID = B.BizTripRequestID 
+		)  
+		WHERE A.ExpenceApplicationID = #{ExpenceApplicationID} 
+	</update>
+	
+	<update id="updateBizTripAppStatus" parameterType="cmap"> 	    
+ 	    UPDATE act_biztrip_application
+ 	    SET ApplicationStatus = #{ApplicationStatus}
+ 	    	<if test="ProcessID != 'CHARGE'">
+			, ProcessID = #{ProcessID}
+			</if>			
+			<if test="ApplicationStatus == 'D'.toString()">
+			, ApplicationDate = SYSDATE
+			</if>
+			, ModifierID = #{SessionUser}
+			, ModifyDate =  SYSDATE
+		WHERE ExpenceApplicationID = #{ExpenceApplicationID}
+	</update>
+	
+	<select id="selectBizTripApplicationInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			ABA.BizTripRequestID AS "BizTripRequestID",
+			ABA.BizTripNoteMap AS "BizTripNoteMap"
+		FROM act_biztrip_application ABA
+		WHERE ABA.ExpenceApplicationID = #{ExpenceApplicationID}
+	</select>
+	
+	<update id="exceptBizTripApplication" parameterType="cmap">
+		UPDATE act_biztrip_request
+		SET IsExceptApplication = #{isExceptApplication}
+		WHERE BizTripRequestID = #{BizTripRequestID}
+	</update>
+    
+    <delete id="deleteBizTripApplication" parameterType="cmap">
+    	DELETE FROM act_biztrip_application
+    	WHERE ExpenceApplicationID = #{ExpenceApplicationID}
+    </delete>
+</mapper>

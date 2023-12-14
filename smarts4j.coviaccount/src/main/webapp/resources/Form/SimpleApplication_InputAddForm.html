@@ -1,0 +1,121 @@
+<li name="simpApp@@{ProofCode}_evidAddItem_@@{KeyNo}" style="margin:0; border:0;">
+	<div class="cnrl_top" style="border-bottom: 1px solid #e0e0e0;">
+		<div class="chkStyle01">
+			<input type="checkbox" id="simpApp@@{RequestType}@@{ProofCode}_evidAddCheck_@@{KeyNo}"
+					name="simpApp@@{ProofCode}_evidAddCheck_@@{KeyNo}"
+					tag="evidAddCheck" keyno="@@{KeyNo}" proofcd="@@{ProofCode}"
+					targetnm="simpApp@@{ProofCode}_evidAddItem_@@{KeyNo}">
+			<label for="simpApp@@{RequestType}@@{ProofCode}_evidAddCheck_@@{KeyNo}"><span></span></label>
+		</div>
+		<ul class="card_nea_right_info">
+			<li>
+				<p class="card_nea_right_info_p1" style="margin-top: 7px;">
+					<span name="EtcEvidField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}">
+						<!-- 환종 -->
+						**{ACC_lbl_exchangeType} 
+						<select class="selectType02" style="height: 24px;width: 100px;"
+							name="CurrencySelectField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+							onchange="SimpleApplication@@{RequestType}.simpApp_ComboChange(this, 'Currency', '@@{ProofCode}', '@@{KeyNo}')">@@{ExchangeNationOptions}</select>
+						<span name="ExRateArea" proofcd="@@{ProofCode}" keyno="@@{KeyNo}" style="display:none;">
+							<!-- 환율 -->
+							**{ACC_lbl_exchangeRate} 
+							<input type="text" id='simpApp@@{ProofCode}_ExchangeRate_@@{KeyNo}' tag="Amount"
+								name="ExchangeRateField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}" field="ExchangeRate" kind="money" money_max="99999999999" money_min="0" 
+								onblur="removeCharMoney(this); SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'ExchangeRate');"				 				
+								value="@@{ExchangeRate}" style="text-align:right;color:#4abde1!important;width:100px;height:24px;" class="tx_ta">
+							<!-- 현지금액 -->
+							**{ACC_lbl_localAmount} 
+							<input type="text" id='simpApp@@{ProofCode}_LocalAmount_@@{KeyNo}' tag="Amount"
+								name="LocalAmountField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}" field="LocalAmount" kind="money" money_max="99999999999" money_min="0" 
+								onblur="removeCharMoney(this); SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'LocalAmount');"
+								value="@@{LocalAmount}" style="text-align:right;color:#4abde1!important;width:100px;height:24px;" class="tx_ta">
+						</span>
+					</span>
+					<input type="text" id='simpApp@@{ProofCode}_TotalAmount_@@{KeyNo}' 
+						name="TotalAmountField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onblur="removeCharMoney(this); SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'TotalAmount');"
+		 				value="@@{TotalAmount}" style="text-align: right; color: #4abde1 !important; font-weight: bold; width: 120px; height: 24px;" class="tx_ta">**{ACC_krw}</p>
+				<p class="card_nea_right_info_p2 ellips" name="ReceiptField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}">(@@{StoreName})
+					<a href="#" class="btn_Bill" onClick="SimpleApplication@@{RequestType}.simpApp_billClick('@@{ProofCode}', '@@{ReceiptID}', '@@{FileID}')"></a>
+				</p>
+				<p class="tx_date" style="margin-top: 4px;">
+					<span class="dateSel type02" id="simpApp@@{RequestType}@@{ProofCode}_ProofDateArea_@@{KeyNo}"
+						name="SimpAppDateField" datafield="ProofDate" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onChange="SimpleApplication@@{RequestType}.simpApp_onDateChange(this, '@@{KeyNo}', '@@{ProofCode}', 'ProofDate')">
+					</span>
+				</p>
+				<div class="cnrl_top_btn" style="margin-top: 4px;">
+					<a href="#" class="btn_File ico_file" onCLick="SimpleApplication@@{RequestType}.simpApp_FileAttach('@@{ProofCode}', '@@{KeyNo}')">**{ACC_lbl_addFile}</a>
+					<a href="#" class="btn_File ico_doc" onCLick="SimpleApplication@@{RequestType}.simpApp_DocLink('@@{ProofCode}', '@@{KeyNo}')">**{ACC_lbl_docLink}</a>
+				</div>
+			</li>
+		</ul>
+	</div>
+	<div class="cnrl_mid" style="padding-left: 68px;">
+		<div name="EntertainInputArea" style="display: none;">
+			<dl>
+				<dt style="width:90px;">**{ACC_lbl_entertainVendor}<span class="star"></span></dt>
+				<dd>
+					<input type="text" id="simpApp@{ProofCode}_EntertainVendor_@@{KeyNo}"
+						name="EntertainVendorField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'EntertainVendor');"
+						value="@@{EntertainVendor}" style="width: 250px;">
+				</dd>
+			</dl>
+			<dl>
+				<dt style="width:90px;">**{ACC_lbl_entertainPurpose}<span class="star"></span></dt>
+				<dd>
+					<input type="text" id="simpApp@{ProofCode}_EntertainPurpose_@@{KeyNo}"
+						name="EntertainPurposeField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'EntertainPurpose');"
+						value="@@{EntertainPurpose}" style="width: 250px;">
+				</dd>
+			</dl>
+			<br>
+			<dl>
+				<dt style="width:90px;">**{ACC_lbl_insideAttendant}<span class="star"></span></dt>
+				<dd>
+					<input type="text" id="simpApp@@{ProofCode}_InsideAttendantNum_@@{KeyNo}"
+						name="InsideAttendantNumField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'InsideAttendantNum');"
+						value="@@{InsideAttendantNum}" style="width: 41px;">**{lbl_CountMan}&nbsp;&nbsp;
+				</dd>
+				<dd>
+					<input type="text" id="simpApp@@{ProofCode}_InsideAttendantName_@@{KeyNo}"
+						name="InsideAttendantNameField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'InsideAttendantName');"
+						value="@@{InsideAttendantName}" style="width: 180px;">
+				</dd>
+			</dl>
+			<dl>
+				<dt style="width:90px;">**{ACC_lbl_outsideAttendant}<span class="star"></span></dt>
+				<dd>
+					<input type="text" id="simpApp@@{ProofCode}_OutsideAttendantNum_@@{KeyNo}"
+						name="OutsideAttendantNumField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'OutsideAttendantNum');"
+						value="@@{OutsideAttendantNum}" style="width: 41px;">**{lbl_CountMan}&nbsp;&nbsp;
+				</dd>
+				<dd>
+					<input type="text" id="simpApp@@{ProofCode}_OutsideAttendantName_@@{KeyNo}"
+						name="OutsideAttendantNameField" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"
+						onkeyup="SimpleApplication@@{RequestType}.simpApp_onInputFieldChange(this, '@@{ProofCode}', 'OutsideAttendantName');"
+						value="@@{OutsideAttendantName}" style="width: 180px;">
+				</dd>
+			</dl>
+		</div>
+		@@{DivInputArea}
+	</div>
+	<div class="cnrl_bot_dl" name="DivAddArea" proofcd="@@{ProofCode}" keyno="@@{KeyNo}"></div>
+	<div class="BC_File_list_wrap" name="LinkArea" proofcd="@@{ProofCode}" keyno="@@{KeyNo}" style="display: none;">									
+	</div>
+	<div class="cnrl_bot">
+		<div class="pagingType02 buttonStyleBoxLeft">
+			<a href="#" onClick="SimpleApplication@@{RequestType}.simpApp_divAddOne('@@{ProofCode}', '@@{KeyNo}')" class="btnTypeDefault"
+				title="**{ACC_msg_addDivExpence}"><span>**{ACC_lbl_addDivExpence}</span></a> <!-- 해당 증빙의 증빙분할이 추가됩니다. -->
+			<a href="#" onClick="SimpleApplication@@{RequestType}.simpApp_copyDiv('@@{ProofCode}', '@@{KeyNo}')" class="btnTypeDefault"
+				title="**{ACC_msg_copyDivExpence}"><span>**{ACC_lbl_copyDivExpence}</span></a> <!-- 선택된 증빙분할이 복사되어 최하단에 추가됩니다. (단, 선택된 증빙분할이 없다면 첫 번째 증빙이 복사됩니다.) -->
+			<a href="#" onClick="SimpleApplication@@{RequestType}.simpApp_delSelectAddDiv('@@{ProofCode}', '@@{KeyNo}')" class="btnTypeDefault"
+				title="**{ACC_msg_delDivExpence}"><span>**{ACC_lbl_delDivExpence}</span></a> <!-- 선택된 증빙분할이 삭제됩니다. -->
+		</div>
+	</div>
+</li>

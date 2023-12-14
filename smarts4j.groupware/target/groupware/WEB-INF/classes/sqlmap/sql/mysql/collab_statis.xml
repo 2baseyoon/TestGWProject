@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.statis">
+
+	<select id="getStatisCurstList"   parameterType="cmap" resultType="cmap">
+	/* collab.statis.getStatisCurstList */
+	SELECT *
+	FROM (
+		SELECT
+		<choose>
+			<when test='groupBy == "TaskStatus"'>
+				TaskStatus GroupCol,
+				case TaskStatus
+				WHEN 'P' THEN '진행'
+				WHEN 'C' THEN '완료'
+				WHEN 'H' THEN '보류'
+				ELSE '대기' END GroupName
+			</when>
+			<when test='groupBy == "Member"'>
+				c.UserCode GroupCol, 
+				(SELECT  Fn_BaseGetDictionary_S(#{lang}, d.MultiDisplayName) 
+				 FROM covi_smart4j.sys_object_user AS D 
+				 where D.UserCode = c.UserCode) GroupName
+			</when>
+			<otherwise>
+				SectionSeq GroupCol, 
+				(SELECT sectionName 
+				 FROM covi_smart4j.collab_section c 
+				 WHERE a.SectionSeq = c.SectionSeq) GroupName
+			</otherwise>
+		</choose>
+		<![CDATA[
+		, COUNT(*) TotCnt
+		, IFNULL(SUM(CASE WHEN b.TaskStatus = 'W' then 1 ELSE 0 END),0) WaitCnt
+		, IFNULL(SUM(CASE WHEN b.TaskStatus = 'P' then 1 ELSE 0 END),0) ProcCnt
+		, IFNULL(SUM(CASE WHEN b.TaskStatus = 'H' then 1 ELSE 0 END),0) HoldCnt
+		, IFNULL(SUM(CASE WHEN b.TaskStatus = 'C' then 1 ELSE 0 END),0) CompCnt
+		, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND (b.EndDate is null or b.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))  then 1 ELSE 0 END),0) DelayCnt
+		, IFNULL(SUM(CASE WHEN b.Label = 'I' then 1 ELSE 0 END),0) ImpCnt
+		, IFNULL(SUM(CASE WHEN b.Label = 'E' then 1 ELSE 0 END),0) EmgCnt
+		, IFNULL(SUM(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus = 'C' then 1 ELSE 0 END),0) NowCompCnt
+		, IFNULL(SUM(case when b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d') then 1 ELSE 0 END),0) NowTotCnt
+		, round(IFNULL(SUM(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus = 'C' then 1 ELSE 0 END),0)
+			/  IFNULL(SUM(case when b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d') then 1 ELSE 0 END),0)*100,2) ProcRate
+		FROM collab_task_map a 
+		JOIN collab_task b ON a.taskSeq = b.TaskSeq
+		]]>
+		<if test='groupBy == "Member"'>
+	    RIGHT JOIN collab_task_member c ON b.taskSeq = c.TaskSeq
+		</if>
+		WHERE 
+		a.PrjType = #{prjType} AND  
+		a.PrjSeq = #{prjSeq}
+		<if test="searchOption != null and  searchOption !=''">
+			<if test="searchOption eq '1'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND b.TaskName LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '2'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND b.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '3'.toString() and searchKeyword != '' and searchKeyword != ''">
+		    AND b.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag t WHERE b.taskseq = b.taskseq AND t.tagName LIKE  CONCAT('%',#{searchKeyword},'%'))
+			</if>
+			<if test="searchOption eq '4'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND (B.TaskName LIKE CONCAT('%',#{searchKeyword},'%') 
+			OR B.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			OR b.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag t WHERE b.taskseq = b.taskseq AND t.tagName LIKE  CONCAT('%',#{searchKeyword},'%')))
+			</if>
+		</if>
+	  	GROUP BY
+	    <choose>
+			<when test='groupBy == "TaskStatus"'>
+				TaskStatus
+			</when>
+			<when test='groupBy == "Member"'>
+				c.UserCode
+			</when>
+			<otherwise>
+				SectionSeq
+			</otherwise>
+	    </choose>
+	) T
+	<trim prefix="ORDER BY" >
+		<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			T.GroupName 
+		</if>
+		<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("TotCnt")'>T.TotCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("WaitCnt")'>T.WaitCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("ProcCnt")'>T.ProcCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("HoldCnt")'>T.HoldCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("DelayCnt")'>T.DelayCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("ImpCnt")'>T.ImpCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("EmgCnt")'>T.EmgCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("CompCnt")'>T.CompCnt</when>
+				<when test='sortColumn.equalsIgnoreCase("ProcRate")'>T.ProcRate</when>
+				<otherwise>T.GroupName</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+		</trim>
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getStatisCurstListCnt"   parameterType="cmap" resultType="java.lang.Long">
+	/* collab.statis.getStatisCurstListCnt */
+	SELECT COUNT(*)
+	FROM (
+		SELECT
+		<choose>
+			<when test='groupBy == "TaskStatus"'>
+				TaskStatus GroupCol,
+				case TaskStatus
+				WHEN 'P' THEN '진행'
+				WHEN 'C' THEN '완료'
+				WHEN 'H' THEN '보류'
+				ELSE '대기' END GroupName
+			</when>
+			<when test='groupBy == "Member"'>
+				c.UserCode GroupCol, 
+				(SELECT  Fn_BaseGetDictionary_S(#{lang}, d.MultiDisplayName) 
+				 FROM covi_smart4j.sys_object_user AS D 
+				 where D.UserCode = c.UserCode) GroupName
+			</when>
+			<otherwise>
+				SectionSeq GroupCol, 
+				(SELECT sectionName 
+				 FROM covi_smart4j.collab_section c 
+				 WHERE a.SectionSeq = c.SectionSeq) GroupName
+			</otherwise>
+		</choose>
+		FROM collab_task_map a 
+		JOIN collab_task b ON a.taskSeq = b.TaskSeq
+		<if test='groupBy == "Member"'>
+	    RIGHT JOIN collab_task_member c ON b.taskSeq = c.TaskSeq
+		</if>
+		WHERE 
+		a.PrjType = #{prjType} AND  
+		a.PrjSeq = #{prjSeq}
+		<if test="searchOption != null and  searchOption !=''">
+			<if test="searchOption eq '1'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND b.TaskName LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '2'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND b.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '3'.toString() and searchKeyword != '' and searchKeyword != ''">
+		    AND b.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag t WHERE b.taskseq = b.taskseq AND t.tagName LIKE  CONCAT('%',#{searchKeyword},'%'))
+			</if>
+			<if test="searchOption eq '4'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND (B.TaskName LIKE CONCAT('%',#{searchKeyword},'%') 
+			OR B.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			OR b.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag t WHERE b.taskseq = b.taskseq AND t.tagName LIKE  CONCAT('%',#{searchKeyword},'%')))
+			</if>
+		</if>
+	  	GROUP BY
+	    <choose>
+			<when test='groupBy == "TaskStatus"'>
+				TaskStatus
+			</when>
+			<when test='groupBy == "Member"'>
+				c.UserCode
+			</when>
+			<otherwise>
+				SectionSeq
+			</otherwise>
+	    </choose>
+	) T
+	</select>
+	
+	<select id="getStatisUserCurstCnt" parameterType="cmap" resultType="java.lang.Long">
+	/* collab.statis.getStatisUserCurstCnt */
+			SELECT count(*)
+			 FROM covi_smart4j.sys_object_user ur
+		     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode  AND bg.JobType = 'Origin'
+		     JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType='Dept' AND bg.DeptCode = og.GroupCode
+			WHERE ur.IsUse ='Y'
+			  AND ur.IsDisplay = 'Y'
+		<if test='groupPath != null and groupPath != ""'>
+			AND og.groupPath LIKE CONCAT(#{groupPath},'%')
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+	</select>
+	
+	<select id="getStatisUserCurst"   parameterType="cmap" resultType="cmap">
+	/* collab.statis.getStatisUserCurst */
+		<![CDATA[
+			SELECT ur.UserCode
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) DisplayName
+					, (SELECT COUNT(p.PrjSeq) FROM collab_project p JOIN  collab_project_member M ON p.prjseq = m.prjSeq WHERE p.PrjStatus = 'P' AND  p.IsClose='N'  AND m.UserCode = ur.UserCode) 	PrjCnt
+					, COUNT(b.taskSeq) TotCnt
+					, COUNT(CASE WHEN b.TaskStatus = 'W' then b.taskSeq END) WaitCnt
+					, COUNT(CASE WHEN b.TaskStatus = 'P' then b.taskSeq END) ProcCnt
+					, COUNT(CASE WHEN b.TaskStatus = 'H' then b.taskSeq END) HoldCnt
+					, COUNT(CASE WHEN b.TaskStatus = 'C' then b.taskSeq END) CompCnt
+					, COUNT(CASE WHEN b.TaskStatus != 'C' AND b.Label = 'I' then b.taskSeq END) ImpCnt
+					, COUNT(CASE WHEN b.TaskStatus != 'C' AND b.Label = 'E' then b.taskSeq END) EmgCnt
+					, COUNT(CASE WHEN b.TaskStatus != 'C' AND (b.EndDate is null or b.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))  then b.taskSeq END) DelayCnt
+					, COUNT(case when (b.EndDate is null or b.EndDate =  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus != 'C' then b.taskSeq END) NowForCnt
+					, COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  AND b.TaskStatus != 'C' then b.taskSeq END) NowNoCnt
+					, COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus = 'C' then b.taskSeq  END) NowCompCnt
+					, COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  then b.taskSeq  END) NowTotCnt
+					, CASE WHEN COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  then b.taskSeq  END) >0 THEN
+						ROUND(COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus = 'C' then b.taskSeq  END)/COUNT(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  then b.taskSeq  END)*100,1)
+						END ProgRate
+			 FROM covi_smart4j.sys_object_user ur
+		     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.JobType = 'Origin'
+		     JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType='Dept' AND bg.DeptCode = og.GroupCode
+		LEFT JOIN (SELECT a.UserCode, b.taskSeq, b.EndDate, b.TaskStatus, b.Label, b.taskName, m.prjType, p.prjSeq, e.GroupId
+		        	FROM covi_smart4j.collab_task_member a         
+			        JOIN covi_smart4j.collab_task b ON a.taskSeq = b.TaskSeq AND b.parentkey=0
+			        JOIN covi_smart4j.collab_task_map m ON m.taskSeq = b.TaskSeq        
+			  LEFT  JOIN covi_smart4j.collab_project p   ON m.prjType = 'P' and m.prjSeq = p.prjSeq  and p.PRJSTATUS in ('P')
+			  LEFT  JOIN covi_smart4j.collab_team_exec e ON m.prjType = concat('T',EXECYEAR) and m.prjSeq = e.GroupId
+				   where (p.prjseq is not null or e.GroupId is not null) ]]>
+					<if test="startDate != null and startDate != '' and endDate != null and endDate!= ''">
+			    	    AND b.enddate between #{startDate} and #{endDate}
+			     	</if>
+				   ) b ON ur.UserCode = b.UserCode
+		    WHERE ur.IsUse ='Y'
+			  AND ur.IsDisplay = 'Y'
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='groupPath != null and groupPath != ""'>
+			AND og.groupPath LIKE CONCAT(#{groupPath},'%')
+		</if>
+		 GROUP BY ur.UserCode
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("PrjCnt")'>PrjCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("TotCnt")'>TotCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("WaitCnt")'>WaitCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcCnt")'>ProcCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("HoldCnt")'>HoldCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("CompCnt")'>CompCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("ImpCnt")'>ImpCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("EmgCnt")'>EmgCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("DelayCnt")'>DelayCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("NowForCnt")'>NowForCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("NowNoCnt")'>NowNoCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("NowCompCnt")'>NowCompCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("NowTotCnt")'>NowTotCnt</when>
+					<when test='sortColumn.equalsIgnoreCase("ProgRate")'>ProgRate</when>
+					<otherwise>ur.SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				ur.SortKey 
+			</if>
+		</trim>	
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getStatisStatusCurstCnt" parameterType="cmap" resultType="java.lang.Long">
+	/* collab.statis.getStatisStatusCurstCnt */
+		<![CDATA[
+  		    SELECT count(t.taskSeq)
+			 FROM  collab_task t 
+     	     JOIN  covi_smart4j.collab_task_map m ON m.taskSeq = t.TaskSeq           
+		]]>
+   	    <if test='groupKey == "Member"'>
+   	    	JOIN  covi_smart4j.collab_task_member a ON a.taskSeq = t.TaskSeq            
+   	    </if>
+		<choose>
+			<when test="prjSeq != '' ">
+				WHERE	m.PrjType = #{prjType} AND M.prjSeq =  #{prjSeq}
+			</when>
+     	    <otherwise>
+	       LEFT  JOIN  covi_smart4j.collab_project p   ON m.prjType = 'P' and m.prjSeq = p.prjSeq  and p.PRJSTATUS in ('P')
+		   LEFT  JOIN  covi_smart4j.collab_team_exec e ON m.prjType = concat('T',EXECYEAR) and m.prjSeq = e.GroupId
+	     	    WHERE  (p.prjseq is not null or e.GroupId is not null)
+     	    </otherwise>
+		</choose>	
+     	AND t.parentkey=0
+		<if test="startDate != null and startDate != '' and endDate != null and endDate!= ''">
+    	    AND t.enddate between #{startDate} and #{endDate}
+     	</if>
+     	<if test="searchOption != null and  searchOption !=''">
+			<if test="searchOption eq '1'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND t.TaskName LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '2'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND t.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '3'.toString() and searchKeyword != '' and searchKeyword != ''">
+		    AND t.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag tag WHERE t.taskseq = t.taskseq AND tag.tagName LIKE  CONCAT('%',#{searchKeyword},'%'))
+			</if>
+			<if test="searchOption eq '4'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND (t.TaskName LIKE CONCAT('%',#{searchKeyword},'%') 
+			OR t.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			OR t.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag tag WHERE t.taskseq = t.taskseq AND tag.tagName LIKE  CONCAT('%',#{searchKeyword},'%')))
+			</if>
+		</if>
+		<choose>
+     	    <when test='groupKey == "Member"'>
+    	    AND a.UserCode = #{groupCode}
+     	    </when>
+     	    <when test='groupKey == "TaskStatus"'> 
+     	    AND  t.TaskStatus =    #{groupCode}
+     	    </when>
+     	    <otherwise>
+		    AND  m.SectionSeq =    #{groupCode}
+     	    </otherwise>
+     	</choose>    
+		<choose>
+     	    <when test='mode == "WaitCnt"'><!--  대기-->
+     	    	AND t.TaskStatus = 'W' 
+     	    </when>
+     	    <when test='mode == "ProcCnt"'><!--  진행-->
+     	    	AND t.TaskStatus = 'P' 
+     	    </when>
+     	    <when test='mode == "HoldCnt"'><!--  보류-->
+     	    	AND t.TaskStatus = 'H' 
+     	    </when>
+     	    <when test='mode == "CompCnt"'><!--  완료-->
+     	    	AND t.TaskStatus = 'C' 
+     	    </when>
+     	    <when test='mode == "ImpCnt"'><!--  중요-->
+     	    	AND t.TaskStatus != 'C' AND t.Label = 'I'
+     	    </when>
+     	    <when test='mode == "EmgCnt"'><!--  긴급-->
+     	    	AND t.TaskStatus != 'C' AND t.Label = 'E'
+     	    </when>
+     	    <when test='mode == "DelayCnt"'><!--지연-->
+     	    	<![CDATA[AND t.TaskStatus != 'C' AND (t.EndDate is null or t.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))]]>
+     	    </when>
+     	    <when test='mode == "NowNoCnt"'><!-- 오늘짜기 미완료-->
+     	    	<![CDATA[AND (t.TaskStatus != 'C' AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')))   ]]>
+     	    </when>
+     	    <when test='mode == "NowCompCnt"'><!--오늘짜기 완료 -->
+     	    	<![CDATA[AND (t.TaskStatus = 'C'  AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')))  ]]>
+     	    </when>
+     	    <when test='mode == "NowTotCnt"'><!--오늘 전체 -->
+     	    	<![CDATA[AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')) ]]>
+     	    </when>
+     	</choose>    
+	</select>
+	<select id="getStatisStatusCurst"   parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT t.TaskSeq, t.TaskName, t.StartDate, t.EndDate, t.TaskStatus, t.ProgRate
+					,(SELECT COUNT(ctm.usercode)
+						FROM covi_smart4j.collab_task_member ctm 
+						WHERE ctm.taskSeq = t.TaskSeq) TmUserCount
+					,(SELECT CASE WHEN COUNT(ctmap.PrjSeq)>1 then 
+									  concat(MAX(case when ctmap.prjType = 'P' then ctp.PrjName ELSE t.DisplayName END),' 외', COUNT(ctmap.PrjSeq)-1) 
+								  ELSE  MAX(case when ctmap.prjType = 'P' then ctp.PrjName ELSE t.DisplayName END) 
+							 END
+						FROM covi_smart4j.collab_task_map ctmap 
+				   LEFT	JOIN covi_smart4j.collab_project ctp ON ctmap.prjType='P' AND ctmap.PrjSeq = ctp.PrjSeq
+		           LEFT JOIN covi_smart4j.sys_object_group T ON ctmap.PrjType!='P' and t.GroupId = ctmap.PrjSeq
+					   WHERE ctmap.taskSeq = t.TaskSeq) PrjName
+			 FROM  collab_task t 
+     	     JOIN  covi_smart4j.collab_task_map m ON m.taskSeq = t.TaskSeq           
+		]]>
+   	    <if test='groupKey == "Member"'>
+   	    	JOIN  covi_smart4j.collab_task_member a ON a.taskSeq = t.TaskSeq            
+   	    </if>
+		<choose>
+			<when test="prjSeq != '' ">
+				WHERE	m.PrjType = #{prjType} AND M.prjSeq =  #{prjSeq}
+			</when>
+     	    <otherwise>
+	       LEFT  JOIN  covi_smart4j.collab_project p   ON m.prjType = 'P' and m.prjSeq = p.prjSeq  and p.PRJSTATUS in ('P')
+		   LEFT  JOIN  covi_smart4j.collab_team_exec e ON m.prjType = concat('T',EXECYEAR) and m.prjSeq = e.GroupId
+	     	    WHERE  (p.prjseq is not null or e.GroupId is not null)
+     	    </otherwise>
+		</choose>	
+     	AND t.parentkey=0
+		<if test="startDate != null and startDate != '' and endDate != null and endDate!= ''">
+    	    AND t.enddate between #{startDate} and #{endDate}
+     	</if>
+     	<if test="searchOption != null and  searchOption !=''">
+			<if test="searchOption eq '1'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND t.TaskName LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '2'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND t.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			</if>
+			<if test="searchOption eq '3'.toString() and searchKeyword != '' and searchKeyword != ''">
+		    AND t.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag tag WHERE t.taskseq = t.taskseq AND tag.tagName LIKE  CONCAT('%',#{searchKeyword},'%'))
+			</if>
+			<if test="searchOption eq '4'.toString() and searchKeyword != '' and searchKeyword != ''">
+			AND (t.TaskName LIKE CONCAT('%',#{searchKeyword},'%') 
+			OR t.Remark LIKE CONCAT('%',#{searchKeyword},'%')
+			OR t.TaskSeq IN (SELECT TaskSeq FROM collab_task_tag tag WHERE t.taskseq = t.taskseq AND tag.tagName LIKE  CONCAT('%',#{searchKeyword},'%')))
+			</if>
+		</if>
+		<choose>
+     	    <when test='groupKey == "Member"'>
+    	    AND a.UserCode = #{groupCode}
+     	    </when>
+     	    <when test='groupKey == "TaskStatus"'> 
+     	    AND  t.TaskStatus =    #{groupCode}
+     	    </when>
+     	    <otherwise>
+		    AND  m.SectionSeq =    #{groupCode}
+     	    </otherwise>
+     	</choose>    
+		<choose>
+     	    <when test='mode == "WaitCnt"'><!--  대기-->
+     	    	AND t.TaskStatus = 'W' 
+     	    </when>
+     	    <when test='mode == "ProcCnt"'><!--  진행-->
+     	    	AND t.TaskStatus = 'P' 
+     	    </when>
+     	    <when test='mode == "HoldCnt"'><!--  보류-->
+     	    	AND t.TaskStatus = 'H' 
+     	    </when>
+     	    <when test='mode == "CompCnt"'><!--  완료-->
+     	    	AND t.TaskStatus = 'C' 
+     	    </when>
+     	    <when test='mode == "ImpCnt"'><!--  중요-->
+     	    	AND t.TaskStatus != 'C' AND t.Label = 'I'
+     	    </when>
+     	    <when test='mode == "EmgCnt"'><!--  긴급-->
+     	    	AND t.TaskStatus != 'C' AND t.Label = 'E'
+     	    </when>
+     	    <when test='mode == "DelayCnt"'><!--지연-->
+     	    	<![CDATA[AND t.TaskStatus != 'C' AND (t.EndDate is null or t.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))]]>
+     	    </when>
+     	    <when test='mode == "NowNoCnt"'><!-- 오늘짜기 미완료-->
+     	    	<![CDATA[AND (t.TaskStatus != 'C' AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')))   ]]>
+     	    </when>
+     	    <when test='mode == "NowCompCnt"'><!--오늘짜기 완료 -->
+     	    	<![CDATA[AND (t.TaskStatus = 'C'  AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')))  ]]>
+     	    </when>
+     	    <when test='mode == "NowTotCnt"'><!--오늘 전체 -->
+     	    	<![CDATA[AND (t.EndDate is null or t.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d')) ]]>
+     	    </when>
+     	</choose>    
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PrjName")'>PrjName</when>
+					<when test='sortColumn.equalsIgnoreCase("TaskName")'>TaskName</when>
+					<when test='sortColumn.equalsIgnoreCase("TmUser")'>TmUser</when>
+					<when test='sortColumn.equalsIgnoreCase("Scope")'>EndDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ProgRate")'>ProgRate</when>
+					<otherwise>TaskSeq</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				TaskSeq 
+			</if>
+		</trim>	
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getStatistTeamCurstCnt" parameterType="cmap" resultType="java.lang.Long">
+			<![CDATA[			
+			SELECT 	count(*)
+			 FROM COLLAB_Team_exec cp 
+	         JOIN SYS_OBJECT_GROUP b ON cp.groupid = b.groupid  and b.GroupType='Dept'
+	        WHERE b.isuse='Y'
+	          AND b.ISDISPLAY ='Y'
+	      ]]>
+		<if test='groupPath != null and groupPath != ""'>
+			AND b.groupPath LIKE concat (#{groupPath},'%')
+		</if>
+		<if test='isClose != null and isClose != ""'>
+			AND cp.IsClose = #{isClose}
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND b.DisplayName LIKE concat('%', #{searchText},'%')
+		 </if>
+	</select>	
+	
+	
+	<select id="getStatistTeamCurst"   parameterType="cmap" resultType="cmap">
+			<![CDATA[			
+			SELECT 	FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "DeptName"
+			    	,groupcode AS "DeptCode"
+					,b.GROUPID AS "GroupID"
+	           		, b.ManagerCode AS "ManagerCode"
+	        		,(SELECT FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) from COVI_SMART4J.SYS_OBJECT_USER u where U.UserCode = b.ManagerCode) as "ManagerName"
+					,(SELECT count(*)
+							FROM COVI_SMART4J.SYS_OBJECT_USER_BASEGROUP ctm 
+						   JOIN COVI_SMART4J.SYS_OBJECT_USER sou on ctm.USERCODE = sou.USERCODE
+							WHERE ctm.DEPTCODE = b.groupcode) as "tmUser"
+					,cp.ExecYear "ExecYear"		
+	        		,B.GroupPath "GroupPath"
+	        		,cp.IsClose "IsClose"
+        		    ,DATE_FORMAT(CloseDate ,'%Y-%m-%d %H:%i') CloseDate	
+			 FROM COVI_SMART4J.COLLAB_Team_exec cp 
+	         JOIN COVI_SMART4J.SYS_OBJECT_GROUP b ON cp.groupid = b.groupid  and b.GroupType='Dept'
+	        WHERE b.isuse='Y'
+	          AND b.ISDISPLAY ='Y'
+	      ]]>
+		<if test='groupPath != null and groupPath != ""'>
+			AND b.groupPath LIKE concat(#{groupPath},'%')
+		</if>
+		<if test='isClose != null and isClose != ""'>
+			AND cp.IsClose = #{isClose}
+		</if>
+		<if test='searchText != null and searchText != ""'>
+			AND b.DisplayName LIKE concat('%', #{searchText},'%')
+		 </if>
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>	
+</mapper>
+

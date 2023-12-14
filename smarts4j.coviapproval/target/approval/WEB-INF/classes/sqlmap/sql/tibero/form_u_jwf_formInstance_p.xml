@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.forminstance">
+    <insert id="insert" parameterType="cmap">
+			INSERT INTO jwf_forminstance (
+				<!-- FormInstID, -->
+				ProcessID,
+				FormID,
+				SchemaID,
+				Subject,
+				InitiatorID,
+				InitiatorName,
+				InitiatorUnitID,
+				InitiatorUnitName,
+				InitiatedDate,
+				CompletedDate,
+				DeletedDate,
+				LastModifiedDate,
+				LastModifierID,
+				EntCode,
+				EntName,
+				DocNo,
+				DocLevel,
+				DocClassID,
+				DocClassName,
+				DocSummary,
+				IsPublic,
+				SaveTerm,
+				AttachFileInfo,
+				AppliedDate,
+				AppliedTerm,
+				ReceiveNo,
+				ReceiveNames,
+				ReceiptList,
+				BodyType,
+				BodyContext,
+				BodyContextOrg,
+				DocLinks,
+				EDMSDocLinks,
+				RuleItemInfo
+			)
+			VALUES (
+				<!-- #{FormInstID}, -->
+				#{ProcessID},		
+				#{FormID},
+				#{SchemaID},
+				#{Subject},
+				#{InitiatorID},
+				#{InitiatorName},
+				#{InitiatorUnitID},
+				#{InitiatorUnitName},
+				SYSDATE,
+				null,
+				null,
+				null,
+				null,
+				#{EntCode},
+				#{EntName},
+				#{DocNo},
+				#{DocLevel},
+				#{DocClassID},
+				#{DocClassName},
+				#{DocSummary},
+				#{IsPublic},
+				#{SaveTerm},
+				#{AttachFileInfo},
+				TO_DATE(#{AppliedDate}, 'YYYY-MM-DD HH24:MI:SS'),
+				#{AppliedTerm},
+				#{ReceiveNo},
+				#{ReceiveNames},
+				#{ReceiptList},
+				#{BodyType},
+				#{BodyContext},
+				#{BodyContextOrg},
+				#{DocLinks},
+				#{EDMSDocLinks},
+				#{RuleItemInfo}
+			)
+			
+		<selectKey keyProperty="FormInstID" resultType="Integer" order="AFTER">
+		    SELECT JWF_FORMINSTANCE_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>	
+	
+    <update id="updateAttachFileInfo" parameterType="cmap">
+        UPDATE jwf_forminstance SET
+        AttachFileInfo = #{AttachFileInfo}
+        WHERE FormInstID = #{FormInstID}
+    </update>
+	
+    <update id="updateAttachFileInfoHwpSubTable" parameterType="cmap">
+        UPDATE HWP_MULTI_GOV_SUB SET
+        MULTI_ATTACH_FILE = #{AttachFileInfo}
+        WHERE FormInstID = #{FormInstID}
+        AND ROWSEQ = #{SEQ}
+    </update>
+	
+    <update id="update" parameterType="cmap">
+		UPDATE jwf_forminstance SET
+			LastModifiedDate = SYSDATE,
+			LastModifierID = #{LastModifierID},
+			DocNo = #{DocNo},
+			DocLevel = #{DocLevel},
+			DocClassID = #{DocClassID},
+			DocClassName = #{DocClassName},
+			DocSummary = #{DocSummary},
+			IsPublic = #{IsPublic},
+			SaveTerm = #{SaveTerm},
+			AttachFileInfo = #{AttachFileInfo},
+			ReceiveNo = #{ReceiveNo},
+			ReceiveNames = #{ReceiveNames},
+			ReceiptList = #{ReceiptList},
+			BodyContext = #{BodyContext},
+			DocLinks = #{DocLinks},
+			EDMSDocLinks = #{EDMSDocLinks},
+			Subject = #{Subject},
+			RuleItemInfo = #{RuleItemInfo}
+		WHERE FormInstID = #{FormInstID}
+	</update>
+    
+	<update id="updateRevision" parameterType="cmap">			
+		UPDATE jwf_forminstance
+		SET
+		<if test="FieldName != null and FieldName != ''"  >
+    		<choose>
+				<when test="FieldName.equalsIgnoreCase('AttachFileInfo')">AttachFileInfo = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('BodyContext')">BodyContext = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('AppliedDate')">AppliedDate = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('AppliedTerm')">AppliedTerm = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('ApprovalLine')">ApprovalLine = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocClassID')">DocClassID = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocClassName')">DocClassName = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocLevel')">DocLevel = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocLinks')">DocLinks = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocNo')">DocNo = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('FileInfos')">FileInfos = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('DocSummary')">DocSummary = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('EDMSDocLinks')">EDMSDocLinks = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('EntCode')">EntCode = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('EntName')">EntName = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('FileInfos')">FileInfos = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorID')">InitiatorID = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorName')">InitiatorName = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorUnitID')">InitiatorUnitID = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorUnitName')">InitiatorUnitName = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('isModApprovalLine')">isModApprovalLine = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('IsPublic')">IsPublic = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiptList')">ReceiptList = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiveNames')">ReceiveNames = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiveNo')">ReceiveNo = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('SaveTerm')">SaveTerm = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('Subject')">Subject = #{FieldValue},</when>
+				<when test="FieldName.equalsIgnoreCase('BodyContextOrg')">BodyContextOrg = #{FieldValue},</when>
+				<otherwise></otherwise>
+			</choose> 
+		</if>
+		LastModifiedDate = SYSDATE,
+		LastModifierID = #{LastModifierID}
+		WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<select id="selectAutoIncrement" parameterType="cmap" resultType="cmap">
+		  SELECT JWF_FORMINSTANCE_SEQ.CURRVAL FROM dual
+	</select>
+	
+	<insert id="insertForTempSave" parameterType="cmap">	
+		INSERT INTO jwf_forminstance (
+			<!-- FormInstID, -->
+			ProcessID,
+			FormID,
+			SchemaID,
+			Subject,
+			InitiatorID,
+			InitiatorName,
+			InitiatorUnitID,
+			InitiatorUnitName,
+			InitiatedDate,
+			CompletedDate,
+			DeletedDate,
+			LastModifiedDate,
+			LastModifierID,
+			EntCode,
+			EntName,
+			DocNo,
+			DocLevel,
+			DocClassID,
+			DocClassName,
+			DocSummary,
+			IsPublic,
+			SaveTerm,
+			AttachFileInfo,
+			AppliedDate,
+			AppliedTerm,
+			ReceiveNo,
+			ReceiveNames,
+			ReceiptList,
+			BodyType,
+			BodyContext,
+			BodyContextOrg,
+			DocLinks,
+			EDMSDocLinks,
+			RuleItemInfo
+		)
+		SELECT 
+			<!-- #{newFormInstID} AS FormInstID, -->
+			null AS ProcessID,		
+			FormID,
+			SchemaID,
+			Subject,
+			InitiatorID,
+			InitiatorName,
+			InitiatorUnitID,
+			InitiatorUnitName,
+			null AS InitiatedDate,
+			null AS CompletedDate,
+			null AS DeletedDate,
+			null AS LastModifiedDate,
+			null AS LastModifierID,
+			EntCode,
+			EntName,
+			'' AS DocNo,
+			DocLevel,
+			DocClassID,
+			DocClassName,
+			DocSummary,
+			IsPublic,
+			SaveTerm,
+			AttachFileInfo,
+			AppliedDate,
+			AppliedTerm,
+			ReceiveNo,
+			ReceiveNames,
+			ReceiptList,
+			BodyType,
+			BodyContext,
+			BodyContextOrg,
+			DocLinks,
+			EDMSDocLinks,
+			RuleItemInfo
+		FROM jwf_forminstance
+		WHERE FormInstID = #{FormInstID}
+		<selectKey keyProperty="FormInstID" resultType="Integer" order="AFTER">
+		     SELECT JWF_FORMINSTANCE_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+	<select id="getIdentity" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT NVL(MAX(FormInstID),0) + 1 
+	    FROM jwf_forminstance
+	</select>
+	
+	<delete id="deleteTemp" parameterType="cmap">
+        DELETE FROM jwf_forminstance
+        WHERE FormInstID = #{FormInstID}
+    </delete>
+    
+	<update id="updateDocNo" parameterType="cmap">
+	    UPDATE jwf_forminstance
+	    <set>
+	        <if test="Reserved1 != null and Reserved1 != '' ">
+	            CompletedDate = SYSDATE,
+	            DocNo = #{Reserved1},
+	        </if>
+	        <if test="Reserved2 != null and Reserved2 != '' ">
+	            ReceiveNo = #{Reserved2}
+	        </if>
+	     </set>
+	     WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<update id="updateProcessID" parameterType="cmap">
+	    UPDATE jwf_forminstance
+	    SET ProcessID = #{ProcessID}
+	    WHERE FormInstID = #{FormInstID}
+	</update>
+	
+	<select id="selectProcessIdNullChkCnt" parameterType="cmap" resultType="int">
+	    SELECT COUNT(*)
+	    FROM jwf_forminstance  
+	    WHERE  FormInstID = #{FormInstID}
+	    AND ProcessID is null
+	</select>
+	
+	<select id="selectLastModifiedDate" parameterType="cmap" resultType="cmap">
+		SELECT	LastModifiedDate
+	    FROM 	jwf_forminstance 
+	    WHERE	FormInstID = #{FormInstID}
+	</select>
+</mapper>

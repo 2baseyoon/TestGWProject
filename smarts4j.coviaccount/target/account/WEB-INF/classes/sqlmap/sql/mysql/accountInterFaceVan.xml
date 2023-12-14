@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountInterFace.van">
+	<select id="getInterFaceListCorpcard" parameterType="cmap" resultType="cmap">
+		SELECT	cardno     as "card_numb"
+			,	cardini    as "card_brand"
+			,	cardtype2  as "card_class"
+			,   noticetype as "card_status"
+			,	custno     as "search_empl"
+			,   '' 		   as "vendor_code"
+			,	issuedate  as "withdraw_date"
+			,   settdate   as "pay_date"
+			,	validity   as "valid_date"
+			,	''         as "card_limt"
+			,   ''         as "memo_text"
+			,   '' 		   as "search_krnm"
+		FROM covi_account4j_if.VAN_KSNWBCI50
+	</select>
+	
+		<select id="getInterFaceListCardReceipt" parameterType="cmap" resultType="cmap">
+	    SELECT	CONCAT(B.COM_BIZ_NO,B.CardNo,B.purchDate,B.purchTime,B.apprNo,RIGHT(B.collNo,5))	AS 	receipt_id
+			,	NULL						AS 	APPROVE_STATUS
+			,	'BUY'						AS 	data_index
+			,	NULL						AS 	send_data
+			,	NULL						AS 	item_no
+			,	B.cardNo					AS 	card_no
+			,	CASE B.class	WHEN 'A' 	THEN 'B' 
+								WHEN 'B' 	THEN 'D' 
+				END							AS 	info_index
+			,	NULL						AS 	info_type	
+			,	NULL						AS 	card_comp_index
+			,	NULL						AS 	card_reg_type
+			,	NULL						AS 	card_type
+			,	B.COM_BIZ_NO				AS 	biz_place_no
+			,	NULL						AS 	dept
+			,	NULL						AS 	card_user
+			,	B.apprDate					AS 	use_date
+			,	B.apprDate					AS 	approve_date
+			,	B.purchTime					AS 	approve_time
+			,	B.apprNo					AS 	approve_no
+			,	B.settDate					AS 	withdraw_date
+			,	CASE B.abroad 	WHEN 'A' THEN 'L' 
+								WHEN 'B' THEN 'E' 
+				END							AS 	country_index
+			,	NULL						AS 	amount_sign
+			,	B.purchTot					AS 	amount_won
+			,	B.currCode					AS 	foreign_currency
+			,	B.currAcquTot				AS 	amount_foreign
+			,	IFNULL(NULLIF(B.merchBizNo,''),'**********')AS 	store_reg_no
+			,	B.merchName					AS 	store_name
+			,	B.merchNo					AS 	store_no
+			,	B.master					AS 	store_representative
+			,	NULL						AS 	store_condition
+			,	B.mccName					AS 	store_category
+			,	B.merchZipcode				AS 	store_zip_code
+			,	B.merchAddr1				AS 	store_address_1
+			,	B.merchAddr2				AS 	store_address_2
+			,	B.merchTel					AS 	store_tel
+			,	B.purchTot - B.VAT - B.tips	AS 	rep_amount
+			,	B.VAT						AS 	tax_amount
+			,	B.tips						AS 	service_amount
+			,	NULL						AS 	active
+			,	NULL						AS 	int_datetime
+			,	B.collNo					AS 	collno
+			,	CASE B.taxType 	WHEN '1001' THEN '부가가치세 일반과세자'
+								WHEN '1002' THEN '부가가치세 간이과세자'
+								WHEN '1003' THEN '부가가치세 면세사업자 '
+								WHEN '1004' THEN '수익사업을 영위하지않는 비영리법인이거나 고유번호가 부여된 단체·국가기관등'
+								WHEN '1005' THEN '휴업자'
+								WHEN '1006' THEN '미등록 사업자번호'
+								WHEN '1007' THEN '폐업자'
+								WHEN '2001' THEN '해외사용분'		
+				END	AS 	taxtype
+			,	NULL						AS 	taxtypedate
+			,	B.merchCessDate				AS 	merchcessdate
+			,	B.class						AS 	class
+			,	NULL						AS 	toss_employee_code
+			,	NULL						AS 	toss_sender
+			,	NULL						AS 	toss_datetime
+			,	NULL						AS 	toss_comment
+			,	NULL						AS 	isPersonalUse
+		FROM	covi_account4j_if.van_ksnwbcp10 B 
+	   WHERE		B.purchTot != 0
+	</select>
+	
+</mapper>

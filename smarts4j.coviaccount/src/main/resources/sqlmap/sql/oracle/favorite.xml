@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.favorite">
+    <select id="getListCnt" resultType="java.lang.Long">
+	    SELECT	
+	    	COUNT(*)
+	    FROM	
+	    	ACT_USER_FAVORITE A
+	    <choose>
+    		<when test="groupId == 'VENDOR'">
+    			INNER JOIN ACT_VENDOR B ON A.COMPANYCODE = B.COMPANYCODE AND A.CODE = B.VENDORNO
+    		</when>
+    	</choose>
+	    WHERE 
+	    	1 = 1
+	  		<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND A.COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND A.GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND A.USER_ID = #{userId} ]]>
+	    	</if>
+    </select>
+    <select id="getList" parameterType="cmap" resultType="cmap">
+    	<include refid="oracle.include.pagingHeader" />
+	    SELECT
+	    	*
+	    FROM
+	    	ACT_USER_FAVORITE A
+	    <choose>
+    		<when test="groupId == 'VENDOR'">
+    			INNER JOIN ACT_VENDOR B ON A.COMPANYCODE = B.COMPANYCODE AND A.CODE = B.VENDORNO
+    		</when>
+    	</choose>
+	    WHERE
+	    	1 = 1
+	  		<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND A.COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND A.GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND A.USER_ID = #{userId} ]]>
+	    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , A.SEQ DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("YYYYMMDD")'>BaseCodeID</when>
+					<when test='sortColumn.equalsIgnoreCase("PRICE")'>CompanyCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	      
+            </if>
+        </trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+    <select id="registerCnt" resultType="java.lang.Long">
+    	SELECT 
+    		COUNT(*)
+    	FROM
+    		ACT_USER_FAVORITE
+    	WHERE
+    		1 = 1
+    		<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND USER_ID = #{userId} ]]>
+	    	</if>
+	    	<if test="code != null and code != ''">
+	    	    <![CDATA[ AND CODE = #{code} ]]>
+	    	</if>
+    </select>
+    
+    <insert id="register" parameterType="cmap">
+    	<selectKey keyProperty="SEQ" resultType="Integer" order="BEFORE">
+			SELECT NVL(MAX(SEQ) + 1, 1) AS SEQ FROM ACT_USER_FAVORITE
+		</selectKey>
+    	INSERT INTO ACT_USER_FAVORITE (
+    		SEQ,
+			COMPANYCODE,
+			GROUP_ID,
+			CODE,
+			USER_ID,
+			REG_DATE,
+			REG_USER
+    	) VALUES (
+    		#{SEQ},
+    		#{companyCode},
+    		#{groupId},
+    		#{code},
+    		#{userId},
+			SYSDATE,
+			#{regUser}
+    	)
+    </insert>
+</mapper>

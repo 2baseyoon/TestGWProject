@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="framework.logger">
+    <insert id="setPageMoveLog"  parameterType="cmap">
+        INSERT INTO log_pagemove(UserCode, LogonID, SiteName, PageURL, PageParam, ObjectID, ObjectType, IPAddress, MoveDate, CompanyCode)
+        VALUES (#{USERCODE}, #{LOGONID}, #{SITENAME}, #{PAGEURL}, #{PAGEPARAM}, #{OBJECTID}, #{OBJECTTYPE}, #{IPADDRESS}, SYSDATE, #{COMPANYCODE})
+	</insert>
+	
+	<insert id="setPerformanceLog"  parameterType="cmap">
+        INSERT INTO log_performance(UserCode, LogonID, SiteName, LogType, LogTitle, ThreadID, RunTime, MethodName, PageURL, PageParam, IPAddress, EventDate, CompanyCode)
+        VALUES (#{USERCODE}, #{LOGONID}, #{SITENAME}, #{LOGTYPE}, #{LOGTITLE}, #{THREADID}, #{RUNTIME}, #{METHODNAME},#{PAGEURL}, #{PAGEPARAM}, #{IPADDRESS}, SYSDATE, #{COMPANYCODE})
+	</insert>
+	
+	<insert id="setAuthErrorLog"  parameterType="cmap">
+        INSERT INTO log_autherror(UserCode, LogonID, CompanyCode, SiteName, PageURL, PageParam, AuditClass, AuditMethod, IPAddress, ErrorType, ErrorMEssage, ErrorDate)
+        VALUES (#{USERCODE}, #{LOGONID}, #{COMPANYCODE}, #{SITENAME} ,#{PAGEURL}, #{PAGEPARAM}, #{AUDITCLASS}, #{AUDITMETHOD}, #{IPADDRESS}, #{ERRORTYPE}, #{ERRORMESSAGE}, SYSDATE)
+	</insert>
+	
+	<insert id="setACLLog" parameterType="cmap">
+		INSERT INTO log_acl (LogChangeID, ObjectID, ObjectType, RegisterCode, RegistDate)
+		VALUES (#{logChangeID}, #{objectID}, #{objectType}, #{registerCode}, SYSDATE)
+		<selectKey keyProperty="logChangeID" resultType="Integer" order="BEFORE">
+		    SELECT LOG_ACL_SEQ.nextval FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<insert id="setBeforeACLDetailLog" parameterType="cmap">
+		INSERT INTO log_acl_detail 
+		(
+			LogChangeID,
+			LogType,
+			ObjectID,
+			ObjectType,
+			SubjectCode,
+			SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			InheritedObjectID
+		)
+		SELECT 
+			#{logChangeID} as LogChangeID,
+			'Before' AS LogType,
+			ObjectID,
+			ObjectType,
+			SubjectCode,
+			SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			InheritedObjectID
+		FROM sys_object_acl
+		WHERE 1=1
+		
+		<if test='objectID != null and objectID != ""'>
+		AND ObjectID = #{objectID}
+		</if>
+		
+		<if test='objectIDs != null and objectIDs != ""'>		
+		AND ObjectID  IN
+		<foreach item="item" index="index" collection="objectIDs" open="(" close=");" separator=",">
+			#{item}
+	  	</foreach>
+	  	</if>
+		 
+		AND ObjectType = #{objectType}
+		AND SubjectType != 'RM'
+	</insert>
+	
+	<insert id="setAfterACLDetailLog" parameterType="cmap">
+		INSERT INTO log_acl_detail 
+		(
+			LogChangeID,
+			LogType,
+			ObjectID,
+			ObjectType,
+			SubjectCode,
+			SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			InheritedObjectID
+		) VALUES (
+			#{logChangeID},
+			'After',
+			#{objectID},
+			#{objectType},
+			#{subjectCode},
+			#{subjectType},
+			#{aclList},
+			#{security},
+			#{create},
+			#{delete},
+			#{modify},
+			#{execute},
+			#{view},
+			#{read},
+			#{isSubInclude},
+			#{inheritedObjectID}
+		)
+	</insert>
+	
+	<insert id="setAfterInheritedACLDetailLog" parameterType="cmap">
+		INSERT INTO log_acl_detail 
+		(
+			LogChangeID,
+			LogType,
+			ObjectID,
+			ObjectType,
+			SubjectCode,
+			SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			InheritedObjectID
+		)
+		SELECT	
+			#{logChangeID},
+			'After',  
+			#{objectID},
+			ObjectType,
+			A.SubjectCode,
+			A.SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			CASE WHEN ObjectType = 'FD' THEN (SELECT MemberOf FROM sys_object_folder WHERE FolderID = #{objectID})
+				 WHEN ObjectType = 'MN' THEN (SELECT MemberOf FROM sys_object_menu WHERE MenuID = #{objectID})
+				 ELSE 0 END AS InheritedObjectID
+		FROM sys_object_acl A
+		LEFT OUTER JOIN (
+			SELECT SubjectCode, SubjectType
+			FROM sys_object_acl
+			WHERE ObjectID = #{objectID}
+			AND InheritedObjectID = 0
+		) B ON A.SubjectCode = B.SubjectCode AND A.SubjectType = B.SubjectType
+		WHERE A.ObjectID = #{inheritedObjectID}
+		AND A.ObjectType = #{objectType}
+		AND B.SubjectCode IS NULL
+		
+		UNION ALL
+		
+		SELECT	
+			#{logChangeID},
+			'After',  
+			#{objectID},
+			ObjectType,
+			A.SubjectCode,
+			A.SubjectType,
+			AclList,
+			Security,
+			Create_,
+			Delete_,
+			Modify_,
+			Execute,
+			View_,
+			Read,
+			IsSubInclude,
+			0 AS InheritedObjectID
+		FROM sys_object_acl A
+		LEFT OUTER JOIN (
+			SELECT SubjectCode, SubjectType
+			FROM sys_object_acl
+			WHERE ObjectID = #{objectID}
+			AND InheritedObjectID = 0
+		) B ON A.SubjectCode = B.SubjectCode AND A.SubjectType = B.SubjectType
+		WHERE A.ObjectID = #{objectID}
+		AND A.ObjectType = #{objectType}
+		AND B.SubjectCode IS NOT NULL
+	</insert>
+	
+</mapper>

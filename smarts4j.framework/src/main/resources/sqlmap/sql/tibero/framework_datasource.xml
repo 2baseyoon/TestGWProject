@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.datasource">
+    <select id="selectDatasource" parameterType="cmap" resultType="cmap">
+		SELECT
+			DatasourceSeq as "DatasourceSeq"
+			,ConnectionPoolName as "ConnectionPoolName"
+			,DriverClassName as "DriverClassName"
+			,Url as "Url"
+			,UserName as "UserName"
+			,Password as "Password"
+			,InitialSize as "InitialSize"
+			,MaxTotal as "MaxTotal"
+			,MaxIdle as "MaxIdle"
+			,MinIdle as "MinIdle"
+			,MaxWaitMillis as "MaxWaitMillis"
+			,ValidationQuery as "ValidationQuery"
+			,TestOnBorrow as "TestOnBorrow"
+			,TestOnReturn as "TestOnReturn"
+			,TestWhileIdle as "TestWhileIdle"
+			,Description as "Description"
+			,ModifyDate as "ModifyDate"
+			,SortSeq as "SortSeq"
+			,BindTarget as "BindTarget"
+			,TimeBetweenEvictionRunsMillis as "TimeBetweenEvictionRunsMillis"
+			,RemoveAbandonedOnMaintenance as "RemoveAbandonedOnMaintenance"
+			,RemoveAbandonedTimeout as "RemoveAbandonedTimeout"
+		FROM sys_datasource
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="datasourceSeq != null and datasourceSeq != ''">
+	    		DatasourceSeq = #{datasourceSeq}
+	    	</if>
+		</trim>
+		order by sortseq
+	</select>
+	<!-- Web Control -->
+    <select id="selectDatasourceList" parameterType="cmap" resultType="cmap">
+    	<include refid="oracle.include.pagingHeader"/>
+		SELECT
+			DatasourceSeq as "DatasourceSeq"
+			,ConnectionPoolName as "ConnectionPoolName"
+			,DriverClassName as "DriverClassName"
+			,Url as "Url"
+			,UserName as "UserName"
+			,Password as "Password"
+			,InitialSize as "InitialSize"
+			,MaxTotal as "MaxTotal"
+			,MaxIdle as "MaxIdle"
+			,MinIdle as "MinIdle"
+			,MaxWaitMillis as "MaxWaitMillis"
+			,ValidationQuery as "ValidationQuery"
+			,TestOnBorrow as "TestOnBorrow"
+			,TestOnReturn as "TestOnReturn"
+			,TestWhileIdle as "TestWhileIdle"
+			,Description as "Description"
+			,ModifyDate as "ModifyDate"
+			,SortSeq as "SortSeq"
+			,TimeBetweenEvictionRunsMillis as "TimeBetweenEvictionRunsMillis"
+			,RemoveAbandonedOnMaintenance as "RemoveAbandonedOnMaintenance"
+			,RemoveAbandonedTimeout as "RemoveAbandonedTimeout"
+		FROM SYS_DATASOURCE
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="datasourceSeq != null and datasourceSeq != ''">
+	    		DatasourceSeq = #{datasourceSeq}
+	    	</if>
+		</trim>
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+		</trim>
+	   	<include refid="oracle.include.pagingFooter"/>
+	</select>
+    <select id="selectDatasourceCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			Count(*)
+		FROM sys_datasource
+	</select>
+	<insert id="insertDatasource" parameterType="cmap">
+		INSERT INTO SYS_DATASOURCE (ConnectionPoolName,DriverClassName,Url,UserName
+			,Password,InitialSize,MaxTotal,MaxIdle,MinIdle,MaxWaitMillis,ValidationQuery,TestOnBorrow,TestOnReturn,TestWhileIdle,Description,ModifyDate,SortSeq,BindTarget,TimeBetweenEvictionRunsMillis,RemoveAbandonedOnMaintenance,RemoveAbandonedTimeout)
+		VALUES (#{ConnectionPoolName},#{DriverClassName},#{Url},#{UserName}
+			,#{newPwd},#{InitialSize},#{MaxTotal},#{MaxIdle},#{MinIdle},#{MaxWaitMillis},#{ValidationQuery},#{TestOnBorrow},#{TestOnReturn},#{TestWhileIdle},#{Description},sysdate,#{SortSeq},#{BindTarget},#{TimeBetweenEvictionRunsMillis},#{RemoveAbandonedOnMaintenance},#{RemoveAbandonedTimeout})
+	    <selectKey keyProperty="DatasourceSeq" resultType="Integer" order="AFTER">
+		    SELECT SYS_DATASOURCE_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	<update id="updateDatasource" parameterType="cmap">
+		UPDATE  SYS_DATASOURCE
+		SET ConnectionPoolName = #{ConnectionPoolName}
+			,DriverClassName = #{DriverClassName}
+			,Url = #{Url}
+			,UserName = #{UserName}
+			<if test="chgPwd != null and chgPwd == 'Y'.toString()">
+			,Password = #{newPwd}
+			</if>
+			,InitialSize = #{InitialSize}
+			,MaxTotal = #{MaxTotal}
+			,MaxIdle = #{MaxIdle}
+			,MinIdle = #{MinIdle}
+			,MaxWaitMillis = #{MaxWaitMillis}
+			,ValidationQuery = #{ValidationQuery}
+			,TestOnBorrow = #{TestOnBorrow}
+			,TestOnReturn = #{TestOnReturn}
+			,TestWhileIdle = #{TestWhileIdle}
+			,Description = #{Description}
+			,ModifyDate = sysdate
+			,SortSeq = #{SortSeq}
+			,BindTarget = #{BindTarget}
+			,TimeBetweenEvictionRunsMillis = #{TimeBetweenEvictionRunsMillis}
+			,RemoveAbandonedOnMaintenance = #{RemoveAbandonedOnMaintenance}
+			,RemoveAbandonedTimeout = #{RemoveAbandonedTimeout}
+		WHERE DatasourceSeq = #{DatasourceSeq}
+	</update>
+	<delete id="deleteDatasource" parameterType="cmap">
+		DELETE FROM SYS_DATASOURCE
+		WHERE DatasourceSeq IN
+	    <foreach item="DatasourceSeq" index="index" collection="arrDatasourceSeq" open="(" close=")" separator=",">
+          #{DatasourceSeq}
+      	</foreach>
+	</delete>
+	
+	<select id="selectDatasourceSelectData" parameterType="cmap" resultType="cmap">
+		SELECT a.DatasourceSeq AS "optionValue"
+			, a.ConnectionPoolName AS "optionText"
+		FROM SYS_DATASOURCE a
+	</select> 
+</mapper>

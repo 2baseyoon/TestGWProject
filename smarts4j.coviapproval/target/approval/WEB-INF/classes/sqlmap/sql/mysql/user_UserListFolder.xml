@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.UserListFolder">
+    <!-- 사용자별 폴더 리스트 조회 -->
+	<select id="selectUserFolderList" parameterType="cmap" resultType="cmap">
+		SELECT
+				 FolderID
+				,ParentsID
+				,OwnerID
+				,FolDerName
+				,FolDerMode
+				,RegDate
+				,CONCAT(CASE WHEN ParentsID ='0' THEN FolderID ELSE ParentsID END , ' ', FolderID, ' ') AS SortKey
+		FROM
+				covi_approval4j.jwf_userfolder
+		WHERE
+				OwnerID = #{userID}
+		AND
+				FolDerMode = 'M'
+		<if test="checkYn != null">
+		AND
+				ParentsID = '0'
+		</if>
+		ORDER BY
+				ParentsID, FolDerName
+	</select>
+
+	<select id="selectFolderList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT UserFolder.*
+			FROM (
+				SELECT
+						 FolderID
+						,ParentsID
+						,OwnerID
+						,FolDerName
+						,FolDerMode
+						,RegDate
+						,CONCAT(CASE WHEN ParentsID ='0' THEN FolderID ELSE ParentsID END , ' ', FolderID, ' ') AS SortKey
+				FROM
+						covi_approval4j.jwf_userfolder
+				WHERE
+						OwnerID = #{userID}
+				AND
+						FolDerMode = 'M'
+				ORDER BY
+						SortKey , FolDerMode , FolDerName
+			 )UserFolder
+	    ]]>
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+		  	 </if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+				FolderID
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	     <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<select id="selectFolderListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+		SELECT COUNT(*)
+			FROM (
+				SELECT
+						 FolderID
+						,ParentsID
+						,OwnerID
+						,FolDerName
+						,FolDerMode
+						,RegDate
+				FROM
+						covi_approval4j.jwf_userfolder
+				WHERE
+						OwnerID = #{userID}
+				AND
+						FolDerMode = 'M'
+				ORDER BY
+						FolDerName
+			 )UserFolder
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+		  	 </if>
+		</trim>
+	</select>
+
+	<select id="selectFolderIDList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT UserFolder.*
+			FROM (
+					SELECT
+							 A.FolderID
+							,A.ParentsID
+							,A.OwnerID
+							,A.FolDerName
+							,A.FolDerMode
+							,B.RegDate
+							,B.FolderListID
+							,B.InitiatorID
+							,B.InitiatorName
+							,B.InitiatorUnitID
+							,B.InitiatorUnitName
+							,C.*
+					FROM
+							covi_approval4j.jwf_userfolder AS A
+							INNER JOIN covi_approval4j.jwf_userfolderList AS B
+								ON B.FolderID = A.FolderID
+							INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS C
+								ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+					WHERE
+							A.OwnerID = #{userID}
+					AND
+							A.FolderID	= #{folderId}
+					AND
+							B.DeleteDate IS NULL
+			 )UserFolder
+	    ]]>
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+			 	<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+				</choose>
+				LIKE CONCAT('%', #{searchWord}, '%')
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>					
+					<otherwise>RegDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	     <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<select id="selectFolderIDListCnt" resultType="java.lang.Long">
+		<![CDATA[
+		SELECT COUNT(*)
+			FROM (
+					SELECT
+							 A.FolderID
+							,A.ParentsID
+							,A.OwnerID
+							,A.FolDerName
+							,A.FolDerMode
+							,B.RegDate
+							,B.FolderListID
+							,B.InitiatorID
+							,B.InitiatorName
+							,B.InitiatorUnitID
+							,B.InitiatorUnitName
+							,C.*
+					FROM
+							covi_approval4j.jwf_userfolder AS A
+							INNER JOIN covi_approval4j.jwf_userfolderList AS B
+								ON B.FolderID = A.FolderID
+							INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS C
+								ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+					WHERE
+							A.OwnerID = #{userID}
+					AND
+							A.FolderID	= #{folderId}
+					AND
+							B.DeleteDate IS NULL
+			 )UserFolder
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    RegDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+			 	<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+				</choose>
+				LIKE CONCAT('%', #{searchWord}, '%')
+			</if>
+		</trim>
+	</select>
+
+	<update id="updateUserFolder" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolder
+		SET
+				FolDerName = #{FolDerName}
+		WHERE
+				FolderID = #{folderId}
+		AND
+				OwnerID = #{userID}
+	</update>
+
+	<update id="updateUserFolderMove" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolderList AS UFL
+		INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS UFLD ON UFL.UserFolderListDescriptionID = UFLD.UserFolderListDescriptionID
+		SET FolderId = #{folderId}
+		WHERE FolderListID IN
+		<foreach collection="FolederListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+		AND NOT EXISTS (
+			SELECT
+				ProcessID 
+			FROM (
+				SELECT
+					SUB_UFLD.ProcessID
+				FROM covi_approval4j.jwf_userfolderList AS SUB_UFL
+				INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS SUB_UFLD ON SUB_UFL.UserFolderListDescriptionID = SUB_UFLD.UserFolderListDescriptionID
+				WHERE SUB_UFL.FolderID = #{folderId}
+				AND SUB_UFL.DeleteDate IS NULL
+			) A
+			WHERE A.ProcessID = UFLD.ProcessID
+		)
+	</update>
+
+	<update id="update1LvJWF_UserFolderList" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolderList
+		SET
+				DeleteDate = NOW(3)
+		WHERE
+				FolderID IN (
+									SELECT
+											FolderID
+									FROM
+									      covi_approval4j.jwf_userfolder
+									WHERE
+											folderID in
+											<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+											    #{item}
+											</foreach>
+									OR
+											ParentsID in
+											<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+											    #{item}
+											</foreach>
+								)
+
+	</update>
+
+	<update id="update1LvJWF_UserFolder" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolder
+		SET
+				FolderMode = 'X'
+		WHERE
+				folderID in
+				<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+		OR
+				ParentsID in
+				<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+	</update>
+
+	<update id="update2LvJWF_UserFolderList" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolderList
+		SET
+				DeleteDate = NOW(3)
+		WHERE
+				FolderListID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+
+	</update>
+
+	<update id="update2LvJWF_UserFolder" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolder
+		SET
+				FolderMode = 'X'
+		WHERE
+				FolderID IN
+		<foreach collection="FolderListID" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</update>
+	
+	<select id="selectUserFolderAuth" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM covi_approval4j.jwf_userfolder
+		WHERE FOLDERID = #{folderId}
+		AND OWNERID = #{userID}
+	</select>
+
+</mapper>
+

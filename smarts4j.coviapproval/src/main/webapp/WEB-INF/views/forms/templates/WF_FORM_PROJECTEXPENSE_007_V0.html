@@ -1,0 +1,591 @@
+<div>
+    <!-- 히든필드 -->
+    <input type="hidden" data-type="mField" id="REQUEST_Y" value="{{ doc.BodyContext.REQUEST_Y }}">
+    <input type="hidden" data-type="mField" id="REQUEST_M" value="{{ doc.BodyContext.REQUEST_M }}">
+
+    <!--실 결재양식 내용 부분 시작 -->
+    <table class="tableStyle linePlus tCenter table_10 mt10" id="EXPENSE_BASIC_INFO">
+        <colgroup>
+            <col style="width: 12%;">
+            <col style="width: 38%;">
+            <col style="width: 12%;">
+            <col style="width: 38%;">
+        </colgroup>
+        <tbody>
+            <tr>
+                <th>
+                    청구년월
+                </th>
+                <td style="text-align: center;">
+                    <input id="REQUEST_YM" data-date-format="yy년 mm월" style="text-align: center; width: 98%;" type="text" data-type="mField" value="{{ doc.BodyContext.REQUEST_YM }}" data-pattern="date" class="date-year-month" required="" title="청구년월" onchange="ExpenseSetting('0')">
+                    <!-- 전월 날짜값 저장 -->
+                    <input type="hidden" id="hd_TDATE">
+                </td>
+                <th>
+                    프로젝트명
+                </th>
+                <td style="text-align: center;">
+                    <select id="PROJECT_NAME" data-type="mField" data-element-type="sel_d_t" style="width: 100%;" required="" title="프로젝트명" onchange="ExpenseSetting('1')">                
+                  </select>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 결산 테이블 -->
+    <table class="table_10 RowSumTable tableStyle linePlus tCenter mt10" id="TBL_TOTAL">
+        <colgroup>
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+            <col style="width: 14%;">
+        </colgroup>
+        <tbody>
+            <tr>
+                <th>교통비</th>
+                <th>숙박비</th>
+                <th>회식비</th>
+                <th>식비</th>
+                <th>일비</th>
+                <th>기타</th>
+                <th>총계</th>
+            </tr>
+            <tr>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_TRAFFIC" class="watch-value sum-table-cell" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_TRAFFIC]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_TRAFFIC }}" disabled="disabled" style="width: 98%;">
+                </td>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_LODGE" class="watch-value" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_LODGE]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_LODGE }}" disabled="disabled" style="width: 98%;">
+                </td>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_OUTINGS" class="watch-value" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_OUTINGS]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_OUTINGS }}" disabled="disabled" style="width: 98%;">
+                </td>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_EATING" class="watch-value" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_EATING]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_EATING }}" disabled="disabled" style="width: 98%;">
+                </td>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_WORKING" class="watch-value" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_WORKING]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_WORKING }}" disabled="disabled" style="width: 98%;">
+                </td>
+               <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_ETC" class="watch-value" data-type="mField" data-pattern="currency" data-watch="[id=REQUEST_AMOUNT_TOTAL_ETC]" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_ETC }}" disabled="disabled" style="width: 98%;">
+                </td>
+                <td style="text-align: right">
+                    <input type="text" id="REPORT_AMOUNT_TOTAL_ALL" value="{{ doc.BodyContext.REPORT_AMOUNT_TOTAL_ALL }}" data-type="mField" data-pattern="currency" data-formula="+" data-sum-ref="#REPORT_AMOUNT_TOTAL_TRAFFIC,#REPORT_AMOUNT_TOTAL_LODGE,#REPORT_AMOUNT_TOTAL_OUTINGS,#REPORT_AMOUNT_TOTAL_EATING,#REPORT_AMOUNT_TOTAL_WORKING,#REPORT_AMOUNT_TOTAL_ETC" disabled="disabled" style="width: 98%;">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 교통비 -->
+    <table class="multi-row-table table_10 RowSumTable tableStyle linePlus mt10" id="TBL_TRAFFIC">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 16%;">
+            <col style="width: 15%;">
+            <col style="width: 15%;">
+            <col style="width: 7%;">
+            <col style="width: 10%;">
+            <col style="width: 10%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 교통비</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="9" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 교통비</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>내역</th>
+                <th>이동경로</th>
+                <th>차종구분</th>
+                <th colspan="2">운행거리(km/원)</th>
+                <th>기타</th>
+                <th>총액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr">
+                    <input name="XFORM_ELNM_Qxxlr" class="multi-row-selector" style="text-align: center;" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="border-left: 1px solid #c3d7df; text-align: center">
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_TRAFFIC" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="교통비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_TRAFFIC" value="교통비">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_TRAFFIC_CODE" value="TRAFFIC">
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <!-- [2017-01-02] gbhwang title 추가 -->
+                    <input name="EXPENSE_PURPOSE_TRAFFIC" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="교통비 내역">
+                </td>
+                <td>
+                    <!-- 출발지~도착지 -->
+                    <input name="TRAFFIC_ROUTE" style="width: 98%;" type="text" data-type="rField" title="이동경로">
+                </td>
+                <td style="text-align: center;">
+                    <!-- 차종구분 -->
+                    <select name="TRAFFIC_TYPE" data-type="rField" data-element-type="sel_d_t" onchange="changeTrafficType(this)" style="width: 98%;" title="차종구분">
+                        <option value="">선택</option>
+                        <option value="DRIVE">자가</option>
+                        <option value="TAXI">택시</option>
+                        <option value="PUBLIC">대중교통</option>
+                        <option value="RENTAL">렌트카</option>
+                        <option value="FLIGHT">항공권</option>
+                    </select>
+                </td>
+                <td style="text-align: right;">
+                    <!-- 운행거리 km -->
+                    <input name="TRAFFIC_DISTANCE" style="width: 98%;" type="text" data-type="rField" disabled="disabled" data-pattern="numeric" onkeyup="calcTrafficCharge(this)" title="운행거리(km)">
+                </td>
+                <td style="text-align: right">
+                    <!-- 운행거리 원 -->
+                    <input name="TRAFFIC_CHARGE" style="width: 98%;" class="sum-table-cell" type="text" disabled="disabled" data-type="rField" data-pattern="currency" readonly="readonly" title="운행거리(원)">
+                </td>
+
+                <td style="text-align: right">
+                    <!-- 기타 -->
+                    <input name="OTHER_CHARGE" style="width: 98%;" class="sum-table-cell" type="text" data-type="rField" onblur="" data-pattern="currency">
+                </td>
+                <td style="text-align: right">
+                    <!-- 총액 -->
+                    <input name="REQUEST_AMOUNT_TRAFFIC" class="sum-table-rowsum" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" disabled="disabled" title="교통비 금액">
+                </td>
+            </tr>
+            <tr>
+                <th colspan="8" style="text-align: left">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계
+                </th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_TRAFFIC" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_TRAFFIC }}" data-type="mField" data-pattern="currency">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 숙박비 -->
+    <table class="multi-row-table table_10 RowSumTable RowSumTable tableStyle linePlus mt10" id="TBL_LODGE">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 73%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 숙박비</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="4" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 숙박비</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>내역</th>
+                <th>금액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr2" >
+                    <input name="XFORM_ELNM_Qxxlr2" class="multi-row-selector" style="text-align: center;" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="text-align: center; border-left: 1px solid #c3d7df;">
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_LODGE" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="숙박비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_LODGE" value="숙박비">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_LODGE_CODE" value="LODGE">
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <input name="EXPENSE_PURPOSE_LODGE" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="숙박비 내역">
+                </td>
+                <td style="text-align: right">
+                    <!-- 금액 -->
+                    <input name="REQUEST_AMOUNT_LODGE" class="sum-table-cell" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" title="숙박비 금액">
+                </td>
+            </tr>
+            <tr>
+                <th colspan="3" style="text-align: left">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계
+                </th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_LODGE" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_LODGE }}" data-type="mField" data-pattern="currency">
+
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 회식비 -->
+    <table class="multi-row-table table_10 RowSumTable RowSumTable tableStyle linePlus mt10" id="TBL_OUTINGS">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 73%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 회식비</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="4" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 회식비</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>내역</th>
+                <th>금액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr3">
+                    <input name="XFORM_ELNM_Qxxlr3" class="multi-row-selector" style="text-align: center;" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="text-align: center; border-left: 1px solid #c3d7df;">
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_OUTINGS" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="회식비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_OUTINGS" value="회식비">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_OUTINGS_CODE" value="OUTINGS">
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <input name="EXPENSE_PURPOSE_OUTINGS" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="회식비 내역">
+                </td>
+                <td style="text-align: right">
+                    <!-- 금액 -->
+                    <input name="REQUEST_AMOUNT_OUTINGS" class="sum-table-cell" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" title="회식비 금액">
+                </td>
+            </tr>
+            <tr>
+                <th colspan="3" style="text-align: left">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계
+                </th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_OUTINGS" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_OUTINGS }}" data-type="mField" data-pattern="currency">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 식비 -->
+    <table class="multi-row-table table_10 RowSumTable RowSumTable tableStyle linePlus mt10" id="TBL_EATING">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 73%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 식&nbsp;&nbsp;비</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="4" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 식&nbsp;&nbsp;비</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>내역</th>
+                <th>금액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr4">
+                    <input name="XFORM_ELNM_Qxxlr4" class="multi-row-selector" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="text-align: center; border-left: 1px solid #c3d7df;" >
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_EATING" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="식비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_EATING" value="식비">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_EATING_CODE" value="EATING">
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <input name="EXPENSE_PURPOSE_EATING" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="식비 내역">
+                </td>
+                <td style="text-align: right">
+                    <!-- 금액 -->
+                    <input name="REQUEST_AMOUNT_EATING" class="sum-table-cell" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" title="식비 금액">
+                    <!--required title="식비"-->
+                </td>
+            </tr>
+            <tr>
+                <th colspan="3" style="text-align: left">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계
+                </th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_EATING" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_EATING }}" data-type="mField" data-pattern="currency">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 일비 -->
+    <table class="multi-row-table table_10 RowSumTable RowSumTable tableStyle linePlus mt10" id="TBL_WORKING">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 73%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 일&nbsp;&nbsp;비</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="4" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 일&nbsp;&nbsp;비</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>내역</th>
+                <th>금액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr5">
+                    <input name="XFORM_ELNM_Qxxlr5" class="multi-row-selector" style="text-align: center;" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="text-align: center; border-left: 1px solid #c3d7df;">
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_WORKING" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="일비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_WORKING" value="일비">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_WORKING_CODE" value="WORKING">
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <input name="EXPENSE_PURPOSE_WORKING" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="일비 내역">
+                </td>
+                <td style="text-align: right">
+                    <!-- 금액 -->
+                    <input name="REQUEST_AMOUNT_WORKING" class="sum-table-cell" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" title="일비 금액">
+                    <!--required title="일비"-->
+                </td>
+            </tr>
+            <tr>
+                <th colspan="3" style="text-align: left">
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계
+                </th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_WORKING" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_WORKING }}" data-type="mField" data-pattern="currency">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 기타 -->
+    <table class="multi-row-table table_10 RowSumTable RowSumTable tableStyle linePlus mt10" id="TBL_ETC">
+        <colgroup>
+            <col style="width: 5%;">
+            <col style="width: 12%;">
+            <col style="width: 15%;">
+            <col style="width: 58%;">
+            <col style="width: 10%;">
+        </colgroup>
+        <tbody>
+            <tr class="multi-row-control" data-mode="writeOnly">
+                <td colspan="9">
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-del">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                            </strong>
+                        </span>
+                    </em>
+                    <em class="btn_iws_l usa" style="float: right; font-style:normal;">
+                        <span class="btn_iws_r multi-row-add">
+                            <strong class="txt_btn_ws">
+                                <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                            </strong>
+                        </span>
+                    </em>
+                    <label style="font-weight: bold; font-size: 11pt;">■ 기&nbsp;&nbsp;타</label>
+                </td>
+            </tr>
+            <tr data-mode="readOnly">
+                <td colspan="5" style="border-top:1px solid #c3d7df;">
+                    <label style="font-weight: bold; font-size: 11pt;">■ 기&nbsp;&nbsp;타</label>
+                </td>
+            </tr>
+            <tr>
+                <th data-node-name="XFORM_ELNM_5B6AJ" class="multi-row-selector-wrap">
+                    <input name="XFORM_ELNM_5B6AJ" class="multi-row-select-all" type="checkbox" data-type="rField">
+                </th>
+                <th data-mode="readOnly" style="border-left: 1px solid #c3d7df;">순번</th>
+                <th>지출일</th>
+                <th>구분</th>
+                <th>내역</th>
+                <th>금액</th>
+            </tr>
+            <tr class="multi-row-template">
+                <td class="multi-row-selector-wrap" data-node-name="XFORM_ELNM_Qxxlr6" >
+                    <input name="XFORM_ELNM_Qxxlr6" class="multi-row-selector" style="text-align: center;" type="checkbox" data-type="rField">
+                </td>
+                <td data-mode="readOnly" style="text-align: center; border-left: 1px solid #c3d7df">
+                    <span class="multi-row-seq" name="ROW_SEQ" data-type="rField">1</span>
+                </td>
+                <td style="text-align: center;">
+                    <!-- 지출일 -->
+                    <input name="EXPENSE_DATE_ETC" style="text-align: center; width: 98%;" type="text" data-type="rField" data-pattern="date" readonly="readonly" title="기타 경비 지출일">
+                    <!-- 경비구분 -->
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_ETC" value="기타">
+                    <input type="hidden" data-type="rField" name="EXPENSE_TYPE_ETC_CODE" value="ETC">
+                </td>
+                <td style="text-align: center;">
+                    <!-- 구분 -->
+                    <select name="ETC_TYPE" data-type="rField" data-element-type="sel_d_t" style="width: 98%;" title="기타 경비 구분">
+                        <option value="">선택</option>
+                        <option value="SUPPLY">소모품</option>
+                        <option value="FREIGHT">운반비</option>
+                        <option value="PRINT">도서인쇄비</option>
+                        <option value="CHARGE">지급수수료</option>
+                        <option value="ETC">기타</option>
+                    </select>
+                </td>
+                <td>
+                    <!-- 내역 -->
+                    <input name="EXPENSE_PURPOSE_ETC" style="width: 98%;" type="text" data-type="rField" maxlength="75" title="기타 경비 내역">
+                </td>
+                <td style="text-align: right">
+                    <!-- 금액 -->
+                    <input name="REQUEST_AMOUNT_ETC" class="sum-table-cell" style="width: 98%;" type="text" data-type="rField" data-pattern="currency" title="기타 경비 금액">
+                    <!--required title="기타 경비"-->
+                </td>
+            </tr>
+            <tr>
+                <th colspan="4" style="text-align: left">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;합계</th>
+                <td style="text-align: right">
+                    <input class="sum-table-colsum" id="REQUEST_AMOUNT_TOTAL_ETC" style="width: 98%;" type="text" disabled="disabled" value="{{ doc.BodyContext.REQUEST_AMOUNT_TOTAL_ETC }}" data-type="mField" data-pattern="currency">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <!--실 결재양식 내용 부분 끝 -->
+</div>

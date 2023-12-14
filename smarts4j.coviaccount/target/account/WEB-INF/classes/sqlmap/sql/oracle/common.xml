@@ -1,0 +1,2645 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.common">
+    <resultMap type="cmap" id="ErrorLogResult">
+        <result property="ErrorLog" column="ErrorLog" jdbcType="CLOB" javaType="java.lang.String" />
+    </resultMap>
+
+    <select id="getBaseCodeCombo" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeCombo
+        */
+        SELECT	Code AS "Code"
+             ,	CodeName AS "CodeName"
+             ,	CodeGroup AS "CodeGroup"
+             ,	BaseCodeID AS "BaseCodeID"
+        FROM	act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+          AND		IsGroup		= 'N'
+          AND		IsUse		= 'Y'
+          AND	CompanyCode = (
+            CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+                     THEN #{companyCode}
+                 ELSE 'ALL'
+                END
+            )
+        <if test="codeGroup == 'CompanyCode'">
+		  AND	Code = (
+			CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND (CompanyCode = #{companyCode} OR CompanyCode = 'ALL') AND Code = #{companyCode})
+					THEN Code
+				 ELSE 'ALL'
+			    END
+		    )	
+		</if>
+        ORDER BY SortKey,Code
+    </select>
+
+    <select id="getBaseCodeComboMulti" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeComboMulti
+        */
+        SELECT	Code AS "Code"
+             ,	CodeName AS "CodeName"
+             ,	CodeGroup AS "CodeGroup"
+             ,	BaseCodeID AS "BaseCodeID"
+        FROM	act_base_code
+        WHERE	
+        	<choose>
+				<when test="codeGroups != null">
+					<foreach collection="codeGroups" item="item" index="index" separator="," open="CodeGroup IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+          AND		IsGroup		= 'N'
+          AND		IsUse		= 'Y'
+        ORDER BY CodeGroup,SortKey,Code
+    </select>
+
+    <select id="getBaseCodeData" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getBaseCodeData
+        공통코드 예약필드 포함
+        */
+        SELECT	Code AS "Code"
+        ,	CodeName AS "CodeName"
+        ,	CodeGroup AS "CodeGroup"
+        ,	BaseCodeID AS "BaseCodeID"
+        ,	Reserved1 AS "Reserved1"
+        ,	Reserved2 AS "Reserved2"
+        ,	Reserved3 AS "Reserved3"
+        ,	Reserved4 AS "Reserved4"
+        ,	ReservedInt AS "ReservedInt"
+        ,	ReservedFloat AS "ReservedFloat"
+        FROM	act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{codeGroup} AND	IsGroup	= 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        AND		IsGroup		= 'N'
+        <if test="chkIsUse == 'Y'.toString()">
+            AND		IsUse		= #{chkIsUse}
+        </if>
+        ORDER BY SortKey,Code
+    </select>
+
+    <select id="getBaseCodeSubSet" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getBaseCodeSubSet
+            부가세버튼 추가를 위한
+        */
+        SELECT
+            AC.AccountID AS "AccountID"
+             , AC.AccountCode AS "AccountCode"
+             , AC.AccountName AS "AccountName"
+             , ASB.StandardBriefID AS "StandardBriefID"
+             , ASB.StandardBriefName AS "StandardBriefName"
+        FROM act_base_code BC
+                 INNER JOIN act_standard_brief ASB
+                            ON BC.CodeName = ASB.StandardBriefID
+                 INNER JOIN act_account AC
+                            ON ASB.AccountID = AC.AccountID
+        WHERE BC.Code = #{codeGroup}
+          AND	BC.CompanyCode = (
+            CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE Code = #{codeGroup} AND CompanyCode = #{companyCode})
+                     THEN #{companyCode}
+                 ELSE 'ALL'
+                END
+            )
+    </select>
+
+    <select id="getBaseGrpCodeCombo" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getBaseGrpCodeCombo
+        */
+        SELECT	Code AS "Code"
+        ,	CodeName AS "CodeName"
+        FROM	act_base_code
+        WHERE	IsGroup		= 'Y'
+        AND		IsUse		= 'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND CompanyCode = #{companyCode}
+        </if>
+        <if test="companyCode == null or companyCode == ''">
+            AND CompanyCode = 'ALL'
+        </if>
+        ORDER BY CodeName
+    </select>
+
+    <select id="selectBaseCodeList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectBaseCodeList
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT BaseCodeID	AS "BaseCodeID"
+        , CompanyCode	AS "CompanyCode"
+        , FN_GETACTBASECODENAME('CompanyCode', CompanyCode, #{companyCode}) AS "CompanyName"
+        , Code AS "Code"
+        , CodeName AS "CodeName"
+        , SortKey AS "SortKey"
+        FROM	act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		IsGroup		= 'N'
+        AND		IsUse		= 'Y'
+        AND 	CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        <if test="searchText != null and searchText != ''">
+            AND (
+            UPPER(CodeName) LIKE  UPPER('%' || #{searchText} || '%')
+            OR UPPER(Code) LIKE  UPPER('%' || #{searchText} || '%')
+            )
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,SortKey,Code DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("BaseCodeID")'>"BaseCodeID"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>"Code"</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeName")'>"CodeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>"SortKey"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	  
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="selectBaseCodeListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectBaseCodeListCnt
+        */
+        SELECT COUNT(*)
+        FROM	act_base_code
+        WHERE	CodeGroup	= #{codeGroup}
+        AND		IsGroup		= 'N'
+        AND		IsUse		= 'Y'
+        AND 	CompanyCode = (
+        CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{codeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+        THEN #{companyCode}
+        ELSE 'ALL'
+        END
+        )
+        <if test="searchText != null and searchText != ''">
+            AND (
+            UPPER(CodeName) LIKE  UPPER('%' || #{searchText} || '%')
+            OR UPPER(Code) LIKE  UPPER('%' || #{searchText} || '%')
+            )
+        </if>
+    </select>
+
+    <select id="getAccountSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getAccountSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT	AC.AccountID AS "AccountID"
+        , 	AC.CompanyCode AS "CompanyCode"
+        ,	FN_GETACTBASECODENAME('CompanyCode', AC.CompanyCode, #{companyCode})	AS "CompanyName"
+        ,	AC.AccountCode AS "AccountCode"
+        ,	AC.AccountName AS "AccountName"
+        FROM	act_account AC
+        WHERE	1=1
+        <if test="accountClass != null and accountClass != ''">
+            AND AC.accountClass = #{accountClass}
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="amSearchTypePop == null or amSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+                        AC.AccountName		LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="amSearchTypePop == 'GLCP'.toString()">
+                        AND		AC.AccountCode		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="amSearchTypePop == 'GLNP'.toString()">
+                        AND		AC.AccountName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.companyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AC.AccountID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountID")'>"AccountID"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getAccountSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getAccountSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	act_account AC
+        WHERE	1=1
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <if test="accountClass != null and accountClass != ''">
+            AND AC.accountClass = #{accountClass}
+        </if>
+
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="amSearchTypePop == null or amSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+                        AC.AccountName		LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="amSearchTypePop == 'GLCP'.toString()">
+                        AND		AC.AccountCode		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="amSearchTypePop == 'GLNP'.toString()">
+                        AND		AC.AccountName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+
+    <select id="getFavoriteAccountSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteAccountSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT AUA.UserAccountID AS "UserAccountID"
+        , AC.AccountID AS "AccountID"
+        , AUA.CompanyCode AS "CompanyCode"
+        , FN_GETACTBASECODENAME('CompanyCode',AUA.CompanyCode, #{companyCode})	AS "CompanyName"
+        , AUA.UserCode AS "UserCode"
+        , AUA.AccountCode AS "AccountCode"
+        , AUA.AccountName AS "AccountName"
+        , 'Y' AS "IsFavorite"
+        from act_user_account AUA
+        inner join act_account AC on AUA.CompanyCode = AC.CompanyCode and AUA.AccountCode = AC.AccountCode
+        WHERE 1=1
+        AND AUA.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND AUA.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AUA.UserAccountID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountID")'>"AccountID"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getFavoriteAccountSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteAccountSearchPopupCnt
+        */
+        SELECT COUNT(*)
+        FROM act_user_account AUA
+        WHERE 1=1
+        AND AUA.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND AUA.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteAccountSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteAccountSearchPopupList
+        */
+        SELECT COUNT(*)
+        FROM act_user_account AUA
+        WHERE 1=1
+          AND AUA.UserCode = #{UR_Code}
+          AND AUA.AccountCode = #{AccountCode}
+    </select>
+
+    <insert id="insertFavoriteAccountSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteAccountSearchPopupList
+        */
+        INSERT INTO act_user_account
+        (
+            CompanyCode
+        , UserCode
+        , AccountCode
+        , AccountName
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{CompanyCode}
+            , #{UR_Code}
+            , #{AccountCode}
+            , #{AccountName}
+            , #{UR_Code}
+            , SYSDATE
+            )
+    </insert>
+
+    <delete id="deleteFavoriteAccountSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteAccountSearchPopupList
+        */
+        DELETE FROM act_user_account
+        WHERE UserCode = #{UR_Code}
+          AND AccountCode = #{AccountCode}
+    </delete>
+
+    <select id="selectVendorPopupList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectVendorPopupList
+        거래처 목록 조회
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT
+        VD.VendorID AS "VendorID"
+        , VD.CompanyCode AS "CompanyCode"
+        , FN_GETACTBASECODENAME('CompanyCode', VD.CompanyCode, #{companyCode}) AS "CompanyName"
+        , VD.VendorType AS "VendorType"
+        , FN_GETACTBASECODENAME('VendorType', VD.VendorType, #{companyCode}) AS "VendorTypeName"
+        , VD.VendorNo AS "VendorNo"
+        , VD.CorporateNo AS "CorporateNo"
+        , VD.VendorName AS "VendorName"
+        , VD.CEOName AS "CEOName"
+        , VD.Industry AS "Industry"
+        , VD.Sector AS "Sector"
+        , VD.Address AS "Address"
+        , VD.BankName AS "BankCode"
+        , FN_GETACTBASECODENAME('Bank', VD.BankName, #{companyCode}) AS "BankName"
+        , VD.BankAccountNo AS "BankAccountNo"
+        , VD.BankAccountName AS "BankAccountName"
+        , VD.PaymentCondition AS "PaymentCondition"
+        , FN_GETACTBASECODENAME('PayType', VD.PaymentCondition, #{companyCode}) AS "PaymentConditionName"
+
+        , VD.PaymentMethod AS "PaymentMethod"
+        , VD.VendorStatus AS "VendorStatus"
+        , FN_GETACTBASECODENAME('vendorStatus', VD.VendorStatus, #{companyCode}) AS "VendorStatusName"
+        , VD.ModifyDate AS "ModifyDate"
+        , VD.RegistDate AS "RegistDate"
+        , VD.BUSINESSNUMBER AS "BusinessNumber"
+        FROM act_vendor VD
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND (UPPER(VD.VendorName) LIKE  UPPER('%' || #{searchText} || '%')
+            OR 	UPPER(VD.BUSINESSNUMBER) LIKE  UPPER('%' || #{searchText} || '%')
+            )
+        </if>
+        <if test="isPE == 'Y'.toString()">
+            AND VD.VendorType = 'PE'
+        </if>
+        <if test="companyCode != null and companyCode != ''">
+            AND VD.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,VD.VendorID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("VendorTypeName")'>"VendorTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CorporateNo")'>"CorporateNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessNumber")'>"BusinessNumber"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorNo")'>"VendorNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("PaymentConditionName")'>"PaymentConditionName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="selectCopyPopupList" parameterType="cmap" resultType="cmap">
+	/*
+		account.common.selectCopyPopupList
+		거래처 목록 조회
+	*/
+        SELECT AEA.ApplicationTitle AS "ApplicationTitle"
+        , VendorName AS "VendorName"
+        , VendorNo AS "VendorNo"
+        , CASE ProofCode WHEN 'PaperBill' THEN '수기계산서' WHEN 'TaxBill' THEN '전자세금계산서' ELSE '계산서' END AS "ProofCode"
+        , TotalAmount AS "TotalAmount"
+        , USR.DisplayName AS "DisplayName"
+        , ProofDate AS "ProofDate"
+        , AEAL.ExpenceApplicationListID AS "ExpenceApplicationListID"
+        FROM act_expence_application AEA
+        INNER JOIN act_expence_application_list AEAL
+        ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        INNER JOIN sys_object_user	USR
+        ON USR.UserCode = AEA.RegisterID
+        WHERE 1=1
+        AND VendorName LIKE '%' || #{vendorName} || '%' 
+        <if test ="SDate != null and SDate !=''">
+            AND AEAL.ProofDate <![CDATA[>=]]> #{SDate}
+        </if>
+        <if test ="EDate != null and EDate !=''">
+            AND AEAL.ProofDate <![CDATA[<]]> #{EDate}
+        </if>
+        <if test ="companyCode != null and companyCode !=''">
+            AND AEA.CompanyCode = #{companyCode}
+        </if>
+        AND AEAL.ProofCode = #{proofCode}
+        AND AEAL.VendorNo = #{vendorNo}
+    </select>
+
+    <select id="selectVendorPopupListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectVendorPopupListCnt
+        거래처 목록 조회
+        */
+        SELECT 	COUNT(*)
+        FROM act_vendor VD
+        WHERE 1=1
+        <if test="searchText != null and searchText != ''">
+            AND UPPER(VD.VendorName) LIKE  UPPER('%' || #{searchText} || '%')
+        </if>
+        <if test="isPE == 'Y'.toString()">
+            AND VD.VendorType = 'PE'
+        </if>
+        <if test="companyCode != null and companyCode != ''">
+            AND VD.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="selectCopyPopupListCnt" parameterType="cmap" resultType="java.lang.Long">
+	/*
+		account.common.selectCopyPopupListCnt
+		거래처 목록 조회
+	*/
+        SELECT COUNT(*)
+        FROM act_expence_application AEA
+        INNER JOIN act_expence_application_list AEAL
+        ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        INNER JOIN sys_object_user	USR
+        ON USR.UserCode = AEA.RegisterID
+        WHERE 1=1
+        AND VendorName LIKE '%' || #{vendorName} || '%'  
+        <if test ="SDate != null and SDate !=''">
+            AND AEAL.ProofDate <![CDATA[>=]]> #{SDate}
+        </if>
+        <if test ="EDate != null and EDate !=''">
+            AND AEAL.ProofDate <![CDATA[<]]> #{EDate}
+        </if>
+        <if test ="companyCode != null and companyCode !=''">
+            AND AEA.CompanyCode = #{companyCode}
+        </if>
+        AND AEAL.ProofCode = #{proofCode}
+        AND AEAL.VendorNo = #{vendorNo}
+    </select>
+
+    <select id="getStandardBriefSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getStandardBriefSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT	AC.AccountCode AS "AccountCode"
+        ,	AC.AccountName AS "AccountName"
+        , 	AC.TaxType AS "TaxType"
+        , 	AC.TaxCode AS "TaxCode"
+        ,	SB.StandardBriefName AS "StandardBriefName"
+        ,	SB.StandardBriefDesc AS "StandardBriefDesc"
+        ,	SB.StandardBriefID AS "StandardBriefID"
+        ,	SB.CtrlCode AS "CtrlCode"
+        FROM	act_standard_brief SB
+        LEFT OUTER JOIN act_account		AC
+        ON	AC.AccountID		= SB.AccountID
+        WHERE	1=1
+        AND		SB.IsUse	= 'Y'
+        AND		AC.IsUse	= 'Y'
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="SB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="sbSearchTypePop == null or sbSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+                        SB.StandardBriefName		LIKE '%' || #{searchStr} || '%'	OR
+                        AC.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+                        AC.Description 		LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="sbSearchTypePop == 'ACC'.toString()">
+                        AND		AccountCode		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'ACN'.toString()">
+                        AND		AccountName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'SBN'.toString()">
+                        AND		SB.StandardBriefName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'SBD'.toString()">
+                        AND 	SB.StandardBriefDesc 		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AC.AccountName, SB.StandardBriefName
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefDesc")'>"StandardBriefDesc"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+				                
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getStandardBriefSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getStandardBriefSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	act_standard_brief SB
+        LEFT OUTER JOIN act_account		AC
+        ON	AC.AccountID	= SB.AccountID
+        WHERE	1=1
+        AND		SB.IsUse	= 'Y'
+        AND		AC.IsUse	= 'Y'
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="SB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="sbSearchTypePop == null or sbSearchTypePop ==''">
+                        AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+                        SB.StandardBriefName		LIKE '%' || #{searchStr} || '%'	OR
+                        AC.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+                        AC.Description 		LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="sbSearchTypePop == 'ACC'.toString()">
+                        AND		AccountCode		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'ACN'.toString()">
+                        AND		AccountName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'SBN'.toString()">
+                        AND		SB.StandardBriefName		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="sbSearchTypePop == 'SBD'.toString()">
+                        AND 	SB.StandardBriefDesc 		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="getFavoriteStandardBriefSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteStandardBriefSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT AUSB.UserStandardBriefID AS "UserStandardBriefID"
+        , AUSB.UserCode AS "UserCode"
+        , AUSB.StandardBriefID AS "StandardBriefID"
+        , AUSB.StandardBriefName AS "StandardBriefName"
+        , AUSB.StandardBriefDesc AS "StandardBriefDesc"
+        , AC.AccountCode AS "AccountCode"
+        , AC.AccountName AS "AccountName"
+        , AC.TaxType AS "TaxType"
+        , AC.TaxCode AS "TaxCode"
+        , 'Y' AS "IsFavorite"
+        , ASB.CtrlCode AS "CtrlCode"
+        FROM act_user_standard_brief AUSB
+        INNER JOIN act_standard_brief ASB
+        ON AUSB.StandardBriefID = ASB.StandardBriefID
+        LEFT OUTER JOIN act_account AC
+        ON ASB.AccountID = AC.AccountID
+        WHERE 1=1
+        AND AUSB.UserCode = #{UR_Code}
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="AUSB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,AUSB.UserStandardBriefID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefDesc")'>"StandardBriefDesc"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getFavoriteStandardBriefSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteStandardBriefSearchPopupCnt
+        */
+        SELECT COUNT(*)
+        FROM act_user_standard_brief AUSB
+        INNER JOIN act_standard_brief ASB
+        ON AUSB.StandardBriefID = ASB.StandardBriefID
+        LEFT OUTER JOIN act_account AC
+        ON ASB.AccountID = AC.AccountID
+        WHERE 1=1
+        AND AUSB.UserCode = #{UR_Code}
+        <choose>
+			<when test="StandardBriefSearchStr != null">
+				AND 
+				<foreach collection="StandardBriefSearchStr" item="item" index="index" separator="," open="AUSB.StandardBriefID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="companyCode != null and companyCode != ''">
+            AND AC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteStandardBriefSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteStandardBriefSearchPopupList
+        */
+        SELECT COUNT(*)
+        from act_user_standard_brief AUSB
+        WHERE
+            1=1
+          AND AUSB.UserCode = #{UR_Code}
+          AND AUSB.StandardBriefID = #{StandardBriefID}
+    </select>
+
+    <insert id="insertFavoriteStandardBriefSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteStandardBriefSearchPopupList
+        */
+        INSERT INTO act_user_standard_brief
+        (
+            UserCode
+        , StandardBriefID
+        , StandardBriefName
+        , StandardBriefDesc
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{UR_Code}
+            , #{StandardBriefID}
+            , #{StandardBriefName}
+            , #{StandardBriefDesc}
+            , #{UR_Code}
+            , SYSDATE
+            )
+    </insert>
+
+    <delete id="deleteFavoriteStandardBriefSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteStandardBriefSearchPopupList
+        */
+        DELETE FROM act_user_standard_brief
+        WHERE UserCode = #{UR_Code}
+          AND StandardBriefID = #{StandardBriefID}
+    </delete>
+
+    <select id="getCostCenterSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCostCenterSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT CC.CostCenterID AS "CostCenterID"
+        ,	CC.CompanyCode AS "CompanyCode"
+        ,	FN_GETACTBASECODENAME('CompanyCode', CC.CompanyCode, #{companyCode}) AS "CompanyName"
+        ,	CC.CostCenterType AS "CostCenterType"
+        ,	CC.CostCenterCode AS "CostCenterCode"
+        ,	CC.CostCenterName AS "CostCenterName"
+        ,	CC.NameCode AS "NameCode"
+        ,	CC.UsePeriodStart AS "UsePeriodStart"
+        ,	CC.UsePeriodFinish AS "UsePeriodFinish"
+        ,	CC.IsPermanent AS "IsPermanent"
+        ,	CC.IsUse AS "IsUse"
+        ,	CC.Description AS "Description"
+        FROM	(		SELECT COST.CostCenterID
+        ,	COST.CompanyCode
+        ,	COST.CostCenterType
+        ,	COST.CostCenterCode
+        ,	COST.CostCenterName
+        ,	COST.NameCode
+        ,	COST.UsePeriodStart
+        ,	COST.UsePeriodFinish
+        ,	COST.IsPermanent
+        ,	COST.IsUse
+        ,	COST.Description
+        FROM	act_cost_center	COST
+        WHERE	1=1
+        AND		COST.IsUse	=  'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND		COST.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		COST.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		COST.CostCenterType != 'PROJECT'
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="searchTypePop == null or searchTypePop ==''">
+                        AND		(	COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'	OR 
+                        COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="searchTypePop == 'CCN'.toString()">
+                        AND		COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="searchTypePop == 'CCC'.toString()">
+                        <choose>
+                            <when test="popupType != null and popupType != '' and popupType == 'IO'">
+                                AND		COST.NameCode	LIKE '%' || #{searchStr} || '%'
+                            </when>
+                            <when test="popupType == null or popupType == '' or popupType == 'CC'">
+                                AND		COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'
+                            </when>
+                        </choose>
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,COST.CostCenterID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CostCenterCode")'>CostCenterCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("NameCode")'>NameCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	    
+            </if>
+        </trim>
+        ) CC
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getCostCenterSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCostCenterSearchPopupCnt
+        */
+        SELECT	COUNT(*)
+        FROM	act_cost_center COST
+        WHERE	1=1
+        AND		COST.IsUse	=  'Y'
+        <if test="companyCode != null and companyCode != ''">
+            AND		COST.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		COST.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		COST.CostCenterType != 'PROJECT'
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="searchType == null or searchType ==''">
+                        AND		(	COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'	OR 
+                        COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="searchType == 'CCN'.toString()">
+                        AND		COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="searchType == 'CCC'.toString()">
+                        <choose>
+                            <when test="popupType != null and popupType != '' and popupType == 'IO'">
+                                AND		COST.NameCode	LIKE '%' || #{searchStr} || '%'
+                            </when>
+                            <when test="popupType == null or popupType == '' or popupType == 'CC'">
+                                AND		COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'
+                            </when>
+                        </choose>
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+
+    <select id="getFavoriteCCSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getFavoriteCCSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT UFCC.UserFavoriteCostCenterID AS "UserFavoriteCostCenterID"
+        , UFCC.CompanyCode AS "CompanyCode"
+        , FN_GETACTBASECODENAME('CompanyCode',UFCC.CompanyCode, #{companyCode})	AS "CompanyName"
+        , UFCC.CostCenterCode AS "CostCenterCode"
+        , UFCC.CostCenterName AS "CostCenterName"
+        , CC.CostCenterID AS "CostCenterID"
+        , CC.CostCenterType AS "CostCenterType"
+        , CC.NameCode AS "NameCode"
+        , CC.UsePeriodStart AS "UsePeriodStart"
+        , CC.UsePeriodFinish AS "UsePeriodFinish"
+        , CC.IsPermanent AS "IsPermanent"
+        , CC.IsUse AS "IsUse"
+        , CC.Description AS "Description"
+        FROM act_user_favorite_cost_center UFCC
+        LEFT OUTER JOIN act_cost_center CC
+        ON UFCC.CostCenterCode = CC.CostCenterCode
+        AND UFCC.CompanyCode = CC.CompanyCode
+        AND CC.IsUse	=  'Y'
+        WHERE UFCC.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND		CC.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		CC.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		CC.CostCenterType != 'PROJECT'
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,UFCC.UserFavoriteCostCenterID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CostCenterCode")'>"CostCenterCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>"CostCenterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("NameCode")'>"NameCode"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getFavoriteCCSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getFavoriteCCSearchPopupCnt
+        */
+
+        SELECT COUNT(*)
+        FROM act_user_favorite_cost_center UFCC
+        LEFT OUTER JOIN act_cost_center CC
+        ON UFCC.CostCenterCode = CC.CostCenterCode
+        AND UFCC.CompanyCode = CC.CompanyCode
+        AND CC.IsUse	=  'Y'
+        WHERE UFCC.UserCode = #{UR_Code}
+        <if test="companyCode != null and companyCode != ''">
+            AND		CC.CompanyCode = #{companyCode}
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'IO'">
+            AND		CC.CostCenterType = 'PROJECT'
+        </if>
+        <if test="popupType != null and popupType != '' and popupType == 'CC'">
+            AND		CC.CostCenterType != 'PROJECT'
+        </if>
+    </select>
+
+
+    <select id="ckFavoriteCCSearchPopupList" resultType="java.lang.Long">
+        /*
+            account.common.ckFavoriteCCSearchPopupList
+        */
+        SELECT COUNT(*)
+        FROM act_user_favorite_cost_center UFCC
+        WHERE
+            1=1
+          AND UFCC.UserCode = #{UR_Code}
+          AND UFCC.CostCenterCode = #{CostCenterCode}
+    </select>
+
+
+    <insert id="insertFavoriteCCSearchPopupList" parameterType="cmap">
+        /*
+            account.common.insertFavoriteCCSearchPopupList
+        */
+        INSERT INTO act_user_favorite_cost_center
+        (
+            CompanyCode
+        , UserCode
+        , CostCenterCode
+        , CostCenterName
+        , RegisterID
+        , RegistDate
+        )
+        VALUES
+            (
+                #{CompanyCode}
+            , #{UR_Code}
+            , #{CostCenterCode}
+            , #{CostCenterName}
+            , #{UR_Code}
+            , SYSDATE
+            )
+    </insert>
+
+    <delete id="deleteFavoriteCCSearchPopupList" parameterType="cmap">
+        /*
+            account.common.deleteFavoriteCCSearchPopupList
+        */
+        DELETE FROM act_user_favorite_cost_center
+        WHERE UserCode = #{UR_Code}
+          AND CostCenterCode = #{CostCenterCode}
+    </delete>
+    <select id="getCardReceiptPopup" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getCardReceiptPopup
+        */
+        SELECT	('**********'||	SUBSTR(ACR.CardNo,11))										AS "CardNo"
+             ,	ACR.ApproveNo AS "ApproveNo"
+             ,	CASE	WHEN ACR.InfoIndex = 'A'
+                              THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+                                               THEN ''
+                                           ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),'YYYY.MM.DD')
+                END
+                          ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+                                           THEN ''
+                                       ELSE TO_CHAR(TO_DATE(ACR.UseDate),'YYYY.MM.DD')
+                              END
+            END																						AS "UseDate"
+             ,	CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveTime),''),'NODATA') = 'NODATA'
+                              THEN ''
+                          ELSE TO_CHAR(TO_DATE(ACR.ApproveTime, 'HH24:MI:SS'), 'HH24:MI:SS')
+            END																						AS "UseTime"
+             ,	ACR.StoreName AS "StoreName"
+             ,	ACR.StoreNo AS "StoreNo"
+             ,	ACR.StoreRepresentative AS "StoreRepresentative"
+             ,	ACR.StoreRegNo AS "StoreRegNo"
+             ,	ACR.StoreTel AS "StoreTel"
+             ,	ACR.StoreAddress1 AS "StoreAddress1"
+             ,	ACR.StoreAddress2 AS "StoreAddress2"
+             ,	ACR.UsageText AS "UsageText"
+             ,	ACR.StandardBriefID AS "StandardBriefID"
+             ,	TO_CHAR(ACR.RepAmount, '999,999,999,999,999,999,999,999')							AS "RepAmount"
+             ,	TO_CHAR(ACR.TaxAmount, '999,999,999,999,999,999,999,999')							AS "TaxAmount"
+             ,	TO_CHAR(ACR.ServiceAmount, '999,999,999,999,999,999,999,999')						AS "ServiceAmount"
+             ,	TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')							AS "AmountWon"
+             ,	NVL(NULLIF(FN_GETACTBASECODENAME('InfoIndex', ACR.InfoIndex, #{companyCode}),''),'')	AS "InfoIndexName"
+        FROM	act_card_receipt	ACR
+                    LEFT OUTER JOIN
+                act_corp_card		ACC
+                ON	ACR.CardNo	= ACC.CardNo
+                    LEFT OUTER JOIN
+                sys_object_user		USR
+                ON	ACR.CardUserCode	= USR.UserCode
+        WHERE	ACR.ReceiptID	= #{receiptID}
+    </select>
+
+    <select id="getCardReceiptSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCardReceiptSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT	ACR.ReceiptID AS "ReceiptID"
+        ,	(	'**********'||	SUBSTR(ACR.CardNo,11))			AS "CardNo"
+        ,	ACR.ApproveNo AS "ApproveNo"
+        ,	ACR.StoreName AS "StoreName"
+        ,	TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')							AS "TotalAmount"
+        ,	TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')							AS "AmountWon"
+        ,	TO_CHAR(ACR.RepAmount, '999,999,999,999,999,999,999,999')							AS "RepAmount"
+        ,	TO_CHAR(ACR.TaxAmount, '999,999,999,999,999,999,999,999')							AS "TaxAmount"
+        ,	(TO_CHAR(TO_DATE(ACR.ApproveDate),'YYYY.MM.DD')|| ' '|| TO_CHAR(TO_DATE(ACR.ApproveTime, 'HH24:MI:SS'), 'HH24:MI:SS')) AS "ApproveDate"
+        ,	ACR.InfoType AS "InfoType"
+        ,	NVL(ACR.UsageText, '') AS "UsageText"
+        FROM	act_card_receipt	ACR
+        JOIN
+        act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM 	act_expence_application AEA
+        JOIN
+        act_expence_application_list AEAL
+        ON 		AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE 	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND 	AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )X ON ACR.ReceiptID = X.ApproveNo
+        LEFT OUTER JOIN
+        sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT
+        JOIN	act_corp_card_return RET
+        ON		ACC.CardNo = RET.CardNo
+        AND		(ACR.UseDate||ACR.APPROVETIME)<![CDATA[>=]]> TO_CHAR( RET.ReleaseDate, 'YYYYMMDDHH24MISS' )
+        AND		(ACR.UseDate||ACR.APPROVETIME)<![CDATA[<=]]> CASE WHEN RET.ReturnDate IS NULL THEN '29991231235959' ELSE TO_CHAR( RET.ReleaseDate, 'YYYYMMDDHH24MISS' )  END
+        WHERE 1=1
+        <if test ="cardID != null and cardID !=''">
+            AND ACC.CorpCardID =#{cardID}
+        </if>
+        AND 	X.ApproveNo IS NULL
+        AND		ACR.Active = 'N'
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B', 'C', 'D')
+        AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (RET.ReleaseUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+        FROM	act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND ACR.ApproveDate <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND ACR.ApproveDate >= #{startDD}
+	    	    ]]>
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE '%' || #{storeName} || '%'
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE '%' || #{cardNo} || '%' 
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE '%' || #{approveNo} || '%' 
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , ACR.ApproveDate ASC, ACR.ApproveTime ASC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>"AmountWon"</when>
+					<when test='sortColumn.equalsIgnoreCase("RepAmount")'>"RepAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxAmount")'>"TaxAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoType")'>"InfoType"</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptID")'>"ReceiptID"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	      
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getCardReceiptSearchPopupCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCardReceiptSearchPopupCnt
+        */
+
+        SELECT	COUNT(*)
+        FROM	act_card_receipt	ACR
+        JOIN
+        act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM 	act_expence_application AEA
+        JOIN
+        act_expence_application_list AEAL
+        ON 		AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE 	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND 	AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        )X ON ACR.ReceiptID = X.ApproveNo
+        LEFT OUTER JOIN
+        sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT
+        JOIN	act_corp_card_return RET
+        ON		ACC.CardNo = RET.CardNo
+        AND		(ACR.UseDate||ACR.APPROVETIME)<![CDATA[>=]]> TO_CHAR( RET.ReleaseDate, 'YYYYMMDDHH24MISS' )
+        AND		(ACR.UseDate||ACR.APPROVETIME)<![CDATA[<=]]> CASE WHEN RET.ReturnDate IS NULL THEN '29991231235959' ELSE TO_CHAR( RET.ReleaseDate, 'YYYYMMDDHH24MISS' )  END
+        WHERE 1=1
+        <if test ="cardID != null and cardID !=''">
+            AND ACC.CorpCardID =#{cardID}
+        </if>
+        AND 	X.ApproveNo IS NULL
+        AND		ACR.Active = 'N'
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B', 'C', 'D')
+        AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (RET.ReleaseUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+        FROM	act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND ACR.ApproveDate <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND ACR.ApproveDate >= #{startDD}
+	    	    ]]>
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE '%' || #{storeName} || '%' 
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE '%' || #{cardNo} || '%' 
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE '%' || #{approveNo} || '%' 
+        </if>
+    </select>
+
+
+    <select id="getTaxInvoicePopup" parameterType="cmap" resultType="cmap">
+        SELECT	ATI.NTSConfirmNum AS "NTSConfirmNum"
+             ,	ATI.CONVERSATION_ID AS "CONVERSATION_ID"
+             ,	ATI.SerialNum AS "SerialNum"
+             ,	ATI.InvoiceType AS "InvoiceType"
+             ,	ATI.InvoicerCorpNum AS "InvoicerCorpNum"
+             ,	ATI.InvoiceeCorpNum AS "InvoiceeCorpNum"
+             ,	ATI.InvoicerCorpName AS "InvoicerCorpName"
+             ,	ATI.InvoiceeCorpName AS "InvoiceeCorpName"
+             ,	ATI.InvoicerCEOName AS "InvoicerCEOName"
+             ,	ATI.InvoiceeCEOName AS "InvoiceeCEOName"
+             ,	ATI.InvoicerAddr AS "InvoicerAddr"
+             ,	ATI.InvoiceeAddr AS "InvoiceeAddr"
+             ,	ATI.InvoicerBizType AS "InvoicerBizType"
+             ,	ATI.InvoiceeBizType AS "InvoiceeBizType"
+             ,	ATI.InvoicerTaxRegID AS "InvoicerTaxRegID"
+             ,	ATI.InvoiceeTaxRegID AS "InvoiceeTaxRegID"
+             ,	ATI.InvoicerBizClass AS "InvoicerBizClass"
+             ,	ATI.InvoiceeBizClass AS "InvoiceeBizClass"
+             ,	ATI.InvoicerDeptName AS "InvoicerDeptName"
+             ,	ATI.InvoiceeDeptName1 AS "InvoiceeDeptName1"
+             ,	ATI.InvoicerContactName AS "InvoicerContactName"
+             ,	ATI.InvoiceeContactName1 AS "InvoiceeContactName1"
+             ,	ATI.InvoicerTel AS "InvoicerTel"
+             ,	ATI.InvoiceeTel1 AS "InvoiceeTel1"
+             ,	ATI.InvoicerEmail AS "InvoicerEmail"
+             ,	ATI.InvoiceeEmail1 AS "InvoiceeEmail1"
+             ,	REPLACE(ATI.InvoiceEmail2,' ','') AS "InvoiceEmail2"
+             ,	ATI.PurposeType AS "PurposeType"
+             ,	TO_CHAR(TO_DATE(ATI.WriteDate, 'YYYYMMDD'),'YYYY') 	AS "WriteDate1"
+             ,	TO_CHAR(TO_DATE(ATI.WriteDate, 'YYYYMMDD'),'MM') 	AS "WriteDate2"
+             ,	TO_CHAR(TO_DATE(ATI.WriteDate, 'YYYYMMDD'),'DD') 	AS "WriteDate3"
+             ,	TO_CHAR(ATI.SupplyCostTotal, '999,999,999,999,999,999,999,999')		AS "SupplyCostTotal"
+             ,	TO_CHAR(ATI.TaxTotal, '999,999,999,999,999,999,999,999')				AS "TaxTotal"
+             ,	ATI.Remark1 AS "Remark1"
+             ,	TO_CHAR(ATI.TotalAmount, '999,999,999,999,999,999,999,999')			AS "TotalAmount"
+             ,	TO_CHAR(ATI.Cash, '999,999,999,999,999,999,999,999')				AS "Cash"
+             ,	TO_CHAR(ATI.ChkBill, '999,999,999,999,999,999,999,999')				AS "ChkBill"
+             ,	TO_CHAR(ATI.Credit, '999,999,999,999,999,999,999,999')				AS "Credit"
+             ,	TO_CHAR(ATI.Note, '999,999,999,999,999,999,999,999')				AS "Note"
+             ,	TO_CHAR(TO_DATE(ATII.PurchaseDT, 'YYYYMMDD'),'MM')	AS "PurchaseMM"
+             ,	TO_CHAR(TO_DATE(ATII.PurchaseDT, 'YYYYMMDD'),'DD')	AS "PurchaseDD"
+             ,	ATII.ItemName AS "ItemName"
+             ,	ATII.Spec AS "Spec"
+             ,	ATII.Qty AS "Qty"
+             ,	TO_CHAR(ATII.UnitCost, '999,999,999,999,999,999,999,999')			AS "UnitCost"
+             ,	TO_CHAR(ATII.SupplyCost, '999,999,999,999,999,999,999,999')			AS "SupplyCost"
+             ,	TO_CHAR(ATII.Tax, '999,999,999,999,999,999,999,999')				AS "Tax"
+             ,	ATII.Remark AS "Remark"
+             ,	(SELECT COUNT(TaxInvoiceItemID) FROM act_taxinvoice_item WHERE TaxInvoiceID = #{taxInvoiceID}) AS "TaxInvoiceItemCnt"
+        FROM	act_taxinvoice		ATI
+                    LEFT OUTER JOIN
+                act_taxinvoice_item	ATII
+                ON	ATI.TaxInvoiceID = ATII.TaxInvoiceID
+        WHERE	ATI.TaxInvoiceID = #{taxInvoiceID}
+    </select>
+
+
+    <select id="selectCashBillList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectCashBillList
+        */
+
+        SELECT
+        NTSConfirmNum AS "NTSConfirmNum"
+        , NTSConfirmNum AS "CashNTSConfirmNum"
+        , TradeDT AS "TradeDT"
+        , TradeType AS "TradeType"
+        , SupplyCost AS "SupplyCost"
+        , Tax AS "Tax"
+        , ServiceFree AS "ServiceFree"
+        , TotalAmount AS "TotalAmount"
+        , FranchiseCorpName AS "FranchiseCorpName"
+        , CashBillID AS "CashBillID"
+        FROM act_cashbill CB
+        LEFT OUTER JOIN (
+        SELECT MAX(AEAL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AEAL.CashUID
+        , AEAL.ExpenceApplicationID
+        FROM act_expence_application_list AEAL
+        INNER JOIN act_expence_application AEA
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY  AEAL.CashUID,AEAL.ExpenceApplicationListID, AEAL.ExpenceApplicationID
+        ) AL
+        ON CB.CashBillID = AL.CashUID
+        WHERE 1=1
+
+        AND (AL.ExpenceApplicationListID IS NULL
+        OR AL.ExpenceApplicationID = #{ExpAppID})
+		<choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="CB.CashBillID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="confirmNum != null and confirmNum != ''">
+            AND UPPER(CB.NTSConfirmNum) LIKE  UPPER('%' || #{confirmNum} || '%') 
+        </if>
+        <if test="franchiseCorpName != null and franchiseCorpName != ''">
+            AND UPPER(CB.FranchiseCorpName) LIKE  UPPER('%' || #{franchiseCorpName} || '%') 
+        </if>
+        <if test="franchiseCorpNum != null and franchiseCorpNum != ''">
+            AND UPPER(CB.franchiseCorpNum) LIKE  UPPER('%' || #{franchiseCorpNum} || '%') 
+        </if>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND TradeDT <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND TradeDT >= #{startDD}
+	    	    ]]>
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,CashBillID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>"NTSConfirmNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("FranchiseCorpName")'>"FranchiseCorpName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TradeType")'>"TradeType"</when>
+					<when test='sortColumn.equalsIgnoreCase("SupplyCost")'>"SupplyCost"</when>
+					<when test='sortColumn.equalsIgnoreCase("Tax")'>"Tax"</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>"TotalAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("TradeDT")'>"TradeDT"</when>
+					<when test='sortColumn.equalsIgnoreCase("CashBillID")'>"CashBillID"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+    </select>
+
+
+    <select id="selectCashBillListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectCashBillListCnt
+        */
+
+        SELECT
+        Count(*)
+        FROM act_cashbill CB
+        LEFT OUTER JOIN (
+        SELECT MAX(AEAL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AEAL.CashUID
+        , AEAL.ExpenceApplicationID
+        FROM act_expence_application_list AEAL
+        INNER JOIN act_expence_application AEA
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY  AEAL.CashUID , AEAL.CashUID , AEAL.ExpenceApplicationID
+        ) AL
+        ON CB.CashBillID = AL.CashUID
+        WHERE 1=1
+
+        AND (AL.ExpenceApplicationListID IS NULL
+        OR AL.ExpenceApplicationID = #{ExpAppID})
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="CB.CashBillID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="confirmNum != null and confirmNum != ''">
+            AND UPPER(CB.NTSConfirmNum) LIKE  UPPER('%' || #{confirmNum} || '%') 
+        </if>
+        <if test="franchiseCorpName != null and franchiseCorpName != ''">
+            AND UPPER(CB.FranchiseCorpName) LIKE  UPPER('%' || #{franchiseCorpName} || '%') 
+        </if>
+        <if test="franchiseCorpNum != null and franchiseCorpNum != ''">
+            AND UPPER(CB.franchiseCorpNum) LIKE  UPPER('%' || #{franchiseCorpNum} || '%') 
+        </if>
+        <if test="endDD != null and endDD != ''">
+            <![CDATA[
+	    	    	AND TradeDT <= #{endDD}
+	    	    ]]>
+        </if>
+        <if test="startDD != null and startDD !=''">
+            <![CDATA[
+	    	    	AND TradeDT >= #{startDD}
+	    	    ]]>
+        </if>
+    </select>
+
+    <select id="getTaxinvoiceSearchPopup" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getTaxinvoiceSearchPopup
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT	ATI.TaxInvoiceID AS "TaxInvoiceID"
+        ,	ATI.NTSConfirmNum AS "NTSConfirmNum"
+        ,	ATI.NTSConfirmNum AS "TaxNTSConfirmNum"
+        ,	ATI.CONVERSATION_ID AS "CONVERSATION_ID"
+        ,	ATI.InvoiceType AS "InvoiceType"
+        ,	ATI.WriteDate AS "WriteDate"
+        ,	ATI.InvoicerCorpNum AS "InvoicerCorpNum"
+        ,	ATI.InvoicerCorpName AS "InvoicerCorpName"
+        ,	ATI.TotalAmount AS "TotalAmount"
+        ,	ATI.TaxTotal AS "TaxTotal"
+        ,	ATI.SupplyCostTotal AS "SupplyCostTotal"
+        ,	TO_CHAR(TO_DATE(ATI.WriteDate, 'YYYYMMDD'),'YYYY.MM.DD')				AS "FormatWriteDate"
+        ,	TO_CHAR(ATI.TotalAmount, '999,999,999,999,999,999,999,999')				AS "FormatTotalAmount"
+        ,	TO_CHAR(ATI.TaxTotal, '999,999,999,999,999,999,999,999')				AS "FormatTaxTotal"
+        ,	TO_CHAR(ATI.SupplyCostTotal, '999,999,999,999,999,999,999,999')			AS "FormatSupplyCostTotal"
+        ,	(
+	        	SELECT LISTAGG(ItemName, ',') WITHIN GROUP (ORDER BY TAXINVOICEITEMID)
+	        	FROM act_taxinvoice_item ATII
+	        	WHERE ATI.TAXINVOICEID = ATII.TAXINVOICEID 
+	        	GROUP BY ATII.TAXINVOICEID
+        	) AS "ItemNameList"
+        FROM	act_taxinvoice ATI
+        INNER JOIN act_taxinvoice_item ATII
+        ON ATI.TaxInvoiceID = ATII.TaxInvoiceID
+        LEFT OUTER JOIN (SELECT AEAL.TaxUID
+        FROM	act_expence_application		AEA
+        JOIN	act_expence_application_list	AEAL
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.ProofCode = 'TaxBill'
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        ) X ON ATI.TaxInvoiceID = X.TaxUID
+        WHERE 1=1
+        AND X.TaxUID IS NULL
+        AND ATI.ApproveStatus = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ATI.TaxInvoiceID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        AND		ATI.DataIndex = 'BUY'
+        AND (
+	        ATI.InvoiceeEmail1 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	        OR
+	        ATI.InvoiceEmail2 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	        OR
+	        ATI.TossUserCode = #{SessionUser}
+        )
+        AND ATI.IsOffset != 'Y'
+        <if test ="writeDateS != null and writeDateS !=''">
+            AND		ATI.WriteDate <![CDATA[>=]]> #{writeDateS}
+        </if>
+        <if test ="writeDateE != null and writeDateE !=''">
+            AND		ATI.WriteDate <![CDATA[<=]]> #{writeDateE}
+        </if>
+        <if test ="invoiceeEmail1 != null and invoiceeEmail1 !=''">
+            AND		(
+            		ATI.InvoiceeEmail1 LIKE '%' || #{invoiceeEmail1} || '%' OR
+            		ATI.InvoiceEmail2  LIKE '%' || #{invoiceeEmail1} || '%' 
+            		)
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="tiSearchTypePop == null or tiSearchTypePop ==''">
+                        AND		(	ATI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'	OR 
+                        ATI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'	OR
+                        ATII.ItemName			LIKE '%' || #{searchStr} || '%'	OR
+                        ATII.Remark				LIKE '%' || #{searchStr} || '%'	OR
+                        ATI.Remark1				LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNUM'.toString()">
+                        AND		ATI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNAME'.toString()">
+                        AND		ATI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'ITEMNAME'.toString()">
+                        AND		ATII.ItemName			LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'Remark'.toString()">
+                        AND		(
+                        ATII.Remark				LIKE '%' || #{searchStr} || '%'	OR
+                        ATI.Remark1				LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                </choose>
+            </when>
+        </choose>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,ATI.WriteDate DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>"NTSConfirmNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatWriteDate")'>"FormatWriteDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>"InvoicerCorpNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>"InvoicerCorpName"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatTotalAmount")'>"FormatTotalAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatSupplyCostTotal")'>"FormatSupplyCostTotal"</when>
+					<when test='sortColumn.equalsIgnoreCase("FormatTaxTotal")'>"FormatTaxTotal"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxInvoiceID")'>"TaxInvoiceID"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getTaxinvoiceSearchPopupCnt" resultType="java.lang.Long">
+        SELECT	COUNT(DISTINCT(ATI.TaxInvoiceID))
+        FROM	act_taxinvoice ATI
+        INNER JOIN act_taxinvoice_item ATII
+        ON ATI.TaxInvoiceID = ATII.TaxInvoiceID
+        LEFT OUTER JOIN (SELECT AEAL.TaxUID
+        FROM	act_expence_application		AEA
+        JOIN	act_expence_application_list	AEAL
+        ON	AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.ProofCode = 'TaxBill'
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID}
+        </if>
+        ) X ON ATI.TaxInvoiceID = X.TaxUID
+        WHERE	1=1
+        AND	X.TaxUID IS NULL
+        AND ATI.ApproveStatus = 'N'
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ATI.TaxInvoiceID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        AND	ATI.DataIndex = 'BUY'
+        AND (
+	        ATI.InvoiceeEmail1 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	        OR
+	        ATI.InvoiceEmail2 IN (
+		        SELECT AM.TaxMailAddress
+		        FROM act_manager AM
+		        WHERE AM.ManagerUserCode = #{SessionUser}
+		        UNION
+		        SELECT SOU.MailAddress
+		        FROM sys_object_user SOU
+		        WHERE SOU.UserCode = #{SessionUser}
+	        )
+	        OR
+	        ATI.TossUserCode = #{SessionUser}
+        )
+        AND ATI.IsOffset != 'Y'
+        <if test ="writeDateS != null and writeDateS !=''">
+            AND		ATI.WriteDate <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+        </if>
+        <if test ="writeDateE != null and writeDateE !=''">
+            AND		ATI.WriteDate <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+        </if>
+        <if test ="invoiceeEmail1 != null and invoiceeEmail1 !=''">
+            AND		(
+            		ATI.InvoiceeEmail1 LIKE '%' || #{invoiceeEmail1} || '%' OR
+            		ATI.InvoiceEmail2  LIKE '%' || #{invoiceeEmail1} || '%' 
+            		)
+        </if>
+        <choose>
+            <when test="searchStr != null and searchStr !=''">
+                <choose>
+                    <when test="tiSearchTypePop == null or tiSearchTypePop ==''">
+                        AND		(	ATI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'	OR
+                        ATI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'	OR
+                        ATII.ItemName			LIKE '%' || #{searchStr} || '%'	OR
+                        ATII.Remark				LIKE '%' || #{searchStr} || '%'	OR
+                        ATI.Remark1				LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNUM'.toString()">
+                        AND		ATI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'CERNAME'.toString()">
+                        AND		ATI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'ITEMNAME'.toString()">
+                        AND		ATII.ItemName			LIKE '%' || #{searchStr} || '%'
+                    </when>
+                    <when test="tiSearchTypePop == 'Remark'.toString()">
+                        AND		(
+                        ATII.Remark				LIKE '%' || #{searchStr} || '%'	OR
+                        ATI.Remark1				LIKE '%' || #{searchStr} || '%'
+                        )
+                    </when>
+                </choose>
+            </when>
+        </choose>
+    </select>
+
+    <select id="getLeftMenuList" parameterType="cmap" resultType="cmap">
+        SELECT	T.MenuID AS "MenuID"
+             ,	T.MemberOf AS "MemberOf"
+             ,	T.SortPath AS "SortPath"
+             ,	T.DisplayName AS "DisplayName"
+             ,	T.URL AS "URL"
+             ,	T.IsUse AS "IsUse"
+             ,	T.IsAdmin AS "IsAdmin"
+             ,	T.IconClass AS "IconClass"
+             ,	T.MenuType AS "MenuType"
+             ,	T.ChildCnt AS "ChildCnt"
+        FROM	(	SELECT	B.MenuID
+                          ,	B.MemberOf
+                          ,	B.SortPath
+                          ,	B.DisplayName
+                          ,	B.URL
+                          ,	B.IsUse
+                          ,	B.IsAdmin
+                          ,	B.IconClass
+                          ,	B.MenuType
+                          ,	(	SELECT	COUNT(*)
+                                    FROM	sys_object_menu CNT
+                                                JOIN	(	SELECT	AC.ObjectID
+                                                             FROM	sys_object_acl		AC
+                                                                         JOIN	(	SELECT	GP.GroupCode
+                                                                                           ,	GP.MemberOf
+                                                                                      FROM	sys_object_group			GP
+                                                                                                  JOIN	sys_object_group_member	GM
+                                                                                                          ON	GP.GroupCode = GM.GroupCode
+                                                                                                              AND	GM.UserCode = #{UR_Code}
+                                                             )	GR
+                                                                                 ON		AC.SubjectCode	= GR.GroupCode
+                                                                                     AND		AC.SubjectType	= 'GR'
+                                                             WHERE	GR.MemberOf		= 'EAccounting'
+                                                             GROUP BY AC.ObjectID
+                                    ) CNTD
+                                                        ON	CNT.MenuID = CNTD.ObjectID
+                                    WHERE	CNT.MemberOf	 = B.MenuID
+                                      AND		CNT.IsUse		 = 'Y'
+                                      AND		CNT.IsAdmin		 = 'N'
+                                      AND		CNT.MenuTyPe	!= 'Hidden'
+                ) ChildCnt
+            FROM	sys_object_menu B
+					JOIN	(	SELECT	MenuID
+								FROM	(	SELECT MenuID
+											FROM sys_object_menu
+											WHERE MenuID != #{menuID}
+            START WITH menuid = #{menuID}
+            CONNECT BY PRIOR menuid = memberof
+            ) temp3
+            ) C
+        ON	B.MenuID = C.MenuID
+            JOIN	(	SELECT	AC.ObjectID
+            FROM	sys_object_acl		AC
+            JOIN	(	SELECT	GP.GroupCode
+            ,	GP.MemberOf
+            FROM	sys_object_group			GP
+            JOIN	sys_object_group_member	GM
+            ON	GP.GroupCode = GM.GroupCode
+            AND	GM.UserCode = #{UR_Code}
+            )	GR
+            ON		AC.SubjectCode	= GR.GroupCode
+            AND		AC.SubjectType	= 'GR'
+            WHERE	GR.MemberOf		= 'EAccounting'
+            GROUP BY AC.ObjectID
+            ) D
+            ON	B.MenuID = D.ObjectID
+        WHERE	B.IsUse		= 'Y'
+          AND		B.IsAdmin	= 'N'
+          AND		B.MenuTyPe != 'Hidden'
+            ) T
+        WHERE 1=1
+        ORDER BY T.SortPath
+    </select>
+
+    <select id="getExpAppDocList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getExpAppDocList
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT		ExpenceApplicationID AS "ExpenceApplicationID"
+        , CompanyCode AS "CompanyCode"
+        , ApplicationTitle AS "ApplicationTitle"
+        , ApplicationType AS "ApplicationType"
+        , ApplicationStatus AS "ApplicationStatus"
+        , FN_GETACTBASECODENAME('ExpAppType',ApplicationType, #{companyCode})	AS "ApplicationTypeName"
+        , FN_GETACTBASECODENAME('ApplicationStatus',ApplicationStatus, #{companyCode})	AS "ApplicationStatusName"
+        , RegisterID AS "RegisterID"
+        FROM act_expence_application
+        WHERE 1=1
+        AND ApplicationStatus != 'T'
+        <if test="ApplicationTitle != null and ApplicationTitle != ''">
+            AND UPPER(ApplicationTitle) LIKE  UPPER('%' || #{ApplicationTitle} || '%') 
+        </if>
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,ExpenceApplicationID DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>"ApplicationTitle"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>"ApplicationTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>"ApplicationStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterID")'>"RegisterID"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+
+    <select id="getExpAppDocListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getExpAppDocListCnt
+        */
+        SELECT	COUNT(*)
+        FROM act_expence_application
+        WHERE ApplicationStatus != 'T'
+        <if test="ApplicationTitle != null and ApplicationTitle != ''">
+            AND UPPER(ApplicationTitle) LIKE  UPPER('%' || #{ApplicationTitle} || '%')
+        </if>
+    </select>
+
+
+    <select id="selectMobileReceipt" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectMobileReceipt
+        */
+        SELECT
+        AR.ReceiptID AS "ReceiptID"
+        , AR.CompanyCode AS "CompanyCode"
+        , AR.ExpenceMgmtCode AS "ExpenceMgmtCode"
+        , 'Receipt' AS "ProofCode"
+        , TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY/MM/DD HH24:MI:SS'), 'YYYYMMDD') AS "PhotoDate"
+        , TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY.MM.DD') AS "PhotoDateYMD"
+        , TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY/MM/DD HH24:MI:SS'), 'YYYY.MM.DD') AS "PhotoDateStr"
+        , TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY/MM/DD HH24:MI:SS'), 'HH24:MI:SS') AS "PhotoDateHMS"
+        , AR.ReceiptType AS "ReceiptType"
+        , AR.ReceiptFileID AS "ReceiptFileID"
+        , AR.Active AS "Active"
+        , FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName"
+        , AR.RegisterID AS "RegisterID"
+        , TO_CHAR(AR.RegistDate, 'YYYYMMDD') AS "RegistDate"
+        , TO_CHAR(AR.RegistDate, 'YYYY.MM.DD HH24:MI') AS "RegistDateStr"
+        , SF.FileID AS "FileID"
+        , SF.SavedName AS "SavedName"
+        , SF.FilePath AS "FilePath"
+        , SF.FileName AS "FileName"
+        , (REPLACE(ST.FilePath,'{0}',SF.CompanyCode)|| SF.FilePath|| SF.SavedName) AS "FullPath"
+
+        , AR.TotalAmount AS "TotalAmount"
+        , AR.StoreName AS "StoreName"
+        , AR.StoreAddress AS "StoreAddress"
+        , TO_CHAR(AR.UseDate, 'YYYY.MM.DD') AS "UseDate"
+        , AR.UsageText AS "UsageText"
+        , AR.Amount AS "Amount"
+        , AR.AccountCode AS "AccountCode"
+        , (SELECT AccountName FROM act_account AA WHERE AA.AccountCode = AR.AccountCode) AS "AccountName"
+        , AR.StandardBriefID AS "StandardBriefID"
+        , (SELECT StandardBriefName FROM act_standard_brief ASB WHERE ASB.StandardBriefID = AR.StandardBriefID) AS "StandardBriefName"
+        , AR.CostCenterCode AS "CostCenterCode"
+        , (SELECT CostCenterName FROM act_cost_center ACC WHERE ACC.CostCenterCode = AR.CostCenterCode) AS "CostCenterName"
+
+        , AL.ExpenceApplicationListID AS "ExpenceApplicationListID"
+        FROM act_receipt AR
+        INNER JOIN sys_file SF ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID, AL.ReceiptID, AL.ExpenceApplicationID
+        FROM act_expence_application_list AL
+        INNER JOIN act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY AL.ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        WHERE 1=1
+        AND (
+        AL.ExpenceApplicationListID IS NULL
+        <if test ="ExpenceApplicationID != null and ExpenceApplicationID !=''">
+            OR AL.ExpenceApplicationID = #{ExpenceApplicationID}
+        </if>
+        )
+        AND AR.Active = 'N' 
+        <choose>
+			<when test="addPageList != null">
+				AND 
+				<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test ="UR_Code != null and UR_Code !=''">
+            AND AR.RegisterID = #{UR_Code}
+        </if>
+        ORDER BY AR.ReceiptID ASC
+    </select>
+
+
+    <select id="getFileURLInfo" parameterType="cmap" resultType="cmap">
+        /*
+            account.common.getFileURLInfo
+        */
+        SELECT SF.FileID AS "FileID"
+             , SF.FileName AS "FileName"
+             , SF.SavedName AS "SavedName"
+             , SF.FilePath AS "FilePath"
+             , SF.FileName AS "FileName"
+             , (REPLACE(ST.FilePath,'{0}',SF.CompanyCode)|| SF.FilePath|| SF.SavedName) AS "URLPath"
+        FROM sys_file SF
+        INNER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+        WHERE SF.FileID = #{FileID}
+    </select>
+
+
+    <delete id="deleteFileDbByID" parameterType="cmap">
+        /*
+            account.common.deleteFileDbByID
+            파일db삭제
+        */
+		<![CDATA[
+        DELETE FROM sys_file
+        WHERE FileID = #{FileID};
+        ]]>
+    </delete>
+
+    <select id="getManagerCk" resultType="java.lang.Long">
+        /*
+            account.common.getManagerCk
+        */
+        SELECT A.M_CNT + A.T_CNT + A.E_CNT AS "CNT"
+        FROM
+            (
+                SELECT
+                    (
+                        SELECT	COUNT(ManagerUserCode)
+                        FROM act_manager
+                        WHERE ManagerUserCode = #{SessionUser}
+                    ) AS M_CNT,
+                    (
+                        SELECT COUNT(TossUserCode)
+                        FROM act_taxinvoice
+                        WHERE TossUserCode = #{SessionUser}
+                    ) AS T_CNT,
+                    (
+                        SELECT COUNT(InvoiceeEmail1)
+                        FROM act_taxinvoice
+                        WHERE (
+                        	InvoiceeEmail1 = (SELECT MailAddress FROM sys_object_user WHERE UserCode = #{SessionUser}) OR
+                        	InvoiceEmail2  = (SELECT MailAddress FROM sys_object_user WHERE UserCode = #{SessionUser})
+                        )
+                    ) AS E_CNT
+                FROM DUAL
+            ) A
+    </select>
+
+
+
+    <select id="selectPrivateCardPopupList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.selectPrivateCardPopupList
+        개인카드 목록 조회
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT CC.CorpCardID AS "CorpCardID"
+        , ('**********'||	SUBSTR(CC.CardNo,11))										AS "CardNoView"
+        , CC.CardNo AS "CardNo"
+        , CC.CardCompany AS "CardCompany"
+        , FN_GETACTBASECODENAME('CardCompany', CC.CardCompany, #{companyCode}) AS "CardCompanyName"
+        , USR.DisplayName AS "OwnerUserName"
+        FROM act_corp_card CC
+        LEFT OUTER JOIN sys_object_user USR
+        ON CC.OwnerUserCode	= USR.UserCode
+        WHERE 1=1
+        AND CC.CardClass = 'CCL01'
+        AND CC.OwnerUserCode = #{SessionUser}
+        <if test="companyCode != null and companyCode != ''">
+            AND	CC.CompanyCode = #{companyCode}
+        </if>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="selectPrivateCardPopupListCnt" resultType="java.lang.Long">
+        /*
+        account.common.selectPrivateCardPopupListCnt
+        개인카드 목록 조회
+        */
+        SELECT Count(*)
+        FROM act_corp_card CC
+        LEFT OUTER JOIN sys_object_user USR
+        ON CC.OwnerUserCode	= USR.UserCode
+        WHERE 1=1
+        AND CC.CardClass = 'CCL01'
+        AND CC.OwnerUserCode = #{SessionUser}
+        <if test="companyCode != null and companyCode != ''">
+            AND	CC.CompanyCode = #{companyCode}
+        </if>
+    </select>
+
+    <select id="getInterfaceLogViewList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getInterfaceLogViewList
+        */
+        <include refid="oracle.include.pagingHeader" />
+        SELECT	LogID AS "LogID"
+        ,	CompanyCode AS "CompanyCode"
+        ,	FN_GETACTBASECODENAME('CompanyCode',	CompanyCode, #{companyCode})		AS "CompanyName"
+        ,	IfTargetType AS "IfTargetType"
+        ,	IfMethodName AS "IfMethodName"
+        ,	IfRecvType AS "IfRecvType"
+        ,	IfType AS "IfType"
+        ,	IfCnt AS "IfCnt"
+        ,	IfStatus AS "IfStatus"
+        ,	ErrorLog AS "ErrorLog"
+        ,	TO_CHAR(InterfaceDate, 'YYYY.MM.DD HH24:MI:SS') AS "InterfaceDate"
+        ,	FN_GETACTBASECODENAME('InterfaceRecvType',	IfRecvType, #{companyCode})	AS "IfRecvTypeName"
+        ,	FN_GETACTBASECODENAME('InterfaceStatus',		IfStatus, #{companyCode})	AS "IfStatusName"
+        ,	FN_GETACTBASECODENAME('InterfaceType',		IfType, #{companyCode})		AS "IfTypeName"
+        FROM	act_if_status_log
+        WHERE	1=1
+        <if test="companyCode != '' and companyCode != null">
+            AND		CompanyCode	= #{companyCode}
+        </if>
+        <if test="ifTargetType != '' and ifTargetType != null">
+            AND		IfTargetType	LIKE '%' || #{ifTargetType} || '%' 
+        </if>
+        <if test="ifMethodName != '' and ifMethodName != null">
+            AND		IfMethodName	LIKE '%' || #{ifMethodName} || '%' 
+        </if>
+        <if test="interfaceRecvType != '' and interfaceRecvType != null">
+            AND		IfRecvType	= #{interfaceRecvType}
+        </if>
+        <if test="interfaceStatus != '' and interfaceStatus != null">
+            AND		IfStatus	= #{interfaceStatus}
+        </if>
+        <if test="interfaceType != '' and interfaceType != null">
+            AND		IfType		= #{interfaceType}
+        </if>
+        <trim prefix="ORDER BY">
+            <if test='sortColumn != null and sortDirection != null'>
+                <choose>
+                    <when test='sortColumn.equalsIgnoreCase("IfTargetType")'>IfTargetType</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfMethodName")'>IfMethodName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfRecvTypeName")'>IfRecvTypeName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfTypeName")'>IfTypeName</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfCnt")'>IfCnt</when>
+                    <when test='sortColumn.equalsIgnoreCase("IfStatusName")'>IfStatusName</when>
+                    <when test='sortColumn.equalsIgnoreCase("ErrorLog")'>ErrorLog</when>
+                    <when test='sortColumn.equalsIgnoreCase("InterfaceDate")'>InterfaceDate</when>
+                    <otherwise>
+                        LogID
+                    </otherwise>
+                </choose>
+                <choose>
+                    <when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+                    <otherwise> DESC</otherwise>
+                </choose>
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter" />
+    </select>
+
+    <select id="getInterfaceLogViewListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getInterfaceLogViewListCnt
+        */
+        SELECT COUNT(*)
+        FROM act_if_status_log
+        WHERE	1=1
+        <if test="companyCode != '' and companyCode != null">
+            AND		CompanyCode	= #{companyCode}
+        </if>
+        <if test="ifTargetType != '' and ifTargetType != null">
+            AND		IfTargetType	LIKE '%' || #{ifTargetType} || '%' 
+        </if>
+        <if test="ifMethodName != '' and ifMethodName != null">
+            AND		IfMethodName	LIKE '%' || #{ifMethodName} || '%' 
+        </if>
+        <if test="interfaceRecvType != '' and interfaceRecvType != null">
+            AND		IfRecvType	= #{interfaceRecvType}
+        </if>
+        <if test="interfaceStatus != '' and interfaceStatus != null">
+            AND		IfStatus	= #{interfaceStatus}
+        </if>
+        <if test="interfaceType != '' and interfaceType != null">
+            AND		IfType		= #{interfaceType}
+        </if>
+    </select>
+
+    <select id="getApplicationStatus" parameterType="cmap" resultType="cmap">
+        SELECT ApplicationStatus AS "ApplicationStatus"
+        FROM act_expence_application
+        WHERE ExpenceApplicationID = #{expenceApplicationID}
+    </select>
+
+    <select id="getCorpCardAndReceiptList" parameterType="cmap" resultType="cmap">
+        /*
+        account.common.getCorpCardAndReceiptList
+        */
+        <include refid="oracle.include.pagingHeader"/>
+        SELECT
+        "ReceiptID",
+        CompanyCode,
+        ExpenceMgmtCode,
+        "UsageText",
+        "ProofCode",
+        "PhotoDate",
+        "PhotoDateYMD",
+        "PhotoDateHMS",
+        "PhotoDateStr",
+        ReceiptType,
+        "ReceiptFileID",
+        Active,
+        "ActiveName",
+        RegisterID,
+        "RegistDate",
+        "FileID",
+        SavedName,
+        FilePath,
+        filename,
+        "FullPath",
+        StandardBriefID,
+        StandardBriefName,
+        "CardNo",
+        "ApproveNo",
+        "StoreName",
+        "TotalAmount",
+        "RepAmount",
+        "TaxAmount",
+        "ApproveDate",
+        "InfoType",
+        "OrderByDate"
+        FROM
+        (
+        SELECT
+        TO_CHAR(AR.ReceiptID) AS "ReceiptID",
+        AR.CompanyCode,
+        AR.ExpenceMgmtCode,
+        NVL(AR.UsageText, '') AS "UsageText",
+        'Receipt' AS "ProofCode",
+        TO_CHAR(AR.UseDate, 'YYYYMMDD') AS "PhotoDate",
+        TO_CHAR(AR.UseDate, 'YYYY.MM.DD') AS "PhotoDateYMD",
+        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY.MM.DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI:SS') AS "PhotoDateHMS",
+        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY.MM.DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "PhotoDateStr",
+        AR.ReceiptType,
+        TO_CHAR(AR.ReceiptFileID) AS "ReceiptFileID",
+        AR.Active,
+        FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName",
+        AR.RegisterID,
+        TO_CHAR(TO_DATE(AR.RegistDate, 'YYYY.MM.DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "RegistDate",
+        TO_CHAR(SF.FileID) AS "FileID",
+        SF.SavedName,
+        SF.FilePath,
+        SF.FileName,
+        (REPLACE(ST.FilePath,'{0}',SF.CompanyCode) || SF.FilePath || SF.SavedName) AS "FullPath",
+        SB.StandardBriefID,
+        SB.StandardBriefName,
+        '' AS "CardNo",
+        '' AS "ApproveNo",
+        NVL(AR.StoreName, '') AS "StoreName",
+        TO_CHAR(AR.TotalAmount,'999,999,999,999,999,999,999,999') AS "TotalAmount",
+        '' AS "RepAmount",
+        '' AS "TaxAmount",
+        '' AS "ApproveDate",
+        '' AS "InfoType",
+        TO_CHAR(AR.RegistDate, 'YYYY.MM.DD') AS "OrderByDate"
+        FROM act_receipt AR
+        INNER JOIN sys_file SF
+        ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN act_standard_brief SB
+        ON AR.StandardBriefID = SB.StandardBriefID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AL.ReceiptID
+        , AL.ExpenceApplicationID
+        FROM act_expence_application_list AL
+        INNER JOIN act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            AND (
+            AL.ExpenceApplicationListID IS NULL
+            <if test ="ExpAppID != null and ExpAppID !=''">
+                OR AL.ExpenceApplicationID = #{ExpAppID, jdbcType=INTEGER}
+            </if>
+            )
+            <choose>
+				<when test="addPageList != null">
+					AND 
+					<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+            <if test ="SDate != null and SDate !=''">
+                AND AR.RegistDate <![CDATA[>=]]> #{SDate}
+            </if>
+            <if test ="EDate != null and EDate !=''">
+                AND AR.RegistDate <![CDATA[<=]]> #{EDate}
+            </if>
+            <if test ="UR_Code != null and UR_Code !=''">
+                AND AR.RegisterID = #{UR_Code}
+            </if>
+        </trim>
+
+        UNION
+
+        SELECT
+        TO_CHAR(ACR.ReceiptID) AS "ReceiptID"
+        ,	'' AS "CompanyCode"
+        ,	'' AS "ExpenceMgmtCode"
+        ,	NVL(ACR.UsageText, '') AS "UsageText"
+        ,	'CorpCard' AS "ProofCode"
+        ,	'' AS "PhotoDate"
+        ,	'' AS "PhotoDateYMD"
+        ,	'' AS "PhotoDateHMS"
+        ,	'' AS "PhotoDateStr"
+        ,	'' AS "ReceiptType"
+        ,	'' AS "ReceiptFileID"
+        ,	ACR.Active AS "Active"
+        ,	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode}) AS "ActiveName"
+        ,	'' AS "RegisterID"
+        ,	'' AS "RegistDate"
+        ,	'' AS "FileID"
+        ,	'' AS "SavedName"
+        ,	'' AS "FilePath"
+        ,	'' AS "FileName"
+        ,	'' AS "FullPath"
+        ,	SB.StandardBriefID AS "StandardBriefID"
+        ,	SB.StandardBriefName AS "StandardBriefName"
+        ,	'**********' || SUBSTR(ACR.CardNo,11,6) AS "CardNo"
+        ,	ACR.ApproveNo AS "ApproveNo"
+        ,	ACR.StoreName AS "StoreName"
+        ,   TO_CHAR(ACR.AmountWon,'999,999,999,999,999,999,999,999') AS "TotalAmount"
+        ,   TO_CHAR(ACR.RepAmount,'999,999,999,999,999,999,999,999') AS "RepAmount"
+        ,   TO_CHAR(ACR.TaxAmount,'999,999,999,999,999,999,999,999') AS "TaxAmount"
+        ,	(TO_CHAR(TO_DATE(ACR.UseDate, 'YYYY.MM.DD'), 'YYYY.MM.DD') || ' ' || SUBSTR(ACR.ApproveTime,1,2) || ':' || SUBSTR(ACR.ApproveTime,3,2)) AS "ApproveDate"
+        ,	ACR.InfoType AS "InfoType"
+        ,	(TO_CHAR(TO_DATE(ACR.UseDate, 'YYYY.MM.DD'), 'YYYY.MM.DD') || ' ' || SUBSTR(ACR.ApproveTime,1,2) || ':' || SUBSTR(ACR.ApproveTime,3,2) || ':' || SUBSTR(ACR.ApproveTime,-2)) AS "OrderByDate"
+        FROM	act_card_receipt	ACR
+        JOIN	act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT OUTER JOIN act_standard_brief SB
+        ON ACR.StandardBriefID = SB.StandardBriefID
+        WHERE 1=1
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B')
+        AND (
+        (NVL(NVL(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (
+        SELECT	ACCSU.CorpCardID
+        FROM	act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        )
+        AND		NVL(NVL(ACR.IsPersonalUse,''),'N') = 'N'
+        AND		ACR.ReceiptID	NOT IN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM	act_expence_application AEA
+        JOIN	act_expence_application_list AEAL
+        ON		AEA.ExpenceApplicationID	= AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID, jdbcType=INTEGER}
+        </if>
+        )
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            AND ACR.ApproveDate <![CDATA[<=]]> #{endDD}
+        </if>
+        <if test="startDD != null and startDD !=''">
+            AND ACR.ApproveDate <![CDATA[>=]]> #{startDD}
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE '%' || #{storeName} || '%'
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE '%' || #{cardNo} || '%'
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE '%' || #{approveNo} || '%'
+        </if>
+        ) TMP
+        <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                ,"OrderByDate" DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ProofCode")'>"ProofCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptID")'>"ReceiptID"</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptFileID")'>"ReceiptFileID"</when>
+					<when test='sortColumn.equalsIgnoreCase("Active")'>Active</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>"TotalAmount"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+            </if>
+        </trim>
+        <include refid="oracle.include.pagingFooter"/>
+    </select>
+
+    <select id="getCorpCardAndReceiptListCnt" resultType="java.lang.Long">
+        /*
+        account.common.getCorpCardAndReceiptListCnt
+        */
+        SELECT COUNT(*) FROM
+        (
+        SELECT
+        TO_CHAR(AR.ReceiptID) AS "ReceiptID"
+        FROM act_receipt AR
+        INNER JOIN sys_file SF
+        ON AR.ReceiptFileID = SF.FileID
+        INNER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+        LEFT OUTER JOIN act_standard_brief SB
+        ON AR.StandardBriefID = SB.StandardBriefID
+        LEFT OUTER JOIN (
+        SELECT MAX(AL.ExpenceApplicationListID) ExpenceApplicationListID
+        , AL.ReceiptID
+        , AL.ExpenceApplicationID
+        FROM act_expence_application_list AL
+        INNER JOIN act_expence_application AA
+        ON AL.ExpenceApplicationID = AA.ExpenceApplicationID
+        WHERE AA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        GROUP BY ReceiptID, AL.ExpenceApplicationID
+        ) AL
+        ON AR.ReceiptID = AL.ReceiptID
+        <trim prefix="WHERE" prefixOverrides="AND |OR ">
+            AND (
+            AL.ExpenceApplicationListID IS NULL
+            <if test ="ExpAppID != null and ExpAppID !=''">
+                OR AL.ExpenceApplicationID = #{ExpAppID, jdbcType=INTEGER}
+            </if>
+            )
+            <choose>
+				<when test="addPageList != null">
+					AND 
+					<foreach collection="addPageList" item="item" index="index" separator="," open="AR.ReceiptID NOT IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+            <if test ="SDate != null and SDate !=''">
+                AND AR.RegistDate <![CDATA[>=]]> #{SDate}
+            </if>
+            <if test ="EDate != null and EDate !=''">
+                AND AR.RegistDate <![CDATA[<=]]> #{EDate}
+            </if>
+            <if test ="UR_Code != null and UR_Code !=''">
+                AND AR.RegisterID = #{UR_Code}
+            </if>
+        </trim>
+
+        UNION
+
+        SELECT
+        TO_CHAR(ACR.ReceiptID) AS "ReceiptID"
+        FROM	act_card_receipt	ACR
+        JOIN	act_corp_card	ACC
+        ON		ACR.CardNo	= ACC.CardNo
+        LEFT OUTER JOIN sys_object_user	SOU
+        ON		ACR.CardUserCode	= SOU.UserCode
+        LEFT OUTER JOIN act_standard_brief SB
+        ON ACR.StandardBriefID = SB.StandardBriefID
+        WHERE 1=1
+        AND		ACR.ApproveStatus	= 'A'
+        AND		ACR.InfoIndex in ('A', 'B')
+        AND (
+        (NVL(NVL(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+        OR (ACR.TossUserCode	= #{UR_Code})
+        OR (ACC.CorpCardID IN (
+        SELECT	ACCSU.CorpCardID
+        FROM	act_corp_card_search_user	ACCSU
+        WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+        )
+        <if test ="cardNo != null and cardNo !='' and approveNo != null and approveNo !=''">
+            OR (#{cardNo} != '' AND	ACR.CardNo = #{cardNo} AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+        </if>
+        )
+        AND		NVL(NVL(ACR.IsPersonalUse,''),'N') = 'N'
+        AND		ACR.ReceiptID	NOT IN (
+        SELECT	AEAL.CardUID AS ApproveNo
+        FROM	act_expence_application AEA
+        JOIN	act_expence_application_list AEAL
+        ON		AEA.ExpenceApplicationID	= AEAL.ExpenceApplicationID
+        WHERE	AEA.ApplicationStatus NOT IN ('R', 'C', 'DELETE')
+        AND		AEAL.CardUID IS NOT NULL
+        <if test ="ExpAppID != null and ExpAppID !=''">
+            AND AEA.ExpenceApplicationID != #{ExpAppID, jdbcType=INTEGER}
+        </if>
+        )
+        <choose>
+			<when test="pageList != null">
+				AND 
+				<foreach collection="pageList" item="item" index="index" separator="," open="ACR.ReceiptID NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+        <if test="endDD != null and endDD != ''">
+            AND ACR.ApproveDate <![CDATA[<=]]> #{endDD}
+        </if>
+        <if test="startDD != null and startDD !=''">
+            AND ACR.ApproveDate <![CDATA[>=]]> #{startDD}
+        </if>
+        <if test="storeName != null and storeName != ''">
+            AND ACR.StoreName LIKE '%' || #{storeName} || '%'
+        </if>
+        <if test="cardNo != null and cardNo != ''">
+            AND ACR.CardNo LIKE '%' || #{cardNo} || '%'
+        </if>
+        <if test="approveNo != null and approveNo != ''">
+            AND ACR.ApproveNo LIKE '%' || #{approveNo} || '%'
+        </if>
+        ) TMP
+    </select>
+
+    <select id="selectUserInfo" parameterType="cmap" resultType="cmap">
+        SELECT
+            SOU.UserCode AS "UserCode",
+            SOU.DisplayName AS "UserName",
+            SOUB.DeptCode AS "DeptCode",
+            SOUB.DeptName AS "DeptName"
+        FROM sys_object_user SOU
+                 INNER JOIN sys_object_user_basegroup SOUB
+                            ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+        WHERE SOU.UserCode = #{UR_Code}
+          AND ROWNUM = 1
+    </select>
+
+    <select id="selectCompanyCodeOfUser" parameterType="cmap" resultType="java.lang.String">
+        SELECT
+            CASE 
+            	WHEN #{AssignedDomain} LIKE '%ORGROOT%' THEN 'ALL'
+				ELSE
+			NVL(
+				CC.CompanyCode, 
+				NVL((
+					SELECT 
+						CODE 
+					FROM 
+						ACT_BASE_CODE 
+					WHERE 
+						CODEGROUP = 'CompanyCode' 
+						AND CODE = SOUB.COMPANYCODE 
+						AND COMPANYCODE = SOUB.COMPANYCODE), 
+					'ALL'
+				)
+			)
+			END AS "CompanyCode"
+		FROM 
+			ACT_COST_CENTER CC
+		INNER JOIN 
+			ACT_USER_COST_CENTER UCC
+		ON 
+			CC.COSTCENTERCODE = UCC.COSTCENTERCODE
+		RIGHT JOIN 
+			SYS_OBJECT_USER_BASEGROUP SOUB
+		ON 
+			UCC.USERCODE = SOUB.USERCODE 
+			AND SOUB.JOBTYPE = 'Origin'
+		WHERE 
+			SOUB.USERCODE = #{SessionUser}
+			AND ROWNUM = 1
+    </select>
+
+    <select id="searchUsageTextData" parameterType="cmap" resultType="cmap">
+        <!-- SELECT
+        UsageText AS "UsageText",
+        AccountCode AS "AccountCode",
+        (SELECT AccountName FROM act_account AC WHERE AC.AccountCode = A.AccountCode) AS "AccountName",
+        StandardBriefID AS "StandardBriefID",
+        (SELECT StandardBriefName FROM act_standard_brief SB WHERE SB.StandardBriefID = A.StandardBriefID) AS "StandardBriefName"
+        <if test="ProofCode == 'CorpCard'">
+            FROM act_card_receipt A
+        </if>
+        <if test="ProofCode == 'Receipt'">
+            FROM act_receipt A
+        </if>
+        WHERE ReceiptID = #{ReceiptID} -->
+        <!-- 변경 후 -->
+        SELECT
+        	A.UsageText AS "UsageText",
+        	A.AccountCode AS "AccountCode",
+        	B.AccountName AS "AccountName",
+        	A.StandardBriefID AS "StandardBriefID",
+        	B.StandardBriefName AS "StandardBriefName"
+        FROM
+        <if test="ProofCode == 'CorpCard'">
+        	act_card_receipt A
+        </if>
+        <if test="ProofCode == 'Receipt'">
+        	act_receipt A
+        </if>
+        LEFT OUTER JOIN (
+        	SELECT
+        		AC.AccountCode,
+        		AC.AccountName,
+        		SB.StandardBriefID,
+        		SB.StandardBriefName
+        	FROM
+        		act_account AC
+        	LEFT OUTER JOIN
+        		act_standard_brief SB
+        	ON
+        		AC.AccountID = SB.AccountID
+        	WHERE
+        		AC.CompanyCode = #{companyCode}
+        ) B
+        ON
+        	A.AccountCode = B.AccountCode
+        	AND A.StandardBriefID = B.StandardBriefID
+        WHERE
+        	A.ReceiptID = #{ReceiptID}
+    </select>
+
+    <update id="updateUsageTextData" parameterType="cmap">
+        UPDATE
+        <if test="ProofCode == 'CorpCard'">
+            act_card_receipt
+        </if>
+        <if test="ProofCode == 'Receipt'">
+            act_receipt
+        </if>
+        SET
+        UsageText = #{UsageText},
+        AccountCode = #{AccountCode},
+        StandardBriefID = #{StandardBriefID}
+        WHERE ReceiptID = #{ReceiptID}
+    </update>
+
+    <insert id="insertKakaoApprovalList" parameterType="cmap">
+        /*
+            account.common.insertKakaoApprovalList
+        */
+        INSERT INTO ACT_KAKAO_CARD_RECEIPT
+        (
+            ID
+        ,PAYMENT_ITEM_ID
+        ,AMOUNT
+        ,PAY_TYPE
+        ,APPROVAL_NO
+        ,ORG_DATE_TIME
+        ,CARD_NUMBER
+        ,REGISTDATE
+        )
+        VALUES
+            (
+                #{Id}
+            ,#{PaymentItemId}
+            ,#{Amount}
+            ,#{PayType}
+            ,#{ApprovalNo}
+            ,#{OrgDateTime}
+            ,#{CardNumber}
+            ,to_char(SYSDATE,'YYYYMMDD HH24MISS')
+            )
+    </insert>
+
+    <select id="selectKakaoApprovalListCnt" resultType="java.lang.Long">
+        SELECT COUNT(ID) AS CNT
+        FROM ACT_KAKAO_CARD_RECEIPT
+        WHERE ID = #{Id}
+    </select>
+
+    <select id="selectApprovalNo" parameterType="cmap" resultType="java.lang.String">
+        SELECT APPROVAL_NO
+        FROM act_kakao_card_receipt
+        WHERE payment_item_id = #{paymentItemId}
+    </select>
+    
+    <select id="selectEntInfoList" resultType="cmap" >
+	    <![CDATA[		
+	    SELECT DomainCode AS "optionValue" ,Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as "optionText", DomainCode as "defaultVal"
+	    FROM sys_object_group gr
+		INNER JOIN sys_object_domain dn on gr.CompanyCode = dn.DomainCode
+		]]>
+		WHERE gr.GroupType = 'Company' 
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+		AND dn.IsUse = 'Y' 
+		AND TO_CHAR(dn.ServiceStart,'yyyymmdd') <![CDATA[<=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+		AND TO_CHAR(dn.ServiceEnd,'yyyymmdd') <![CDATA[>=]]>   TO_CHAR(SYSDATE,'yyyymmdd')
+		ORDER BY gr.SortKey ASC
+	</select>
+
+	<!-- domainid as option value -->
+    <select id="selectEntInfoListId" resultType="cmap" >
+	    <![CDATA[		
+		    SELECT DomainID AS "optionValue" ,Fn_BaseGetDictionary_S(#{lang}, dn.MultiDisplayName) as "optionText", DomainCode as "defaultVal"
+			FROM sys_object_group gr
+			INNER JOIN sys_object_domain dn on gr.CompanyCode = dn.DomainCode
+			WHERE gr.GroupType = 'Company' 
+		]]>
+		<if test="assignedDomain != null and assignedDomain.size() > 0" >
+            AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if> 
+			AND dn.IsUse = 'Y' 
+			AND TO_CHAR(dn.ServiceStart,'yyyymmdd') <![CDATA[<=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+			AND TO_CHAR(dn.ServiceEnd,'yyyymmdd') <![CDATA[>=]]> TO_CHAR(SYSDATE,'yyyymmdd')
+		ORDER BY gr.SortKey ASC
+	</select>
+</mapper>

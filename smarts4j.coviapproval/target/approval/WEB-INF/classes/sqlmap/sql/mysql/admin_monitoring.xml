@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monitoring">
+    <select id="selectFormInstance" parameterType="cmap" resultType="cmap">
+		select * 
+		from covi_approval4j.jwf_forminstance
+		where FormInstID = #{formInstID};
+	</select>
+	
+    <update id="updateFormInstance" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_forminstance
+        <trim prefix="SET" suffixOverrides=",">
+			<if test="FormInstID != null and FormInstID != ''">FormInstID = #{FormInstID},</if>
+			<if test="ProcessID != null and ProcessID != ''">ProcessID = #{ProcessID},</if>
+			<if test="SchemaID != null and SchemaID != ''">SchemaID = #{SchemaID},</if>
+			<if test="InitiatorID != null and InitiatorID != ''">InitiatorID = #{InitiatorID},</if>
+			<if test="InitiatorUnitID != null and InitiatorUnitID != ''">InitiatorUnitID = #{InitiatorUnitID},</if>
+			<if test="InitiatedDate != null and InitiatedDate != ''">InitiatedDate = #{InitiatedDate},</if>
+			<if test="DeletedDate != null and DeletedDate != ''">DeletedDate = #{DeletedDate},</if>
+			<if test="EntName != null and EntName != ''">EntName = #{EntName},</if>
+			<if test="DocLevel != null and DocLevel != ''">DocLevel = #{DocLevel},</if>
+			<if test="DocClassName != null and DocClassName != ''">DocClassName = #{DocClassName},</if>
+			<if test="AttachFileInfo != null and AttachFileInfo != ''">AttachFileInfo = #{AttachFileInfo},</if>
+			<if test="SaveTerm != null and SaveTerm != ''">SaveTerm = #{SaveTerm},</if>
+			<if test="AppliedTerm != null and AppliedTerm != ''">AppliedTerm = #{AppliedTerm},</if>
+			<if test="ReceiveNames != null and ReceiveNames != ''">ReceiveNames = #{ReceiveNames},</if>
+			<if test="BodyType != null and BodyType != ''">BodyType = #{BodyType},</if>
+			<if test="BodyContext != null and BodyContext != ''">BodyContext = #{BodyContext},</if>
+			<if test="FormID != null and FormID != ''">FormID = #{FormID},</if>
+			<if test="Subject != null and Subject != ''">Subject = #{Subject},</if>
+			<if test="InitiatorName != null and InitiatorName != ''">InitiatorName = #{InitiatorName},</if>
+			<if test="InitiatorUnitName != null and InitiatorUnitName != ''">InitiatorUnitName = #{InitiatorUnitName},</if>
+			<if test="CompletedDate != null and CompletedDate != ''">CompletedDate = #{CompletedDate},</if>
+			<if test="EntCode != null and EntCode != ''">EntCode = #{EntCode},</if>
+			<if test="DocNo != null and DocNo != ''">DocNo = #{DocNo},</if>
+			<if test="DocClassID != null and DocClassID != ''">DocClassID = #{DocClassID},</if>
+			<if test="IsPublic != null and IsPublic != ''">IsPublic = #{IsPublic},</if>
+			<if test="AppliedDate != null and AppliedDate != ''">AppliedDate = #{AppliedDate},</if>
+			<if test="ReceiveNo != null and ReceiveNo != ''">ReceiveNo = #{ReceiveNo},</if>
+			<if test="ReceiptList != null and ReceiptList != ''">ReceiptList = #{ReceiptList},</if>
+			<if test="DocLinks != null and DocLinks != ''">DocLinks = #{DocLinks},</if>
+		</trim>
+        WHERE FormInstID = #{fiid};
+    </update>
+	
+    <update id="updateDomainData" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_domaindata AS D
+        INNER JOIN covi_approval4j.jwf_process AS P ON D.ProcessID = P.ProcessID
+        SET DomainDataContext = #{DomainDataContext}
+        WHERE P.FormInstID = #{FormInstID};
+    </update>
+    
+    <update id="updateDomainDataArchive" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_domaindata AS D
+        INNER JOIN covi_approval4j.jwf_process AS P ON D.ProcessID = P.ProcessID
+        SET DomainDataContext = #{DomainDataContext}
+        WHERE P.FormInstID = #{FormInstID};
+    </update>
+    
+    <update id="updateIsComment" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_processdescription
+        SET IsComment = 'Y'
+        WHERE FormInstID = #{FormInstID};
+    </update>
+    
+    <select id="selectProcessStep" parameterType="cmap" resultType="java.lang.String">
+        SELECT ApprovalStep FROM covi_approval4j.jwf_processdescription AS PD
+        INNER JOIN covi_approval4j.jwf_process AS P ON P.ProcessDescriptionID = PD.ProcessDescriptionID
+        WHERE P.ProcessID = #{ProcessID};
+    </select>
+    
+    <update id="updateProcessDesc" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_processdescription AS PD
+        INNER JOIN covi_approval4j.jwf_process AS P ON P.ProcessDescriptionID = PD.ProcessDescriptionID
+        <trim prefix="SET" suffixOverrides=",">
+			<if test="ApprovalStep != null">ApprovalStep = #{ApprovalStep},</if>
+			<if test="chargeName != null">ApproverName = #{chargeName},</if>
+			<if test="chargeCode != null">ApproverCode = #{chargeCode},</if>
+		</trim>
+        WHERE P.ProcessID = #{ProcessID};
+    </update>
+    
+    <update id="updateWorkitemData" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_workitem AS W
+		INNER JOIN covi_approval4j.jwf_performer AS PF ON W.WorkitemID = PF.WorkitemID
+		 <trim prefix="SET" suffixOverrides=",">
+			<if test="chargeId != null">
+			    W.UserCode = #{chargeId},
+			    PF.UserCode = #{chargeId},
+			</if>
+			<if test="chargeName != null">
+			    W.UserName = #{chargeName},
+			    PF.UserName = #{chargeName},
+			</if>
+			<if test="deputyID != null">
+			   W.DeputyID = #{deputyID},
+			</if>
+			<if test="deputyName != null">
+			    W.DeputyName = #{deputyName},
+			</if>
+		</trim>
+		WHERE W.WorkitemID = #{WorkitemID};
+    </update>
+    
+    <select id="selectSuperAdminData" parameterType="cmap" resultType="cmap">
+        SELECT 
+			UR.UserCode AS UR_Code,
+			UR.DisplayName AS UR_Name,
+			BG.DeptCode AS DEPT_Code,
+			BG.DeptName AS DEPT_Name,
+			BG.JobPositionCode,
+			BG.JobPositionName,
+			BG.JobTitleCode,
+			BG.JobTitleName,
+			BG.JobLevelCode,
+			BG.JobLevelName
+		FROM covi_smart4j.sys_object_user AS UR
+		INNER JOIN covi_smart4j.sys_object_user_basegroup AS BG ON UR.UserCode = BG.UserCode
+		WHERE UR.UserCode = #{userID} AND BG.JobType = 'Origin';
+    </select>
+	
+    <select id="selectProcess" parameterType="cmap" resultType="cmap">
+		select * 
+		from covi_approval4j.jwf_process
+		where FormInstID = #{formInstID};
+	</select>
+	
+    <select id="selectProcessDesc" parameterType="cmap" resultType="cmap">
+		select * 
+		from covi_approval4j.jwf_processdescription
+		where ProcessDescriptionID = #{processDescriptionID};
+	</select>
+	
+    <select id="selectWorkitem" parameterType="cmap" resultType="cmap">
+		select * 
+		from covi_approval4j.jwf_workitem
+		where ProcessID = #{processID}
+		and state != '512' <!-- 삭제된 예고자는 표시하지 않음. -->
+		ORDER by Created, WorkItemID;
+	</select>
+	
+    <select id="selectDomaindata" parameterType="cmap" resultType="cmap">
+		select * 
+		from covi_approval4j.jwf_domaindata
+		where ProcessID = #{processID};
+	</select>
+	
+	<select id="selectFormSchema" parameterType="java.lang.String" resultType="java.lang.String">
+		SELECT 
+			IFNULL(S.SchemaContext, '')
+		FROM covi_approval4j.jwf_forminstance AS FI
+		INNER JOIN covi_approval4j.jwf_forms AS F ON FI.FormID = F.FormID
+		INNER JOIN covi_approval4j.jwf_formsschema AS S ON F.SchemaID = S.SchemaID
+		WHERE FI.FormInstID = #{formInstID};
+	</select>
+</mapper>
+

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.listConSendData">
+    <!-- 메뉴 보이지 않고, 테이블 비사용으로 이름변경해둠
+    <select id="selectConSendDataLogLegacyList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT
+				 A.IDX
+				, A.DocID
+				, A.SystemID
+				, A.Section
+				, A.AprMemberSN
+				, A.ApvMode
+				, A.FMPF
+				, A.FormName
+				, A.Subject
+				, A.ApvResult
+				, A.DocNumber
+				, A.ApproverId
+				, B.UR_Name AS ExDisplayName
+				, A.Flag
+				, DATE_FORMAT(A.SendDate,'%Y-%m-%d %H:%i') AS  SendDate
+				FROM jwf_tbconsenddata AS A 
+				LEFT OUTER JOIN base_object_ur B		
+				ON A.ApproverId = B.UR_CODE
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND ${sel_Search} LIKE CONCAT('%',#{search},'%')		
+			</if>			
+			<if test="startdate != '' or enddate != ''">
+				AND date_format(A.SendDate,"%Y-%m-%d") BETWEEN #{startdate} AND #{enddate}		
+			</if>			
+		</trim>
+		) A		
+		
+	Order by 절
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+		</trim>
+		
+	    paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	    
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectConSendDataLogLegacyListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT
+				 A.IDX
+				, A.DocID
+				, A.SystemID
+				, A.Section
+				, A.AprMemberSN
+				, A.ApvMode
+				, A.FMPF
+				, A.FormName
+				, A.Subject
+				, A.ApvResult
+				, A.DocNumber
+				, A.ApproverId
+				, B.UR_Name AS ExDisplayName
+				, A.Flag
+				, A.SendDate
+				FROM jwf_tbconsenddata AS A 
+				LEFT OUTER JOIN base_object_ur B		
+				ON A.ApproverId = B.UR_CODE
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND ${sel_Search} LIKE CONCAT('%',#{search},'%')		
+			</if>			
+			<if test="startdate != '' or enddate != ''">
+				AND date_format(A.SendDate,"%Y-%m-%d") BETWEEN #{startdate} AND #{enddate}		
+			</if>			
+		</trim>
+		) A			
+	</select> -->
+	
+</mapper>
+

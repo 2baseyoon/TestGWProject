@@ -1,0 +1,321 @@
+<!--실 결재양식 내용 부분 시작 -->
+<!--하위마스터테이블 시작-->
+<table class="table_10 tableStyle linePlus mt10" cellpadding="0" cellspacing="0" style="display: none;">
+    <tbody><tr>
+        <th style="width: 16%; ">
+            신청일자
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="REQ_DAY" data-model="REQ_DAY" value="{{ doc.BodyData.MainTable.REQ_DAY }}" maxlength="10" data-max-char="10" title="신청일자" data-binding="pre" data-pattern="date" style="width: 98%;">
+        </td>
+    </tr>
+<!--    <tr>
+        <th style="width: 16%">
+            결재완료일자
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="FINISH_DAY" data-model="FINISH_DAY" value="{{ doc.BodyData.MainTable.FINISH_DAY }}" maxlength="10" data-max-char="10" title="결재완료일자" data-binding="pre" data-pattern="date" style="width: 98%;" />
+        </td>
+    </tr>-->
+<!--    <tr>
+        <th style="width: 16%">
+            생성일자
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="CERATE_DAY" data-model="CERATE_DAY" value="{{ doc.BodyData.MainTable.CERATE_DAY }}" maxlength="10" data-max-char="10" title="생성일자" data-binding="pre" data-pattern="date" style="width: 98%;" />
+        </td>
+    </tr>-->
+    <tr>
+        <th style="width: 16%">
+            신청자
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="REQ_PERSON" data-model="REQ_PERSON" value="{{ doc.BodyData.MainTable.REQ_PERSON }}" title="신청자" maxlength="20" data-max-char="20" style="width: 98%;" data-binding="pre">
+        </td>
+    </tr>
+    <tr>
+        <th style="width: 16%">
+            팀
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="REQ_TEAM" data-model="REQ_TEAM" value="{{ doc.BodyData.MainTable.REQ_TEAM }}" title="팀" maxlength="50" data-max-char="50" style="width: 98%;" data-binding="pre">
+        </td>
+    </tr>
+    <tr>
+        <th style="width: 16%">
+            팀장
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="REQ_LEADER" data-model="REQ_LEADER" value="{{ doc.BodyData.MainTable.REQ_LEADER }}" title="팀장" maxlength="50" data-max-char="50" style="width: 98%;" data-binding="pre">
+        </td>
+    </tr>
+    <tr>
+        <th style="width: 16%">
+            인프라서비스팀&nbsp;담당자
+        </th>
+        <td>
+            <input type="text" data-type="smField" id="IS_CHARGE_PERSON" data-model="IS_CHARGE_PERSON" value="{{ doc.BodyData.MainTable.IS_CHARGE_PERSON }}" title="인프라서비스팀 담당자" maxlength="20" data-max-char="20" style="width: 98%;" data-binding="pre">
+        </td>
+    </tr>
+</tbody></table>
+<!--하위마스터테이블 종료-->
+<!--하위테이블1 시작-->
+<table class="table_10 multi-row-table tableStyle linePlus mt10" id="SubTable1" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width:24%">
+        <col style="width:8%">
+        <col style="width:10%">
+        <col style="width:10%">
+        <col style="width:10%">
+        <col style="width:18%">
+        <col style="width:19%">
+    </colgroup>
+    <tbody><tr>
+    <td style="border-right: hidden;border-left: hidden;border-top: hidden;font-weight:bold;">
+    신청내역
+    </td>
+    </tr>
+    <tr class="multi-row-control" style="display:">
+        <td colspan="7" data-mode="writeOnly">
+                <em class="btn_iws_l usa" style="float: right; font-style:normal;" data-mode="writeOnly">
+                <span class="btn_iws_r multi-row-add" id="btnAdd">
+                    <strong class="txt_btn_ws">
+                        <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                    </strong>
+                </span>
+            </em>
+            <em class="btn_iws_l usa" style="float: right; font-style:normal;" data-mode="writeOnly">
+                <span class="btn_iws_r multi-row-del-auto" id="Span1">
+                    <strong class="txt_btn_ws">
+                        <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                    </strong>
+                </span>
+            </em>
+            
+        </td>
+    </tr>
+    <tr>
+      
+        <th>사용기간</th>
+        <th>VM수량</th>
+        <!-- <th>인터넷 사용</th> -->
+        <th>디스크 C</th>
+        <th>디스크 D</th>
+        <th>디스크 E</th>
+        <th>운영체제</th>
+        <th>신청사유</th>
+    </tr>
+    <tr class="multi-row-template">
+        <td style="text-align:center">
+            <input title="VM의 사용기한을 설정하여 주십시오. 기한은 신청일로부터 최대 1년, 1년 이상은 연장신청 후 계속 사용할 수 있습니다." type="text" data-type="stField" name="USE_TERM_S" style="width: 75px" data-pattern="date" data-date-min="+0D" readonly="" onchange="calSDATEEDATE(this);">
+            
+            ~
+            <input title="VM의 사용기한을 설정하여 주십시오. 기한은 신청일로부터 최대 1년, 1년 이상은 연장신청 후 계속 사용할 수 있습니다." type="text" data-type="stField" name="USE_TERM_E" style="width: 75px" data-pattern="date" data-date-min="+0D" data-date-max="+1Y" onchange="calSDATEEDATE(this);">
+        </td>
+        <td>
+            <input title="필요한 VM의 수량을 설정하여 주십시오." type="text" data-type="stField" name="VM_AMOUNT" style="width: 99%;" data-pattern="currency"><!-- placeholder="필요한 VM 의 수량을 설정하여 주십시오."-->
+        </td>
+        <!-- <td>
+            <div title="인터넷 사용 여부 : 필요함, 필요하지 않음" class="group" data-type="stField" data-element-type="rdo_d" data-node-name="USE_INTERNET" style="width: 99%">
+                radio들이 들어 올 영역
+                <input type="radio" data-face-for="USE_INTERNET" value="필요">필요<br>
+                <input type="radio" data-face-for="USE_INTERNET" value="불필요">불필요
+                <input type="text" name="USE_INTERNET" data-face-real="y" style="display: none;">
+            </div>
+        </td> -->
+        <td>
+        <input title="기본 운영체제 볼륨(C:)은 120GB 입니다. 필요한 추가 디스크 용량을 100GB 1개와 같이 신청하여 주십시오." type="text" data-type="stField" name="DISK" style="width: 70%; text-align:left" data-pattern="currency">GB
+        </td>
+        <td>
+           <input title="기본 운영체제 볼륨(C:)은 120GB 입니다. 필요한 추가 디스크 용량을 100GB 1개와 같이 신청하여 주십시오." type="text" data-type="stField" name="DISK_SIZE_D" maxlength="100" data-max-char="100" style="width: 70%;" data-pattern="currency">GB
+           </td>
+           <td>
+           <input title="기본 운영체제 볼륨(C:)은 120GB 입니다. 필요한 추가 디스크 용량을 100GB 1개와 같이 신청하여 주십시오." type="text" data-type="stField" name="DISK_SIZE_E" maxlength="100" data-max-char="100" style="width: 70%;" data-pattern="currency">GB
+        </td>
+        <td>
+            <select data-type="stField" data-element-type="sel_d_t" name="OS_NAME" style="width:99%" title="사용할 운영체제를 선택하여 주십시오. 목록에 없는 운영체제는 개발서버 운영담당자와 협의하여 주십시오.">
+               </select>
+        </td>
+        
+        <td style="padding:5px">
+            <textarea data-type="stField" name="REQ_REASON" rows="3" cols="50" style="width: 90%; overflow: auto" title="VM의 사용용도를 상세하게 기재하여 주십시오."></textarea>
+        </td>
+        <td style="display: none;">
+        <input title="생성일자" type="text" data-type="stField" name="CREATE_DAY" style="width: 99%;">
+        </td>
+    </tr>
+</tbody></table>
+<br>
+<!--하위테이블1 종료-->
+<!--하위테이블2 시작-->
+<table class="table_10 multi-row-table tableStyle linePlus mt10" id="SubTable2"cellpadding="0" cellspacing="0" style="display: none;">
+<colgroup>
+    <col style="width:3%">
+    <col style="width:13%">
+    <col style="width:13%">
+    <col style="width:5%">
+    <col style="width:5%">
+    <col style="width:5%">
+    <col style="width:5%">
+    <col style="width:5%">
+    <col style="width:13%">
+    <col style="width:17%">
+    <col style="width:8%">
+    <col style="width:8%">
+</colgroup>
+<tbody><tr>
+<td colspan="2" style="border-left: hidden; border-top: hidden; border-right: hidden; font-weight: bold;">
+설정내역
+</td>
+</tr>
+    <tr class="multi-row-control" data-mode="writeOnly">
+        <td colspan="12">
+           <em class="btn_iws_l usa" style="float: right; font-style:normal;" data-mode="writeOnly">
+                <span class="btn_iws_r multi-row-add" id="btnAdd">
+                    <strong class="txt_btn_ws">
+                        <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_plus.gif">추가
+                    </strong>
+                </span>
+            </em>
+
+            <em class="btn_iws_l usa" style="float: right; font-style:normal;" data-mode="writeOnly">
+                <span class="btn_iws_r multi-row-del-auto" id="Span1">
+                    <strong class="txt_btn_ws">
+                        <img class="ico_btn" alt="" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/ico_x.gif">삭제
+                    </strong>
+                </span>
+            </em>
+            
+        </td>
+    </tr>
+    <tr>
+        <th>
+            순번
+        </th>
+        <th>
+            VM<br>
+            Name
+        </th>
+        <th>
+            Host<br>
+            Computer
+        </th>
+        <th>
+            Core
+        </th>
+        <th>
+            Memory
+        </th>
+        <th>
+            C:<br>
+            (GB)
+        </th>
+        <th>
+            D:<br>
+            (GB)
+        </th>
+        <th>
+            E:<br>
+            (GB)
+        </th>
+        <th>
+            IP<br>
+            Address
+        </th>
+        <th>
+            Operating<br>
+            System
+        </th>
+        <th>
+            Computer<br>
+            Name
+        </th>
+        <th>
+            Comment
+        </th>
+    </tr>
+    <tr class="multi-row-template">
+        <td style="width: 30px; text-align: center;">
+            <span class="multi-row-seq">1</span>
+        </td>
+        <td>
+            <input title="VM Name" type="text" data-type="stField" name="VM_NAME" maxlength="100" data-max-char="100" style="width: 100%;" onblur="test(this)">
+        </td>
+        <td>
+             <select data-type="stField" data-element-type="sel_d_t" name="HOST_COMPUTER" style="width: 99%;"></select>
+</td>
+        <td>
+            <input title="Core" type="text" data-type="stField" name="CORE" style="width: 100%;" data-pattern="currency">
+        </td>
+        <td>
+            <input title="Memory" type="text" data-type="stField" name="Memory" style="width: 100%;" data-pattern="currency">
+        </td>
+        <td>
+            <input title="C:(GB)" type="text" data-type="stField" name="DISK_C" style="width: 100%;" data-pattern="currency">
+        </td>
+        <td>
+            <input title="D:(GB)" type="text" data-type="stField" name="DISK_D" style="width: 100%;" data-pattern="currency">
+        </td>
+        <td>
+            <input title="E:(GB)" type="text" data-type="stField" name="DISK_E" style="width: 100%;" data-pattern="currency">
+        </td>
+        <td>
+            <input title="IP_Address" type="text" data-type="stField" name="IP_ADDRESS" style="width: 100%;" onblur="test(this)">
+        </td>
+        <td>
+            <!--<input title="Operating System" type="text" data-type="stField" name="OPERATING_SYSTEM" maxlength="100" data-max-char="100" style="width:100%;" />-->
+            <select data-type="stField" data-element-type="sel_d_t" name="OPERATING_SYSTEM" style="width: 99%;">
+            </select>
+        </td>
+        <td>
+            <input title="Computer Name" type="text" data-type="stField" name="COMPUTER_NAME" maxlength="100" data-max-char="100" style="width: 100%;" onblur="test(this)">
+        </td>
+        <td>
+            <input title="Comment" type="text" data-type="stField" name="COMMENT" style="width: 100%;">
+        </td>
+    </tr>
+</tbody></table>
+<!--하위테이블2 종료-->
+
+<table class="table_10 tableStyle linePlus mt10" data-mode="writeOnly">
+    <colgroup>
+        <col style="width:12%">
+        <col style="width:12%">
+        <col style="width:76%">
+    </colgroup>
+    <tbody><tr>
+        <th rowspan="7">참고사항</th>
+        <th>입력항목</th>
+        <th>설명</th>
+    </tr>
+    <tr>
+        <th>인터넷 사용</th>
+        <td>필요 시 신청사유에 반드시 명시하여 주십시오.</td>
+    </tr>
+    <tr>
+        <th>신청사유</th>
+        <td>VM의 사용용도를 상세하게 기재하여 주십시오.</td>
+    </tr>
+     <tr>
+        <th>사용기간</th>
+        <td>VM의 사용기한을 설정하여 주십시오. 기한은 신청일로부터 최대 1년, 1년 이상은 연장신청 후 계속 사용할 수 있습니다.</td>
+    </tr>
+    <tr>
+        <th>VM수량</th>
+        <td>필요한 VM의 수량을 설정하여 주십시오.</td>
+    </tr>
+    <tr>
+        <th>디스크</th>
+        <td>
+            기본 운영체제 볼륨(C:)은 120GB 입니다. 필요한 추가 디스크 용량을 100GB 1개와 같이 신청하여 주십시오.<br>
+            예를 들어 100GB 2를 신청하면 D:100GB, E:100GB 와 같이 설정됩니다.
+        </td>
+    </tr>
+    <tr>
+        <th>운영체제</th>
+        <td>
+            사용할 운영체제를 선택하여 주십시오. 목록에 없는 운영체제는 개발서버 운영담당자와 협의하여 주십시오.
+        </td>
+    </tr>
+</tbody></table>
+<!--실 결재양식 내용 부분 끝 -->

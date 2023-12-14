@@ -1,0 +1,110 @@
+<input type="hidden" data-type="mField" id="trLen">
+
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 35%">
+        <col style="width: 15%">
+        <col style="width: 35%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>지출일자</th>			
+			<td><input type="text" data-type="mField" id="spend_date" value="{{ doc.BodyContext.spend_date }}" data-pattern="date" style="width:98%;"></td>
+			<th>합계금액</th>
+			<!-- <td><input type="text" data-type="mField" id="total_amount_kor" value="{{ doc.BodyContext.total_amount_kor }}" readonly="readonly" style="width:90%;">&nbsp;&nbsp;</td> -->			
+			<td>\ <input type="text" data-type="mField" id="total_amount_num" value="{{ doc.BodyContext.total_amount_num }}" data-pattern="currency" readonly="readonly" style="width:80%;">&nbsp;원정</td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="table_3 multi-row-table RowSumTable tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblExpenceInfo">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 15%">
+        <col style="width: 25%">
+        <col style="width: 20%">
+        <col style="width: 15%">
+        <col style="width: 10%">
+    </colgroup>
+	<tbody name="contentArea">
+		<tr>
+			<th>지출형태</th>
+			<th>표준적요</th>
+			<th>내역(적요)</th>
+			<th>거래처</th>
+			<th>지출액</th>
+			<th>연관문서</th>
+		</tr>
+		<tr class="multi-row-control" align="right" style="display: none;">
+            <td>
+                <input type="button" value="+추가" class="multi-row-add usa">
+                <input type="button" value="-삭제" class="multi-row-del usa">
+            </td>
+        </tr>
+		<tr class="multi-row-template">
+			<td>
+				<input type='text' data-type='rField' name='spending_type' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='standard_brief_name' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='standard_brief_code'>
+			</td>
+			<!-- <td>
+				<input type='text' data-type='rField' name='register_name' readonly='readonly' style='width: 95%;'>
+				<input type='hidden' data-type='rField' name='register_id'>
+			</td> -->
+			<td>
+				<input type='text' data-type='rField' name='usage_comment' readonly='readonly' style='width: 95%;'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='vendor_name' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='vendor_no'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='total_amount' data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='button' class='AXButton' name='apv_doc' value='결재문서 보기' onclick='javascript: apvLinkOpen(this);'>
+				<input type='hidden' data-type='rField' name='process_id'>
+			</td>
+		</tr>
+		<tr>
+			<th colspan="5">합계</th>
+			<td>
+				<input type="text" id="total_amount_sum" data-type="mField" value="{{ doc.BodyContext.total_amount_sum }}"data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 16%">
+        <col style="width: 16%">
+        <col style="width: 16%">
+        <col style="width: 16%">
+        <col style="width: 16%">
+        <col style="width: 20%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>법인카드</th>
+			<th>자동이체</th>
+			<th>일반이체</th>
+			<th>현금인출</th>
+			<th>구매자금</th>
+			<th>지출총계</th>
+		</tr>
+		<tr>
+			<td><input type="text" data-type="mField" id="corpcard_sum" value="{{ doc.BodyContext.corpcard_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="auto_sum" value="{{ doc.BodyContext.auto_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="normal_sum" value="{{ doc.BodyContext.normal_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="cash_sum" value="{{ doc.BodyContext.cash_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="purchase_sum" value="{{ doc.BodyContext.purchase_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="total_sum" value="{{ doc.BodyContext.total_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+		</tr>
+	</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

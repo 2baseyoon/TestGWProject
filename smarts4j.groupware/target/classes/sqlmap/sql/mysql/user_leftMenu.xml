@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.leftMenu">
+	<select id="selectLeftMenu" parameterType="cmap" resultType="cmap">
+		SELECT       
+			@id :=  MenuID AS idx, 
+		 	MemberOf AS parent_idx, 
+		 	(LENGTH(MenuPath) - LENGTH(REPLACE(MenuPath, ';', ''))) AS 'level',  
+		 	MultiDisplayName AS menu_name, 
+		 	URL AS url, 
+		 	SortKey AS sort_key, 
+		 	'Y' AS use_yn,
+ 		 	<!-- IF ((SELECT COUNT(*) FROM sys_object_menu WHERE MemberOf = @id) > 0 , 1 ,0 ) AS extend -->
+ 		 	IF( HasFolder = 'Y', 1, 0) AS extend
+		 FROM sys_object_menu AS SOM
+ 		 WHERE 1=1
+ 		 AND DomainID = #{domainID}
+ 		 AND SOM.IsUse = 'Y'
+ 		 AND SOM.IsDisplay = 'Y'
+ 		 AND IsAdmin = 'N'	
+ 		 AND BizSection = #{bizSection} <!-- FIXED: 게시판 메뉴 조회 -->
+ 		 AND MenuType = 'Left'
+ 		 ORDER BY `level` ASC, MemberOf ASC, SortKey ASC 
+	</select>
+</mapper>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.workitemarchive">
+	<update id="updateBusinessData" parameterType="cmap">			
+		UPDATE covi_approval4j.jwf_workitem AS WI
+		INNER JOIN covi_approval4j.jwf_process AS P ON WI.ProcessID = P.ProcessID
+		<trim prefix="SET" suffixOverrides=",">
+		    BusinessData6 = 'MODIFY'
+		</trim>		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  P.FormInstID = #{FormInstID}
+		</trim>		
+	</update>
+	<select id="selectAutoIncrement" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT LAST_INSERT_ID()	AS fiid	
+    ]]>
+	</select>
+</mapper>

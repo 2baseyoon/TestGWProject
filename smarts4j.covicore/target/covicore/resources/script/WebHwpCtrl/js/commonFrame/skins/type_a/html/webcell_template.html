@@ -1,0 +1,426 @@
+﻿<div data-name="webcell_template">
+    <div data-name="find_replace_result">
+        <table class="table_head" style="margin-top:12px;">
+            <thead>
+            <tr>
+                <th data-nls-name="{SheetEdit}" class="text_align_left" style="width:74px;"></th>
+                <th data-nls-name="{FrgCell}" class="text_align_left" style="width:74px;"></th>
+                <th data-nls-name="{FrgContents}" class="text_align_left" style="width:96px;"></th>
+                <th data-nls-name="{FrgFormula}"></th>
+            </tr>
+            </thead>
+        </table>
+        <div class="table_body" style="margin-bottom:12px;">
+            <table>
+                <tbody>
+                <tr class="search_all_result_item" data-command="e_find_replace" data-value="sample_value" data-value-key="find_item" data-sample-item="true" data-non-exec="true">
+                    <td data-nls-name="frgSheet" title="" style="width:74px;"></td>
+                    <td data-nls-name="frgCell" style="width:74px;"></td>
+                    <td data-nls-name="frgContents" title="" style="width:96px;"></td>
+                    <td data-nls-name="frgFormula" title=""></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div data-name="conditional_formatting_rules">
+        <table class="table_head">
+            <thead>
+            <tr>
+                <th class="text_align_left" style="width:155px;"><span data-nls-name="{Rules}"></span><span data-nls-name="({AppliedInTheOrderShown})"></span></th>
+                <th data-nls-name="{AppliedArea}" class="text_align_left" style="width:165px;"></th>
+                <th data-nls-name="{Format}" class="applied_style text_align_left" style="width:155px;"></th>
+                <th data-nls-name="{DeleteRule}" class="text_align_left"></th>
+            </tr>
+            </thead>
+        </table>
+        <div class="table_body conditional_formatting_rules_body">
+            <table>
+                <tbody>
+                <tr class="rule_item" data-sample-item="e_conditional_formatting_rules"  data-command="e_conditional_formatting_rules" data-non-exec="true" data-value-key="rule_item" data-sample-value="ruleItem" data-move="rule_item" data-switch-button="true">
+                    <td class="rule_name" data-nls-name="ruleName" title="" style="width:155px;"></td>
+                    <td class="applied_area" style="width:165px;"><div class="normal_panel"><div class="inline_panel"><div class="input_text_wrap input_wrap full_size disable disabled" data-command="e_conditional_formatting_rules" data-sample-value-key="appliedAreaKey" data-sample-value="appliedArea"><input type="text" disabled="disabled"/><span class="unit hide_view"></span></div></div><div class="select_data medium_size btn_wo btn_wo_fn btn_icon" data-bind-widget="appliedAreaKey" data-ui-command="show" data-ui-value="dialog_select_data" title="{RangeSelection}" style="margin: 0 0 0 4px;"><a><div class="select_data btn_icon_inner"></div></a></div></div></td>
+                    <td class="applied_style" style="width:155px;"><div data-nls-name="ruleSampleText" data-sample-style="appliedStyle1"></div><div data-sample-style="appliedStyle2"></div><div data-sample-style="appliedStyle3"></div><div data-sample-style="appliedStyle4"></div><div data-sample-style="appliedStyle5"></div></td>
+                    <td class="delete_rule align_item_center justify_center"><div class="checkbox_wrap input_wrap e_conditional_formatting_rules" data-command="e_conditional_formatting_rules" data-non-exec="true" data-sample-value-key="deleteRule"><label><input type="checkbox"/></label></div></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div data-name="manage_name">
+        <table class="table_head">
+            <thead>
+            <tr>
+                <th style="width:25px;"></th>
+                <th data-nls-name="{Name}" class="text_align_left" style="width:230px;"></th>
+                <th data-nls-name="{ReferenceArea}" class="text_align_left"></th>
+            </tr>
+            </thead>
+        </table>
+        <div class="table_body">
+            <table>
+                <tbody>
+                <tr data-sample-item="true">
+                    <td style="width:25px;"><div class="checkbox_wrap input_wrap e_manage_name" data-command="e_manage_name" data-non-exec="true" data-sample-value-key="nameItem"><label><input type="checkbox"/></label></div></td>
+                    <td class="name" data-nls-name="name" style="width:230px;"></td>
+                    <td class="reference_field" data-nls-name="referenceField"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div data-name="number_format_type_number">
+        <div class="negative_number_list list_box normal_panel focus view_border_all" data-name="negative_number_list" style="overflow: hidden auto; height: 100%; margin:0;">
+            <div class="no_icon full_size btn_wo btn_wo_fn has_desc" data-sample-item="true" data-switch-button="true" data-command="" data-value-key="negative_number" data-value="sample_value" data-non-exec="true">
+                <a data-sample-style="negativeNumber"><span data-nls-name="negativeNumber"></span></a>
+            </div>
+        </div>
+    </div>
+    <div data-name="spread_sheet">
+        <div id="spreadsheet_container" style="display:none;">
+            <div class="table_container">
+                <div class="chartsheet_container"
+                     style="text-align: center; vertical-align: middle; background-color:#f3f3f3; display:none">
+                    <div class="chart_container" style="padding: 5px; background-color:#ffffff"></div>
+                </div>
+                <div style='position:relative;'>
+                    <div style='position:absolute;'>
+                        <div id='tmpCell'></div>
+                    </div>
+                </div>
+                <table class="container" cellspacing="0" cellpadding="0">
+                    <tr valign="top">
+                        <td>
+                            <div id="sheet_header_container" class="top_of_table" style="width: 43px; height: 24px;">
+                                <table id="sheet_header" class="header_table">
+                                    <tbody>
+                                    <tr style="border:none;">
+                                        <th class="sheet_header"></th>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                        <td>
+                            <div id="left_column_header_container" class="frozen_vertical_border top_of_table frozen_horizontal_dummy_border"
+                                 style="position: absolute; overflow: hidden; height: 24px;">
+                                <table id="left_column_header" class="header_table column_header"
+                                       style="overflow: hidden;">
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </td>
+                        <td>
+                            <div id="right_column_header_container" class="scrollable_parent top_of_table"
+                                 style="overflow: hidden; height: 24px;">
+                                <table id="right_column_header" class="header_table column_header scrollable"
+                                       style="overflow: hidden;">
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <td>
+                            <div id="top_row_header_container" class="frozen_horizontal_border frozen_vertical_dummy_border"
+                                 style="position: absolute;overflow: hidden;">
+                                <table id="top_row_header" class="header_table" style="overflow: hidden;">
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </td>
+                        <td class="table_cell">
+                            <div class="freeze_table_inner_container">
+                                <div class="freeze_container_parent frozen_horizontal_border frozen_vertical_border">
+                                    <div class="">
+                                        <table class="table" id="freeze_container_table" cellspacing="0" cellpadding="0">
+                                            <tbody></tbody>
+                                        </table>
+                                        <div class="overlay_frame_parent">
+                                            <div class="overlay_frame uberlay">
+                                                <div class="overlay_frame_9 overlay_container" style="z-index: 7;"></div>
+                                                <div class="shape_container" class="uberlay"></div>
+                                                <div class="memo_container" class="uberlay"></div>
+                                                <div class="s_selection uberlay" style="z-index: 8; display: none;">
+                                                    <div class="s_selection_box" style="display: none;">
+                                                        <div class="s_selection_handler_container">
+                                                            <div class="s_selection_handler_inner_container">
+                                                                <div class="s_selection_handler hcwo_handle_nw_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_n_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_ne_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_e_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_se_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_s_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_sw_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_w_resize"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="s_selection_line_container"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="table_cell">
+                            <div class="column_header_inner_container">
+                                <div class="column_header_parent frozen_horizontal_border frozen_vertical_dummy_border">
+                                    <div class="scrollable">
+                                        <table class="table" id="column_header" cellspacing="0" cellpadding="0">
+                                            <tbody></tbody>
+                                        </table>
+                                        <div class="overlay_frame uberlay">
+                                            <div class="overlay_frame_9 overlay_container" style="z-index: 7;"></div>
+                                            <div class="shape_container" class="uberlay"></div>
+                                            <div class="memo_container" class="uberlay"></div>
+                                            <div class="s_selection uberlay" style="z-index: 8; display: none;">
+                                                <div class="s_selection_box" style="display: none;">
+                                                    <div class="s_selection_handler_container">
+                                                        <div class="s_selection_handler_inner_container">
+                                                            <div class="s_selection_handler hcwo_handle_nw_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_n_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_ne_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_e_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_se_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_s_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_sw_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_w_resize"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="s_selection_line_container"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <td>
+                            <div id="bottom_row_header_container" style="overflow: hidden;">
+                                <table id="bottom_row_header" class="header_table" style="overflow: hidden;">
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </td>
+                        <td class="table_cell">
+                            <div class="row_header_inner_container">
+                                <div class="row_header_parent">
+                                    <div class="scrollable frozen_vertical_border frozen_horizontal_dummy_border">
+                                        <table class="table" id="row_header" cellspacing="0" cellpadding="0">
+                                            <tbody></tbody>
+                                        </table>
+                                        <div class="overlay_frame_parent">
+                                            <div class="overlay_frame uberlay">
+                                                <div class="overlay_frame_9 overlay_container" style="z-index: 7;"></div>
+                                                <div class="shape_container" class="uberlay"></div>
+                                                <div class="memo_container" class="uberlay"></div>
+                                                <div class="s_selection uberlay" style="z-index: 8; display: none;">
+                                                    <div class="s_selection_box" style="display: none;">
+                                                        <div class="s_selection_handler_container">
+                                                            <div class="s_selection_handler_inner_container">
+                                                                <div class="s_selection_handler hcwo_handle_nw_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_n_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_ne_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_e_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_se_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_s_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_sw_resize"></div>
+                                                                <div class="s_selection_handler hcwo_handle_w_resize"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="s_selection_line_container"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="table_cell">
+                            <div class="table_body_inner_container">
+                                <div class="table_body_parent">
+                                    <div class="scrollable">
+                                        <table class="table" id="table_body" cellspacing="0" cellpadding="0">
+                                            <tbody style="padding-left: 10px;"></tbody>
+                                        </table>
+                                        <div class="overlay_frame uberlay">
+                                            <div class="overlay_frame_9 overlay_container" style="z-index: 7;"></div>
+                                            <div class="shape_container" class="uberlay"></div>
+                                            <div class="memo_container" class="uberlay"></div>
+                                            <div class="s_selection uberlay" style="z-index: 8; display: none;">
+                                                <div class="s_selection_box" style="display: none;">
+                                                    <div class="s_selection_handler_container">
+                                                        <div class="s_selection_handler_inner_container">
+                                                            <div class="s_selection_handler hcwo_handle_nw_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_n_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_ne_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_e_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_se_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_s_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_sw_resize"></div>
+                                                            <div class="s_selection_handler hcwo_handle_w_resize"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="s_selection_line_container"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <table name="dummy_row">
+                    <tbody>
+                    <tr class="htr" style="height:1px; visibility: hidden; border:none;">
+                        <td>
+                            <div class="cs1">
+                                <div class="cs2">
+                                    <div class="cs_content"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="sheet_overlay_frame uberlay">
+                    <div class="sheet_shape_container shape_container uberlay"></div>
+                    <div class="sheet_memo_container memo_container uberlay"></div>
+                </div>
+                <div class="horizontal_resizer rtrack"
+                     style="-moz-user-select: none; position: absolute; top: 0px; width: 10px; height: 24px; background-color:transparent; display: none;"></div>
+                <div class="horizontal_resizer_line rtrack2"
+                     style="-moz-user-select: none; position: absolute; top: 0px; width: 0px; height: 100%; background-color: black; display: none; "></div>
+                <div class="vertical_resizer rtrack"
+                     style="-moz-user-select: none; position: absolute; top: 0px; width: 43px; height: 10px; background-color:transparent; display: none;"></div>
+                <div class="vertical_resizer_line rtrack2"
+                     style="-moz-user-select: none; position: absolute; top: 0px; width: 100%; height: 0px; background-color: black; display: none;"></div>
+                <div class="hyperlink_tooltip" style="z-index: 10; display: none;"><span class="hyperlink_tooltip_span"></span>
+                </div>
+                <div class="autofilter_container">
+                    <div class="autofilter_column_menu_dialogs" style="z-index: 10;"></div>
+                </div>
+            </div>
+            <div>
+                <div valign="top">
+                    <div class="track_t"></div>
+                    <div id="vtrack" class="track">
+                        <div id="vertical_scrollbar" class="vertical_scrollbar"></div>
+                    </div>
+                    <div id="arrow_v">
+                        <div id="arrow_up" class="arrow_up"></div>
+                        <div id="arrow_down" class="arrow_down"></div>
+                    </div>
+                </div>
+            </div>
+            <div dir="ltr">
+                <div class="input_pos"></div>
+                <div class="input_box">
+                    <div class="cell_input" contenteditable="true"></div>
+                </div>
+            </div>
+            <div class="bottoms">
+                <div>
+                    <div class="track_l" style="display: table-cell; width:43px;"></div>
+                    <div style="display: table-cell;">
+                        <div id="htrack" class="track" style="height:16px">
+                            <div id="horizontal_scrollbar" class="horizontal_scrollbar"></div>
+                        </div>
+                    </div>
+                    <div style="display: table-cell;">
+                        <div style="width:28px" id="arrow_h_td">
+                            <div id="arrow_h">
+                                <div id="arrow_left" class="arrow_left"></div>
+                                <div id="arrow_right" class="arrow_right"></div>
+                            </div>
+                        </div>
+                        <div class="track_r"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div data-name="chart_style">
+        <div id="chart_style_list" class="normal_panel chart_style_list" style="padding: 10px 0 8px;">
+            <div class="chart_style1">
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s2" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s2" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s3" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s3" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s1" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s1" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+            </div>
+            <div class="horizontal_line" style="margin:2px 0 6px 0;"></div>
+            <div class="chart_style2">
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s5" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s5" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s6" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s6" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s4" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s4" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+            </div>
+            <div class="horizontal_line" style="margin:2px 0 6px 0;"></div>
+            <div class="chart_style3">
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s8" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s8" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s9" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s9" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s7" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s7" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+            </div>
+            <div class="horizontal_line" style="margin:2px 0 6px 0;"></div>
+            <div class="chart_style4">
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s11" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s11" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s12" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s12" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+                <div class="btn_icon btn_wo btn_wo_fn medium_size btn_clustered_column_s10" data-command=""
+                     data-switch-button="true" data-value-key="chart_style"
+                     data-value="s10" style="margin:0 9px 0 0"><a>
+                    <div class="btn_icon_inner"></div>
+                </a></div>
+            </div>
+        </div>
+        <div id="chart_style_empty_list" class="normal_panel chart_style_list justify_center"
+             data-nls-name="{chartThemeWarningText}"></div>
+    </div>
+</div>

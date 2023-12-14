@@ -1,0 +1,998 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.adminForm">
+    <resultMap type="cmap" id="formResult">
+ 	    <result property="FormDesc" column="FormDesc" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="BodyDefault" column="BodyDefault" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="ExtInfo" column="ExtInfo" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="AutoApprovalLine" column="AutoApprovalLine" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="FormHelperContext" column="FormHelperContext" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="FormNoticeContext" column="FormNoticeContext" jdbcType="CLOB" javaType="java.lang.String" />
+ 	</resultMap>
+ 	
+    <select id="selectAdminFormList" parameterType="cmap"  resultMap="formResult">
+        <include refid="oracle.include.pagingHeader"/>
+			SELECT
+				FormID AS "FormID"
+				,FormName AS "FormName"
+				,IsUse  AS "IsUse"
+				,NVL(FormDesc, Empty_CLOB()) AS "FormDesc"
+				,RegDate AS "RegDate"
+				,FileName AS "FileName"
+				,Revision AS "Revision"
+				,SchemaID AS "SchemaID"
+				,SortKey AS "SortKey"
+				,BodyType AS "BodyType"
+				,FormPrefix AS "FormPrefix"
+				,SchemaName AS "SchemaName"
+				,FORM_KEY AS "FORM_KEY"
+				,FormClassID AS "FormClassID"
+				,FormClassName AS "FormClassName"
+				,EntName AS "EntName"
+				,EntCode AS "EntCode" 
+				<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+                	,IsFree AS "IsFree"
+                	,Price AS "Price"
+                </if>
+			FROM (
+			SELECT
+					A.FormID
+					,A.FormName
+					,A.IsUse
+					,NVL(FormDesc, Empty_CLOB()) AS FormDesc
+					,A.RegDate
+					,A.FileName
+					,A.Revision
+					,A.SchemaID
+					,A.SortKey
+					,A.BodyType
+					,A.FormPrefix
+					,B.SchemaName
+					,A.FormID AS FORM_KEY
+					,C.FormClassID
+					,C.FormClassName
+					,A.CompanyCode
+					,A.EntCode AS EntCode
+					,DECODE(A.AclAllYN, 'Y', fn_entname_s(CompanyCode),
+						fn_entname_s((SELECT regexp_replace(LISTAGG(CompanyCode, ';') WITHIN GROUP(ORDER BY CompanyCode), '([^;]+)(;\1)+', '\1') FROM jwf_forms_acl WHERE ObjectType ='FORM' AND TargetID = A.FormID)) ) AS EntName
+					<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+	                	,CSTF.IsFree
+	                	,CSTF.Price
+	                </if>
+			FROM JWF_Forms A
+			INNER JOIN JWF_FormsSchema B
+			ON A.SchemaID = B.SchemaID 
+			INNER JOIN JWF_FormClass C
+			ON A.FormClassID = C.FormClassID 
+			<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+				INNER JOIN (
+					SELECT si.IsFree, si.Price, sf.StoredFormID 
+					FROM jwf_store_forms sf 
+					JOIN sys_store_items si on sf.StoreItemID = si.StoreItemID
+				) CSTF on A.StoredFormID = CSTF.StoredFormID
+			</if>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="IsUse != null and IsUse != '' and IsUse.length() gt 0">
+					AND A.IsUse = #{IsUse}		
+				</if>
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND A.CompanyCode = #{EntCode}
+				</if>	
+			</trim>
+			) LIST
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+						<otherwise>FormName</otherwise>
+					</choose> 
+					LIKE '%'||#{search}||'%'
+				</if>		
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						FormPrefix LIKE '%'||#{icoSearch}||'%' 			OR 
+						FormClassName LIKE '%'||#{icoSearch}||'%' 	OR 
+						FormName LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>	
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						<when test='sortColumn.equalsIgnoreCase("Revision")'>Revision</when>
+						<when test='sortColumn.equalsIgnoreCase("SchemaName")'>SchemaName</when>
+						<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+						<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+						<when test='sortColumn.equalsIgnoreCase("RegDate")'>RegDate</when>
+						<when test='sortColumn.equalsIgnoreCase("IsFree")'>IsFree</when>
+						<otherwise>IsUse</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					IsUse DESC
+			   </if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    <select id="selectAdminFormListCnt" resultType="java.lang.Long" parameterType="cmap">
+		SELECT COUNT(*) FROM (
+			SELECT 
+				A.FormID 
+				,A.FormName
+				,A.IsUse 
+				,A.FormDesc
+				,TO_CHAR(A.RegDate, 'YYYY-MM-DD') AS "RegDate"
+				,A.FileName
+				,A.Revision
+				,A.SchemaID
+				,A.SortKey
+				,A.BodyType
+				,A.FormPrefix
+				,B.SchemaName
+				,A.FormID AS FORM_KEY
+				,C.FormClassID
+				,C.FormClassName
+				,A.EntCode AS EntCode
+				,DECODE(A.AclAllYN, 'Y', fn_entname_s(DECODE(#{isSaaS}, 'Y', CompanyCode, 'WF')),
+					fn_entname_s((SELECT regexp_replace(LISTAGG(CompanyCode, ';') WITHIN GROUP(ORDER BY CompanyCode), '([^;]+)(;\1)+', '\1') FROM jwf_forms_acl WHERE ObjectType ='FORM' AND TargetID = A.FormID)) ) AS EntName
+			FROM JWF_Forms A
+			INNER JOIN JWF_FormsSchema B
+			ON A.SchemaID = B.SchemaID 
+			INNER JOIN JWF_FormClass C
+			ON A.FormClassID = C.FormClassID 
+			<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+				INNER JOIN (
+					SELECT si.IsFree, si.Price, sf.StoredFormID 
+					FROM jwf_store_forms sf 
+					JOIN sys_store_items si on sf.StoreItemID = si.StoreItemID
+				) CSTF on A.StoredFormID = CSTF.StoredFormID
+			</if>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="IsUse != null and IsUse != '' and IsUse.length() gt 0">
+					AND A.IsUse = #{IsUse}		
+				</if>			
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND A.CompanyCode = #{EntCode}
+				</if>	
+			</trim>
+		) A		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+					<otherwise>FormName</otherwise>
+				</choose> 
+				LIKE '%'||#{search}||'%' 
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					FormPrefix LIKE '%'||#{icoSearch}||'%' 			OR 
+					FormClassName LIKE '%'||#{icoSearch}||'%' 	OR 
+					FormName LIKE '%'||#{icoSearch}||'%'		   
+				)
+			</if>	
+		</trim>
+	</select>
+	
+    <insert id="insertForms" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO jwf_forms(			
+			FormID
+			,FormClassID
+			,SchemaID
+			,IsUse
+			,Revision
+			,SortKey
+			,FormName
+			,FormPrefix
+			,FormDesc
+			,FileName
+			,BodyDefault
+			,ExtInfo
+			,AutoApprovalLine
+			,BodyType
+			,SubTableInfo
+			,RegID
+			,RegDate			
+			,FormHelperContext
+			,FormNoticeContext			
+			,Reserved1			
+			,CompanyCode
+			,AclAllYN
+			,FormIcon
+	)
+	VALUES
+	(
+			#{FormID}
+			,#{FormClassID}
+			,#{SchemaID}
+			,#{IsUse}
+			,#{Revision}
+			,#{SortKey}
+			,#{FormName}
+			,#{FormPrefix}
+			,#{FormDesc}
+			,#{FileName}
+			,#{BodyDefault}
+			,#{ExtInfo}
+			,#{AutoApprovalLine}
+			,#{BodyType}
+			,#{SubTableInfo}
+			,#{RegID}
+			, SYSDATE
+			,#{FormHelperContext}
+			,#{FormNoticeContext}
+			,#{AuthDept}
+			,#{CompanyCode}
+			,#{AclAllYN}
+			,#{FormIcon}
+	)
+	]]>
+		<selectKey keyProperty="FormID" resultType="Integer" order="AFTER">
+		   	SELECT JWF_FORMS_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+    
+    
+    <select id="selectFormClassListSelectData" resultType="cmap" >
+	    SELECT FormClassID AS "optionValue",  '['||B.DisplayName||'] '|| A.FormClassName AS "optionText"
+	    FROM JWF_FormClass A
+	    INNER JOIN sys_object_domain B ON A.EntCode = B.DomainCode
+		WHERE (
+			(A.AclAllYN = 'Y'
+				and A.EntCode IN ('ORGROOT', #{entCode})
+			)
+			OR exists 
+			( 
+				select 1 from jwf_forms_acl jfa 
+				where jfa.TargetID = A.FormClassID and jfa.ObjectType = 'CLASS'
+				and jfa.CompanyCode  = #{entCode}
+			)
+		 )
+	    ORDER BY A.Sortkey
+	</select>
+    
+    
+    <select id="selectSchemaListSelectData" resultType="cmap" >
+     	SELECT 
+			A.SchemaID AS "optionValue", 
+			'['||B.DisplayName||'] '||A.SchemaName AS "optionText", 
+			A.SchemaDesc AS "SchemaDesc"
+	    FROM jwf_formsschema A
+		inner join sys_object_domain B on A.DomainID = B.DomainID
+		<choose>
+            <when test='isSaaS == "Y"'>
+                where B.DomainCode = #{entCode}
+            </when>
+             <otherwise>
+                where B.DomainCode IN ('ORGROOT', #{entCode})
+             </otherwise>  
+        </choose>
+		ORDER BY A.DomainID ASC, A.SchemaName ASC
+	</select>
+    
+    
+     <!-- 도메인 선택시 해당 도메인의 부서를 가져옴 -->
+    <select id="selectDeptList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DomainID AS "DN_ID"
+			,DomainCode AS "DN_Code"
+			,DisplayName AS "DisplayName"
+			,SortKey AS "SortKey"
+			,SortPath AS "SortPath"
+			,IsUse AS "IsUse"
+		FROM sys_object_domain
+	 	WHERE IsUse = 'Y'
+		<if test="assignedDomain != null and assignedDomain.size() > 0" ><!-- for SaaS -->
+           	AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+	</select>
+	
+    
+    <!-- 사업장별 -->
+    <select id="selectRegionList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			GroupID AS "GR_ID"
+			,GroupCode AS "GR_Code"
+			,CompanyCode AS "DN_Code"
+			,GroupType AS "GroupType"
+			,GroupPath AS "GroupPath"
+			,DisplayName AS "DisplayName"
+			,SortKey AS "SortKey"
+			,SortPath AS "SortPath"
+			,IsUse AS "IsUse"
+			,IsDisplay AS "IsDisplay"
+		FROM sys_object_group
+		WHERE  GroupType in ('Region')
+		AND IsUse = 'Y'
+		AND IsDisplay = 'Y'
+		<if test="assignedDomain != null and assignedDomain.size() > 0" ><!-- for SaaS -->
+           	AND CompanyCode IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+		ORDER BY SortPath asc
+	</select>
+    
+    <select id="selectAdminFormData"   resultMap="formResult">
+         <![CDATA[
+			SELECT FormID AS "FormID"
+					,FormClassID AS "FormClassID"
+					,SchemaID AS "SchemaID"
+					,IsUse AS "IsUse"
+					,Revision AS "Revision"
+					,SortKey AS "SortKey"
+					,FormName AS "FormName"
+					,FormPrefix AS "FormPrefix"
+					,NVL(FormDesc, Empty_CLOB()) AS "FormDesc"
+					,FileName AS "FileName"
+					,NVL(BodyDefault, Empty_CLOB()) AS "BodyDefault"
+					,DECODE(AclAllYN, 'Y', DECODE(#{isSaaS}, 'Y', CompanyCode, 'WF'), (SELECT regexp_replace(LISTAGG(CompanyCode, ';') WITHIN GROUP(ORDER BY CompanyCode), '([^;]+)(;\1)+', '\1') FROM jwf_forms_acl WHERE ObjectType ='FORM' AND TargetID = FormID) ) AS "EntCode"
+					,NVL(ExtInfo, Empty_CLOB()) AS "ExtInfo"
+					,NVL(AutoApprovalLine, Empty_CLOB()) AS "AutoApprovalLine"
+					,BodyType AS "BodyType"
+					,NVL(SubTableInfo, Empty_CLOB()) AS "SubTableInfo"
+					,RegID AS "RegID"
+					,RegDate AS "RegDate"
+					,ModID AS "ModID"
+					,ModDate AS "ModDate"
+					,NVL(FormHelperContext, Empty_CLOB()) AS "FormHelperContext"
+					,NVL(FormNoticeContext, Empty_CLOB()) AS "FormNoticeContext"
+					,Reserved1 AS "Reserved1"
+					,Reserved2 AS "Reserved2"
+					,Reserved3 AS "Reserved3"
+					,Reserved4 AS "Reserved4"
+					,Reserved5 AS "Reserved5"
+					,CompanyCode AS "CompanyCode"
+					,FormIcon AS "FormIcon"
+				FROM jwf_forms
+				WHERE FormID = 	#{FormID}		
+		  ]]>	
+	</select>
+	
+    <update id="updateAdminFormData" parameterType="cmap">
+		UPDATE jwf_forms
+		SET	
+			FormID             = #{FormID}
+			,FormClassID       = #{FormClassID}
+			,SchemaID          = #{SchemaID}
+			,IsUse             = #{IsUse}
+			,Revision          = #{Revision}
+			,SortKey           = #{SortKey}
+			,FormName          = #{FormName}
+			,FormPrefix        = #{FormPrefix}
+			,FormDesc          = #{FormDesc}
+			,FileName          = #{FileName}
+			,BodyDefault       = #{BodyDefault}
+			,ExtInfo           = #{ExtInfo}
+			,AutoApprovalLine  = #{AutoApprovalLine}
+			,BodyType          = #{BodyType}
+			,SubTableInfo      = #{SubTableInfo}			
+			,ModID             = #{ModID}
+			,ModDate           =  SYSDATE
+			<if test="IsEditFormHelper != null and IsEditFormHelper == 'Y'.toString()">
+				,FormHelperContext = #{FormHelperContext}
+			</if>
+			<if test="IsEditFormNotice != null and IsEditFormNotice == 'Y'.toString()">
+				,FormNoticeContext = #{FormNoticeContext}	
+			</if>			
+			,Reserved1 = #{AuthDept}
+			,AclAllYN = #{AclAllYN}		
+			<if test='isSaaS == null or isSaaS != "Y"'>
+				,CompanyCode   = #{CompanyCode}
+			</if>
+			,FormIcon   = #{FormIcon}
+		WHERE	
+			FormID = 	#{FormID}
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_processUP" parameterType="cmap">
+		UPDATE JWF_PROCESS
+		SET ProcessState = 545
+		    , DeleteDate = SYSDATE
+		WHERE ProcessID IN (
+             SELECT A.ProcessID FROM JWF_PROCESS A
+	         INNER JOIN JWF_FORMINSTANCE B ON A.FormInstID = B.FormInstID
+	         WHERE B.FormID = #{FormID}
+        )
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_processArchiveUP" parameterType="cmap">
+		UPDATE JWF_PROCESS
+		SET  DeleteDate =SYSDATE
+		WHERE PROCESSID IN (
+             SELECT A.PROCESSID FROM JWF_PROCESS A
+             INNER JOIN JWF_FORMINSTANCE B ON A.FormInstID = B.FormInstID
+             WHERE B.FormID = #{FormID}
+        )
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_workitemarchiveUP" parameterType="cmap">
+    	UPDATE jwf_workitem W
+		SET PIDeleted = SYSDATE
+		WHERE ProcessID IN (
+			SELECT P.ProcessID
+			FROM jwf_process P
+			JOIN  jwf_forminstance FI
+			ON P.FormInstID = FI.FormInstID
+			WHERE FI.FormID = #{FormID}
+		)
+	</update>
+	
+	
+	<delete id="deleteAdminFormData_jwf_formhistory" parameterType="cmap">
+		DELETE FROM JWF_FORMHISTORY
+		WHERE FormInstID IN ( 
+			SELECT FORMINSTID FROM JWF_FORMINSTANCE
+			WHERE FORMID = #{FormID}
+		)
+	</delete>
+	
+	<delete id="deleteAdminFormData_jwf_forminstance" parameterType="cmap">
+		DELETE FROM JWF_FORMINSTANCE 
+		WHERE FormID = #{FormID}
+	</delete>
+
+	<delete id="deleteAdminFormData_jwf_formstempinstbox" parameterType="cmap">
+		DELETE FROM JWF_FORMSTEMPINSTBOX
+		WHERE FormID = #{FormID}
+	</delete>
+	
+	<delete id="deleteAdminFormData_jwf_forms" parameterType="cmap">
+		DELETE FROM JWF_FORMS
+		WHERE FormID = #{FormID}
+	</delete>
+	
+	<update id="CreateSubTableInfoSql" parameterType="cmap">
+	    <![CDATA[
+	      DECLARE
+     			cnt number(1);
+		  BEGIN
+ 			   SELECT COUNT(1) INTO cnt FROM DBA_TABLES WHERE owner='GWUSER' AND table_name='${MainTableName}';
+	   		   IF cnt <> 0 THEN
+	     			 EXECUTE IMMEDIATE 'DROP TABLE ${MainTableName}';
+	    	   END IF;
+ 		  	  EXECUTE IMMEDIATE 'CREATE TABLE "GWUSER".${MainTableName} 
+   											(	FormInstID VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+	     ]]>
+	     <foreach collection="SubMasterTableArray"  item="field" index="index" >
+	        <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 ${field.FieldName}
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </when>
+	            <otherwise>
+	                   ${field.FieldName}
+	                   <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType}
+	                      </otherwise>  
+	                 </choose>
+	                   <if test="field.FieldType.equalsIgnoreCase('varchar') or  field.FieldType.equalsIgnoreCase('char')" >
+	                   		(${field.FieldLength} CHAR) 
+	                   </if>
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </otherwise>
+	        </choose>
+	        ,
+	     </foreach>
+	    		
+	    <![CDATA[
+	    	  PRIMARY KEY (FormInstID)
+		     )  SEGMENT CREATION IMMEDIATE 
+			  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+			  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+			  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+			  TABLESPACE "COVI_APPROVAL4J" ';
+		  
+		   END;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable1Sql" parameterType="cmap">
+		<![CDATA[
+		 DECLARE
+     			cnt number(1);
+		  BEGIN
+ 			   SELECT COUNT(1) INTO cnt FROM DBA_TABLES WHERE owner='GWUSER' AND table_name='${SubTable1Name}';
+	   		   IF cnt <> 0 THEN
+	     			 EXECUTE IMMEDIATE 'DROP TABLE ${SubTable1Name}';
+	    	   END IF;
+ 		  	  EXECUTE IMMEDIATE 'CREATE TABLE "GWUSER".${SubTable1Name}
+   											(	FormInstID VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+   												"ROWSEQ" NUMBER(5,0) NOT NULL ENABLE, 
+	    ]]>
+	    <foreach collection="SubTable1Array"  item="field" index="index">
+	     <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 ${field.FieldName}
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </when>
+	            
+	            <otherwise>
+	                   ${field.FieldName}
+	                   <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType}
+	                      </otherwise>  
+	                 </choose>
+	                   <if test="field.FieldType.equalsIgnoreCase('varchar') or  field.FieldType.equalsIgnoreCase('char')" >
+	                   		(${field.FieldLength} CHAR) 
+	                   </if>
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		  PRIMARY KEY (FormInstID,"ROWSEQ")
+	    		  
+	      )  SEGMENT CREATION IMMEDIATE 
+			  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+			  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+			  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+			  TABLESPACE "COVI_APPROVAL4J" ';
+		  
+		   END;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable2Sql" parameterType="cmap">
+		<![CDATA[
+		 DECLARE
+     			cnt number(1);
+		  BEGIN
+ 			   SELECT COUNT(1) INTO cnt FROM DBA_TABLES WHERE owner='GWUSER' AND table_name='${SubTable2Name}';
+	   		   IF cnt <> 0 THEN
+	     			 EXECUTE IMMEDIATE 'DROP TABLE ${SubTable2Name}';
+	    	   END IF;
+ 		  	  EXECUTE IMMEDIATE 'CREATE TABLE "GWUSER".${SubTable2Name}
+   											(	FormInstID VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+   												"ROWSEQ" NUMBER(5,0) NOT NULL ENABLE, 
+	    ]]>
+	    <foreach collection="SubTable2Array"  item="field" index="index">
+	     <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 ${field.FieldName}
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </when>
+	            
+	            <otherwise>
+	                   ${field.FieldName}
+	                   <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType}
+	                      </otherwise>  
+	                 </choose>
+	                   <if test="field.FieldType.equalsIgnoreCase('varchar') or  field.FieldType.equalsIgnoreCase('char')" >
+	                   		(${field.FieldLength} CHAR) 
+	                   </if>
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		  PRIMARY KEY (FormInstID,"ROWSEQ")
+	    		  
+	      )  SEGMENT CREATION IMMEDIATE 
+			  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+			  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+			  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+			  TABLESPACE "COVI_APPROVAL4J" ';
+		  
+		   END;
+	    ]]>
+	</update>
+	
+		<update id="CreateSubTable3Sql" parameterType="cmap">
+		<![CDATA[
+		 DECLARE
+     			cnt number(1);
+		  BEGIN
+ 			   SELECT COUNT(1) INTO cnt FROM DBA_TABLES WHERE owner='GWUSER' AND table_name='${SubTable3Name}';
+	   		   IF cnt <> 0 THEN
+	     			 EXECUTE IMMEDIATE 'DROP TABLE ${SubTable3Name}';
+	    	   END IF;
+ 		  	  EXECUTE IMMEDIATE 'CREATE TABLE "GWUSER".${SubTable3Name}
+   											(	FormInstID VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+   												"ROWSEQ" NUMBER(5,0) NOT NULL ENABLE, 
+	    ]]>
+	    <foreach collection="SubTable3Array"  item="field" index="index">
+	     <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 ${field.FieldName}
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </when>
+	            
+	            <otherwise>
+	                   ${field.FieldName}
+	                   <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType}
+	                      </otherwise>  
+	                 </choose>
+	                   <if test="field.FieldType.equalsIgnoreCase('varchar') or  field.FieldType.equalsIgnoreCase('char')" >
+	                   		(${field.FieldLength} CHAR) 
+	                   </if>
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                   NULL 
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		  PRIMARY KEY (FormInstID,"ROWSEQ")
+	    		  
+	      )  SEGMENT CREATION IMMEDIATE 
+			  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+			  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+			  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+			  TABLESPACE "COVI_APPROVAL4J" ';
+		  
+		   END;
+	    ]]>
+	</update>
+	
+		<update id="CreateSubTable4Sql" parameterType="cmap">
+		<![CDATA[
+		 DECLARE
+     			cnt number(1);
+		  BEGIN
+ 			   SELECT COUNT(1) INTO cnt FROM DBA_TABLES WHERE owner='GWUSER' AND table_name='${SubTable4Name}';
+	   		   IF cnt <> 0 THEN
+	     			 EXECUTE IMMEDIATE 'DROP TABLE ${SubTable4Name}';
+	    	   END IF;
+ 		  	  EXECUTE IMMEDIATE 'CREATE TABLE "GWUSER".${SubTable4Name}
+   											(	FormInstID VARCHAR2(50 CHAR) NOT NULL ENABLE, 
+   												"ROWSEQ" NUMBER(5,0) NOT NULL ENABLE, 
+	    ]]>
+	    <foreach collection="SubTable4Array"  item="field" index="index">
+	     <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 ${field.FieldName}
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER 
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </when>
+	            
+	            <otherwise>
+	                   ${field.FieldName}
+	                   <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         CLOB
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('datetime')">
+	                         DATE
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('decimal') or field.FieldType.equalsIgnoreCase('int')">
+	                         NUMBER
+	                     </when>
+	                     <when test="field.FieldType.equalsIgnoreCase('varchar')">
+	                         VARCHAR2
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType}
+	                      </otherwise>  
+	                 </choose>
+	                   <if test="field.FieldType.equalsIgnoreCase('varchar') or  field.FieldType.equalsIgnoreCase('char')" >
+	                   		(${field.FieldLength} CHAR) 
+	                   </if> 
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT ''${field.FieldDefault}''
+	                  </if>
+	                  NULL 
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		  PRIMARY KEY (FormInstID,"ROWSEQ")
+	    		  
+	      )  SEGMENT CREATION IMMEDIATE 
+			  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255 NOCOMPRESS LOGGING
+			  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+			  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+			  TABLESPACE "COVI_APPROVAL4J" ';
+		  
+		   END;
+	    ]]>
+	</update>
+	
+	
+	<select id="checkDuplidationTableName" parameterType="cmap" resultType="int">
+	    SELECT COUNT(TABLE_NAME) 
+	    FROM ALL_TABLES
+		WHERE TABLESPACE_NAME = 'COVI_APPROVAL4J'
+		AND UPPER(TABLE_NAME) = UPPER(#{tableName})
+	 </select>
+
+	<select id="addFormDuplicateCheck" parameterType="cmap" resultType="int">
+	    SELECT count(*) FROM jwf_forms
+		WHERE FormPrefix = #{Formprefix}
+		AND Revision = #{Revision}
+		<if test='isSaaS != null and isSaaS == "Y"'>		
+			AND CompanyCode = #{CompanyCode}
+		</if>
+	 </select>	 	 
+	
+	<select id="selectFormsLegacyCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) FROM jwf_formslegacy A
+		WHERE FormID = #{FormID}
+	 </select>
+	
+	<insert id="insertFormsLegacy" parameterType="cmap">
+		<![CDATA[
+		INSERT INTO jwf_formslegacy(			
+			FormID
+			,LegacySystem
+			,LegacyForm
+			,LegacyURL
+			,IsUse
+		)
+		VALUES
+		(
+			#{FormID}
+			,'Approval'
+			,#{FormPrefix}
+			,NULL
+			,#{UseOtherLegacyForm}
+		)
+		]]>
+	</insert>
+	
+	<update id="updateFormsLegacy" parameterType="cmap">
+		UPDATE jwf_formslegacy
+		SET IsUse = #{UseOtherLegacyForm}
+		WHERE FormID = #{FormID}
+	</update>
+	
+	<delete id="deleteFormsLegacy" parameterType="cmap">
+		DELETE FROM jwf_formslegacy WHERE FormID = #{FormID}
+	</delete>
+	
+	<delete id="deleteFormsAcl" parameterType="cmap">
+		DELETE FROM jwf_forms_acl
+		WHERE ObjectType = 'FORM' AND TargetID = #{FormID}
+		AND ID NOT IN 
+		<foreach item="item" index="index" collection="list" open="(" close=")" separator=" ">
+			SELECT ID FROM jwf_forms_acl
+			WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+			AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+			AND GroupType = #{item.GroupType}
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</delete>
+	
+	<insert id="insertFormsAcl" parameterType="java.util.List">
+		INSERT INTO jwf_forms_acl
+			(ObjectType,TargetID,CompanyCode,GroupCode,GroupType,RegisterCode)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.ObjectType}
+				,#{item.TargetID}
+				,#{item.CompanyCode}
+				,#{item.GroupCode}
+				,#{item.GroupType}
+				,#{item.RegisterCode}
+			FROM DUAL
+			WHERE NOT EXISTS(
+				SELECT 1 FROM jwf_forms_acl
+				WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+				AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+				AND GroupType = #{item.GroupType}
+			)
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteAllFormsAcl" parameterType="cmap">
+		DELETE FROM jwf_forms_acl
+		WHERE ObjectType = #{ObjectType}
+		AND TargetID = #{FormID}
+	</delete>
+	
+	<select id="selectFormsAclSelect" resultType="cmap">
+		SELECT
+			'group' AS "itemType"
+			,gr.GroupID AS "GroupID"
+			,gr.MultiDisplayName AS "DN"
+			,cn.MultiDisplayName AS "ETNM"
+			,gr.CompanyCode AS "CompanyCode"
+			,gr.GroupCode AS "GroupCode"
+			,gr.GroupType AS "GroupType"
+		FROM sys_object_group gr
+		LEFT JOIN sys_object_group cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		INNER JOIN jwf_forms_acl jfa ON gr.GroupCode = jfa.GroupCode AND gr.GroupType = jfa.GroupType AND jfa.ObjectType = 'FORM'
+		WHERE 1=1
+		AND gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+		AND gr.GroupType IN ('Dept','Company')
+		AND jfa.TargetID = #{FormID}
+	</select>
+	
+	<select id="getAutoFormSeq" resultType="String">
+		SELECT GWUSER.JWF_AUTOFORM_SEQ.NEXTVAL AS "AutoFormSeq" FROM DUAL
+	</select>
+	
+</mapper>
+

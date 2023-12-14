@@ -1,0 +1,652 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.biztask">
+	<select id="selectMyActivityList" parameterType="cmap" resultType="cmap">
+		SELECT A.AT_ID
+			  ,'' AS "FolderID"
+			  ,A.CU_ID
+			  ,A.ATName AS "ATName"
+			  ,A.StartDate AS "StartDate"
+			  ,A.EndDate AS "EndDate"
+			  ,A.State AS "State"
+			  ,A.State AS "TaskState"
+			  ,A.Progress AS "Progress"
+			  ,C.CommunityName AS "CommunityName"
+			  ,C.CommunityType AS "CommunityType"
+			  ,C.AppStatus AS "AppStatus"
+			  ,TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) AS "DelayDay"
+		FROM community C 
+		INNER JOIN tf_activity A  ON C.CU_ID = A.CU_ID
+		INNER JOIN tf_activity_performer B ON A.AT_ID = B.AT_ID
+		WHERE 1=1
+		AND	C.CommunityType = 'P'
+		AND	C.AppStatus = 'RV'
+		AND	B.PerformerCode = #{userCode}
+		AND	A.State IN ('Waiting', 'Process')
+		<if test="searchText != '' and searchText != null">
+			AND C.CommunityName LIKE '%'||#{searchText}||'%'
+		</if>
+		ORDER BY A.EndDate ASC
+	</select>
+	
+	<select id="selectMyTaskList" parameterType="cmap" resultType="cmap">
+		SELECT  A.TaskID AS "TaskID"
+			  , A.FolderID AS "FolderID"
+			  , '' AS "ProjectCode"
+			  , A.Subject AS "Subject"
+			  , TO_CHAR(A.Description) AS "Description"
+			  , A.State AS "State"
+			  , A.State AS "TaskState"
+			  , A.Progress AS "Progress"
+			  , TO_CHAR(A.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			  , TO_CHAR(A.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			  , f.DisplayName AS "DisplayName"
+			  , TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) AS "DelayDay"
+			  , A.RegisterCode AS "RegisterCode"
+			  , A.OwnerCode AS "OwnerCode"
+		FROM task A
+		INNER JOIN task_performer B ON A.TaskID = B.TaskID AND B.PerformerCode = #{userCode}
+		LEFT OUTER JOIN task_folder F ON A.FolderID = F.FolderID 
+		WHERE 1=1
+		AND	A.State IN ('Waiting', 'Process')
+		AND	A.DeleteDate IS NULL
+		<if test="searchText != '' and searchText != null">
+			AND F.DisplayName LIKE '%'||#{searchText}||'%'
+		</if>
+		ORDER BY A.EndDate ASC
+	</select>
+	
+	<select id="selectAllMyActivityList" parameterType="cmap" resultType="cmap">
+		SELECT A.AT_ID
+			  ,'' AS "FolderID"
+			  ,A.CU_ID
+			  ,A.ATName AS "ATName"
+			  ,A.StartDate AS "StartDate"
+			  ,A.EndDate AS "EndDate"
+			  ,A.State AS "State"
+			  ,A.State as "TaskState"
+			  ,A.Progress AS "Progress"
+			  ,C.CommunityName AS "CommunityName"
+			  ,C.CommunityType AS "CommunityType"
+			  ,C.AppStatus AS "AppStatus"
+			  ,TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) AS "DelayDay"
+		FROM community C 
+		INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+		INNER JOIN tf_activity_performer B ON A.AT_ID = B.AT_ID
+		WHERE 1=1
+		AND	C.CommunityType = 'P'
+		AND	C.AppStatus = 'RV'
+		AND	B.PerformerCode = #{userCode}
+		<if test="stateCode != null and stateCode != '' and stateCode != 'TaskState' ">
+			AND A.State = #{stateCode}
+		</if>
+		ORDER BY A.EndDate ASC
+	</select>
+	
+	<select id="selectAllMyTaskList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT
+			  A.TaskID AS "TaskID"
+			, A.FolderID AS "FolderID"
+			, '' AS "ProjectCode"
+			, A.Subject AS "Subject"
+			, TO_CHAR(A.Description) AS "Description"
+			, A.State AS "State"
+			, A.State As "TaskState"
+			, A.Progress AS "Progress"
+			, TO_CHAR(A.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			, TO_CHAR(A.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			, f.DisplayName AS "DisplayName"
+			, TRUNC(SYSDATE - A.EndDate) AS "DelayDay"
+			, A.RegisterCode AS "RegisterCode"
+			, A.OwnerCode AS "OwnerCode"
+			, F.IsShare AS "IsShare"
+		FROM task A
+		INNER JOIN task_performer B ON A.TaskID = B.TaskID
+		LEFT OUTER JOIN task_folder F ON A.FolderID= F.FolderID
+		WHERE 1=1
+		AND	(B.PerformerCode = #{userCode} OR A.OwnerCode = #{userCode})
+		AND	A.DeleteDate IS NULL
+		<if test="stateCode != null and stateCode != '' and stateCode != 'TaskState'">
+			AND A.State = #{stateCode}
+		</if>
+		ORDER BY TO_CHAR(A.EndDate, 'YYYY-MM-DD') ASC
+	</select>
+	
+	<select id="selectProjectDetailStatusListforGantt" parameterType="cmap" resultType="cmap">
+		SELECT A.AT_ID
+			 , A.ATName AS "ATName"
+			 , A.State AS "State"
+			 , A.Progress AS "Progress"
+			 , A.StartDate AS "StartDate"
+			 , A.EndDate AS "EndDate"
+			 , A.MemberOf AS "MemberOf"
+			 , A.SortPath AS "SortPath"
+			 , C.CodeName AS "CodeName"
+			 , A.Weight AS "Weight"
+			 ,(SELECT COUNT(*)  FROM tf_activity AA WHERE AA.CU_ID = A.CU_ID AND AA.MemberOf = A.AT_ID) AS "SUBCNT"
+		FROM tf_activity A
+		LEFT OUTER JOIN community B ON B.CU_ID = A.CU_ID
+		LEFT OUTER JOIN sys_base_code C on C.CodeGroup='TaskState' AND a.State = C.Code
+		WHERE 1=1
+		AND	A.CU_ID = #{ProjectCode}
+		AND B.DN_ID = #{DN_ID}
+		AND C.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = C.Code AND CodeGroup = 'TaskState' AND DomainID = B.DN_ID)
+		ORDER BY A.SortPath
+	</select>
+	
+	<select id="selectMyTeams" parameterType="cmap" resultType="cmap">
+		SELECT	  GroupCode AS "GroupCode"
+				, MultiDisplayName AS "MultiDisplayName"
+				, GroupPath AS "GroupPath"
+		FROM sys_object_group A
+		WHERE 1=1
+		AND A.ManagerCode = #{userCode}
+		ORDER BY SortPath
+	</select>
+	
+	<select id="selectMyTeamProjectSummary" parameterType="cmap" resultType="cmap">
+		SELECT C.CU_ID
+			 , C.CommunityName AS "CommunityName"
+			 , C.TF_MajorDeptCode AS "TF_MajorDeptCode"
+			 , C.TF_MajorDept AS "TF_MajorDept"
+			 , C.TF_STATE AS "TF_STATE"
+			 , C.TF_StartDate AS "TF_StartDate"
+			 , C.TF_EndDate AS "TF_EndDate"
+			 , TRUNC(MONTHS_BETWEEN(C.TF_StartDate, C.TF_EndDate))+1 AS "TF_TERM"
+			 , A.AT_ID
+			 , A.ATName AS "ATName"
+			 , A.StartDate AS "StartDate"
+			 , A.EndDate AS "EndDate"
+			 , A.State AS "ATState"
+			 , A.Progress AS "ATProgress"
+			 , A.Weight AS "Weight"
+			 , TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) AS "DELAYCNT"
+		FROM community C 
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON C.TF_MajorDeptCode = CTE.GroupCode
+		INNER JOIN tf_activity A  ON C.CU_ID = A.CU_ID
+		WHERE 1=1
+		AND A.MemberOf IS NULL
+		AND	A.State IN ('Process','Waiting')
+		AND C.DN_ID = #{domainID}
+		AND	C.TF_STATE = 'RA'
+		AND	C.AppStatus = 'RV'
+		ORDER BY C.RegProcessDate, A.SortPath
+	</select>
+	
+	<select id="selectMyTeamTaskSummary" parameterType="cmap" resultType="cmap">
+		SELECT TF.TaskID AS "TaskID"
+			 , TF.FolderID AS "FolderID"
+			 , TF.Subject AS "Subject"
+			 , TF.Description AS "Description"
+			 , TF.State AS "State"
+			 , TO_CHAR(TF.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			 , TO_CHAR(TF.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			 , TF.Progress AS "Progress"
+			 , U.DeptCode AS "DeptCode"
+			 , U.MultiDeptName AS "MultiDeptName"
+			 , NVL(TRUNC(SYSDATE - TF.EndDate), 0) AS "DELAYCNT"
+		FROM task TF 
+		INNER JOIN sys_object_user_basegroup U  on TF.OwnerCode = U.UserCode
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON CTE.GroupCode = U.DeptCode
+		WHERE 1=1
+		AND	U.JobType = 'Origin'
+		AND TF.State IN ('Process','Waiting')
+	</select>
+	
+	<select id="selectMyTeamProjectSummaryList" parameterType="cmap" resultType="cmap">
+		SELECT	  C.CU_ID
+				, C.CommunityName AS "CommunityName"
+				, C.TF_StartDate AS "TF_StartDate"
+				, C.TF_EndDate AS "TF_EndDate"
+				, C.TF_MajorDept AS "TF_MajorDept"
+				, C.TF_TERM AS "TF_TERM"
+				, C.TF_AVGProgress AS "TF_AVGProgress"
+				, C.TF_WProgress AS "TF_WProgress"
+				, C.DELAYCNT AS "DELAYCNT"
+		FROM (
+			SELECT	  C.CU_ID
+					, C.CommunityName
+					, C.TF_StartDate
+					, C.TF_EndDate
+					, C.TF_MajorDept
+					, TRUNC(MONTHS_BETWEEN(C.TF_StartDate, C.TF_EndDate))+1 AS TF_TERM
+					, ABS(CAST(AVG(A.Progress) AS NUMBER)) AS TF_AVGProgress
+					, ABS(CAST(SUM(A.Weight * A.Progress/100) AS NUMBER)) AS TF_WProgress
+					, SUM(CASE WHEN A.State IN ('Process','Waiting') AND A.EndDate <![CDATA[ < ]]> TO_CHAR(SYSDATE-1, 'YYYY-MM-DD') THEN 1 ELSE 0 END) AS DELAYCNT
+			FROM community C 
+			INNER JOIN (
+				SELECT GroupCode, MultiDisplayName, SortPath 
+				FROM sys_object_group E 
+				WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+				ORDER BY SortPath
+			) CTE ON C.TF_MajorDeptCode = CTE.GroupCode
+			INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+			WHERE 1=1
+			AND A.MemberOf IS NULL
+			AND C.DN_ID = #{domainID}
+			AND	C.TF_STATE = 'RA'
+			AND	C.AppStatus = 'RV'
+			GROUP BY C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+			ORDER BY C.TF_StartDate ASC
+		) C
+		WHERE 1=1
+		<if test="mode == 'D'.toString()">
+			<![CDATA[ AND C.DELAYCNT > 0 ]]>
+		</if>
+		<if test="mode == 'P'.toString()">
+			<![CDATA[ AND C.DELAYCNT <= 0 ]]>
+		</if>
+	</select>
+	
+	<select id="selectMyTeamProjectSummaryListCNT" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT	  C.CU_ID
+					, C.CommunityName
+					, SUM(CASE WHEN A.State IN ('Process','Waiting') AND A.EndDate <![CDATA[ < ]]> TO_CHAR(SYSDATE-1, 'YYYY-MM-DD') THEN 1 ELSE 0 END) AS DELAYCNT
+			FROM community C 
+			INNER JOIN (
+				SELECT GroupCode, MultiDisplayName, SortPath 
+				FROM sys_object_group E 
+				WHERE E.GroupPath LIKE '%'||#{deptCode}||'%'
+				ORDER BY SortPath
+			) CTE ON C.TF_MajorDeptCode = CTE.GroupCode
+			INNER JOIN tf_activity A  ON C.CU_ID = A.CU_ID
+			WHERE 1=1
+			AND A.MemberOf IS NULL
+			AND C.DN_ID = #{domainID}
+			AND	C.TF_STATE = 'RA'
+			AND	C.AppStatus = 'RV'
+			GROUP BY C.CU_ID, C.CommunityName
+		) C
+		WHERE 1=1
+		<if test="mode == 'D'.toString()">
+			<![CDATA[ AND C.DELAYCNT > 0 ]]>
+		</if>
+		<if test="mode == 'P'.toString()">
+			<![CDATA[ AND C.DELAYCNT <= 0 ]]>
+		</if>
+	</select>
+	
+	<!-- 업무형포탈 추가 -->
+	<insert id="insertPreTask" parameterType="cmap">
+		INSERT INTO task_pre (ReportDate,Term,TermMode,BeforeAfter,TaskDate,Subject,OwnerCode,RegisterCode,RegistDate) 
+		SELECT  TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS ReportDate,
+				CASE WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI') THEN 1
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI') THEN 6
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') THEN 3
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') THEN 1
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') THEN 1
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI') THEN 2
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') THEN 1 
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI') THEN 2
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') THEN 1 
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') THEN 3
+					 ELSE 0 END Term,
+				CASE WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI') THEN 'Y'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI') THEN 'M'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') THEN 'M'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') THEN 'M'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') THEN 'W'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI') THEN 'D'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') THEN 'W' 
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI') THEN 'W'
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') THEN 'M' 
+					 WHEN B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') THEN 'M'
+					 ELSE '0' END TermMode,
+				CASE WHEN B.StartDateTime <![CDATA[<]]> #{startDate} then 'B' ELSE 'A' END BeforeAfter,
+				TO_DATE(B.StartDateTime, 'YYYY-MM-DD HH24:MI') AS TaskDate,
+				A.Subject,
+				A.OwnerCode,
+				'superadmin',
+				SYSDATE
+		FROM event A
+		INNER JOIN event_date B ON A.EventID = B.EventID
+		INNER JOIN sys_object_user C ON A.OwnerCode = C.UserCode
+		WHERE A.FolderType = 'Schedule.Person'
+		AND	C.IsUse = 'Y'
+		AND	A.DeleteDate IS NULL
+		AND	( B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD HH24:MI')
+				OR B.StartDateTime BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD HH24:MI')
+			)
+		UNION ALL
+		SELECT 
+		 	TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS ReportDate,
+			CASE WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 1
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 6
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 3
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 1
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 1
+				 ELSE 0 END Term,
+			CASE WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 'Y'
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 'M'
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 'M'
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 'M'
+				 WHEN A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 'W'
+				 ELSE '0' END TermMode,
+			CASE WHEN A.EndDate <![CDATA[<]]> TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') then 'B' ELSE 'A' END BeforeAfter,
+			A.EndDate AS TaskDate, 
+			A.DocSubject AS Subject, 
+			CASE WHEN C.UserCode = B.UserCode THEN C.UserCode ELSE C.DeputyID END AS OwnerCode,
+			'superadmin' AS RegisterCode,
+			SYSDATE AS RegisterDate
+		FROM COVI_APPROVAL4J_ARCHIVE.jwf_processarchive A
+		INNER JOIN COVI_APPROVAL4J_ARCHIVE.jwf_workitemarchive C ON A.ProcessArchiveID = C.ProcessArchiveID
+		INNER JOIN sys_object_user B ON ( C.UserCode = B.UserCode OR C.DeputyID = B.UserCode )
+		WHERE B.IsUse = 'Y'
+		AND	A.DeleteDate IS NULL
+		AND	C.Deleted IS NULL
+		AND	A.BusinessState LIKE '02_01%'
+		AND	( A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD')
+				OR A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD')
+				OR A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD')
+				OR A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD')
+				OR A.EndDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD')
+			)
+		UNION ALL
+		SELECT TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS ReportDate,
+				CASE WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 6
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 3
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') THEN 2
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 1 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') THEN 2
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 1 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 3
+					ELSE 0 END Term,
+				CASE WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 'Y'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 'W'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') THEN 'D'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 'W' 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') THEN 'W'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 'M' 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 'M'
+					ELSE '0' END TermMode,
+				CASE WHEN A.StartDate <![CDATA[<]]> #{startDate} then 'B' ELSE 'A' END BeforeAfter,
+				A.StartDate AS TaskDate,
+				A.Subject, 
+				A.OwnerCode,
+				'superadmin',
+				SYSDATE
+		FROM task A
+		LEFT JOIN sys_object_user C ON A.OwnerCode = C.UserCode
+		WHERE A.DeleteDate IS NOT NULL AND C.IsUse = 'Y'
+		AND	( A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD')
+			)
+		UNION 
+		SELECT TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS ReportDate,
+				CASE WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 6
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 3
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 1
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') THEN 2
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 1 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') THEN 2
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 1 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 3
+					ELSE 0 END Term,
+				CASE WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') THEN 'Y'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 'M'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 'W'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') THEN 'D'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') THEN 'W' 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') THEN 'W'
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') THEN 'M' 
+					WHEN A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') THEN 'M'
+					ELSE '0' END TermMode,
+				CASE WHEN A.StartDate <![CDATA[<]]> TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') then 'B' ELSE 'A' END BeforeAfter,
+				A.StartDate AS TaskDate,
+				A.Subject, 
+				CASE WHEN B.PerformerCode IS NOT NULL THEN B.PerformerCode ELSE A.OwnerCode END AS OWNERCODE,
+				'superadmin',
+				SYSDATE	  
+		FROM task A
+		INNER JOIN task_performer B ON A.TaskID = B.TaskID
+		LEFT JOIN sys_object_user C ON B.PerformerCode = C.UserCode
+		WHERE A.DeleteDate IS NOT NULL 
+		AND C.IsUse = 'Y'
+		AND	( A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' YEAR), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '6' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '3' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '1' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')-(INTERVAL '7' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '2' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '7' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '14' Day), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '1' Month), 'YYYY-MM-DD')
+				OR A.StartDate BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')+(INTERVAL '3' Month), 'YYYY-MM-DD')
+			)
+		ORDER BY TASKDATE
+	</insert>
+	
+	<select id="selectPreTaskList" parameterType="cmap" resultType="cmap">
+		SELECT	  PreTaskID AS "PreTaskID"
+				, ReportDate AS "ReportDate"
+				, Term AS "Term"
+				, TermMode AS "TermMode"
+				, BeforeAfter AS "BeforeAfter"
+				, TaskDate AS "TaskDate"
+				, Subject AS "Subject"
+		FROM task_pre 
+		WHERE OwnerCode = #{ownerCode}
+		AND DeleteDate IS NULL
+		AND ReportDate = #{currentDate}
+		ORDER BY PreTaskID
+	</select>
+	
+	<select id="selectPreTaskListCNT" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM task_pre 
+		WHERE OwnerCode = #{ownerCode}
+		AND DeleteDate IS NULL
+		AND ReportDate = #{currentDate}
+	</select>
+	
+	<delete id="deletePreTask" parameterType="cmap">
+		DELETE FROM task_pre 
+		WHERE PreTaskID = #{preTaskID}
+	</delete>
+	
+	<delete id="deletePreTaskSchedule" parameterType="cmap">
+		DELETE FROM task_pre
+		WHERE ReportDate <![CDATA[<]]> TO_CHAR(TO_DATE(#{currentDate}, 'YYYY-MM-DD HH24:MI:SS') - (INTERVAL '7' DAY), 'YYYYMMDD')
+	</delete>
+	
+	<!-- portal list 조회 -->
+	<select id="selectPortalMyActivityList" parameterType="cmap" resultType="cmap">
+		SELECT	  AT_ID
+				, '' AS "FolderID"
+				, CU_ID
+				, ATName AS "ATName"
+				, StartDate AS "StartDate"
+				, EndDate AS "EndDate"
+				, State AS "State"
+				, State AS "TaskState"
+				, Progress AS "Progress"
+				, CommunityName AS "CommunityName"
+				, CommunityType AS "CommunityType"
+				, AppStatus AS "AppStatus"
+				, DelayDay AS "DelayDay"
+				, PjState AS "PjState"
+		FROM (
+			SELECT	  A.AT_ID
+					, A.CU_ID
+					, A.ATName
+					, A.StartDate
+					, A.EndDate
+					, A.State
+					, A.Progress 
+					, C.CommunityName 
+					, C.CommunityType 
+					, C.AppStatus 
+					, TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) AS DelayDay
+					, CASE
+						WHEN State = 'Process' AND TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) > 0 THEN 'Delay'
+						ELSE State
+					END AS PjState
+			FROM community C 
+			INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+			INNER JOIN tf_activity_performer B ON A.AT_ID = B.AT_ID
+			WHERE 1=1
+			AND	C.CommunityType = 'P'
+			AND	C.AppStatus IN ('RV','RW')
+			AND	B.PerformerCode = #{userCode}
+		) A
+		WHERE 1=1
+		<if test="stateCode != null and stateCode != '' and stateCode != 'TaskState'">
+			AND PjState = #{stateCode}
+		</if>
+		<if test="sYear != null and sYear != ''">
+			AND TO_CHAR(TO_DATE(StartDate,'yyyy-MM-dd'),'yyyy') = #{sYear}
+		</if>
+		ORDER BY EndDate ASC
+	</select>
+	
+	<select id="selectPortalMyTaskList" parameterType="cmap" resultType="cmap">
+		SELECT	  TaskID AS "TaskID"
+				, FolderID AS "FolderID"
+				, ProjectCode AS "ProjectCode"
+				, Subject AS "Subject"
+				, Description AS "Description"
+				, State AS "State"
+				, TaskState AS "TaskState"
+				, Progress AS "Progress"
+				, TO_CHAR(StartDate, 'YYYY-MM-DD') AS "StartDate"
+				, TO_CHAR(EndDate, 'YYYY-MM-DD') AS "EndDate"
+				, DisplayName AS "DisplayName"
+				, DelayDay AS "DelayDay"
+				, RegisterCode AS "RegisterCode"
+				, OwnerCode AS "OwnerCode"
+				, IsShare AS "IsShare"
+				, PjState AS "PjState"
+		FROM (
+			SELECT DISTINCT
+				  A.TaskID
+				, A.FolderID
+				, '' AS ProjectCode
+				, A.Subject
+				, TO_CHAR(A.Description) AS Description
+				, A.State 
+				, A.State AS TaskState
+				, A.Progress
+				, A.StartDate 
+				, A.EndDate 
+				, f.DisplayName 
+				, TRUNC(SYSDATE - A.EndDate) AS DelayDay
+				, A.RegisterCode 
+				, A.OwnerCode 
+				, F.IsShare 
+				, CASE
+					WHEN A.State = 'Process' AND TRUNC(SYSDATE - A.EndDate) > 0 THEN 'Delay'
+					ELSE A.State
+				END AS PjState
+			FROM task A
+			INNER JOIN task_performer B ON A.TaskID = B.TaskID
+			LEFT OUTER JOIN task_folder F ON A.FolderID= F.FolderID
+			WHERE 1=1
+			AND A.DELETEDATE IS NULL
+			AND (B.PerformerCode = #{userCode}  OR A.OwnerCode = #{userCode})
+		) A
+		WHERE 1=1
+		<if test="stateCode != null and stateCode != '' and stateCode != 'TaskState'">
+			AND PjState = #{stateCode}
+		</if>
+		<if test="sYear != null and sYear != ''">
+			AND TO_CHAR(StartDate, 'YYYY') = #{sYear}
+		</if>
+		ORDER BY A.EndDate ASC
+	</select>
+	
+	<!-- portal graph data조회-->
+	<select id="selectPortalMyActivityGraph" parameterType="cmap" resultType="cmap">
+		SELECT	  Code AS "Code"
+				, NVL(SUM(Cnt),0) AS "Cnt"
+		FROM (
+			SELECT
+				  1 Cnt
+				, CASE
+					WHEN State = 'Process' AND TRUNC(SYSDATE - TO_DATE(A.EndDate, 'YYYY-MM-DD')) > 0 THEN 'Delay'
+					ELSE State
+				END AS TaskState
+			FROM community C
+			INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+			INNER JOIN tf_activity_performer B ON A.AT_ID = B.AT_ID
+			WHERE 1=1
+			AND C.CommunityType = 'P'
+			AND C.AppStatus IN ('RV','RW')
+			AND B.PerformerCode = #{userCode}
+			<if test="sYear != null and sYear != ''">
+				AND TO_CHAR(TO_DATE(A.StartDate,'YYYY-MM-DD'), 'YYYY') = #{sYear}
+			</if>
+		) A
+		RIGHT JOIN (
+			SELECT Code FROM sys_base_code WHERE CodeGroup = 'TFProjectState' AND ISUSE = 'Y'
+		) B 
+		ON A.TaskState = B.Code
+		GROUP BY Code
+	</select>
+	
+	<select id="selectPortalMyTaskGraph" parameterType="cmap" resultType="cmap">
+		SELECT	  Code AS "Code"
+				, NVL(SUM(Cnt), 0) AS "Cnt"
+		FROM (
+			SELECT DISTINCT
+				  A.TaskID AS "TaskID"
+				, 1 AS Cnt
+				, CASE
+					WHEN A.State = 'Process' AND TRUNC(SYSDATE - A.EndDate) > 0 THEN 'Delay'
+					ELSE A.State
+				END AS TaskState
+			FROM task A 
+			INNER JOIN task_performer B ON A.TaskID = B.TaskID
+			LEFT OUTER JOIN task_folder F ON A.FolderID= F.FolderID
+			WHERE 1=1
+			AND A.DELETEDATE IS NULL
+			AND (B.PerformerCode = #{userCode} OR A.OwnerCode = #{userCode})
+			<if test="sYear != null and sYear != ''">
+				AND TO_CHAR(A.StartDate,'yyyy') = #{sYear}
+			</if>
+		) A
+		RIGHT JOIN (
+			SELECT Code FROM sys_base_code WHERE CodeGroup = 'TFProjectState' AND ISUSE = 'Y'
+		) B
+		ON A.TaskState = B.Code
+		GROUP BY B.Code
+	</select>
+</mapper>

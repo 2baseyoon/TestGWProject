@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="common.control.comment">
+    <resultMap type="cmap" id="commentResult">
+ 	    <result property="Comment" column="Comment" jdbcType="CLOB" javaType="java.lang.String" />
+ 	    <result property="Context" column="Context" jdbcType="CLOB" javaType="java.lang.String" />
+ 	</resultMap>
+    
+    <select id="selectList" parameterType="cmap" resultType="cmap">
+    /* common.control.comment.selectList */
+		SELECT * FROM
+			(	
+			SELECT COMMENTID AS "CommentID"
+			      ,MEMBEROF AS "MemberOf"
+			      ,TARGETSERVICETYPE AS "TargetServiceType"
+			      ,TARGETID AS "TargetID"
+			      ,COMMENT_ AS "Comment"
+			      ,CONTEXT_ AS "Context"
+			      ,LIKECOUNT AS "LikeCount"
+			      ,REPLYCOUNT AS "ReplyCount"
+			      <choose>
+					<when test="folderType != null and folderType != '' and folderType == 'Anonymous'">
+						,'Anonymous' AS "RegisterCode"
+					</when>
+					<otherwise>
+						,REGISTERCODE AS "RegisterCode"
+					</otherwise>
+				  </choose>	
+			      ,TO_CHAR(REGISTDATE, 'YYYY/MM/DD HH24:MI:SS') AS "RegistDate"
+			      ,DELETEDATE AS "DeleteDate"
+			      ,RESERVED1 AS "Reserved1"
+			      ,RESERVED2 AS "Reserved2"
+			      ,RESERVED3 AS "Reserved3"
+			      ,RESERVED4 AS "Reserved4"
+			      ,RESERVED5 AS "Reserved5"
+				  ,(SELECT COUNT(L.LikeID) FROM sys_like L WHERE TargetServiceType = 'Comment' AND CommentID = L.TargetID AND L.RegisterCode = #{UserCode}) AS "MyLikeCount"
+				  ,(CASE WHEN REGISTERCODE = #{UserCode} THEN 'Y' ELSE 'N' END) AS "AnonymousAuthYn"
+			FROM SYS_COMMENT
+			WHERE (MEMBEROF = #{memberOf}
+				<choose>
+					<when test="targetServiceType != null and targetServiceType != '' and (targetServiceType == 'Board' or targetServiceType == 'Doc' or targetServiceType == 'Community')">
+						AND TARGETSERVICETYPE IN ('Board', 'Doc', 'Community')
+					</when>
+					<otherwise>
+						AND TARGETSERVICETYPE = #{targetServiceType}
+					</otherwise>
+				</choose>
+				<if test="lastCommentID != 0">
+			    AND #{lastCommentID} > COMMENTID
+			    </if>
+			    AND TARGETID = #{targetID} AND DELETEDATE IS NULL) 
+			    <if test="memberOf == 0">
+			    OR (TARGETSERVICETYPE = #{targetServiceType}
+					<if test="lastCommentID != 0">
+			    	AND #{lastCommentID} > COMMENTID
+			    	</if>
+			    	AND TARGETID = #{targetID} AND DELETEDATE IS NOT NULL AND REPLYCOUNT > 0)
+			    </if>
+			ORDER BY COMMENTID DESC
+			)
+		WHERE 1=1
+		<![CDATA[
+			AND  ROWNUM >= 1 AND ROWNUM <= #{rowCount}
+		]]>
+	</select>
+	
+ 	<select id="selectOne" parameterType="cmap" resultMap="commentResult">
+ 	/* common.control.comment.selectOne */
+			SELECT COMMENTID AS "CommentID"
+			      ,MEMBEROF AS "MemberOf"
+			      ,TARGETSERVICETYPE AS "TargetServiceType"
+			      ,TARGETID AS "TargetID" 
+			      ,COMMENT_ AS "Comment"
+			      ,CONTEXT_ AS "Context"
+			      ,LIKECOUNT AS "LikeCount"
+			      ,REPLYCOUNT AS "ReplyCount"
+			      <choose>
+					<when test="folderType != null and folderType != '' and folderType == 'Anonymous'">
+						,'Anonymous' AS "RegisterCode"
+					</when>
+					<otherwise>
+						,REGISTERCODE AS "RegisterCode"
+					</otherwise>
+				  </choose>
+			      ,REGISTERCODE AS "RegisterCode"
+			      ,TO_CHAR(REGISTDATE, 'YYYY/MM/DD HH24:MI:SS') AS "RegistDate"
+			      ,DELETEDATE AS "DeleteDate"
+			      ,RESERVED1 AS "Reserved1"
+			      ,RESERVED2 AS "Reserved2"
+			      ,RESERVED3 AS "Reserved3"
+			      ,RESERVED4 AS "Reserved4"
+			      ,RESERVED5 AS "Reserved5"
+			      ,(CASE WHEN REGISTERCODE = #{UserCode} THEN 'Y' ELSE 'N' END) AS "AnonymousAuthYn"
+			      ,(REGEXP_COUNT(FN_COMCOMMENTSORTPATHCREATE_S(COMMENTID, TARGETID), ';') - 1) AS "Depth"
+			      ,FN_COMCOMMENTSORTPATHCREATE_S(COMMENTID, TARGETID) AS "SortPath"
+			FROM SYS_COMMENT
+			WHERE COMMENTID = #{commentID}
+	</select>
+	<select id="selectCommentCount" parameterType="cmap" resultType="Integer">
+		SELECT count(*) AS "CommentCount"
+		FROM SYS_COMMENT
+		WHERE 1=1
+		<choose>
+			<when test="targetServiceType != null and targetServiceType != '' and (targetServiceType == 'Board' or targetServiceType == 'Doc' or targetServiceType == 'Community')">
+				AND TARGETSERVICETYPE IN ('Board', 'Doc', 'Community')
+			</when>
+			<otherwise>
+				AND TARGETSERVICETYPE = #{targetServiceType}
+			</otherwise>
+		</choose>
+		AND TARGETID = #{targetID} AND DELETEDATE IS NULL
+	</select>
+	<select id="selectReplyCount" parameterType="Integer" resultType="Integer">
+	<![CDATA[
+		SELECT count(*) AS "ReplyCount"
+		FROM SYS_COMMENT
+		WHERE MEMBEROF = #{memberOf} 
+		  AND DELETEDATE IS NULL
+	]]>
+	</select>	
+	<insert id="insert" parameterType="cmap" useGeneratedKeys="true" keyProperty="CommentID">
+		INSERT INTO SYS_COMMENT (
+			MEMBEROF,
+			TARGETSERVICETYPE,
+			TARGETID,
+			COMMENT_,
+			CONTEXT_,
+			LIKECOUNT,
+			REPLYCOUNT,
+			REGISTERCODE, 
+			REGISTDATE,
+			RESERVED1, 
+			RESERVED2, 
+			RESERVED3, 
+			RESERVED4, 
+			RESERVED5
+		)
+		VALUES (
+			#{memberOf}, 
+			#{targetServiceType}, 
+			#{targetID}, 
+			#{comment}, 
+			#{context}, 
+			#{likeCnt},
+			#{replyCnt}, 
+			#{registerCode}, 
+			SYSDATE,
+			#{reserved1}, 
+			#{reserved2}, 
+			#{reserved3}, 
+			#{reserved4}, 
+			#{reserved5}
+		)
+		<selectKey keyProperty="CommentID" resultType="Integer" order="AFTER">
+			SELECT SYS_COMMENT_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	<update id="updateContext" parameterType="cmap">	
+		<![CDATA[		
+			UPDATE SYS_COMMENT
+			SET CONTEXT_=#{context}
+			WHERE COMMENTID = #{commentID}
+		]]>
+	</update>
+	<update id="updateReplyCount" parameterType="cmap">	
+		<![CDATA[		
+			UPDATE SYS_COMMENT
+			SET REPLYCOUNT = (
+				SELECT COUNT(*) FROM SYS_COMMENT
+				WHERE memberOf = #{commentID}
+				AND DeleteDate IS NULL
+			)
+			WHERE COMMENTID = #{commentID}
+		]]>
+	</update>
+	<update id="update" parameterType="cmap">	
+		<![CDATA[		
+			UPDATE SYS_OBJECT_MENU
+			SET 
+				MENUTYPE=#{menuType},
+				SERVICEDEVICE=#{serviceDevice},
+				DISPLAYNAME=#{displayName},
+				MULTIDISPLAYNAME=#{multiDisplayName},
+				ICONCLASS=#{iconClass},
+				SECURITYLEVEL=#{securityLevel},
+				ISUSE=#{isUse},
+				URL=#{url},
+				MOBILEURL=#{mobileURL},
+				TARGET=#{target},
+				MOBILETARGET=#{mobileTarget},
+				DESCRIPTION=#{description},
+				MODIFIERCODE=#{modID},
+				MODIFYDATE=#{modDate}
+			WHERE MENUID = #{menuID}
+		]]>
+	</update>
+	<update id="updateLikeCount" parameterType="cmap">
+		<![CDATA[
+			UPDATE SYS_COMMENT
+			SET LIKECOUNT=#{likeCount}
+			WHERE COMMENTID = #{commentID}
+		]]>	
+	</update>
+	<update id="delete" parameterType="cmap">
+		<![CDATA[
+	        UPDATE SYS_COMMENT
+			SET DELETEDATE = SYSDATE
+			WHERE COMMENTID = #{commentID}
+		]]>
+	</update>
+	
+	<!-- mobile -->
+	
+	<select id="selectListAll" parameterType="cmap" resultType="cmap">
+		SELECT COMMENTID AS "CommentID"
+		      ,MEMBEROF AS "MemberOf"
+		      ,TARGETSERVICETYPE AS "TargetServiceType"
+		      ,TARGETID AS "TargetID" 
+		      ,Comment_ AS "Comment"
+		      ,CONTEXT_ AS "Context"
+		      ,LIKECOUNT AS "LikeCount"
+		      ,(SELECT COUNT(*) FROM SYS_LIKE WHERE TARGETID = TO_CHAR(a.COMMENTID) AND REGISTERCODE = #{UserCode} AND TARGETSERVICETYPE ='Comment') AS "MyLikeCount"
+		      ,REPLYCOUNT AS "ReplyCount"
+		      <choose>
+				<when test="folderType != null and folderType != '' and folderType == 'Anonymous'">
+					,'Anonymous' AS "RegisterCode"
+				</when>
+				<otherwise>
+					,REGISTERCODE AS "RegisterCode"
+				</otherwise>
+			  </choose>
+		      ,REGISTDATE AS "RegistDate"
+		      ,DELETEDATE AS "DeleteDate"
+		      ,RESERVED1 AS "Reserved1"
+		      ,RESERVED2 AS "Reserved2"
+		      ,RESERVED3 AS "Reserved3"
+		      ,RESERVED4 AS "Reserved4"
+		      ,RESERVED5 AS "Reserved5"
+		      ,(CASE WHEN REGISTERCODE = #{UserCode} THEN 'Y' ELSE 'N' END) AS "AnonymousAuthYn"
+		      ,(REGEXP_COUNT(FN_COMCOMMENTSORTPATHCREATE_S(COMMENTID, TARGETID), ';') - 1) AS "Depth"
+			  ,FN_COMCOMMENTSORTPATHCREATE_S(COMMENTID, TARGETID) AS "SortPath"
+		FROM SYS_COMMENT a
+	    WHERE 1=1
+	    <choose>
+			<when test="targetServiceType != null and targetServiceType != '' and (targetServiceType == 'Board' or targetServiceType == 'Doc' or targetServiceType == 'Community')">
+				AND TargetServiceType IN ('Board', 'Doc', 'Community')
+			</when>
+			<otherwise>
+				AND TargetServiceType = #{targetServiceType}
+			</otherwise>
+		</choose>
+		AND TargetID = #{targetID}
+		AND (DeleteDate IS NULL OR
+			(DeleteDate IS NOT NULL AND (SELECT COUNT(CommentID) FROM sys_comment b WHERE b.MemberOf = a.CommentID AND b.DeleteDate IS NULL) > 0)	
+		)
+	    <!-- ORDER BY CommentID DESC -->
+		ORDER BY MemberOf, CommentID DESC
+	</select>
+	
+	<update id="updateComment" parameterType="cmap" >
+		UPDATE  sys_comment 
+		SET Comment_ = #{comment}
+			, Context_ = #{context}
+		WHERE CommentID = #{commentID}
+	</update>
+	
+	<select id="SelectSenderCode" parameterType="cmap" resultType="cmap">
+		SELECT REGISTERCODE AS "RegisterCode"
+		FROM SYS_COMMENT
+		WHERE CommentID = #{memberOf}		
+	</select>
+</mapper>

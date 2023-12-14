@@ -1,0 +1,2611 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.tf">
+	<select id="selectUserJoinTF" parameterType="cmap" resultType="cmap">
+		SELECT
+				DISTINCT c.CU_ID AS optionValue
+				, CONCAT(IFNULL(CONCAT('[',covi_smart4j.Fn_GetSelDictionary(#{lang},CONCAT('TFMemberLevel_',cm.MemberLevel),0),'] '), '') , IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName)) AS optionText
+				, IFNULL(ci.FilePath, '') AS FilePath
+				, c.RegRequestDate
+		FROM covi_smart4j.community_member cm 
+		INNER JOIN covi_smart4j.community c  ON c.CU_ID = cm.CU_ID
+		LEFT OUTER JOIN covi_smart4j.community_image ci  ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE cm.UR_Code = #{UR_CODE}  
+		AND c.Gubun = 'T'
+		AND cm.MemberStatus = 'R' 
+		AND c.RegStatus IN ('R' ,'X')
+		AND c.AppStatus NOT IN('RA')
+		ORDER BY c.RegRequestDate ASC
+ 	<if test="LIMIT != null and LIMIT != ''"> LIMIT #{LIMIT} </if>		
+	</select>
+
+	<select id="selectUserTempTFGridList"  parameterType="cmap" resultType="cmap">
+		SELECT  A.CU_ID
+				, A.TF_DN_ID
+				, A.SearchTitle
+				, A.CommunityName		
+				, A.CreatorCode
+				, A.TF_MajorDept
+				, A.RegistDate
+				, A.TF_Period
+				, A.TF_PM								
+				, A.TF_Admin					
+				, A.TF_AdminCount 
+				, A.TF_Member		
+				, A.TF_MemberCount
+		FROM (	
+			SELECT tt.CU_ID
+					, tt.DN_ID AS TF_DN_ID
+					, tt.SearchTitle
+					, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_', tt.CU_ID), tt.DN_ID), tt.CommunityName) AS CommunityName
+					, tt.CreatorCode
+					, tt.TF_MajorDept
+					, DATE_FORMAT( tt.RegistDate, '%Y-%m-%d %T') AS RegistDate
+					, CONCAT(tt.TF_StartDate , '~' ,tt.TF_EndDate) AS TF_Period
+					, tt.TF_PM
+					, tt.TF_Admin
+					, tt.TF_AdminCount
+					, tt.TF_Member
+					, tt.TF_MemberCount		
+			FROM covi_smart4j.TF_TEMP AS tt
+			WHERE 1=1
+			AND tt.DN_ID = #{DN_ID}
+			AND tt.CreatorCode = #{UR_Code}
+			<choose>
+				<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+					AND (
+						tt.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+						OR tt.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+					)
+				</when>
+				<when test ="searchType =='C'.toString()">
+					AND tt.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+				</when>
+				<when test ="searchType =='O'.toString()">
+					AND tt.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+		)A
+	 	<trim prefix="ORDER BY" prefixOverrides=","> 
+	 		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchTitle")'>SearchTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_MajorDept")'>TF_MajorDept</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_AdminCount")'>(TF_AdminCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_MemberCount")'>(TF_MemberCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+	 	</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectUserTempTFGridListCount"  parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM covi_smart4j.TF_TEMP AS tt
+		WHERE 1=1
+		AND tt.DN_ID = #{DN_ID}
+		AND tt.CreatorCode = #{UR_Code}
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					tt.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+					OR tt.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND tt.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND tt.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+			</when>
+		</choose>
+	</select>	
+	
+	<delete id="deleteTempTFTeamRoom" parameterType="cmap">
+		<if test="Code == null"> 
+			DELETE FROM covi_smart4j.sys_file
+			WHERE ServiceType = 'Community' 
+			AND ObjectType= 'TF' 
+			AND MessageID = #{CU_ID};
+		</if>	
+		
+		DELETE FROM covi_smart4j.TF_TEMP
+		WHERE CU_ID = #{CU_ID};
+	</delete>
+	
+	<select id="selectUserTFGridList" parameterType="cmap" resultType="cmap">
+		SELECT  A.CU_ID
+				, A.MN_ID
+				, A.CategoryID
+				, A.CU_Code
+				, A.DN_ID
+				, A.SearchTitle
+				, A.CommunityName
+				, A.AppStatus
+				, (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				, A.RegRequestDate
+				, A.RegProcessDate					
+				, A.MemberCount
+				, A.MsgCount
+				, A.VisitCount
+				, A.Point
+				, A.Grade
+				, A.OperatorCode 
+				, A.OperatorName
+				, A.TF_DN_ID
+				, A.TF_DomainName
+				, A.TF_DeptCode
+				, A.DomainCode
+				, A.GroupCode					
+				, A.CreatorCode
+				, A.CreatorName
+				, A.Description
+				, A.DescriptionEditor
+				, A.FilePath
+				, A.TF_Period
+				, A.DisplayName								
+				, A.UserCode					
+				, A.MailAddress 
+				, A.CuAppDetail		
+				, A.CommunityJoin
+				, A.CommunityType
+				, TF_Member
+				, TF_Admin
+				, TF_PM
+				, MEMBER_CNT
+				, TF_PM_CODE
+				, TF_PM_MAIL
+		FROM (	
+			SELECT c.CU_ID
+					, c.MN_ID
+					, c.CategoryID
+					, c.CU_Code
+					, c.DN_ID
+					, c.SearchTitle
+					, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+					, c.AppStatus
+					, c.RegRequestDate AS RegRequestDate
+					, c.RegProcessDate AS RegProcessDate
+					, c.MemberCount
+					, c.MsgCount
+					, c.VisitCount
+					, c.Point
+					, c.Grade						
+					, c.OperatorCode 
+					, c.OperatorName
+					, c.TF_DN_ID
+					, sod.DisplayName AS TF_DomainName
+					, sogg.MultiDisplayName AS TF_DeptCode
+					, sod.DomainCode
+					, sog.GroupCode						
+					, c.CreatorCode
+					, c.CreatorName
+					, cd.Description
+					, cd.DescriptionEditor
+					, ci.FilePath
+					, CONCAT(c.TF_StartDate , '~' , c.TF_EndDate) AS TF_Period
+					, sou.DisplayName
+					, sou.UserCode
+					, sou.MailAddress
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+			FROM covi_smart4j.community AS c 
+			LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+			LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID
+			LEFT JOIN covi_smart4j.community_image AS ci  ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			LEFT JOIN covi_smart4j.sys_object_domain AS sod  ON sod.DomainID = c.TF_DN_ID
+			LEFT JOIN covi_smart4j.sys_object_group AS sogg  ON sogg.GroupCode = c.TF_MajorDeptCode
+			WHERE 1=1 
+			AND c.Gubun = 'T'
+			AND IFNULL(c.Secret, 'N') != 'Y'
+			AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+			AND c.DN_ID = #{DN_ID}
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+				AND c.AppStatus = #{AppStatus}
+			</if>
+			<if test="searchWord != null and searchWord != ''"> 
+			<choose>
+				<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+					AND (
+						c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+						OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+					)
+				</when>
+				<when test ="searchType =='C'.toString()">
+					AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+				</when>
+				<when test ="searchType =='O'.toString()">
+					AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+			</if>
+		)A
+	 	LEFT OUTER JOIN (
+			SELECT	  CU_ID
+					, MAX(LEVEL0) AS TF_Member
+					, MAX(LEVEL8) AS TF_Admin
+					, MAX(LEVEL9) AS TF_PM
+					, MAX(MemberCodeList) AS TF_PM_CODE
+					, MAX(MemberMailList) AS TF_PM_MAIL
+					, SUM(MemberCnt) AS MEMBER_CNT
+			FROM (
+				SELECT	 CU_ID, 
+						 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+						 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+						 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9,
+						 MemberCnt,
+						 CASE WHEN MemberLevel=9 THEN MemberCodeList ELSE '' END AS MemberCodeList,
+						 CASE WHEN MemberLevel=9 THEN MemberMailList ELSE '' END AS MemberMailList
+				FROM (
+					SELECT	  CU_ID
+							, M.MemberLevel
+							, GROUP_CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) SEPARATOR '@') AS MEMBERLIST
+							, GROUP_CONCAT(UR.UserCode SEPARATOR '@') AS MemberCodeList
+							, GROUP_CONCAT(UR.MAILADDRESS SEPARATOR '@') AS MemberMailList
+							, SUM(IF(M.UR_Code IS NOT NULL, 1, 0)) AS MemberCnt
+					FROM covi_smart4j.community_member M
+					LEFT OUTER JOIN covi_smart4j.sys_object_user UR ON M.UR_Code = UR.UserCode
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' 
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) mem ON mem.CU_ID = A.CU_ID
+		WHERE 1=1
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+			<if test="viewType == 'list' ">
+				AND MEMBER_CNT <![CDATA[>]]> 0
+			</if>
+		</if>
+		<if test="SearchStatus != null and SearchStatus != '' and SearchStatus !='TFDetailState'">
+			AND A.AppStatus = #{SearchStatus}
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			<choose>
+				<when test ="searchType =='P'.toString()">
+					AND TF_PM LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+				<when test ="searchType =='M'.toString()">
+					AND TF_Member LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+		</if>
+	 	<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' "> 
+				RegRequestDate ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>(MemberCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>			
+	</select>
+	
+	<select id="selectUserTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(1)
+		FROM (	
+			SELECT c.*
+			FROM covi_smart4j.community AS c 
+			LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+			LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID
+			LEFT JOIN covi_smart4j.community_image AS ci  ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			LEFT JOIN covi_smart4j.sys_object_domain AS sod  ON sod.DomainID = c.TF_DN_ID
+			LEFT JOIN covi_smart4j.sys_object_group AS sogg  ON sogg.GroupCode = c.TF_MajorDeptCode
+			WHERE 1=1 
+			AND c.Gubun = 'T'
+			AND IFNULL(c.Secret, 'N') != 'Y'
+			AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+			AND c.DN_ID = #{DN_ID}
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+				AND c.AppStatus = #{AppStatus}
+			</if>
+			<if test="searchWord != null and searchWord != ''"> 
+				<choose>
+					<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+						AND (
+							c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+							OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+						)
+					</when>
+					<when test ="searchType =='C'.toString()">
+						AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+					</when>
+					<when test ="searchType =='O'.toString()">
+						AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+					</when>
+				</choose>
+			</if>
+		)A
+	 	LEFT OUTER JOIN (
+			SELECT	  CU_ID
+					, MAX(LEVEL0) AS TF_Member
+					, MAX(LEVEL8) AS TF_Admin
+					, MAX(LEVEL9) AS TF_PM
+					, MAX(MemberCodeList) AS TF_PM_CODE
+					, MAX(MemberMailList) AS TF_PM_MAIL
+					, SUM(MemberCnt) AS MEMBER_CNT
+			FROM (
+				SELECT	 CU_ID, 
+						 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+						 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+						 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9,
+						 MemberCnt,
+						 CASE WHEN MemberLevel=9 THEN MemberCodeList ELSE '' END AS MemberCodeList,
+						 CASE WHEN MemberLevel=9 THEN MemberMailList ELSE '' END AS MemberMailList
+				FROM (
+					SELECT	  CU_ID
+							, M.MemberLevel
+							, GROUP_CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) SEPARATOR '@') AS MEMBERLIST
+							, GROUP_CONCAT(UR.UserCode SEPARATOR '@') AS MemberCodeList
+							, GROUP_CONCAT(UR.MAILADDRESS SEPARATOR '@') AS MemberMailList
+							, SUM(IF(M.UR_Code IS NOT NULL, 1, 0)) AS MemberCnt
+					FROM covi_smart4j.community_member M
+					LEFT OUTER JOIN covi_smart4j.sys_object_user UR ON M.UR_Code = UR.UserCode
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' 
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) mem ON mem.CU_ID = A.CU_ID
+		WHERE 1=1
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+			<if test="viewType == 'list' ">
+				AND MEMBER_CNT <![CDATA[>]]> 0
+			</if>
+		</if>
+		<if test="SearchStatus != null and SearchStatus != '' and SearchStatus !='TFDetailState'">
+			AND A.AppStatus = #{SearchStatus}
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			<choose>
+				<when test ="searchType =='P'.toString()">
+					AND TF_PM LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+				<when test ="searchType =='M'.toString()">
+					AND TF_Member LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="selectUserMyTFGridList" parameterType="cmap" resultType="cmap">
+		SELECT  A.CU_ID
+				, A.MN_ID
+				, A.CategoryID
+				, A.CU_Code
+				, A.DN_ID
+				, A.SearchTitle
+				, A.CommunityName
+				, A.AppStatus
+				, (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				, A.RegRequestDate
+				, A.RegProcessDate					
+				, A.MemberCount
+				, A.MsgCount
+				, A.VisitCount
+				, A.Point
+				, A.Grade
+				, A.SearchSummary
+				, A.OperatorCode 
+				, A.OperatorName
+				, A.DomainCode
+				, A.GroupCode					
+				, A.CreatorCode
+				, A.CreatorName
+				, A.Description
+				, A.DescriptionEditor
+				, A.FilePath
+				, A.UR_Code
+				, A.TF_Period
+				, A.DisplayName								
+				, A.UserCode					
+				, A.MailAddress 
+				, A.CuAppDetail		
+				, A.CommunityJoin
+				, A.CommunityType
+				, TF_Member
+				, TF_Admin
+				, TF_PM
+				, IFNULL(TF_AVGProgress, 0) AS TF_AVGProgress
+				, IFNULL(TF_WProgress, 0) AS TF_WProgress
+		FROM (	
+			SELECT c.CU_ID
+					, c.MN_ID
+					, c.CategoryID
+					, c.CU_Code
+					, c.DN_ID
+					, c.SearchTitle
+					, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+					, c.AppStatus
+					, c.RegRequestDate AS RegRequestDate
+					, c.RegProcessDate AS RegProcessDate
+					, c.MemberCount
+					, c.MsgCount
+					, c.VisitCount
+					, c.Point
+					, c.Grade
+					, c.SearchSummary						
+					, c.OperatorCode 
+					, c.OperatorName												
+					, sog.CompanyCode AS DomainCode
+					, sog.GroupCode
+					, c.CreatorCode
+					, c.CreatorName
+					, cd.Description
+					, cd.DescriptionEditor
+					, ci.FilePath
+					, cm.UR_Code
+					, CONCAT(c.TF_StartDate , '~' , c.TF_EndDate) AS TF_Period		
+					, sou.DisplayName
+					, sou.UserCode
+					, sou.MailAddress
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+			FROM covi_smart4j.community AS c 
+			LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+			LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID
+			LEFT JOIN covi_smart4j.community_image AS ci  ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			LEFT JOIN covi_smart4j.community_member AS cm  ON cm.CU_ID = c.CU_ID
+			WHERE 1=1
+			AND cm.UR_Code = #{UR_Code}
+			AND MemberLevel IN (#{PMLevel}, #{AdminLevel}, #{MemberLevel})
+			AND c.Gubun = 'T'
+			AND IFNULL(c.Secret, 'N') != 'Y'
+			AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+			AND c.DN_ID = #{DN_ID}
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+				AND c.AppStatus = #{AppStatus}
+			</if>
+			<choose>
+				<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+					AND (
+						c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+						OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+					)
+				</when>
+				<when test ="searchType =='C'.toString()">
+					AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+				</when>
+				<when test ="searchType =='O'.toString()">
+					AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+		) A
+	 	LEFT OUTER JOIN (
+			SELECT CU_ID, MAX(LEVEL0) AS TF_Member,MAX(LEVEL8) AS TF_Admin,MAX(LEVEL9) AS TF_PM
+			FROM (
+				SELECT CU_ID, 
+						 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+						 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+						 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+				FROM (
+					SELECT CU_ID, M.MemberLevel, GROUP_CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) SEPARATOR '@') AS MEMBERLIST			
+					FROM covi_smart4j.community_member as M 				
+					LEFT OUTER JOIN covi_smart4j.sys_object_user as UR	ON M.UR_Code = UR.UserCode				
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' 
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) mem ON mem.CU_ID = A.CU_ID
+		LEFT OUTER JOIN (
+			SELECT  C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+					, CAST( AVG(A.Progress) AS signed INTEGER) AS TF_AVGProgress
+					, CAST( SUM(A.Weight * A.Progress/100) AS signed integer) AS TF_WProgress
+			FROM covi_smart4j.community C
+			INNER JOIN covi_smart4j.tf_activity A ON C.CU_ID = A.CU_ID
+			WHERE 1=1
+			AND	A.CU_ID = A.CU_ID
+			AND A.MemberOf IS NULL
+			AND	C.TF_STATE = 'RA'
+			GROUP BY C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+		) AS pro ON pro.CU_ID = A.CU_ID
+	 	<trim prefix="ORDER BY"  prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' "> 
+ 				RegRequestDate ASC 
+		  	</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>(MemberCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+		  	</if>
+	 	</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>	
+	</select>
+	
+	<select id="selectUserMyTFGridListCount"  parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM covi_smart4j.community AS c 
+		LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+		LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+		LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID  
+		LEFT JOIN covi_smart4j.community_image AS ci  ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		LEFT JOIN covi_smart4j.community_member AS cm  ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{UR_Code} AND MemberLevel IN (#{PMLevel}, #{AdminLevel}, #{MemberLevel})
+		WHERE 1=1
+		AND c.Gubun = 'T'
+		AND IFNULL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		AND c.DN_ID = #{DN_ID}
+		<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+			AND c.MN_ID = #{MN_ID}
+		</if>
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+			AND c.AppStatus = #{AppStatus}
+		</if>
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+					OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectUserAdminTFGridList" parameterType="cmap" resultType="cmap">
+		SELECT  A.CU_ID
+				, A.MN_ID
+				, A.CategoryID
+				, A.CU_Code
+				, A.DN_ID
+				, A.SearchTitle
+				, A.CommunityName
+				, A.AppStatus
+				, (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				, A.RegRequestDate
+				, A.RegProcessDate					
+				, A.MemberCount
+				, A.MsgCount
+				, A.VisitCount
+				, A.Point
+				, A.Grade
+				, A.SearchSummary
+				, A.OperatorCode 
+				, A.OperatorName
+				, A.DomainCode
+				, A.GroupCode					
+				, A.CreatorCode
+				, A.CreatorName
+				, A.Description
+				, A.DescriptionEditor
+				, A.FilePath
+				, A.TF_Period
+				, A.CuAppDetail		
+				, A.CommunityJoin
+				, A.CommunityType
+				, TF_Member
+				, TF_Admin
+				, TF_PM
+		FROM (	
+			SELECT c.CU_ID
+					, c.MN_ID
+					, c.CategoryID
+					, c.CU_Code
+					, c.DN_ID
+					, c.SearchTitle
+					, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+					, c.AppStatus
+					, c.RegRequestDate AS RegRequestDate
+					, c.RegProcessDate AS RegProcessDate
+					, c.MemberCount
+					, c.MsgCount
+					, c.VisitCount
+					, c.Point
+					, c.Grade
+					, c.SearchSummary						
+					, c.OperatorCode 
+					, c.OperatorName												
+					, sog.CompanyCode AS DomainCode
+					, sog.GroupCode
+					, c.CreatorCode
+					, c.CreatorName
+					, cd.Description
+					, cd.DescriptionEditor
+					, ci.FilePath
+					, CONCAT(c.TF_StartDate , '~' , c.TF_EndDate) AS TF_Period		
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+					, covi_smart4j.Fn_BaseGetDictionary_S (#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+			FROM covi_smart4j.community AS c 
+			LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+			LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID
+			LEFT JOIN covi_smart4j.community_image AS ci  ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			WHERE 1=1 
+			AND c.Gubun = 'T'
+			AND IFNULL(c.Secret, 'N') != 'Y'
+			AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+			AND c.DN_ID = #{DN_ID}
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+				AND c.AppStatus = #{AppStatus}
+			</if>
+			<choose>
+				<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+					AND (
+						c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+						OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+					)
+				</when>
+				<when test ="searchType =='C'.toString()">
+					AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+				</when>
+				<when test ="searchType =='O'.toString()">
+					AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+				</when>
+			</choose>
+			<choose>
+				<when test ="kind =='1'.toString()">
+					AND c.AppStatus = 'RA' 
+				</when>
+				<when test ="kind =='2'.toString()">
+					AND c.AppStatus IN (SELECT Code FROM covi_smart4j.sys_base_code sbc WHERE CodeGroup ='CuAppDetail2' AND Reserved1 = '+' AND IsUse = 'Y'
+										AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuAppDetail2' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )) 
+				</when>
+				<when test ="kind =='3'.toString()">
+					AND STR_TO_DATE(TF_EndDate, '%Y.%m.%d') <![CDATA[<]]> NOW(3)
+				</when>
+			</choose>				
+		)A
+	 	LEFT OUTER JOIN (
+			SELECT CU_ID, MAX(LEVEL0) AS TF_Member,MAX(LEVEL8) AS TF_Admin,MAX(LEVEL9) AS TF_PM
+			FROM (
+				SELECT CU_ID, 
+						 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+						 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+						 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+				FROM (
+					SELECT CU_ID, M.MemberLevel, GROUP_CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) SEPARATOR '@') AS MEMBERLIST			
+					FROM covi_smart4j.community_member as M 				
+					LEFT OUTER JOIN covi_smart4j.sys_object_user as UR	ON M.UR_Code = UR.UserCode				
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' 
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) mem ON mem.CU_ID = A.CU_ID
+	 	<trim prefix="ORDER BY"  prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' ">
+ 				RegRequestDate ASC
+		  	</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>(MemberCount + 0)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+		  	</if>
+	 	</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>		 	
+	</select>
+	
+	<select id="selectUserAdminTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)  
+		FROM covi_smart4j.community AS c 
+		LEFT JOIN covi_smart4j.sys_object_group AS sog  ON sog.GroupCode = c.CU_Code
+		LEFT JOIN covi_smart4j.sys_object_user	AS sou  ON  sou.UserCode = c.OperatorCode
+		LEFT JOIN covi_smart4j.community_detail AS cd  ON cd.CU_ID = c.CU_ID  
+		WHERE 1=1 
+		AND c.Gubun = 'T'
+		AND IFNULL(c.Secret, 'N') != 'Y'
+		AND c.DN_ID = #{DN_ID}
+		<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+			AND c.MN_ID = #{MN_ID}
+		</if>
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+			AND c.AppStatus = #{AppStatus}
+		</if>
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					c.CommunityName LIKE CONCAT('%',#{searchWord},'%')  
+					OR c.SearchTitle LIKE CONCAT('%',#{searchWord},'%') 
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND c.CommunityName LIKE CONCAT('%',#{searchWord},'%') 
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND c.SearchTitle LIKE CONCAT('%',#{searchWord},'%')
+			</when>
+		</choose>
+		<choose>
+			<when test ="kind =='1'.toString()">
+				AND c.AppStatus = 'RA' 
+			</when>		
+			<when test ="kind =='2'.toString()">
+				AND c.AppStatus IN (SELECT Code FROM covi_smart4j.sys_base_code sbc WHERE CodeGroup ='CuAppDetail2' AND Reserved1 = '+' AND IsUse = 'Y'
+									AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'CuAppDetail2' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )) 
+			</when>
+			<when test ="kind =='3'.toString()">
+				AND STR_TO_DATE(TF_EndDate, '%Y.%m.%d') <![CDATA[<]]> NOW(3)
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectMemberGrade" parameterType="cmap" resultType="String">
+		SELECT MemberLevel 
+		FROM covi_smart4j.community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}
+	</select>
+	
+	<select id="selectDeleteACL" parameterType="cmap" resultType="cmap">
+		SELECT IFNULL(A.CU_ID, B.CU_ID) AS CU_ID, IFNULL(A.CommunityName, B.CommunityName) AS CommunityName, Register, MemberLevel
+		FROM ( 
+			SELECT 
+				CommunityName, CreatorCode AS Register,AppStatus, CU_ID
+			FROM covi_smart4j.community  
+			WHERE CU_ID = #{CU_ID} <!-- AND AppStatus IN ('RA', 'TD') -->
+		) A
+		RIGHT OUTER JOIN (
+			SELECT 
+				c.CommunityName, cm.MemberLevel , C.CU_ID
+			FROM covi_smart4j.community AS c 
+			INNER JOIN covi_smart4j.community_member AS cm	ON cm.CU_ID = c.CU_ID
+			WHERE C.CU_ID = #{CU_ID} AND UR_Code = #{UR_Code}
+		) B ON A.CU_ID = B.CU_ID
+	</select>
+	
+	<update id="deleteTFTeamRoom" parameterType="cmap">
+		UPDATE covi_smart4j.community
+		SET AppStatus = 'UF', RegStatus = 'U'
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="checkTFNameCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.community 
+		WHERE CommunityName = #{DisplayName}
+	</select>
+	
+	<select id="checkTFCodeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.community 
+		WHERE CU_Code = #{CU_Code}
+	</select>
+	
+	<select id="selectTempSaveTFTeamRoom" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.TF_TEMP 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="tempSaveTFTeamRoom"  parameterType="cmap" >
+		INSERT INTO covi_smart4j.TF_TEMP (
+			CU_Code
+			,DN_ID
+			,MN_ID
+			,Gubun
+			,CommunityType
+			,CommunityName
+			,JoinOption
+			,LimitFileSize
+			,UsedFileSize
+			,SearchTitle
+			,CreatorCode
+			<if test="openType != null and openType != ''">
+				,Reserved1
+			</if>
+			<if test="security != null and security != ''">
+				,Reserved2
+			</if>
+			,DefaultBoardType
+			,Secret
+			,TF_DN_ID
+			,TF_MajorDeptCode
+			,TF_MajorDept
+			,TF_PM
+			,TF_PMCode
+			,TF_PMCount
+			,TF_Admin
+			,TF_AdminCode
+			,TF_AdminCount
+			,TF_Member
+			,TF_MemberCode
+			,TF_MemberCount
+			,TF_StartDate
+			,TF_EndDate
+			,TF_Cost
+			,TF_Benefit
+			,TF_Risk
+			,TF_DocLinks
+			,TF_CollaboLinks
+		) VALUES (
+			#{txtTFCode}
+			,#{DN_ID}
+			,(SELECT MenuID FROM covi_smart4j.sys_object_menu WHERE MenuType='Top' AND BizSection='TF' AND DomainID = #{DN_ID})
+			,'T'
+			,'C'
+			,#{txtTFName}
+			,'M'
+			,'300'
+			,0
+			,#{txtContent}
+			,#{txtOperator}
+			<if test="openType != null and openType != ''">
+				,#{openType}
+			</if>
+			<if test="security != null and security != ''">
+				,#{security}
+			</if>
+			,'TF'
+			,'Y'
+			,#{Category}
+			,#{txtMajorDeptCode}
+			,#{txtMajorDept}
+			,#{txtPM}
+			,#{txtPMCode}
+			,#{txtPMCount}
+			,#{txtAdmin}
+			,#{txtAdminCode}
+			,#{txtAdminCount}
+			,#{txtMember}
+			,#{txtMemberCode}
+			,#{txtMemberCount}
+			,#{txtStart}
+			,#{txtEnd}
+			,0
+			,''
+			,''
+			,#{txtDocLinks}
+			,#{txtCollaboLinks}
+		);
+		<selectKey resultType="java.lang.Long" keyProperty="CU_ID" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>	
+	</insert>
+	
+	<update id="updateTempSaveTFTeamRoom" parameterType="cmap">
+		UPDATE covi_smart4j.TF_TEMP				 
+		SET CU_Code	= #{txtTFCode}
+			,DN_ID					 = #{DN_ID}
+			,MN_ID					 = #{MN_ID}
+			,CommunityType			 = 'C'
+			,CommunityName			 = #{txtTFName}
+			,JoinOption				 = 'M'
+			,LimitFileSize			 = '300'
+			,SearchTitle			 = #{txtContent}
+			,CreatorCode			 = #{txtOperator}
+			<if test="openType != null and openType != ''">
+				,Reserved1			 = #{openType}
+			</if>
+			<if test="security != null and security != ''">
+				,Reserved2			 = #{security}
+			</if>
+			,DefaultBoardType		 = 'TF'
+			,Secret					 = 'Y'
+			,TF_DN_ID				 = #{Category}
+			,TF_MajorDeptCode		 = #{txtMajorDeptCode}
+			,TF_MajorDept			 = #{txtMajorDept}
+			,TF_PM					 = #{txtPM}
+			,TF_PMCode				 = #{txtPMCode}
+			,TF_PMCount				 = #{txtPMCount}
+			,TF_Admin				 = #{txtAdmin}
+			,TF_AdminCode			 = #{txtAdminCode}
+			,TF_AdminCount			 = #{txtAdminCount}
+			,TF_Member				 = #{txtMember}
+			,TF_MemberCode			 = #{txtMemberCode}
+			,TF_MemberCount			 = #{txtMemberCount}
+			,TF_StartDate			 = #{txtStart}
+			,TF_EndDate				 = #{txtEnd}
+			,TF_Cost				 = ''
+			,TF_Benefit				 = ''
+			,TF_Risk				 = ''
+			,TF_DocLinks			 = #{txtDocLinks}
+			,TF_CollaboLinks		 = #{txtCollaboLinks}
+			,RegistDate				 = NOW(3)
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<insert id="createTFInfomation" parameterType="cmap">
+		INSERT INTO covi_smart4j.community (
+			 CU_Code
+			 , CategoryID
+			 , DN_ID
+			 , MN_ID
+			 , Gubun
+			 , CommunityType
+			 , CommunityName
+			 , JoinOption
+			 , RegStatus
+			 , AppStatus
+			 , DefaultMemberLevel
+			 , RegProcessDate
+			 , LimitFileSize
+			 , SearchTitle
+			 , SearchSummary
+			 , CreatorCode
+			 , CreatorName
+			 , CreatorLevel
+			 , CreatorPosition
+			 , CreatorTitle
+			 , CreatorDept
+			 , OperatorCode
+			 , OperatorName
+			 , DefaultBoardType
+			 , RegRequestDate
+			<if test="IsUseMessenger = 'Y'">
+	  		 	, Reserved1
+	  		</if>
+			 ,TF_DN_ID
+			 ,TF_MajorDeptCode	
+			 ,TF_MajorDept		
+			 ,TF_StartDate		
+			 ,TF_EndDate	
+			 ,TF_DocLinks
+			 ,TF_CollaboLinks
+		) VALUES (
+			 #{txtTFCode}
+			 , 0
+			 , #{DN_ID}
+			 , (SELECT MenuID FROM covi_smart4j.sys_object_menu WHERE MenuType='Top' AND BizSection='TF' AND DomainID = #{DN_ID})
+			 , 'T'
+			 , 'P'
+			 , #{txtTFName}
+			 , 'M'
+			 , 'P'
+			 , 'RA'
+			 , '4'
+			 , NOW(3)
+			 , '300'
+			 , ''
+			 , ''
+			 , #{txtOperator}
+			 , (SELECT MultiDisplayName FROM covi_smart4j.sys_object_user  WHERE UserCode = #{txtOperator})
+			 , (SELECT MultiJobLevelName FROM covi_smart4j.sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiJobPositionName FROM covi_smart4j.sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiJobTitleName FROM covi_smart4j.sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiDeptName FROM covi_smart4j.sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , #{txtOperator}
+			 , (SELECT MultiDisplayName FROM covi_smart4j.sys_object_user  WHERE UserCode = #{txtOperator})
+			 , 'TF'
+			 , NOW(3)
+			<if test="IsUseMessenger = 'Y'">
+	  		 	, #{RoomID}
+	  		</if>
+			 , #{Category}
+			 , #{txtMajorDeptCode}
+			 , #{txtMajorDept}
+			 , #{txtStart}
+			 , #{txtEnd}
+			 , #{txtDocLinks}
+			 , #{txtCollaboLinks}
+		);
+		
+		<selectKey resultType="java.lang.Long" keyProperty="CU_ID" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>	
+	</insert>
+	
+	<insert id="createTFDetailInfomation"  parameterType="cmap" >
+		INSERT INTO covi_smart4j.community_detail(  
+			CU_ID
+		 	,  Keyword
+			,  Description
+			,  DescriptionEditor
+			,  DescriptionOption
+			,  Provision
+			,  ProvisionEditor
+			,  ProvisionOption	
+		) VALUES (
+			#{CU_ID}
+			,  ''
+			,  #{txtContent}
+			,  #{txtContentEditer}
+			,  #{ContentOption}
+			,  ''
+			,  ''
+			,  ''
+		)		
+	</insert>
+	
+	<update id="updateTFStatus" parameterType="cmap">
+		UPDATE covi_smart4j.community 
+		SET
+			RegStatus = #{RegStatus}
+			, AppStatus = #{AppStatus}
+			, ProcesserCode = #{txtOperator}
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectTFInfo" parameterType="cmap" resultType="cmap">
+		SELECT  c.CU_ID
+			  , c.CU_Code
+			  , IFNULL(c.CategoryID,'') AS CategoryID
+			  , c.DN_ID
+			  , c.CommunityType
+			  , sod.DomainID
+			  , sod.DomainCode
+			  , sod.DomainURL
+			  , sod.DisplayName
+			  , sod.MultiDisplayName
+			  , sod.ShortName
+			  , sod.MultiShortName
+			  , sod.MemberOf
+			  , sod.DomainPath
+			  , sod.SortKey
+			  , sod.SortPath
+			  , sod.IsUse
+			  , sod.ServiceUser
+			  , sod.ServiceStart
+			  , sod.ServiceEnd
+			  , sod.Description
+			  , sod.RegistDate
+			  , sod.DeleteDate
+			  , sod.MenuSyncTime
+			  , c.CommunityName AS CommunityName
+			  , c.OperatorCode
+			  , c.DefaultBoardType
+		FROM covi_smart4j.community c 
+		INNER JOIN covi_smart4j.sys_object_domain sod  ON sod.DomainID = c.DN_ID
+		WHERE 1=1 
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="createObjectGroup"  parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_group
+		(
+			GroupCode,
+			CompanyCode,
+			GroupType,
+			MemberOf,
+			GroupPath,
+			OUName,
+			OUPath,				
+			DisplayName,
+			MultiDisplayName,
+			ShortName,
+			MultiShortName,
+			Approvable,				
+			Receivable,
+			ApprovalUnitCode,
+			ReceiptUnitCode,
+			SortKey,
+			SortPath,
+			IsUse,				
+			IsDisplay,
+			IsMail,
+			IsHR,
+			RegistDate,
+			ModifyDate,
+			Description
+		) VALUES (
+			#{CU_Code},
+			#{DomainCode},
+			'Community',
+			CONCAT(#{DN_ID}, '_Community'),
+			'',
+			#{CommunityName}, 
+			'',
+			#{CommunityName},
+			#{CommunityName},
+			#{CommunityName},
+			#{CommunityName},
+			1,  	
+			1,
+			#{CU_Code}, 
+			#{CU_Code},
+			(SELECT SortKey + 1 FROM (SELECT IFNULL(MAX(SortKey), '0') AS SortKey FROM covi_smart4j.sys_object_group  WHERE GroupType = 'Community' AND MemberOf = (SELECT DomainCode FROM covi_smart4j.sys_object_domain  WHERE DomainID = #{DN_ID} LIMIT 1)) AS B),
+			'',
+			'Y',
+			'Y',
+			'Y',
+			'Y',
+			NOW(3),
+			NOW(3),
+			''
+		)
+	</insert>
+	 
+	<update id="updateObjectGroup" parameterType="cmap">
+		 UPDATE covi_smart4j.sys_object_group 
+		 SET GroupPath = covi_smart4j.Fn_ComObjectPathCreate_S(0, #{CU_Code},'GR')
+		 	, SortPath = covi_smart4j.Fn_ComSortPathCreate_S(0, #{CU_Code}, 'GR')
+		 	, OUPath = #{CommunityName}
+		 WHERE 1=1 
+		 AND GroupCode = #{CU_Code}
+	</update>
+	 
+	<update id="updateTFGroupCode"  parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_group 
+		SET IsDisplay = #{IsDisplay}
+			,  IsUse = #{IsUse}
+		WHERE GroupCode IN (SELECT CU_Code FROM covi_smart4j.community  WHERE CU_ID = #{CU_ID})
+	</update>
+	 
+	<select id="selectCommunityHomeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM covi_smart4j.community AS A 
+		INNER JOIN covi_smart4j.sys_object_domain AS B  
+		ON A.DN_ID = B.DomainID 
+		WHERE  A.CU_ID NOT IN (SELECT CU_ID FROM covi_smart4j.community_home  WHERE CU_ID = #{CU_ID})
+		AND RegStatus = 'R'
+	</select>	
+	
+	<insert id="createCommunityHome" parameterType="cmap">
+		INSERT INTO covi_smart4j.community_home
+		(	 
+				LayoutID
+				,CU_ID	
+				,CommunityTheme
+				,IsUse
+				,RegisterCode
+		)
+		SELECT LayoutID
+				,#{CU_ID}
+				,CommunityTheme
+				,IsUse
+				,#{userID}
+		FROM covi_smart4j.community_home_default 
+		ORDER BY CU_ID ASC 
+		LIMIT 1 
+	</insert> 
+	
+	<select id="selectTFACLCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_smart4j.sys_object_acl 
+		WHERE 1=1 
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</select>	
+	
+	<update id="updateTFACL" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_acl SET
+									  ObjectID = #{ObjectID}
+									, ObjectType = #{ObjectType}
+									, SubjectCode = #{SubjectCode}
+									, SubjectType = #{SubjectType}
+									, AclList = #{AclList}
+									, `Security` = #{Security}
+									, `Create` = #{Create}
+									, `Delete` = #{Delete}
+									, `Modify` = #{Modify}
+									, `Execute` = #{Execute}
+									, `View` = #{View}
+									, `Read` = #{Read}
+									, ModifierCode = #{userCode}
+									, ModifyDate = NOW(3)
+		WHERE 1=1 
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</update>
+	
+	<insert id="createTFACL" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_acl (				
+			  ObjectID
+			, ObjectType
+			, SubjectCode
+			, SubjectType
+			, AclList
+			, `Security`
+			, `Create`
+			, `Delete`
+			, `Modify`
+			, `Execute`
+			, `View`
+			, `Read`
+			, RegisterCode
+			, RegistDate
+		)VALUES(
+			  #{ObjectID}
+			, #{ObjectType}
+			, #{SubjectCode}	
+			, #{SubjectType}
+			, #{AclList}
+			, #{Security}
+			, #{Create}
+			, #{Delete}
+			, #{Modify}
+			, #{Execute}
+			, #{View}
+			, #{Read}
+			, #{userCode}
+			, NOW(3) 			
+		)
+	</insert>	
+	
+	<select id="selectTFGradeList" parameterType="cmap" resultType="cmap">
+		SELECT CodeID
+			, CodeName
+			, Code
+		FROM covi_smart4j.sys_base_code sbc
+		WHERE 1=1
+		AND BizSection = 'TF'
+		AND CodeGroup = 'TFMemberLevel'
+		AND Code != 'TFMemberLevel'
+		AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TFMemberLevel' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+	</select>
+	
+	<insert id="createTFFolder" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_folder( 
+			 DomainID
+			,MenuID
+			,ObjectType
+			,FolderType
+			,DisplayName
+			,MultiDisplayName
+			,MemberOf
+			,FolderPath
+			,SortKey
+			,SortPath
+			,IsInherited
+			,IsShared
+			,IsUse
+			,IsDisplay
+			,IsURL
+			,URL
+			,Description
+			,OwnerCode
+			,RegisterCode
+			,RegistDate
+			,SecurityLevel
+			,Reserved2
+			,ModifyDate
+		)VALUES(
+			 #{DN_ID}
+			,#{MenuID}
+			,'Community'
+			,#{FolderType}		
+			,#{CommunityName}
+			,#{CommunityName}
+			,#{MemberOf}			
+			,''				
+			,#{SortKey}				
+			,#{SortPath}				
+			,#{IsInherited}		
+			,'N'			
+			,'Y'			
+			,'Y'			
+			,'N'		
+			,''				
+			,''				
+			,#{userID}	
+			,#{userID}	
+			,NOW(3)		
+			,#{SecurityLevel}	
+			,#{Reserved2}				
+			,NOW(3)				
+		);
+		<selectKey resultType="java.lang.Long" keyProperty="FolderID" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>								 
+	</insert>
+	
+	<select id="tfFolderList" parameterType="cmap" resultType="cmap">
+		SELECT  FolderType 
+			  , DisplayName AS FolderName
+			  , SortKey
+		FROM covi_smart4j.community_board_default 
+		WHERE IsUse = 'Y'
+		AND DN_ID = #{DN_ID}
+		AND CommunityType = #{DefaultBoardType}
+	</select>	
+	
+	<select id="selectTFScheduleMenu" parameterType="cmap" resultType="String">
+		SELECT CONCAT(CONCAT((SELECT SortPath FROM sys_object_folder WHERE FolderID = #{MemberOf}),CONCAT(LEFT('000000000000000', 15 - LENGTH(#{CU_ID})),#{CU_ID})),';') FROM dual
+	</select>
+	
+	<select id="selectTFMenuTopCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_smart4j.community_menu_top 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FD_ID = #{FolderID}
+	</select>
+	
+	<insert id="createTFMenuTop" parameterType="cmap">
+		 INSERT INTO covi_smart4j.community_menu_top(CU_ID, FD_ID, SortKey) 
+		 VALUES (#{CU_ID}, #{FolderID}, 0)
+	</insert>
+	
+	<update id="updateMemberLS" parameterType="cmap">
+		UPDATE covi_smart4j.community_member
+		SET MemberStatus = 'U',DetailStatus	='LS', MemberLevel = 0
+		WHERE CU_ID = #{CU_ID}
+	</update> 
+	
+	<select id="selectTFMemberCount"  parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_smart4j.community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_CODE = #{userID}
+	</select>
+	
+	<update id="updateTFMemberCount"  parameterType="cmap">
+		UPDATE covi_smart4j.community 
+		SET MemberCount = (SELECT COUNT(*) FROM covi_smart4j.community_member WHERE CU_ID = #{CU_ID})
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectBaseGroupMember" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT COUNT(*) 
+		  FROM covi_smart4j.sys_object_group_member  
+		  WHERE 1=1 
+		  AND GroupCode = #{CU_Code}
+		  AND UserCode = #{userID}
+	</select>
+	
+	<insert id="insertBaseGroupMember" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_object_group_member 
+		(
+			GroupCode,
+			UserCode,
+			SortKey,
+			Role,
+			IsUse,
+			IsHR,
+			MemberStatus,
+			JoinDate
+		) VALUES (
+			#{CU_Code},
+			#{userID},
+			100,		
+			'member',	
+			'Y',		
+			'N',		
+			'A',
+			NOW(3)			
+		)
+	</insert>
+	
+	<delete id="deleteBaseGroupMember" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_object_group_member
+		WHERE GroupCode = #{CU_Code}
+	</delete>
+	
+	<insert id="createTFMember" parameterType="cmap">
+		INSERT INTO covi_smart4j.community_member (
+			  CU_ID
+			, UR_CODE
+			, NickName
+			, MemberStatus
+			, DetailStatus
+			, MemberLevel
+			, RegMessage	
+			, IsAgree
+		)VALUES(
+			  #{CU_ID}
+			, #{userID}
+			, (SELECT DisplayName FROM covi_smart4j.sys_object_user  WHERE UserCode = #{userID})
+			, 'R'
+			, 'RV'
+			, #{MemberLevel}
+			, ''
+			, 'Y'
+		) 
+	</insert>
+	
+	<update id="updateTFMember" parameterType="cmap">
+		UPDATE covi_smart4j.community_member
+		SET MemberLevel = #{MemberLevel}, MemberStatus = 'R', DetailStatus = 'RV', IsAgree = 'Y'
+		WHERE CU_ID = #{CU_ID} AND UR_Code = #{userID}
+	</update> 
+	
+	<select id="tfCnt" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT COUNT(*) 
+		  FROM covi_smart4j.sys_base_dictionary  
+		  WHERE 1=1 
+		  AND DicCode = CONCAT('CU_', #{CU_ID})
+		  AND DomainID = #{DN_ID} 
+	</select>
+	
+	<update id="updateTFNameDictionary"  parameterType="cmap" >
+		UPDATE covi_smart4j.sys_base_dictionary 
+		SET KoShort = #{DIC_Code_ko} 
+			, KoFull = #{DIC_Code_ko} 
+			, EnShort = #{DIC_Code_en}
+			, EnFull = #{DIC_Code_en}
+			, JaShort = #{DIC_Code_ja}
+			, JaFull = #{DIC_Code_ja}
+			, ZhShort = #{DIC_Code_zh}
+			, ZhFull = #{DIC_Code_zh} 
+			, ModifierCode = #{userID}
+			, ModifyDate = NOW(3)
+		WHERE 1=1
+		AND DicCode = CONCAT('CU_', #{CU_ID}) 				
+		AND DomainID = #{DN_ID} 
+	</update>
+	
+	<insert id="createTFNameDictionary" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_base_dictionary (
+			  DomainID
+			, DicCode
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, IsUse
+			, IsCaching
+			, RegisterCode
+			, RegistDate
+		)VALUES(
+			  #{DN_ID}			
+			, CONCAT('CU_', #{CU_ID})
+			, #{DIC_Code_ko} 
+			, #{DIC_Code_ko} 
+			, #{DIC_Code_en}
+			, #{DIC_Code_en}
+			, #{DIC_Code_ja}
+			, #{DIC_Code_ja}
+			, #{DIC_Code_zh}
+			, #{DIC_Code_zh}
+			, 'Y'
+			, 'Y'
+			, #{userID}
+			, NOW(3) 
+		 )
+	</insert>
+	
+	<insert id="createTFFolderDictionary" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_base_dictionary(  
+			DicCode
+			, DomainID
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, DicSection
+			, IsUse
+			, IsCaching
+			, Description
+		)
+		SELECT 
+			CONCAT('CUFD_',(SELECT MAX(DicID)+1 FROM COVI_SMART4J.SYS_BASE_DICTIONARY)) as DicCode
+			, #{DN_ID}	
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, 'CUFD'
+			, IsUse
+			, IsCaching
+			, Description 
+		 FROM covi_smart4j.sys_base_dictionary  
+		 WHERE DicCode = #{DIC_Code}  
+	</insert>
+	
+	<insert id="createTFWebPortal" parameterType="cmap">
+		INSERT INTO covi_smart4j.portal (  	  
+			  LayoutID
+			, CompanyCode
+			, DisplayName
+			, MultiDisplayName
+			, PortalType
+			, SortKey
+			, IsUse
+			, Description
+			, RegisterCode
+			, RegistDate
+			, BizSection
+			, PortalTag
+			, LayoutSizeTag
+		)VALUES(
+		 	  (SELECT LayoutID FROM covi_smart4j.portal_layout  WHERE 1=1 AND Reserved1 = 'Y' AND IsCommunity = 'Y' LIMIT 1 )				
+			, (SELECT CU_Code FROM covi_smart4j.community  WHERE CU_ID = #{CU_ID} )				
+			, #{CommunityName}
+			, #{CommunityName}
+			, 'Community'
+			, '1'
+			, 'Y'
+			, ''
+			, #{userID}
+			, NOW(3)
+			, 'Community'
+			, #{PortalTag}
+			, #{LayoutSizeTag}		
+		);
+		<selectKey resultType="java.lang.Long" keyProperty="PortalID" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>						
+	</insert>
+	
+	<select id="tfDefaultPortalList" parameterType="cmap" resultType="cmap">
+		SELECT	  BizSection
+				, `Range`
+				, DisplayName 
+				, HtmlFilePath
+				, JsFilePath
+				, JsModuleName
+				, IsUse
+				, Reserved1 
+				, Reserved2 AS LayoutDivNumber
+				, MinHeight
+				, Preview
+				, DataJSON
+				, ExtentionJSON
+				, ScriptMethod				
+		FROM covi_smart4j.community_portal_webpart_default 
+		WHERE 1=1
+		AND IsUse ='Y' 
+		ORDER BY Reserved ASC 
+	</select>	
+	
+	<insert id="createTFWebPart" parameterType="cmap">
+		INSERT INTO covi_smart4j.portal_webpart (
+			  CompanyCode
+			, BizSection
+			, `Range`
+			, DisplayName
+			, MultiDisplayName
+			, HtmlFilePath
+			, JsFilePath
+			, JsModuleName
+			, IsUse
+			, Reserved1
+			, RegisterCode
+			, RegistDate
+			, Preview
+			, MinHeight
+			, DataJSON
+			, ExtentionJSON
+			, ScriptMethod
+		)VALUES(
+			  (SELECT CU_Code FROM covi_smart4j.community  WHERE CU_ID = #{CU_ID})					
+			, #{BizSection}					
+			, #{Range}					
+			, #{DisplayName}				
+			, #{DisplayName}	
+			, #{HtmlFilePath}
+			, #{JsFilePath}
+			, #{JsModuleName}
+			, #{IsUse}	
+			, #{Reserved1}
+			, #{userID}
+			, NOW(3)	
+			, #{Preview}
+			, #{MinHeight}	
+			, #{DataJSON}
+			, #{ExtentionJSON}
+			, #{ScriptMethod}
+		);
+		<selectKey resultType="java.lang.Long" keyProperty="WebpartID" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>  
+	</insert>
+	
+	<insert id="createTFLayout"  parameterType="cmap">
+		INSERT INTO covi_smart4j.portal_layout_webpart (
+			PortalID
+		 	, WebpartID
+		 	, LayoutDivNumber 
+		 	, LayoutDivSort
+		 	, WebpartOrder
+		 	, RegistDate
+		) VALUES(
+			#{PortalID}
+			, #{WebpartID}	
+			, #{LayoutDivNumber}
+			, '0'
+			, '-1'
+			, NOW(3)			
+		)
+	</insert>
+	
+	<select id="sendMessagingListAdmin" parameterType="cmap" resultType="cmap">
+		SELECT
+			  sms.UserCode
+			, sbc.Code
+			, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.sys_messaging_setting sms  ON sms.UserCode = #{musercode}
+		INNER JOIN covi_smart4j.sys_base_code sbc  ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code =  #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )
+	</select>
+	
+	<!-- 커뮤니티 관리자 -->
+	<select id="sendMessagingCommunityOperator" parameterType="cmap" resultType="cmap">
+		SELECT
+			sms.UserCode
+			, sbc.Code
+			, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm  ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		INNER JOIN covi_smart4j.sys_messaging_setting sms  ON cm.UR_Code = sms.UserCode
+		INNER JOIN covi_smart4j.sys_base_code sbc  ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )
+	</select>
+	
+	<!-- 가입된 커뮤니티 가입자	-->
+	<select id="sendMessagingList"  parameterType="cmap" resultType="cmap">
+		SELECT
+			sms.UserCode
+			, sbc.Code
+			, IFNULL(covi_smart4j.Fn_GetSelDictionary(#{lang},CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+			, IFNULL(#{CU_ID}, '') AS CU_ID
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm  ON c.CU_ID = cm.CU_ID AND cm.UR_Code = #{UR_Code}
+		INNER JOIN covi_smart4j.sys_messaging_setting sms  ON cm.UR_Code = sms.UserCode
+		INNER JOIN covi_smart4j.sys_base_code sbc  ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )
+	</select>
+	
+	<select id="sendMessagingSettingCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(*)
+		FROM covi_smart4j.community c
+		INNER JOIN covi_smart4j.community_member cm  ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		INNER JOIN covi_smart4j.sys_messaging_setting sms  ON cm.UR_Code = sms.UserCode
+		INNER JOIN covi_smart4j.sys_base_code sbc  ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = c.DN_ID, 0, 1) LIMIT 1 )
+	</select>
+	
+	<select id="getTFName"  parameterType="cmap" resultType="String">
+		SELECT CommunityName FROM covi_smart4j.community  WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="sendMessagingSettingUserCode"  parameterType="cmap" resultType="String">
+		SELECT
+			cm.UR_Code AS UserCode
+		FROM covi_smart4j.community c 
+		INNER JOIN covi_smart4j.community_member cm  ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectTFTempSaveData" parameterType="cmap" resultType="cmap">
+		SELECT * FROM covi_smart4j.TF_TEMP 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectTFDetailInfo" parameterType="cmap" resultType="cmap">
+		SELECT	  *
+				, Fn_GetBaseCodeName(COM.DN_ID, 'CUAppDetail2', COM.AppStatus) AS AppStatusName
+				, (SELECT DisplayName FROM covi_smart4j.sys_object_group WHERE GroupCode = (SELECT DomainCode FROM covi_smart4j.sys_object_domain WHERE DomainID = COM.TF_DN_ID)) AS TF_DomainName
+				, TF_Viewer
+				, TF_Member
+				, TF_Admin
+				, TF_PM
+				, TF_PM_CODE
+				, TF_PM_MAIL
+				, MEMBER_CNT
+		FROM covi_smart4j.COMMUNITY COM 
+		LEFT OUTER JOIN (
+			SELECT	  CU_ID
+					, MAX(LEVEL0) AS TF_Viewer
+					, MAX(LEVEL1) AS TF_Member
+					, MAX(LEVEL8) AS TF_Admin
+					, MAX(LEVEL9) AS TF_PM
+					, MAX(MemberCodeList) AS TF_PM_CODE
+					, MAX(MemberMailList) AS TF_PM_MAIL
+					, SUM(MemberCnt) AS MEMBER_CNT
+			FROM (
+				SELECT CU_ID, 
+						 CASE WHEN MemberLevel=4 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+						 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL1,
+						 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+						 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9,
+						 MemberCnt,
+						 CASE WHEN MemberLevel=9 THEN MemberCodeList ELSE '' END AS MemberCodeList,
+						 CASE WHEN MemberLevel=9 THEN MemberMailList ELSE '' END AS MemberMailList
+				FROM (
+					SELECT	  CU_ID
+							, M.MemberLevel
+							, GROUP_CONCAT(CONCAT(M.UR_Code,'|',covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)) SEPARATOR '@') AS MEMBERLIST			
+							, GROUP_CONCAT(UR.UserCode SEPARATOR '@') AS MemberCodeList
+							, GROUP_CONCAT(UR.MAILADDRESS SEPARATOR '@') AS MemberMailList
+							, SUM(IF(M.UR_Code IS NOT NULL, 1, 0)) AS MemberCnt		
+					FROM covi_smart4j.community_member as M 				
+					LEFT OUTER JOIN covi_smart4j.sys_object_user as UR	ON M.UR_Code = UR.UserCode				
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' AND M.CU_ID = #{CU_ID}
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA
+			GROUP BY CU_ID
+		) MEM ON MEM.CU_ID = COM.CU_ID
+		LEFT OUTER JOIN covi_smart4j.community_detail COM_D ON COM_D.CU_ID = COM.CU_ID 
+		WHERE COM.CU_ID = #{CU_ID}
+		AND COM.DN_ID = #{DN_ID}
+	</select>
+	
+	<update id="updateTFInfomation" parameterType="cmap">
+		UPDATE covi_smart4j.community
+		SET 
+			CategoryID = #{Category}
+			,TF_DN_ID = #{Category} 
+			,TF_MajorDeptCode = #{txtMajorDeptCode}	
+			,TF_MajorDept = #{txtMajorDept}		
+			,TF_StartDate = #{txtStart}		
+			,TF_EndDate	= #{txtEnd} 
+			,TF_DocLinks = #{txtDocLinks}
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<update id="updateTFDetailInfomation" parameterType="cmap">
+		UPDATE covi_smart4j.community_detail
+		SET  
+			Description = #{txtContent}
+			,  DescriptionEditor = #{txtContentEditer}
+			,  DescriptionOption = #{ContentOption}
+		WHERE CU_ID =  #{CU_ID}		
+	</update>
+	
+	<update id="updateTFTeamRoomStatus" parameterType="cmap">
+		UPDATE covi_smart4j.community
+		SET RegStatus = #{RegStatus}, 
+			AppStatus = #{AppStatus}, 
+			<if test='DateFieldName.equalsIgnoreCase("RegProcessDate")'>RegProcessDate = NOW(),</if>
+			<if test='DateFieldName.equalsIgnoreCase("UnRegProcessDate")'>UnRegProcessDate = NOW(),</if>
+			ProcesserCode = #{ProcesserCode}
+		WHERE 1=1
+		<if test='CU_IDArr != null and CU_IDArr.length != 0'>
+			AND CU_ID IN  
+			<foreach collection="CU_IDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>;
+		
+		<if test="IsDisplay != null and IsDisplay != ''">
+			UPDATE covi_smart4j.sys_object_group
+			SET 
+				<if test="IsUse != null and IsUse != ''">
+				IsUse = #{IsUse},
+				</if>
+				IsDisplay = #{IsDisplay}
+			WHERE GroupCode IN (
+				SELECT CU_Code
+				FROM covi_smart4j.community  
+				WHERE 1=1
+				<if test='CU_IDArr != null and CU_IDArr.length != 0'>
+					AND CU_ID IN  
+					<foreach collection="CU_IDArr" item="item" open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+				</if>
+			);
+		</if>
+	</update>
+	
+	<select id="selectCommunityBoardLeft" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT  covi_smart4j.Fn_ComSortPathCreate_S(SOF.FolderID,'','FC') AS SortPath
+					, IFNULL(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName), SOF.DisplayName) AS FolderName
+					, IFNULL(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName), SOF.DisplayName) AS DisplayName
+					, SOF.FolderID
+					, SOF.FolderType AS itemType
+					, SOF.FolderType
+					, SOF.FolderType AS type
+					, SOF.MenuID 
+			FROM covi_smart4j.sys_object_folder AS SOF
+			<if test="IsAdmin == null">
+				<if test='aclDataArr != null and aclDataArr.length != 0'>
+				INNER JOIN sys_object_user_acl AS ACL ON SOF.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+				</if>
+			</if>
+			WHERE SOF.MenuID  = #{CU_ID}
+			AND SOF.DeleteDate IS NULL	
+		)AS A
+		ORDER BY A.SortPath ASC
+	</select>
+	
+	<!-- 특정 업무 정보 조회 -->
+	<select id="selectTaskData" parameterType="cmap" resultType="cmap">
+		SELECT  a.AT_ID
+			  , a.CU_ID
+			  , c.CommunityName
+			  , a.ATName
+			  , a.Gubun
+			  , a.State AS TaskState
+			  , a.State AS TaskStateCode
+			  , a.StartDate
+			  , a.EndDate
+			  , DATE_FORMAT(a.RegistDate,  "%Y-%m-%d %T") AS RegistDate
+			  , a.RegisterCode
+			  , a.UpdateDate
+			  , b.MultiDisplayName AS RegisterName
+			  , a.Progress
+			  , a.Weight  as "Weight"
+			  , a.MemberOf
+			  , a.SortKey
+			  , a.SortPath
+			  , a.Member
+			  , a.UpdaterCode
+			  , a.ReservedStr1
+			  , a.ReservedStr2
+			  , a.ReservedInt
+			  , a.ATPath
+		FROM covi_smart4j.tf_activity AS a 
+		LEFT JOIN covi_smart4j.sys_object_user AS b  ON a.RegisterCode = b.UserCode 
+		LEFT JOIN covi_smart4j.community AS c  ON a.CU_ID = c.CU_ID
+		WHERE a.CU_ID = #{CU_ID} 
+		and a.AT_ID = #{AT_ID}
+	</select>
+	
+	<!-- 수행자 정보 조회  -->
+	<select id="selectTaskPerformerList" parameterType="cmap" resultType="cmap">
+		SELECT a.PerformerCode AS Code
+			, 'UR' AS Type
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},b.MultiDisplayName) AS Name
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},c.MultiDeptName) AS DeptName
+		FROM covi_smart4j.tf_activity_performer AS a 
+		LEFT JOIN covi_smart4j.sys_object_user AS b  ON a.PerformerCode = b.UserCode 
+		LEFT JOIN covi_smart4j.sys_object_user_basegroup AS c  ON a.PerformerCode = c.UserCode  AND c.JobType = 'Origin'
+		WHERE a.AT_ID = #{AT_ID}
+		AND b.IsUse = 'Y'
+		AND b.IsDisplay = 'Y'
+		ORDER BY a.SortKey
+	</select>
+
+	<!-- 업무 정보 추가 -->
+	<insert id="insertTaskData" parameterType="cmap">
+		INSERT INTO covi_smart4j.tf_activity
+		(CU_ID,Gubun,ATName
+			<if test="StartDate != null and StartDate != ''">,StartDate </if>
+			<if test="EndDate != null and EndDate != ''">,EndDate </if>			
+		,Weight
+		,Progress,Budget,State
+			<if test="MemberOf != null and MemberOf != ''">,MemberOf </if>			
+		,SortKey
+		,RegistDate,RegisterCode,UpdateDate,UpdaterCode
+		)
+ 		VALUES
+		(#{CU_ID}
+		,#{Gubun}
+		,#{ATName}
+			<if test="StartDate != null and StartDate != ''">,#{StartDate} </if> 
+			<if test="EndDate != null and EndDate != ''">,#{EndDate} </if>
+		  ,#{Weight}
+		,#{Progress}
+		,0
+		,#{State}
+			<if test="MemberOf != null and MemberOf != ''">,#{MemberOf} </if>
+		,#{SortKeyValue}
+		,NOW(3),#{RegisterCode},NOW(3),#{RegisterCode}
+		)			
+		<selectKey keyProperty="AT_ID" resultType="long" order="AFTER">
+		SELECT LAST_INSERT_ID()
+		</selectKey>
+	</insert>
+	
+	<!-- 업무 정보 수정 -->
+	<update id="updateTaskData" parameterType="cmap">
+		UPDATE covi_smart4j.tf_activity
+		SET  ATName = #{ATName}
+			, State = #{State}
+			, Weight = #{Weight}
+			, SortKey = #{SortkeyValue}
+			<if test="StartDate != null and StartDate != ''">, StartDate = #{StartDate}</if>
+			<if test="EndDate != null and EndDate != ''">, EndDate = #{EndDate}</if>
+			<if test="MemberOf != null and MemberOf != ''">, MemberOf = #{MemberOf}</if>
+			<if test="Progress != null"><!-- 진도율 없을 경우 참고 -->
+				, Progress = #{Progress}
+			</if>
+			, UpdateDate = NOW(3)
+			, UpdaterCode = #{UpdaterCode}
+		WHERE AT_ID = #{AT_ID}
+	</update>
+	
+	<!-- Activity SortPath 경로정보 업데이트 -->
+	<update id="updateTaskSortPath" parameterType="cmap">
+ 		UPDATE covi_smart4j.tf_activity 
+ 		SET SortPath = covi_smart4j.Fn_ComSortPathCreate_S(AT_ID,CU_ID,'Activity'),
+ 			ATPath = covi_smart4j.Fn_ActivityFullPath(AT_ID)
+ 		WHERE AT_ID = #{AT_ID}
+ 	</update>
+ 	
+	<delete id="deleteTaskData" parameterType="cmap">
+	  DELETE FROM covi_smart4j.tf_activity
+		WHERE CU_ID = #{CU_ID}
+		and AT_ID = #{AT_ID} 
+	</delete>
+	
+	<!-- 수행자 정보 추가  -->
+	<insert  id="insertTaskPerformerData" parameterType="cmap">
+		INSERT INTO covi_smart4j.tf_activity_performer(AT_ID,PerformerCode,SortKey)
+		VALUES
+		<foreach collection="arrPerformer" item="performerData" index="index" separator=",">
+		(
+			#{AT_ID},
+			#{performerData.PerformerCode},
+			#{index}
+		)
+		</foreach>
+	</insert>
+	
+	<!-- 수행자 정보 삭제 -->
+	<delete id="deleteTaskPerformerData" parameterType="cmap">
+		DELETE FROM covi_smart4j.tf_activity_performer
+		WHERE AT_ID = #{AT_ID} 
+	</delete>
+	
+	<!-- 중복 작업명칭 체크	-->
+	<select id="checkDuplicationTask" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_smart4j.tf_activity 
+		WHERE ATName = #{ATName}
+		AND CU_ID = #{CU_ID}
+		<if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+			AND AT_ID != #{AT_ID} 
+		</if>
+	</select>
+	
+	<!-- 중복 정렬값 체크	-->
+	<select id="checkSumTaskWeight" parameterType="cmap" resultType="java.lang.Long">
+		SELECT SUM(WEIGHT) AS SumWeight
+		FROM covi_smart4j.tf_activity 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		<if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+			AND AT_ID = #{AT_ID} 
+		</if>
+		<if test="MemberOf != null and MemberOf != ''">
+			AND MemberOf = #{MemberOf}
+		</if>
+		<if test="MemberOf != null and MemberOf.equalsIgnoreCase('')">
+			AND ( MemberOf IS NULL OR MemberOf = '' )
+		</if>
+	</select>
+		
+ 	<select id="selectLevelTaskList" parameterType="cmap" resultType="cmap">
+		SELECT AT_ID, ATName 
+		FROM covi_smart4j.tf_activity 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		<if test="MemberOf != null and MemberOf != ''">
+			AND MemberOf = #{MemberOf}
+		</if>
+		<if test="MemberOf != null and MemberOf.equalsIgnoreCase('')">
+			AND ( MemberOf IS NULL OR MemberOf = '' )
+		</if>
+		order by SortPath
+	</select>
+	
+	<select id="selectTaskGridList" parameterType="cmap" resultType="cmap">
+		SELECT  a.AT_ID
+			  , a.CU_ID
+			  , c.CommunityName
+			  , a.ATName
+			  , a.Gubun
+			  , a.State AS TaskState
+			  , a.State AS TaskStateCode
+			  , a.StartDate
+			  , a.EndDate
+			  , DATE_FORMAT(a.RegistDate,"%Y-%m-%d %T") AS RegistDate
+			  , a.RegisterCode
+			  , a.UpdateDate
+			  , b.MultiDisplayName AS RegisterName
+			  , a.Progress
+			  , a.Weight  as "Weight"
+			  , a.MemberOf
+			  , a.SortKey
+			  , a.SortPath
+			  , a.Member
+			  , a.UpdaterCode
+			  , a.ReservedStr1
+			  , a.ReservedStr2
+			  , a.ReservedInt
+			  , a.ATPath
+			  , IF((SELECT COUNT(1) FROM covi_smart4j.tf_activity_performer WHERE PerformerCode = #{UR_Code} LIMIT 1) > 0 OR a.RegisterCode = #{UR_Code}, 'Y', 'N') AS isOwner
+		FROM covi_smart4j.tf_activity AS a 
+		LEFT JOIN covi_smart4j.sys_object_user AS b  ON a.RegisterCode = b.UserCode 
+		LEFT JOIN covi_smart4j.community AS c  ON a.CU_ID = c.CU_ID
+		WHERE 1=1 
+		AND	a.CU_ID = #{CU_ID} 
+	 	<trim prefix="ORDER BY" prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' "> 
+				SortPath ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' "> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ATName")'>ATName</when>
+					<when test='sortColumn.equalsIgnoreCase("Progress")'>Progress</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+	 	</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectTaskGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)  
+		FROM covi_smart4j.tf_activity  
+		WHERE 1=1 
+		AND CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectMyTaskGridList" parameterType="cmap" resultType="cmap">
+		SELECT  a.AT_ID
+			  , a.CU_ID
+			  , c.CommunityName
+			  , a.ATName
+			  , a.Gubun
+			  , a.State AS TaskState
+			  , a.State AS TaskStateCode
+			  , a.StartDate
+			  , a.EndDate
+			  , DATE_FORMAT(a.RegistDate,"%Y-%m-%d %T") AS RegistDate
+			  , a.RegisterCode
+			  , a.UpdateDate
+			  , b.MultiDisplayName AS RegisterName
+			  , a.Progress
+			  , a.Weight  as "Weight"
+			  , a.MemberOf
+			  , a.SortKey
+			  , a.SortPath
+			  , a.Member
+			  , a.UpdaterCode
+			  , a.ReservedStr1
+			  , a.ReservedStr2
+			  , a.ReservedInt
+			  , a.ATPath
+		FROM covi_smart4j.tf_activity AS a 
+		INNER JOIN covi_smart4j.tf_activity_performer AS PF	ON a.AT_ID = PF.AT_ID
+		LEFT JOIN covi_smart4j.sys_object_user AS b  ON a.RegisterCode = b.UserCode 
+		LEFT JOIN covi_smart4j.community AS c  ON a.CU_ID = c.CU_ID
+		WHERE 1=1 
+		AND	a.CU_ID = #{CU_ID} 
+		AND PF.PerformerCode = #{UR_Code}
+	 	<trim prefix="ORDER BY"  prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' "> 
+ 				SortPath ASC 
+		  	</if>	 	
+	 		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''"> 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ATName")'>ATName</when>
+					<when test='sortColumn.equalsIgnoreCase("Progress")'>Progress</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+	 	</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectMyTaskGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)  
+		FROM covi_smart4j.tf_activity as A 
+		INNER JOIN covi_smart4j.tf_activity_performer AS PF	
+		ON A.AT_ID = PF.AT_ID
+		WHERE 1=1 
+		AND A.CU_ID = #{CU_ID} 
+		AND PF.PerformerCode = #{UR_Code}
+	</select>
+	
+	<select id="selectActivityMinMaxDate" parameterType="cmap" resultType="cmap">
+		SELECT  MIN(StartDate) as MinDate, MAX(EndDate) as MaxDate 
+		FROM TF_ACTIVITY 
+		WHERE CU_ID = #{CU_ID} 
+		Group by CU_ID
+	</select>
+	
+	<insert id="createTT_CalTable" parameterType="cmap" >
+ 		DROP TABLE IF EXISTS tt_CalTable;
+		CREATE TABLE tt_CalTable ( SolarDate char(10),OrderWeekInMonth int, SEQ int );
+	</insert>
+	
+	<insert id="insertTT_CalTable" parameterType="cmap" >
+		<if test="DateType == 'M'.toString() "> 
+			INSERT INTO tt_CalTable
+			SELECT COM.SolarDate,tt.OrderWeekInMonth,tt.SEQ 
+			FROM SYS_CALENDAR AS COM 
+			INNER JOIN(
+				SELECT *, ( @rownum:=@rownum+1 ) as SEQ 
+				FROM(
+					SELECT DATE_FORMAT(SolarDate,'%Y-%m') as BaseDate,OrderWeekInMonth
+					FROM SYS_CALENDAR 
+					WHERE SolarDate BETWEEN CONCAT(#{SDate},'-01')	AND  DATE_ADD(DATE_ADD(CONCAT(#{SDate},'-01'),INTERVAL 3 MONTH),INTERVAL -1 DAY)
+					GROUP BY DATE_FORMAT(SolarDate,'%Y-%m'),OrderWeekInMonth
+				)as A
+				WHERE (@rownum:=0)=0
+				order by A.BaseDate, A.OrderWeekInMonth				
+			)as tt ON DATE_FORMAT(COM.SolarDate,'%Y-%m') = tt.BaseDate AND tt.OrderWeekInMonth = COM.OrderWeekInMonth
+		</if>
+		<if test="DateType == 'D'.toString() "> 
+			INSERT INTO tt_CalTable
+			SELECT *, ( @rownum:=@rownum+1 ) as SEQ
+			FROM(
+				SELECT DATE_FORMAT(SolarDate,'%Y-%m-%d') as BaseDate,OrderWeekInMonth
+				FROM SYS_CALENDAR 
+				WHERE SolarDate BETWEEN CONCAT(#{SDate},'-01') AND DATE_ADD(DATE_ADD(CONCAT(#{SDate},'-01'),INTERVAL 1 MONTH),INTERVAL -1 DAY) 
+			)as A
+			WHERE (@rownum:=0)=0
+			order by A.BaseDate, A.OrderWeekInMonth
+		</if>		
+	</insert>
+	
+	<update id="dropTT_CalTable" parameterType="cmap">
+ 		DROP TABLE IF EXISTS tt_CalTable;
+	</update>
+		
+	<select id="selecttt_CalTableMaxMin"  parameterType="cmap"  resultType="cmap">
+		SELECT Max(SEQ) AS MaxSEQ,MIN(SEQ) AS MinSEQ FROM tt_CalTable  
+	</select>
+	
+	<select id="selecttt_CalTable"  parameterType="cmap"  resultType="cmap">
+		<if test="DateType=='M'.toString() "> 
+			SELECT DATE_FORMAT(SolarDate,'%Y-%m') as SolarDate, MAX(OrderWeekInMonth) as OrderWeekInMonth,MAX(SEQ) as SEQ FROM tt_CalTable 
+			Group by DATE_FORMAT(SolarDate,'%Y-%m')
+			ORDER by SEQ
+		</if>
+		<if test="DateType=='D'.toString() "> 
+			SELECT * FROM tt_CalTable 
+			order by SEQ
+		</if>	
+	</select>
+		
+	<select id="selectTFActivityProgress"  parameterType="cmap"  resultType="cmap">
+		SELECT *, 
+		IFNULL(CAST(CAST(EndPoint-StartPoint+1 as decimal(5,2))*CAST(Progress as decimal(5,2))/100+StartPoint-1 as int),0) as ProgressPoint
+		,#{MaxSEQ} as MaxSEQ 
+		FROM
+		(
+			SELECT ACT.AT_ID,Member,ACT.State AS TaskState,ACT.State AS TaskStateCode,ACT.MemberOf,
+			CASE WHEN Gubun = 'T' THEN 'Task' ELSE CASE WHEN Gubun = 'A' THEN  'Activity' END END as Gubun,
+			SortKey,ParentName,ATName, TIMESTAMPDIFF(DAY,StartDate,EndDate) as TF_Period,
+			CONCAT(StartDate,'(',SUBSTR(DAYNAME(StartDate),1,3),')') as StartDate, CONCAT(EndDate,'(',SUBSTR(DAYNAME(EndDate),1,3),')') as EndDate,
+			Progress,Sortpath,
+			IFNULL(CASE  WHEN SP.SEQ is null AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') AND StartDate <![CDATA[<]]> CONCAT(#{SDate},'-01') THEN #{MinSEQ} ELSE SP.SEQ END,0) as StartPoint,
+			<if test="DateType=='M'.toString() "> 
+			IFNULL(CASE  WHEN EP.SEQ is null AND StartDate <![CDATA[<=]]> DATE_ADD(DATE_ADD(CONCAT(#{SDate},'-01'),INTERVAL 3 MONTH),INTERVAL -1 DAY) AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') THEN #{MaxSEQ} ELSE EP.SEQ END,0) as EndPoint
+			</if>
+			<if test="DateType=='D'.toString() "> 
+			IFNULL(CASE  WHEN EP.SEQ is null AND StartDate <![CDATA[<=]]> DATE_ADD(DATE_ADD(CONCAT(#{SDate},'-01'),INTERVAL 1 MONTH),INTERVAL -1 DAY) AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') THEN #{MaxSEQ} ELSE EP.SEQ END,0) as EndPoint
+			</if>				
+			FROM TF_ACTIVITY as ACT 
+			LEFT OUTER JOIN(
+				SELECT * FROM tt_CalTable 
+			)as SP ON ACT.StartDate = SP.SolarDate
+			LEFT OUTER JOIN(
+				SELECT * FROM tt_CalTable 
+			)as EP ON ACT.EndDate = EP.SolarDate
+			LEFT OUTER JOIN(
+			SELECT AT_ID,ATName as ParentName FROM TF_ACTIVITY 
+			)as PR ON PR.AT_ID = ACT.MemberOf
+			WHERE CU_ID = #{CU_ID} 
+		)as B WHERE B.StartPoint is not null OR B.EndPoint  is not null
+		
+		order by B.SortPath
+	</select>
+	
+	<select id="selectTFPrintInfo"  parameterType="cmap"  resultType="cmap">
+		SELECT CommunityName,AppStatus,DN.MultiDisplayName,TF_MajorDeptCode,
+		SearchTitle, TF_StartDate, TF_EndDate, TIMESTAMPDIFF(MONTH,TF_StartDate,TF_EndDate)+1 as TF_Date,
+		TF_Cost,TF_Benefit,TF_Risk,COMD.Description, COMD.DescriptionEditor
+		FROM covi_smart4j.COMMUNITY AS COM 
+		LEFT OUTER JOIN covi_smart4j.sys_object_domain AS DN  ON COM.TF_DN_ID = DN.DomainID
+		LEFT OUTER JOIN covi_smart4j.community_detail AS COMD  ON COMd.CU_ID = COM.CU_ID
+		WHERE COM.CU_ID = #{CU_ID} 
+	</select>
+	
+	<select id="selectTFPrintTaskList"  parameterType="cmap"  resultType="cmap">
+			SELECT ACT.AT_ID,TASK.ATName as ParentName,ACT.ATName, 
+			ACT.StartDate, ACT.EndDate, TIMESTAMPDIFF(MONTH,ACT.StartDate,ACT.EndDate)+1 as AT_Date,
+			CONCAT(IFNULL(ACT.Progress,'0'),'%') as Progress, ACT.Weight,ACT.Budget,ACT.SortPath
+			,(SELECT  GROUP_CONCAT(LEFT(FileName, INSTR(FileName,'.')-1) SEPARATOR ',' )  FROM sys_file  WHERE MessageID = ACT.AT_ID AND ServiceType = 'TF' AND ObjectType = 'TFAT' AND ObjectID = #{CU_ID} ) as FileName 
+			FROM TF_ACTIVITY AS ACT  
+			LEFT OUTER JOIN covi_smart4j.TF_ACTIVITY as TASK ON ACT.MemberOf = TASK.AT_ID 
+			WHERE ACT.CU_ID =#{CU_ID}
+		ORDER BY SortPath		
+	</select>
+	
+	<select id="selectTFPrintTaskMemberList" parameterType="cmap" resultType="cmap">
+		SELECT	  ACT.AT_ID
+				, ACT.ATName
+				, M.PerformerCode
+				, UR.MultiDisplayName
+		FROM TF_ACTIVITY AS ACT
+		LEFT OUTER JOIN community C ON C.CU_ID = ACT.CU_ID
+		LEFT OUTER JOIN covi_smart4j.tf_activity_performer AS M ON ACT.AT_ID = M.AT_ID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user AS UR ON M.PerformerCode = UR.UserCode
+		WHERE ACT.CU_ID = #{CU_ID}
+		AND C.DN_ID = #{DN_ID}
+		ORDER BY ACT.SortPath
+	</select>
+	
+	<select id="TFLeftUserInfo" parameterType="cmap" resultType="cmap">
+		SELECT  cm.NickName
+				, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'TFMemberLevel', cm.MemberLevel)) AS MemberLevel
+				, cm.UR_Code
+				, IFNULL(sou.DisplayName,'') AS DisplayName
+				, sou.PhotoPath
+				, '' AS GroupCode
+				, cm.MemberLevel AS MemberlevelCode
+		FROM covi_smart4j.community_member cm
+		INNER JOIN covi_smart4j.community c  ON c.CU_ID = cm.CU_ID
+		INNER JOIN covi_smart4j.sys_object_user sou  ON sou.UserCode = cm.UR_Code
+		WHERE cm.CU_ID = #{communityID}
+		AND cm.UR_Code = #{UR_Code}
+		AND cm.DetailStatus IN ('RV','RA')
+		LIMIT 1
+	</select>
+	
+	<select id="TFLeftUserInfoAdmin" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DisplayName AS NickName
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, covi_smart4j.Fn_GetBaseMultiCodeName(c.DN_ID, 'TFMemberLevel', 9)) AS MemberLevel
+			, UserCode AS UR_Code
+			, IFNULL(DisplayName,'') AS DisplayName
+			, PhotoPath
+			, '' AS GroupCode
+			, cm.MemberLevel AS MemberlevelCode
+		FROM covi_smart4j.sys_object_user sou
+		INNER JOIN covi_smart4j.community_member cm ON sou.UserCode = cm.UR_Code
+		LEFT JOIN covi_smart4j.community c ON c.CU_ID = cm.CU_ID 
+		WHERE UserCode = #{UR_Code}
+		LIMIT 1
+	</select>
+	
+	<select id="selectTFMemberList" parameterType="cmap" resultType="cmap">
+		SELECT
+			cm.UR_Code AS UserCode, cm.NickName
+		FROM covi_smart4j.community c 
+		INNER JOIN covi_smart4j.community_member cm  ON c.CU_ID = cm.CU_ID
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.DetailStatus IN ('RV','RA')
+	</select>
+	
+	<select id="selectMaxTaskSortKey" parameterType="cmap" resultType="java.lang.Long">
+		SELECT IFNULL(max(SortKey),0) AS MaxSortKey
+		FROM covi_smart4j.tf_activity 
+		WHERE CU_ID = #{CU_ID}
+		AND MemberOf is null
+	</select>
+	
+	<select id="selectProjectProgress" parameterType="cmap" resultType="cmap">
+		SELECT	  C.CU_ID
+				, C.CommunityName
+				, C.TF_StartDate
+				, C.TF_EndDate
+				, C.TF_MajorDept
+				, TIMESTAMPDIFF(MONTH, C.TF_StartDate, C.TF_EndDate)+1 AS TF_TERM
+				, CAST( AVG(A.Progress) AS signed integer) AS TF_AVGProgress
+				, CAST( SUM(A.Weight * A.Progress/100) AS signed integer) AS TF_WProgress
+		FROM covi_smart4j.community C 
+		INNER JOIN covi_smart4j.tf_activity A ON C.CU_ID = A.CU_ID
+		WHERE 1=1
+		AND	A.CU_ID = #{CU_ID}
+		AND A.MemberOf IS NULL
+		AND	C.TF_STATE = 'RA'
+		AND C.DN_ID = #{DN_ID}
+		GROUP BY C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+	</select>
+	
+	<update id="updateActvityProgress" statementType="CALLABLE" parameterType="cmap">
+		CALL covi_smart4j.Fn_ActvityProgressUpdate(#{CU_ID}, #{AT_ID}, #{useProgressOption})
+	</update>
+	
+	<select id="selectUserMailList" parameterType="cmap" resultType="cmap">
+		SELECT	  MailAddress AS UserCode
+				, MultiDisplayName AS DN
+				, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS UserName
+				, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS label
+				, MailAddress
+				, MailAddress AS value
+		FROM covi_smart4j.sys_object_user
+		WHERE MailAddress IS NOT NULL
+		<foreach collection="userCode" item="item" open="AND UserCode IN (" close=")" separator="," index="index">
+			#{item}
+		</foreach>
+	</select>
+	
+	<select id="selectUserTFGridListGroupCount" parameterType="cmap" resultType="cmap">
+		SELECT	  AppStatus
+				, COUNT(1) AS Cnt
+		FROM covi_smart4j.community c 
+		LEFT JOIN covi_smart4j.sys_object_group sog ON sog.GroupCode = c.CU_Code
+		LEFT JOIN covi_smart4j.sys_object_user sou ON  sou.UserCode = c.OperatorCode
+		LEFT JOIN covi_smart4j.community_detail cd ON cd.CU_ID = c.CU_ID 
+		LEFT JOIN covi_smart4j.community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE 1=1 
+		AND c.Gubun = 'T'
+		AND NVL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		GROUP BY AppStatus
+	</select>
+	
+	<select id="selectUserTFLeftGridList" parameterType="cmap" resultType="cmap">
+		SELECT	  A.CU_ID
+				, A.MN_ID
+				, A.CategoryID
+				, A.CU_Code
+				, A.DN_ID
+				, A.SearchTitle
+				, A.CommunityName
+				, A.AppStatus
+				, A.AppStatusName
+				, A.RegRequestDate
+				, A.RegProcessDate
+				, A.MemberCount
+				, A.MsgCount
+				, A.VisitCount
+				, A.Point
+				, A.Grade
+				, A.OperatorCode
+				, A.OperatorName
+				, A.TF_DN_ID
+				, A.TF_DomainName
+				, A.TF_DeptCode
+				, A.DomainCode
+				, A.GroupCode
+				, A.CreatorCode
+				, A.CreatorName
+				, A.Description
+				, A.DescriptionEditor
+				, A.FilePath
+				, A.TF_Period
+				, A.DisplayName
+				, A.UserCode
+				, A.MailAddress
+				, A.CuAppDetail
+				, A.CommunityJoin
+				, A.CommunityType
+				, A.TF_Member
+				, A.TF_Admin
+				, A.TF_PM
+		FROM (
+			SELECT A.*
+				 , (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				 , TF_Member
+				 , TF_Admin
+				 , TF_PM
+			FROM(
+				SELECT	  c.CU_ID
+						, c.MN_ID
+						, c.CategoryID
+						, c.CU_Code
+						, c.DN_ID
+						, c.SearchTitle
+						, NVL(covi_smart4j.Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+						, c.AppStatus
+						, c.RegRequestDate AS RegRequestDate
+						, c.RegProcessDate AS RegProcessDate
+						, c.MemberCount
+						, c.MsgCount
+						, c.VisitCount
+						, c.Point
+						, c.Grade
+						, c.OperatorCode
+						, c.OperatorName
+						, c.TF_DN_ID
+						, sod.DisplayName AS TF_DomainName
+						, sogg.MultiDisplayName AS TF_DeptCode
+						, sod.DomainCode
+						, sog.GroupCode
+						, c.CreatorCode
+						, c.CreatorName
+						, cd.Description
+						, cd.DescriptionEditor
+						, ci.FilePath
+						, CONCAT(c.TF_StartDate, '~', c.TF_EndDate) AS TF_Period
+						, sou.DisplayName
+						, sou.UserCode
+						, sou.MailAddress
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, (SELECT MultiCodeName FROM covi_smart4j.sys_base_code WHERE BizSection = 'Community' AND CodeGroup = 'CuAppDetail' AND IsUse = 'Y' AND Code = c.AppStatus)) AS CuAppDetail
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, (SELECT MultiCodeName FROM covi_smart4j.sys_base_code WHERE BizSection = 'Community' AND CodeGroup = 'CommunityJoin' AND IsUse = 'Y' AND Code = c.JoinOption)) AS CommunityJoin
+						, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, (SELECT MultiCodeName FROM covi_smart4j.sys_base_code WHERE BizSection = 'Community' AND CodeGroup = 'CommunityType' AND IsUse = 'Y' AND Code = c.CommunityType)) AS CommunityType
+				FROM covi_smart4j.community c
+				LEFT JOIN covi_smart4j.sys_object_group sog ON sog.GroupCode = c.CU_Code
+				LEFT JOIN covi_smart4j.sys_object_user sou ON  sou.UserCode = c.OperatorCode
+				LEFT JOIN covi_smart4j.community_detail cd ON cd.CU_ID = c.CU_ID
+				LEFT JOIN covi_smart4j.community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+				LEFT JOIN covi_smart4j.sys_object_domain sod ON sod.DomainID = c.TF_DN_ID
+				LEFT JOIN covi_smart4j.sys_object_group sogg ON sogg.GroupCode = c.TF_MajorDeptCode
+				WHERE 1=1
+				AND c.Gubun = 'T'
+				AND NVL(c.Secret, 'N') != 'Y'
+				AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+				AND c.DN_ID = #{DN_ID}
+				<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+					AND c.MN_ID = #{MN_ID}
+				</if>
+				<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+					AND c.AppStatus = #{AppStatus}
+				</if>
+				<if test="searchWord != null and searchWord != ''"> 
+					<choose>
+						<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+							AND (
+								c.CommunityName LIKE CONCAT('%', #{searchWord}, '%')
+								OR c.SearchTitle LIKE CONCAT('%', #{searchWord}, '%')
+							)
+						</when>
+						<when test ="searchType =='C'.toString()">
+							AND c.CommunityName LIKE CONCAT('%', #{searchWord}, '%')
+						</when>
+						<when test ="searchType =='O'.toString()">
+							AND cd.Description LIKE CONCAT('%', #{searchWord}, '%')
+						</when>
+					</choose>
+				</if>
+			) A
+			JOIN (
+				SELECT CU_ID, MAX(LEVEL0) AS TF_Member, MAX(LEVEL8) AS TF_Admin, MAX(LEVEL9) AS TF_PM
+				FROM (
+					SELECT	  CU_ID
+							, CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0
+							, CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8
+							, CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+					FROM (
+						SELECT CU_ID, M.MemberLevel, GROUP_CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) SEPARATOR '@') AS MEMBERLIST
+						FROM covi_smart4j.community_member M
+						LEFT OUTER JOIN covi_smart4j.sys_object_user UR ON M.UR_Code = UR.UserCode
+						WHERE MemberStatus='R' AND DetailStatus = 'RV'
+						AND M.UR_Code = #{UR_Code}
+						GROUP BY CU_ID, MemberLevel
+					) A
+				) AA GROUP BY CU_ID
+			) mem ON mem.CU_ID = A.CU_ID
+		) A
+		<trim prefix="ORDER BY" prefixOverrides = ",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				RegRequestDate ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<otherwise>CU_ID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getUserEmailInfo" parameterType="cmap" resultType="cmap">
+		SELECT	  MailAddress
+				, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS UserName
+		FROM covi_smart4j.sys_object_user
+		WHERE 1=1
+		<foreach collection="userList" item="user" index="i" separator="," open="AND UserCode IN (" close=")">
+			#{user}
+		</foreach>
+	</select>
+</mapper> 

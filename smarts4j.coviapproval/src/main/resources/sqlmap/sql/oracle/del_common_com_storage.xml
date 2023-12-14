@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="del_common.ComStorage">
+    <select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	SELECT	StorageID AS "StorageID"
+			, DN_ID AS "DN_ID"
+			, ServiceType AS "ServiceType"
+			, SeverName AS "SeverName"
+			, LastSeq AS "LastSeq"
+			, FileURL AS "FileURL"
+			, FilePath AS "FilePath"
+			, ImageURL AS "ImageURL"
+			, ImagePath AS "ImagePath"
+			, InlineURL AS "InlineURL"
+			, InlinePath AS "InlinePath"
+			, VideoURL AS "VideoURL"
+			, VideoPath AS "VideoPath"
+			, IsUse AS "IsUse"
+			, Description AS "Description"
+			, TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+	FROM com_storage
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="storageID != null">AND StorageID = #{storageID}</if>
+	</trim>	
+	</select>	
+ 	<select id="selectList" parameterType="cmap" resultType="cmap">			
+	<![CDATA[
+	SELECT	StorageID AS "StorageID"
+			, DN_ID AS "DN_ID"
+			, ServiceType AS "ServiceType"
+			, SeverName AS "SeverName"
+			, LastSeq AS "LastSeq"
+			, FileURL AS "FileURL"
+			, FilePath AS "FilePath"
+			, ImageURL AS "ImageURL"
+			, ImagePath AS "ImagePath"
+			, InlineURL AS "InlineURL"
+			, InlinePath AS "InlinePath"
+			, VideoURL AS "VideoURL"
+			, VideoPath AS "VideoPath"
+			, IsUse AS "IsUse"
+			, Description AS "Description"
+			, TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+	FROM com_storage
+	]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="storageID != null">AND StorageID = #{storageID}</if>
+	</trim>
+	<!-- Order by 절 -->
+	<trim prefix="ORDER BY">
+	  	<if test="sortColumn != null and sortDirection != null">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("StorageID")'>StorageID</when>
+				<when test='sortColumn.equalsIgnoreCase("DN_ID")'>DN_ID</when>
+				<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+				<when test='sortColumn.equalsIgnoreCase("SeverName")'>SeverName</when>
+				<when test='sortColumn.equalsIgnoreCase("LastSeq")'>LastSeq</when>
+				<when test='sortColumn.equalsIgnoreCase("FileURL")'>FileURL</when>
+				<when test='sortColumn.equalsIgnoreCase("FilePath")'>FilePath</when>
+				<when test='sortColumn.equalsIgnoreCase("ImageURL")'>ImageURL</when>
+				<when test='sortColumn.equalsIgnoreCase("ImagePath")'>ImagePath</when>
+				<when test='sortColumn.equalsIgnoreCase("InlineURL")'>InlineURL</when>
+				<when test='sortColumn.equalsIgnoreCase("InlinePath")'>InlinePath</when>
+				<when test='sortColumn.equalsIgnoreCase("VideoURL")'>VideoURL</when>
+				<when test='sortColumn.equalsIgnoreCase("VideoPath")'>VideoPath</when>
+				<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+				<otherwise>RegistDate</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</trim>
+	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+ 	<select id="selectCount" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) 
+			FROM com_storage
+		]]>
+	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="storageID != null">AND StorageID = #{storageID}</if>
+	</trim>
+	</select>
+	<insert id="insert" parameterType="cmap" useGeneratedKeys="true" keyProperty="StorageID">
+	<![CDATA[	
+		INSERT INTO com_storage (
+			DN_ID
+			, ServiceType
+			, SeverName
+			, LastSeq
+			, FileURL
+			, FilePath
+			, ImageURL
+			, ImagePath
+			, InlineURL
+			, InlinePath
+			, VideoURL
+			, VideoPath
+			, IsUse
+			, Description
+			, RegistDate
+			)
+		VALUES (		
+			  #{dnID}
+			, #{serviceType}
+			, #{severName}
+			, #{lastSeq}
+			, #{fileURL}
+			, #{filePath}
+			, #{imageURL}
+			, #{imagePath}
+			, #{inlineURL}
+			, #{inlinePath}
+			, #{videoURL}
+			, #{videoPath}
+			, #{isUse}
+			, #{description}
+			, NOW(3)
+		)
+		]]>	
+	</insert>	
+	<update id="update" parameterType="cmap">			
+		UPDATE com_storage		
+		<trim prefix="SET" suffixOverrides=",">
+			<if test="dnID != null">DN_ID=#{dnID},</if>
+			<if test="serviceType != null">ServiceType=#{serviceType},</if>
+			<if test="severName != null">SeverName=#{severName},</if>
+			<if test="lastSeq != null">LastSeq=#{lastSeq},</if>
+			<if test="fileURL != null">FileURL=#{fileURL},</if>
+			<if test="filePath != null">FilePath=#{filePath},</if>
+			<if test="imageURL != null">ImageURL=#{imageURL},</if>
+			<if test="imagePath != null">ImagePath=#{imagePath},</if>
+			<if test="inlineURL != null">InlineURL=#{inlineURL},</if>
+			<if test="inlinePath != null">InlinePath=#{inlinePath},</if>
+			<if test="videoURL != null">VideoURL=#{videoURL},</if>
+			<if test="videoPath != null">VideoPath=#{videoPath},</if>
+			<if test="isUse != null">IsUse=#{isUse},</if>
+			<if test="description != null">Description=#{description},</if>
+			<if test="registDate != null">RegistDate=#{registDate},</if>
+		</trim>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  <if test="storageID != null">AND StorageID = #{storageID}</if>
+		</trim>
+	</update>
+	<delete id="delete" parameterType="cmap">        
+    	UPDATE com_storage		
+		WHERE StorageID in
+        <foreach collection="storageID" item="item" index="index" separator="," open="(" close=")">
+            #{item}
+        </foreach>
+	</delete>	
+</mapper>

@@ -1,0 +1,32 @@
+package egovframework.coviaccount.approvalline.util;
+
+import egovframework.baseframework.data.CoviMap;
+
+public class AutoCCBefore extends AutoCommonApprover {
+
+	public AutoCCBefore(CoviMap formAutoApprovalData, String strSessionDNCode, String strSessionRegionCode) {
+		super(formAutoApprovalData, strSessionDNCode, strSessionRegionCode);
+	}
+
+	@Override
+	CoviMap getApprover(CoviMap peopleObj) {
+		CoviMap oCCinfo = new CoviMap();
+		oCCinfo.put("beforecc", "y");
+		oCCinfo.put("belongto", "sender");
+		
+		CoviMap oOU = new CoviMap();		
+		if(peopleObj.getString("itemType").equals("user")) {
+			CoviMap oPerson = createPersonNode(peopleObj);
+			oOU.put("name", peopleObj.optString("RGNM"));
+			oOU.put("code", peopleObj.optString("RG"));
+			oOU.put("person", oPerson);
+		} else {
+			oOU.put("name", peopleObj.optString("DN"));
+			oOU.put("code", peopleObj.optString("AN"));
+		}
+		oCCinfo.put("ou", oOU);
+		
+		return oCCinfo;
+	}
+
+}

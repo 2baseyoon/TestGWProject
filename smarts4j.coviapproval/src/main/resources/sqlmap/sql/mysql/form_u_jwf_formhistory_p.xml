@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.formhistory">
+	<insert id="insert" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_formhistory (
+			FormInstID,
+			FieldName,
+			FieldType,
+			Revision,
+			RegID,
+			RegDate,
+			ModID,
+			ModDate,
+			ModValue,
+			TaskID
+		)
+		VALUES (
+			#{FormInstID},
+			#{FieldName},
+			#{FieldType},
+			#{Revision},
+			#{RegID},
+			now(3),
+			#{ModID},
+			now(3),
+			#{ModValue},
+			#{TaskID}
+		)
+	</insert>
+	<insert id="insertFromFormInstance" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_formhistory (
+			FormInstID,
+			FieldName,
+			FieldType,
+			Revision,
+			RegID,
+			RegDate,
+			ModID,
+			ModDate,
+			ModValue,
+			TaskID
+		)
+		SELECT #{FormInstID} AS FormInstID,
+			<if test="FieldName == 'AttachFileInfo' ">
+			    'FileInfos',
+			</if>
+			<if test="FieldName != 'AttachFileInfo' ">
+			    #{FieldName},
+			</if>
+			#{FieldType} AS FieldType,
+			#{Revision},
+			#{RegID},
+			now(3),
+			#{ModID},
+			now(3),
+    		<choose>
+				<when test="FieldName.equalsIgnoreCase('AttachFileInfo')">AttachFileInfo</when>
+				<when test="FieldName.equalsIgnoreCase('BodyContext')">BodyContext</when>
+				<when test="FieldName.equalsIgnoreCase('AppliedDate')">AppliedDate</when>
+				<when test="FieldName.equalsIgnoreCase('AppliedTerm')">AppliedTerm</when>
+				<when test="FieldName.equalsIgnoreCase('DocClassID')">DocClassID</when>
+				<when test="FieldName.equalsIgnoreCase('DocClassName')">DocClassName</when>
+				<when test="FieldName.equalsIgnoreCase('DocLevel')">DocLevel</when>
+				<when test="FieldName.equalsIgnoreCase('DocLinks')">DocLinks</when>
+				<when test="FieldName.equalsIgnoreCase('DocNo')">DocNo</when>
+				<when test="FieldName.equalsIgnoreCase('DocSummary')">DocSummary</when>
+				<when test="FieldName.equalsIgnoreCase('EDMSDocLinks')">EDMSDocLinks</when>
+				<when test="FieldName.equalsIgnoreCase('EntCode')">EntCode</when>
+				<when test="FieldName.equalsIgnoreCase('EntName')">EntName</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorID')">InitiatorID</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorName')">InitiatorName</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorUnitID')">InitiatorUnitID</when>
+				<when test="FieldName.equalsIgnoreCase('InitiatorUnitName')">InitiatorUnitName</when>
+				<when test="FieldName.equalsIgnoreCase('IsPublic')">IsPublic</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiptList')">ReceiptList</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiveNames')">ReceiveNames</when>
+				<when test="FieldName.equalsIgnoreCase('ReceiveNo')">ReceiveNo</when>
+				<when test="FieldName.equalsIgnoreCase('SaveTerm')">SaveTerm</when>
+				<when test="FieldName.equalsIgnoreCase('Subject')">Subject</when>
+				<when test="FieldName.equalsIgnoreCase('RuleItemInfo')">RuleItemInfo</when>
+				<when test="FieldName.equalsIgnoreCase('SecurityOption')">#{SecurityOption}</when>
+			</choose>,
+			#{TaskID}
+		FROM covi_approval4j.jwf_forminstance
+		WHERE FormInstID = #{FormInstID};
+	</insert>
+	
+	<insert id="insertFromFormInstanceAPST" parameterType="cmap">	
+	    INSERT INTO covi_approval4j.jwf_formhistory (
+			FormInstID,
+			FieldName,
+			FieldType,
+			Revision,
+			RegID,
+			RegDate,
+			ModID,
+			ModDate,
+			ModValue,
+			TaskID
+		) VALUES (
+			#{FormInstID},
+			#{FieldName},
+			#{FieldType},
+			#{Revision},
+			#{RegID},
+			#{RegDate},
+			#{ModID},
+			#{ModDate},
+			#{ModValue},
+			#{TaskID}
+		)
+	</insert>
+	
+	<select id="selectReivision" parameterType="cmap" resultType="int">
+	    SELECT 
+	    IFNULL(
+	    	(
+	    		SELECT Revision 
+	    		FROM covi_approval4j.jwf_formhistory 
+	    		WHERE FormInstID = #{FormInstID} 
+	    		ORDER BY Revision DESC 
+	    		LIMIT 1
+	    	)
+	    , 0)+1 AS Revision
+	</select>
+	
+	<select id="selectDomainData" parameterType="cmap" resultType="cmap">
+	    SELECT #{FormInstID} AS FormInstID,
+			#{FieldName} AS FieldName,
+			#{FieldType} AS FieldType,
+			#{Revision} AS Revision,
+			#{RegID} AS RegID,
+			now(3) AS RegDate,
+			#{ModID} AS ModID,
+			now(3) AS ModDate,
+			#{TaskID} AS TaskID,
+			DomainDataContext AS ModValue
+		FROM covi_approval4j.jwf_domaindata
+		WHERE ProcessID = #{ProcessID}
+	</select>
+	
+	<select id="selectEditHistory" parameterType="cmap" resultType="cmap">
+		SELECT 	*
+		FROM 	covi_approval4j.jwf_formhistory
+		WHERE 	FormInstID 	= #{FormInstID}
+		AND 	TaskID 		= #{TaskID}
+		<if test="FieldName != null and FieldName != ''">
+		AND 	FieldName 	= #{FieldName}
+		</if>
+		<if test="Revision != null and Revision != ''">
+		AND 	Revision 	= #{Revision}
+		</if>
+		ORDER BY FormHistoryID DESC
+		LIMIT 1
+	</select>
+	
+	<update id="updateEditHistory" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_formhistory
+		SET 	ModID 		= #{ModID}
+			, 	ModDate 	= now(3)
+		WHERE 	FormInstID 	= #{FormInstID}
+		AND 	FieldName 	= #{FieldName}
+		AND		Revision	= #{Revision}
+		AND		TaskID		= #{TaskID}
+	</update>
+	
+	<delete id="deleteEditHistory">
+		DELETE FROM covi_approval4j.jwf_formhistory
+		WHERE 	FormInstID 	= #{FormInstID}
+		AND 	FieldName 	= #{FieldName}
+		AND		Revision	= #{Revision}
+		AND 	TaskID 		= #{TaskID}
+	</delete>
+</mapper>

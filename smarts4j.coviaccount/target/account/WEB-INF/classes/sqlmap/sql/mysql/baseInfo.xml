@@ -1,0 +1,1866 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="baseInfo">
+	
+	<select id="selectVendorList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorList
+ 			거래처 목록 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			VD.VendorID
+			, VD.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VD.CompanyCode, #{searchCompanyCode}) CompanyName
+			, VD.VendorType
+			, covi_account4j_si.Fn_GetBaseCodeName('VendorType', VD.VendorType, #{searchCompanyCode}) VendorTypeName
+			, VD.VendorNo
+			, VD.CorporateNo
+			, VD.VendorName
+			, VD.CEOName
+			, VD.Industry
+			, VD.Sector
+			, VD.Address
+			, VD.PaymentCondition
+			, VD.PaymentMethod
+			, VD.VendorStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('vendorStatus', VD.VendorStatus, #{searchCompanyCode}) VendorStatusName
+			, VD.ModifyDate AS ModifyDate
+			, VD.RegistDate AS RegistDate
+			, VD.BusinessNumber
+		FROM covi_account4j_si.act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER(CONCAT('%',#{searchSector},'%'))
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BusinessNumber, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', ''))   
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER(CONCAT('%',#{searchIndustry},'%'))  
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%')) 
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,VD.VendorName 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorTypeName")'>VendorTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessNumber")'>BusinessNumber</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorName")'>VendorName</when>
+					<when test='sortColumn.equalsIgnoreCase("Sector")'>Sector</when>
+					<when test='sortColumn.equalsIgnoreCase("Industry")'>Industry</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorStatusName")'>VendorStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	  	<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	<select id="selectVendorListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorListCnt
+ 			거래처 목록 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			COUNT(*)
+		FROM covi_account4j_si.act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER(CONCAT('%',#{searchSector},'%'))
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BusinessNumber, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', ''))
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER(CONCAT('%',#{searchIndustry},'%'))
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%'))
+		</if>
+		
+		
+	</select>
+	<select id="selectVendorListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorListExcel
+ 			거래처 목록 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			VD.CompanyCode
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VD.CompanyCode, #{searchCompanyCode}),'') CompanyName
+			, VD.VendorType
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('VendorType', VD.VendorType, #{searchCompanyCode}),'') VendorTypeName
+			, VD.VendorNo
+			, VD.CorporateNo
+			, VD.VendorName
+			, VD.CEOName
+			, VD.Industry
+			, VD.Sector
+			, VD.Address			
+			, ( SELECT GROUP_CONCAT(VDB.BankCode SEPARATOR ',') FROM covi_account4j_si.act_vendor_bank VDB WHERE VD.VendorID = VDB.VendorID ) AS BankCode
+			, ( SELECT GROUP_CONCAT(VDB.BankName SEPARATOR ',') FROM covi_account4j_si.act_vendor_bank VDB WHERE VD.VendorID = VDB.VendorID ) AS BankName
+			, ( SELECT GROUP_CONCAT(VDB.BankAccountNo SEPARATOR ',') FROM covi_account4j_si.act_vendor_bank VDB WHERE VD.VendorID = VDB.VendorID ) AS BankAccountNo
+			, ( SELECT GROUP_CONCAT(VDB.BankAccountName SEPARATOR ',') FROM covi_account4j_si.act_vendor_bank VDB WHERE VD.VendorID = VDB.VendorID ) AS BankAccountName
+			, VD.PaymentCondition
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('PayType', VD.PaymentCondition, #{searchCompanyCode}),'') PaymentTypeName
+			, VD.PaymentMethod
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('PayMethod', VD.PayMentMethod, #{searchCompanyCode}),'') PaymentMethodName
+			, VD.VendorStatus
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('vendorStatus', VD.VendorStatus, #{searchCompanyCode}),'') VendorStatusName
+			, VD.IncomTax
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('WHTax', VD.IncomTax, #{searchCompanyCode}),'') IncomTaxName
+			, VD.LocalTax
+			, IFNULL(covi_account4j_si.Fn_GetBaseCodeName('WHTax', VD.LocalTax, #{searchCompanyCode}),'') LocalTaxName
+			, VD.ModifyDate AS ModifyDate
+			, VD.RegistDate AS RegistDate
+			, VD.BusinessNumber
+		FROM covi_account4j_si.act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER(CONCAT('%',#{searchSector},'%'))
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BusinessNumber, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', ''))
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER(CONCAT('%',#{searchIndustry},'%'))
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%'))
+		</if>
+		
+		
+	</select>
+	
+	
+
+	<delete id="deleteVendorList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteVendorList
+ 			거래처 목록삭제
+ 		*/
+		DELETE FROM covi_account4j_si.act_vendor
+		WHERE 
+			<choose>
+				<when test="vdList != null">
+					<foreach collection="vdList" item="item" index="index" separator="," open="VendorID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose> 
+	</delete>	
+	
+	
+	 <select id="selectVendorDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorDetail
+ 			거래처 상세 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			VD.VendorID
+			, VD.CompanyCode
+			, VD.VendorNo
+			, VD.CorporateNo
+			, VD.VendorName
+			, VD.CEOName
+			, VD.Industry
+			, VD.Sector
+			, VD.Address
+			, VD.PaymentCondition
+			, VD.PaymentMethod
+			, VD.VendorStatus
+			, VD.ModifyDate AS ModifyDate
+			, VD.RegistDate AS RegistDate
+			
+			, VD.VendorType
+			, covi_account4j_si.Fn_GetBaseCodeName('VendorType', VD.VendorType, #{companyCode}) VendorTypeName
+			
+			, VD.IncomTax
+			, VD.LocalTax
+			, VD.BusinessNumber
+		FROM covi_account4j_si.act_vendor VD
+		WHERE 1=1
+		]]>
+		
+		 AND VD.VendorID = #{VendorID}
+	</select>
+	
+	 
+	 <select id="checkVendorDuplicate" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.checkVendorDuplicate
+ 			거래처 중복체크
+ 		*/
+		<![CDATA[
+			SELECT 	
+				COUNT(*) CNT
+				, MIN(VendorID) VendorID
+			FROM covi_account4j_si.act_vendor VD
+			WHERE 1=1
+			AND REPLACE(VD.VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+			AND VD.VendorType = #{VendorType}
+			AND VD.CompanyCode = #{CompanyCode}
+		]]>
+		
+	</select>
+	 
+	<insert id="insertVendor" parameterType="cmap">
+		<![CDATA[
+	 		/*
+	 			baseInfo.insertVendor
+	 			거래처 등록 
+	 		*/
+			INSERT INTO covi_account4j_si.act_vendor
+			(
+				CompanyCode
+				, VendorType
+				, VendorNo
+				, BusinessNumber
+				, CorporateNo
+				, VendorName
+				, CEOName
+				, Industry
+				, Sector
+				, Address
+				, PaymentCondition
+				, PaymentMethod
+				, VendorStatus
+				, IncomTax
+				, LocalTax
+				
+				, RegisterID
+				, RegistDate
+				, ModifierID
+				, ModifyDate
+			)
+			VALUES
+			(
+				 #{CompanyCode}
+				, #{VendorType}
+				, #{VendorNo}
+				, #{VendorNo}
+				, #{CorporateNo}
+				, #{VendorName}
+				, #{CEOName}
+				, #{Industry}
+				, #{Sector}
+				, #{Address}
+				, #{PaymentCondition}
+				, #{PaymentMethod}
+				, #{VendorStatus}
+				, #{IncomTax}
+				, #{LocalTax}
+	
+				, #{SessionUser}
+				, NOW(3)
+				, #{SessionUser}
+				, NOW(3)
+			)
+		]]>	
+		<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateVendor" parameterType="cmap">
+	<![CDATA[
+	
+ 		/*
+ 			baseInfo.updateVendor
+ 			거래처 수정
+ 		*/
+		UPDATE covi_account4j_si.act_vendor
+		SET CompanyCode = #{CompanyCode}
+			, VendorName = #{VendorName}
+			, VendorType = #{VendorType}
+			, CEOName = #{CEOName}
+			, Industry = #{Industry}
+			, Sector = #{Sector}
+			, Address = #{Address}
+			, PaymentCondition = #{PaymentCondition}
+			, PaymentMethod = #{PaymentMethod}
+			, VendorStatus = #{VendorStatus}
+			, IncomTax = #{IncomTax}
+			, LocalTax = #{LocalTax}
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE VendorID = #{VendorID}
+	
+	]]>
+	</update>
+	
+	<delete id="deleteVendorBank" parameterType="cmap">
+	    /*
+	    	baseInfo.deleteVendorBank
+	    	거래처 은행정보 삭제
+	    */
+	    DELETE FROM covi_account4j_si.act_vendor_bank
+		WHERE 1=2
+		<if test="VendorID != null and VendorID != ''">
+			OR VendorID = #{VendorID}		    
+		</if>
+		<if test="VendorNo != null and VendorNo != ''">			
+			OR VendorID IN (SELECT VendorID FROM covi_account4j_si.act_vendor WHERE REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', ''))    
+		</if>
+	</delete>
+	 	
+	<insert id="insertVendorBank" parameterType="cmap">
+	    /*
+	    	baseInfo.insertVendorBank
+	    	거래처 은행정보 등록
+	    */
+	    INSERT INTO covi_account4j_si.act_vendor_bank
+		(
+			VendorID,
+			BankCode,
+			BankName,
+			BankAccountNo,
+			BankAccountName
+		)
+		VALUES
+		(
+			#{VendorID}
+			, #{BankCode}
+			, #{BankName}
+			, #{BankAccountNo}
+			, #{BankAccountName}
+		)
+	</insert>	
+	 	
+	<select id="selectVendorBank" parameterType="cmap" resultType="cmap">
+	    /*
+	    	baseInfo.selectVendorBank
+	    	거래처 은행정보 조회
+	    */
+	   	SELECT 
+			VendorID
+			, GROUP_CONCAT(BankCode ORDER BY BankID SEPARATOR ',') AS BankCode
+			, GROUP_CONCAT(BankName ORDER BY BankID SEPARATOR ',') AS BankName
+			, GROUP_CONCAT(BankAccountNo ORDER BY BankID SEPARATOR ',') AS BankAccountNo
+			, GROUP_CONCAT(BankAccountName ORDER BY BankID SEPARATOR ',') AS BankAccountName
+		FROM covi_account4j_si.act_vendor_bank
+		WHERE VendorID = #{VendorID}
+	</select>
+	
+	<!-- =============================================거래처요청관리================================= -->
+	<select id="selectVendorRequestList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestList
+ 			거래처 신청 목록 조회
+ 		*/
+	
+		SELECT VendorApplicationID
+			, VDA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VDA.CompanyCode, #{companyCode}) CompanyName
+			, VDA.ApplicationTitle
+			, VDA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('VendorApplicationType', VDA.ApplicationType, #{companyCode}) ApplicationTypeName
+			, VDA.IsNew
+			, covi_account4j_si.Fn_GetBaseCodeName('IsNewVendor', VDA.IsNew, #{companyCode}) IsNewName
+			, VDA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) ApplicationStatusName
+			
+			, CASE 
+				WHEN ApplicationType = 'Company'
+				THEN CONCAT(SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 1,3)
+					, '-', SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 4,2)
+					, '-', SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 6, 5))
+				ELSE  
+					CASE 
+						WHEN ApplicationType = 'People'
+						THEN CONCAT(SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 1,6)
+							, '-', SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 4,7))
+						ELSE VDA.VendorNo
+					END
+			END  VendorNo
+			
+			
+			, VDA.VendorNo VendorNoOri
+			, VDA.CorporateNo
+			, VDA.VendorName
+			, VDA.CEOName
+			, VDA.Industry
+			, VDA.Sector
+			, VDA.Address
+			, VDA.PaymentCondition
+			, VDA.PaymentMethod
+			, VDA.VendorStatus
+			, VDA.IncomTax
+			, VDA.LocalTax
+			, VDA.ModifyDate AS ModifyDate
+			, VDA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_vendor_application VDA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%')) 
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', '')) 
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER(CONCAT('%',#{searchApplicationType},'%')) 
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER(CONCAT('%',#{searchApplicationStatus},'%')) 
+		</if>
+	  	<if test="searchIsNew != null and searchIsNew != ''">
+		 	AND VDA.IsNew = #{searchIsNew}
+		</if>
+	  	
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>  
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,VDA.RegistDate DESC 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>ApplicationTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>ApplicationStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>ApplicationTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("IsNewName")'>IsNewName</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorNo")'>VendorNo</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorName")'>VendorName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+							 	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectVendorRequestListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorRequestListCnt
+ 			거래처 신청 카운트
+ 		*/
+		SELECT COUNT(*)
+		FROM covi_account4j_si.act_vendor_application VDA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%'))
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', ''))
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER(CONCAT('%',#{searchApplicationType},'%'))
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER(CONCAT('%',#{searchApplicationStatus},'%'))
+		</if>	
+	  	<if test="searchIsNew != null and searchIsNew != ''">
+		 	AND VDA.IsNew = #{searchIsNew}
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose> 
+	</select>
+	 <select id="selectVendorRequestListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestListExcel
+ 			거래처 신청 목록 조회
+ 		*/
+		SELECT VDA.ApplicationType
+			, VDA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VDA.CompanyCode, #{companyCode}) CompanyName
+			, covi_account4j_si.Fn_GetBaseCodeName('VendorApplicationType', VDA.ApplicationType, #{companyCode}) ApplicationTypeName
+			, VDA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) ApplicationStatusName
+			, VDA.ApplicationTitle
+			, VDA.IsNew			
+			, covi_account4j_si.Fn_GetBaseCodeName('IsNewVendor', VDA.IsNew, #{companyCode}) IsNewName
+			, VDA.VendorNo
+			, VDA.VendorName
+			, VDA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_vendor_application VDA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER(CONCAT('%',#{searchVendorName},'%'))
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE(CONCAT('%',#{searchVendorNo},'%'), '-', ''))
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER(CONCAT('%',#{searchApplicationType},'%'))
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER(CONCAT('%',#{searchApplicationStatus},'%'))
+		</if>
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>  
+		
+		
+	</select>
+	
+	<select id="selectVendorRequestDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestDetail
+ 			거래처 신청 상세 조회
+ 		*/
+		SELECT VDA.VendorApplicationID
+			, VDA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', VDA.CompanyCode, #{companyCode}) CompanyName
+			, VDA.ApplicationTitle
+			, VDA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('VendorApplicationType', VDA.ApplicationType, #{companyCode}) ApplicationTypeName
+			, VDA.IsNew
+			, covi_account4j_si.Fn_GetBaseCodeName('IsNewVendor', VDA.IsNew, #{companyCode}) IsNewName
+			, VDA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) ApplicationStatusName
+			, VDA.VendorNo
+			, VDA.CorporateNo
+			, VDA.VendorName
+			, VDA.CEOName
+			, VDA.Industry
+			, VDA.Sector
+			, VDA.Address
+			, VDA.PaymentCondition
+			, VDA.PaymentMethod
+			, covi_account4j_si.Fn_GetBaseCodeName('PayType', VDA.PaymentCondition, #{companyCode}) PaymentConditionName
+			, covi_account4j_si.Fn_GetBaseCodeName('PayMethod', VDA.PaymentMethod, #{companyCode}) PaymentMethodName
+			, VDA.VendorStatus
+			, VDA.IncomTax
+			, VDA.LocalTax			
+			, covi_account4j_si.Fn_GetBaseCodeName('WHTax', VDA.IncomTax, #{companyCode}) IncomTaxName
+			, covi_account4j_si.Fn_GetBaseCodeName('WHTax', VDA.LocalTax, #{companyCode}) LocalTaxName
+			
+			, VDA.ModifyDate AS ModifyDate
+			, VDA.RegistDate AS RegistDate
+			, SOU.DisplayName RegisterName
+		FROM covi_account4j_si.act_vendor_application VDA 
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU
+			ON VDA.RegisterID = SOU.UserCode
+	
+		WHERE 1=1
+		AND VDA.VendorApplicationID = #{VendorApplicationID}		
+	</select>
+	
+	
+	<insert id="insertVendorApplication" parameterType="cmap">
+	<![CDATA[
+ 		/*
+ 			baseInfo.insertVendorApplication
+ 			거래처 신청 등록 
+ 		*/
+		INSERT INTO covi_account4j_si.act_vendor_application
+		(
+			CompanyCode
+			, ApplicationTitle
+			, ApplicationType
+			, IsNew
+			, ApplicationStatus
+			, VendorNo
+			, BusinessNumber
+			, CorporateNo
+			, VendorName
+			, CEOName
+			, Industry
+			, Sector
+			, Address
+			, PaymentCondition
+			, PaymentMethod
+			, VendorStatus
+			, IncomTax
+			, LocalTax
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			 #{CompanyCode}
+			, #{ApplicationTitle}
+			, #{ApplicationType}
+			, #{IsNew}
+			, #{ApplicationStatus}
+			, #{VendorNo}
+			, #{VendorNo}
+			, #{CorporateNo}
+			, #{VendorName}
+			, #{CEOName}
+			, #{Industry}
+			, #{Sector}
+			, #{Address}
+			, #{PaymentCondition}
+			, #{PaymentMethod}
+			, #{VendorStatus}
+			, #{IncomTax}
+			, #{LocalTax}
+
+			, #{SessionUser}
+			, NOW(3)
+			, #{SessionUser}
+			, NOW(3)
+		)
+	]]>
+	
+	<selectKey keyProperty="VendorApplicationID" resultType="Integer" order="AFTER">
+	    SELECT LAST_INSERT_ID();
+	</selectKey>
+	</insert>
+	
+	<update id="updateVendorApplication" parameterType="cmap">	
+ 		/*
+ 			baseInfo.updateVendorApplication
+ 			거래처신처 수정
+ 		*/
+		UPDATE covi_account4j_si.act_vendor_application
+		SET CompanyCode = #{CompanyCode}
+			, ApplicationTitle = #{ApplicationTitle}
+			, IsNew = #{IsNew}
+			<if test="ApplicationType != null and ApplicationType != ''">
+				, ApplicationType = #{ApplicationType}
+			</if>
+			, ApplicationStatus = #{ApplicationStatus}
+			
+			, VendorNo = #{VendorNo}
+			, BusinessNumber = #{VendorNo}
+			, CorporateNo = #{CorporateNo}
+			, VendorName = #{VendorName}
+			, CEOName = #{CEOName}
+			, Industry = #{Industry}
+			, Sector = #{Sector}
+			, Address = #{Address}
+			, PaymentCondition = #{PaymentCondition}
+			, PaymentMethod = #{PaymentMethod}
+			, VendorStatus = #{VendorStatus}
+			, IncomTax = #{IncomTax}
+			, LocalTax = #{LocalTax}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE VendorApplicationID = #{VendorApplicationID}	
+	</update>
+	
+	<delete id="deleteVendorRequestBank" parameterType="cmap">
+	    /*
+	    	baseInfo.deleteVendorBank
+	    	거래처 은행정보 삭제
+	    */
+	    DELETE FROM covi_account4j_si.act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+	</delete>
+	 	
+	<insert id="insertVendorRequestBank" parameterType="cmap">
+	    /*
+	    	baseInfo.insertVendorBank
+	    	거래처 은행정보 등록
+	    */
+	    INSERT INTO covi_account4j_si.act_vendor_application_bank
+		(
+			VendorApplicationID,		
+			BankName,
+			BankCode,
+			BankAccountNo,
+			BankAccountName
+		)
+		VALUES
+		(
+			#{VendorApplicationID}
+			, #{BankName}
+			, #{BankCode}
+			, #{BankAccountNo}
+			, #{BankAccountName}
+		)
+	</insert> 
+	 	
+	<select id="selectVendorRequestBank" parameterType="cmap" resultType="cmap">
+	    /*
+	    	baseInfo.selectVendorRequestBank
+	    	거래처 신청 은행정보 조회
+	    */
+	   	SELECT 
+			VendorApplicationID
+			, GROUP_CONCAT(BankName SEPARATOR ',') AS BankName
+			, GROUP_CONCAT(BankCode SEPARATOR ',') AS BankCode
+			, GROUP_CONCAT(BankAccountNo SEPARATOR ',') AS BankAccountNo
+			, GROUP_CONCAT(BankAccountName SEPARATOR ',') AS BankAccountName
+		FROM covi_account4j_si.act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+	</select>
+	
+	<select id="selectVendorRequestDeleteCk" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorRequestDeleteCk
+ 			거래처 목록 조회
+ 		*/
+		SELECT 		
+			COUNT(*)
+		FROM covi_account4j_si.act_vendor_application
+		WHERE 1=1
+		AND 
+		<choose>
+			<when test="vdAppList != null">
+				<foreach collection="vdAppList" item="item" index="index" separator="," open="VendorApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+		AND ApplicationStatus NOT IN ('T', 'R')
+	</select>
+	
+	
+
+	<delete id="deleteVendorRequestList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteVendorRequestList
+ 			거래처 목록삭제
+ 		*/
+		DELETE FROM covi_account4j_si.act_vendor_application
+		WHERE 
+		<choose>
+			<when test="vdAppList != null">
+				<foreach collection="vdAppList" item="item" index="index" separator="," open="VendorApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+		AND ApplicationStatus IN ('T', 'R')
+	</delete>	
+	
+	
+	<update id="vendAprvStatChange" parameterType="cmap">
+ 		/*
+ 			baseInfo.vendAprvStatChange
+ 			업체신청 승인반려
+ 		*/
+		UPDATE covi_account4j_si.act_vendor_application
+		SET 
+			ApplicationStatus = #{ApplicationStatus}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE VendorApplicationID = #{VendorApplicationID}
+	</update>
+	
+	
+	 <select id="selectVendorReqAprvStatck" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorReqAprvStatck
+			거래처 신청 결재 처리전 상태체크
+ 		*/
+ 			SELECT	COUNT(*)
+			FROM covi_account4j_si.act_vendor_application VDA
+			WHERE 1=1
+			 	AND 
+			 	<choose>
+					<when test="VendorApplicationIDList != null">
+						<foreach collection="VendorApplicationIDList" item="item" index="index" separator="," open="VDA.VendorApplicationID IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+					<otherwise>
+						1=2
+					</otherwise>
+				</choose>
+			 	<choose>
+					<when test="ckStatList != null">
+						AND 
+						<foreach collection="ckStatList" item="item" index="index" separator="," open="VDA.ApplicationStatus NOT IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+				</choose>
+	</select>	
+	
+	
+	 <select id="selectVendorReqInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorReqInfoAfterAprv
+			거래처 신청 승인 후 후처리용 조회
+ 		*/
+ 			SELECT	VDA.VendorApplicationID	
+				, VDA.ApplicationTitle
+				, VDA.ApplicationType
+				, VDA.CompanyCode
+				, VDA.VendorNo
+				, VDA.CorporateNo
+				, VDA.VendorName
+				, VDA.CEOName
+				, VDA.Industry
+				, VDA.Sector
+				, VDA.Address
+				, VDA.PaymentCondition
+				, VDA.PaymentMethod
+				, VDA.VendorStatus
+				, VDA.IncomTax
+				, VDA.LocalTax
+				, VDA.IsNew
+				, VDA.Comment
+		FROM covi_account4j_si.act_vendor_application VDA
+		WHERE 1=1
+		 	AND VDA.VendorApplicationID = #{VendorApplicationID}
+	</select>	
+	 
+	
+	 <select id="selectVendorReqBankInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorReqBankInfoAfterAprv
+			거래처 신청 승인 후 후처리용 은행정보 조회
+ 		*/
+ 		SELECT 
+			GROUP_CONCAT(BankCode SEPARATOR ',') AS BankCode
+			, GROUP_CONCAT(BankName SEPARATOR ',') AS BankName
+			, GROUP_CONCAT(BankAccountNo SEPARATOR ',') AS BankAccountNo
+			, GROUP_CONCAT(BankAccountName SEPARATOR ',') AS BankAccountName
+			, (SELECT VendorID FROM covi_account4j_si.act_vendor A INNER JOIN covi_account4j_si.act_vendor_application B ON A.VendorNo = B.VendorNo WHERE VendorApplicationID = #{VendorApplicationID}) AS VendorID
+		FROM covi_account4j_si.act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+ 	</select>	
+	
+	<insert id="insertVendorReqInfoAfterAprv" parameterType="cmap">
+ 		/*
+ 			baseInfo.insertVendorReqInfoAfterAprv
+			거래처 신청 승인 후 후처리
+ 		*/
+		INSERT INTO covi_account4j_si.act_vendor(
+			CompanyCode
+			, VendorType
+			, VendorNo
+			, BusinessNumber
+			, CorporateNo
+			, VendorName
+			
+			, CEOName
+			, Industry
+			, Sector
+			, Address
+			
+			, PaymentCondition
+			, PaymentMethod
+			, VendorStatus
+			
+			, IncomTax
+			, LocalTax
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES (
+		
+			#{CompanyCode}
+			, #{VendorType}
+			, #{VendorNo}
+			, #{VendorNo}
+			, #{CorporateNo}
+			, #{VendorName}
+			
+			, #{CEOName}
+			, #{Industry}
+			, #{Sector}
+			, #{Address}
+			
+			, #{PaymentCondition}
+			, #{PaymentMethod}
+			, #{VendorStatus}
+			
+			, #{IncomTax}
+			, #{LocalTax}
+			
+			, #{SessionUser}
+			, NOW(3)
+			, #{SessionUser}
+			, NOW(3)
+		)
+	<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+	    SELECT LAST_INSERT_ID();
+	</selectKey>
+	</insert>
+	
+	
+	<update id="updateVendorReqInfoAfterAprv" parameterType="cmap">
+ 		/*
+ 			baseInfo.updateVendorReqInfoAfterAprv
+ 			거래처 수정
+ 		*/
+		UPDATE covi_account4j_si.act_vendor
+		SET 
+			ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+			, VendorName = #{VendorName}
+			, CEOName = #{CEOName}
+			, Industry = #{Industry}
+			, Sector = #{Sector}
+			, Address = #{Address}
+			, PaymentCondition = #{PaymentCondition}
+			, PaymentMethod = #{PaymentMethod}
+			, VendorStatus = #{VendorStatus}
+			, IncomTax = #{IncomTax}
+			, LocalTax = #{LocalTax}	
+		WHERE 1=1
+		AND REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+		<choose>
+			<when test="ApplicationType == 'People'">
+			    AND VendorType = 'PE'
+			</when>
+			<when test="ApplicationType == 'Company'">
+			    AND VendorType = 'CO'
+			</when>
+			<when test="ApplicationType == 'Organization'">
+			    AND VendorType = 'OR'
+			</when>
+		</choose>
+	</update>
+	 
+	
+	<!-- =============================================카드신청================================= -->
+	<select id="selectCardApplicationList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationList
+ 			카드 신청 목록 조회
+ 		*/
+	<![CDATA[
+	
+		SELECT 
+			CA.CardApplicationID
+			, CA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CA.CompanyCode, #{companyCode}) CompanyName
+			, CA.ApplicationTitle
+			, CA.ApplicationClass
+			, CA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardApplicationType', CA.ApplicationType, #{companyCode}) ApplicationTypeName
+			, CA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', CA.ApplicationStatus, #{companyCode}) ApplicationStatusName
+			
+			, CONCAT('**********', SUBSTRING(CA.CardNo,11)) CardNo
+			/*
+			
+			, CONCAT('****-****-**', SUBSTRING(CA.CardNo,11,2), '-', SUBSTRING(CA.CardNo,14,4)) CardNo
+			*/
+			
+			, CA.CardCompany
+			, covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CA.CardCompany, #{companyCode}) CardCompanyName
+			, CA.LimitType
+			, CA.LimitAmountType
+			, CA.LimitAmount
+			, CA.ChangeExpirationDate
+			, CA.ApplicationStartDate
+			, CA.ApplicationFinishDate
+			, CA.ApplicationAmount
+			, CA.ApplicationReason
+			, CA.IsUse
+			, CA.RegisterID
+			, CA.ModifierID
+			, CA.ModifyDate AS ModifyDate
+			, CA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_card_application CA 
+	
+		WHERE 1=1
+		]]>
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER(CONCAT('%',#{searchApplicationTitle},'%')) 
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%')) 
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,CA.RegistDate DESC 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>ApplicationTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>ApplicationStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>ApplicationTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>CardCompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>		
+	</select>
+	
+	<select id="selectCardApplicationListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationListExcel
+ 			카드 신청 목록 조회
+ 		*/
+	
+		SELECT 
+			CA.CardApplicationID
+			, CA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CA.CompanyCode, #{companyCode}) CompanyName
+			, CA.ApplicationTitle
+			, CA.ApplicationClass
+			, CA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardApplicationType', CA.ApplicationType, #{companyCode}) ApplicationTypeName
+			, CA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', CA.ApplicationStatus, #{companyCode}) ApplicationStatusName
+			
+			, CONCAT('**********', SUBSTRING(CA.CardNo,11)) CardNo
+			
+			, CA.CardCompany
+			, covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CA.CardCompany, #{companyCode}) CardCompanyName
+			, CA.LimitType
+			, CA.LimitAmountType
+			, CA.LimitAmount
+			, CA.ChangeExpirationDate
+			, CA.ApplicationStartDate
+			, CA.ApplicationFinishDate
+			, CA.ApplicationAmount
+			, CA.ApplicationReason
+			, CA.IsUse
+			, CA.RegisterID
+			, CA.ModifierID
+			, CA.ModifyDate AS ModifyDate
+			, CA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_card_application CA 
+	
+		WHERE 1=1
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER(CONCAT('%',#{searchApplicationTitle},'%'))
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%'))
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+	</select>
+	<select id="selectCardApplicationListCnt" resultType="java.lang.Long">
+ 		/* 
+ 			baseInfo.selectCardApplicationListCnt
+ 			카드 신청 카운트
+ 		*/
+		SELECT COUNT(*)
+		FROM covi_account4j_si.act_card_application CA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER(CONCAT('%',#{searchApplicationTitle},'%'))
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%'))
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+	</select>
+	<select id="selectCompanyCardComboList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCompanyCardComboList
+ 			법인카드 목록
+ 		*/
+		SELECT CoCa.CorpCardID
+			, CoCa.CompanyCode
+			, CoCa.CardNo
+			, CONCAT('**********', SUBSTRING(CoCa.CardNo,11))  CardNoView
+			, CoCa.CardCompany
+			, CoCa.CardClass
+			, CoCa.CardStatus
+			, CoCa.OwnerUserCode
+			, CoCa.VendorNo
+			, CoCa.IssueDate
+			, CONCAT(SUBSTRING(CoCa.ExpirationDate,1,4), '/', SUBSTRING(CoCa.ExpirationDate,5,6)) ExpirationDate
+			, CoCa.LimitAmountType
+			, CoCa.LimitAmount
+			, CoCa.Note
+			, CoCa.CorpCardID data
+			, CoCa.CardNo label
+		FROM covi_account4j_si.act_corp_card CoCa
+		WHERE 1=1
+		AND CoCa.CompanyCode = #{companyCode}
+		AND (
+			(CoCa.OwnerUserCode	= #{SessionUser})
+			OR (CoCa.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{SessionUser})
+			)
+		)
+	</select>
+	<select id="selectCardApplicationDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationDetail
+ 			카드신청 상세
+ 		*/
+		
+		SELECT 
+			CA.CardApplicationID
+			, CA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CA.CompanyCode, CA.CompanyCode) CompanyName
+			, CA.ApplicationTitle
+			, CA.ApplicationClass
+			, CA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardApplicationType', CA.ApplicationType, CA.CompanyCode) ApplicationTypeName
+			, CA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', CA.ApplicationStatus, CA.CompanyCode) ApplicationStatusName
+			, CA.CardNo
+			, CONCAT('**********', SUBSTRING(CA.CardNo,11)) CardNoEncrypt
+			
+			, CONCAT(SUBSTRING(CC.ExpirationDate,1,4), '/', SUBSTRING(CC.ExpirationDate,5,6)) ExpirationDate
+			, CC.LimitAmount CurrentAmount
+			
+			, CA.CardCompany
+			, covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CA.CardCompany, CA.CompanyCode) CardCompanyName
+			, CA.ReissuanceType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardReissueType', CA.ReissuanceType, CA.CompanyCode) ReissuanceTypeName
+			, CA.LimitType
+			, CA.LimitAmountType
+			, CA.LimitAmount
+			, covi_account4j_si.Fn_GetBaseCodeName('CardLimitType', CA.LimitType, CA.CompanyCode) LimitTypeName
+			, covi_account4j_si.Fn_GetBaseCodeName('CardLimitAmount', CA.LimitAmountType, CA.CompanyCode) LimitAmountTypeName
+			, DATE_FORMAT(CA.ChangeExpirationDate, '%Y.%m.%d') ChangeExpirationDate
+			, DATE_FORMAT(CA.ApplicationStartDate, '%Y.%m.%d') ApplicationStartDate
+			, DATE_FORMAT(CA.ApplicationFinishDate, '%Y.%m.%d') ApplicationFinishDate
+			, CA.ApplicationAmount
+			, CA.ApplicationReason
+			, CA.IsUse
+			, CA.RegisterID
+			, SOU.DisplayName RegisterName
+			, CA.ModifierID
+			, CA.ModifyDate AS ModifyDate
+			, CA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_card_application CA 
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN covi_account4j_si.act_corp_card CC
+			ON CA.CardNo = CC.CardNo
+		WHERE 1=1
+		AND CA.CardApplicationID = #{CardApplicationID}
+	</select>
+	
+	<select id="selectPrivateCardDuplCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectPrivateCardDuplCnt
+ 			개인카드 신청시 중복체크
+ 		*/
+			SELECT (A.CCCNT + B.CACNT) AS DUPLCNT
+			FROM
+			(
+				SELECT COUNT(*) CCCNT
+				FROM covi_account4j_si.act_corp_card CC
+				WHERE CC.CardNo = #{CardNo}
+				AND CC.CardClass = 'CCL01'
+			) A
+			JOIN
+			(
+				SELECT COUNT(*) CACNT
+				FROM covi_account4j_si.act_card_application CA
+				WHERE CA.CardNo = #{CardNo}
+				AND CA.ApplicationClass = 'PE'
+				AND ApplicationStatus NOT IN ('E', 'R')
+				AND CA.CardApplicationID NOT IN (#{CardApplicationID})
+			) B
+			ON 1=1
+	</select>
+	
+	<insert id="insertCardApplication" parameterType="cmap">
+	<![CDATA[
+ 		/*
+ 			baseInfo.insertCardApplication
+ 			카드신청 등록 
+ 		*/
+		INSERT INTO covi_account4j_si.act_card_application
+		(
+			CompanyCode
+			, ApplicationTitle
+			, ApplicationClass
+			, ApplicationType
+			, ApplicationStatus
+			, CardNo
+			, CardCompany
+			, ReissuanceType
+			, LimitType
+			, LimitAmountType
+			, LimitAmount
+			, ChangeExpirationDate
+			, ApplicationStartDate
+			, ApplicationFinishDate
+			, ApplicationAmount
+			, ApplicationReason
+			, IsUse
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			#{CompanyCode}
+			, #{ApplicationTitle}
+			, #{ApplicationClass}
+			, #{ApplicationType}
+			, #{ApplicationStatus}
+			, #{CardNo}
+			, #{CardCompany}
+			, #{ReissuanceType}
+			, #{LimitType}
+			, #{LimitAmountType}
+			, #{LimitAmount}
+			, DATE_FORMAT(IF(CAST(#{ChangeExpirationDate} AS CHAR(8)) = '', NULL, #{ChangeExpirationDate}), '%Y%m%d')
+			, DATE_FORMAT(IF(CAST(#{ApplicationStartDate} AS CHAR(8)) = '', NULL, #{ApplicationStartDate}), '%Y%m%d')
+			, DATE_FORMAT(IF(CAST(#{ApplicationFinishDate} AS CHAR(8)) = '', NULL, #{ApplicationFinishDate}), '%Y%m%d')
+			, #{ApplicationAmount}
+			, #{ApplicationReason}
+			, 'Y'
+
+			, #{SessionUser}
+			, NOW()
+			, #{SessionUser}
+			, NOW()
+		)
+	]]>
+	<selectKey keyProperty="CardApplicationID" resultType="Integer" order="AFTER">
+	    SELECT LAST_INSERT_ID();
+	</selectKey>
+	</insert>
+	
+	<update id="updateCardApplication" parameterType="cmap">
+ 		/*
+ 			baseInfo.updateCardApplication
+ 			카드신청 수정
+ 		*/
+		UPDATE covi_account4j_si.act_card_application
+		SET 
+			CompanyCode = #{CompanyCode}
+			, ApplicationTitle = #{ApplicationTitle}
+			, ApplicationClass = #{ApplicationClass}
+			, ApplicationType = #{ApplicationType}
+			, ApplicationStatus = #{ApplicationStatus}
+			, CardNo = #{CardNo}
+			, CardCompany = #{CardCompany}
+			, ReissuanceType = #{ReissuanceType}
+			, LimitType = #{LimitType}
+			, LimitAmountType = #{LimitAmountType}
+			, LimitAmount = #{LimitAmount}
+			, ChangeExpirationDate = DATE_FORMAT(IF(CAST(#{ChangeExpirationDate} AS CHAR(8)) = '', NULL, #{ChangeExpirationDate}), '%Y%m%d')
+			, ApplicationStartDate = DATE_FORMAT(IF(CAST(#{ApplicationStartDate} AS CHAR(8)) = '', NULL, #{ApplicationStartDate}), '%Y%m%d')
+			, ApplicationFinishDate = DATE_FORMAT(IF(CAST(#{ApplicationFinishDate} AS CHAR(8)) = '', NULL, #{ApplicationFinishDate}), '%Y%m%d')
+			, ApplicationAmount = #{ApplicationAmount}
+			, ApplicationReason = #{ApplicationReason}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+	<delete id="deleteCardApplicationList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteVendorList
+ 			카드신청 목록삭제
+ 		*/
+		DELETE FROM covi_account4j_si.act_card_application
+		WHERE 
+		<choose>
+			<when test="cardAppList != null">
+				<foreach collection="cardAppList" item="item" index="index" separator="," open="CardApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+	</delete>  
+	
+	<select id="selectPrivateCardInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardInfoAfterAprv
+			개인카드 신청 승인후 카드정보 삽입 정보조회
+ 		*/
+ 		
+ 		
+		SELECT CardApplicationID
+			, ApplicationTitle
+			, CompanyCode
+			, CardNo
+			, CardCompany
+			, ApplicationType
+			, 'CCL01'
+			, 'CSTS01'
+			, RegisterID
+		FROM
+		covi_account4j_si.act_card_application ACA
+		WHERE 
+			ACA.CardApplicationID = #{CardApplicationID}
+	</select>	
+	
+	<insert id="insertPrivateCardInfoAfterAprv" parameterType="cmap">
+		/*
+		baseInfo.insertPrivateCardInfoAfterAprv
+		개인카드 신청 승인후 카드정보 삽입
+		*/
+		INSERT INTO covi_account4j_si.act_corp_card(
+				 CompanyCode
+				, CardNo
+				, CardCompany
+				, CardClass
+				, CardStatus
+				, OwnerUserCode
+				, IssueDate
+				, RegisterID
+				, RegistDate
+				, ModifierID
+				, ModifyDate
+		)
+		SELECT 
+			CompanyCode
+			, CardNo
+			, CardCompany
+			, 'CCL01'
+			, 'CSTS01'
+			, RegisterID
+			, DATE_FORMAT( NOW(3), '%Y%m%d')
+			, RegisterID
+			, NOW(3)
+			, RegisterID
+			, NOW(3)
+		FROM covi_account4j_si.act_card_application ACA
+		WHERE  ACA.CardApplicationID = #{CardApplicationID}
+	</insert>
+	
+	<!-- =============================================카드신청================================= -->
+	<select id="selectPrivateCardViewList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardViewList
+ 			개인카드 목록
+ 		*/
+	
+		SELECT 
+			CA.CardApplicationID
+			, CA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CA.CompanyCode, #{searchCompanyCode}) CompanyName
+			, CA.ApplicationTitle
+			, CA.ApplicationClass
+			, CA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardApplicationType', CA.ApplicationType, #{searchCompanyCode}) ApplicationTypeName
+			, CA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', CA.ApplicationStatus, #{searchCompanyCode}) ApplicationStatusName
+			, CA.CardNo
+			, CA.CardCompany
+			, covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CA.CardCompany, #{searchCompanyCode}) CardCompanyName
+			, CA.LimitType
+			, CA.LimitAmountType
+			, CA.LimitAmount
+			, CA.ChangeExpirationDate
+			, CA.ApplicationStartDate
+			, CA.ApplicationFinishDate
+			, CA.ApplicationAmount
+			, CA.ApplicationReason
+			, CA.IsUse
+			, covi_account4j_si.Fn_GetBaseCodeName('UseYN', CA.IsUse, #{searchCompanyCode}) IsUseView
+			, CA.RegisterID
+			, SOU.DisplayName RegisterName
+			, CA.ModifierID
+			, CA.ModifyDate AS ModifyDate
+			, CA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_card_application CA 
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		WHERE 1=1
+			AND CA.ApplicationClass = 'PE'
+			
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%')) 
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER(CONCAT('%',#{searchIsUse},'%')) 
+		</if>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>		
+	</select>  
+	<select id="selectPrivateCardViewListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardViewListExcel
+ 			개인카드 목록 엑셀용
+ 		*/
+	
+		SELECT 
+			CA.CardApplicationID
+			, CA.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CA.CompanyCode, #{searchCompanyCode}) CompanyName
+			, CA.ApplicationTitle
+			, CA.ApplicationClass
+			, CA.ApplicationType
+			, covi_account4j_si.Fn_GetBaseCodeName('CardApplicationType', CA.ApplicationType, #{searchCompanyCode}) ApplicationTypeName
+			, CA.ApplicationStatus
+			, covi_account4j_si.Fn_GetBaseCodeName('ApplicationStatus', CA.ApplicationStatus, #{searchCompanyCode}) ApplicationStatusName
+			, CA.CardNo
+			, CA.CardCompany
+			, covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CA.CardCompany, #{searchCompanyCode}) CardCompanyName
+			, CA.LimitType
+			, CA.LimitAmountType
+			, CA.LimitAmount
+			, CA.ChangeExpirationDate
+			, CA.ApplicationStartDate
+			, CA.ApplicationFinishDate
+			, CA.ApplicationAmount
+			, CA.ApplicationReason
+			, CA.IsUse
+			, covi_account4j_si.Fn_GetBaseCodeName('UseYN', CA.IsUse, #{searchCompanyCode}) IsUseView
+			, CA.RegisterID
+			, SOU.DisplayName RegisterName
+			, CA.ModifierID
+			, CA.ModifyDate AS ModifyDate
+			, CA.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_card_application CA 
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		WHERE 1=1
+			AND CA.ApplicationClass = 'PE'
+			
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%'))
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER(CONCAT('%',#{searchIsUse},'%'))
+		</if>
+		
+	</select>
+	
+	<select id="selectPrivateCardViewListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectPrivateCardViewListCnt
+ 			개인카드 목록
+ 		*/
+		
+		SELECT COUNT(*)
+		FROM covi_account4j_si.act_card_application CA 
+	
+		WHERE 1=1
+		
+			AND CA.ApplicationClass = 'PE'
+	  
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER(CONCAT('%',#{searchCardNo},'%'))
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER(CONCAT('%',#{searchIsUse},'%'))
+		</if>
+	</select>
+	 
+	<update id="updatePrivateCardUseYN" parameterType="cmap">
+ 		/*
+ 			baseInfo.updatePrivateCardUseYN
+ 			개인카드 사용여부 수정
+ 		*/
+		UPDATE covi_account4j_si.act_card_application
+		SET 
+			IsUse = #{IsUse}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+	 <select id="selectCardReqAprvStatck" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorReqAprvStatck
+			카드 신청 결재 처리전 상태체크
+ 		*/
+		SELECT	COUNT(*)
+		FROM covi_account4j_si.act_card_application VDA
+		WHERE 1=1
+	 	AND 
+	 	<choose>
+			<when test="CardApplicationIDList != null">
+				<foreach collection="CardApplicationIDList" item="item" index="index" separator="," open="VDA.CardApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+		<choose>
+		<when test="ckStatList != null">
+				AND 
+				<foreach collection="ckStatList" item="item" index="index" separator="," open="VDA.ApplicationStatus NOT IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+		</choose>
+	</select>	
+		 
+	<update id="cardAprvStatChange" parameterType="cmap">
+ 		/*
+ 			baseInfo.cardAprvStatChange
+ 			개인카드 상태값 수정
+ 		*/
+		UPDATE covi_account4j_si.act_card_application
+		SET 
+			ApplicationStatus = #{ApplicationStatus}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = NOW(3)
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+	<select id="getVendorInterfaceSaveCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_vendor
+		WHERE	REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+	</select>
+	
+	<insert id="vendorInterfaceInsert" parameterType="cmap" >
+		/*
+			account.baseInfo.vendorInterfaceInsert
+		*/
+		INSERT INTO covi_account4j_si.act_vendor (
+			   	CompanyCode,		VendorType,			VendorNo
+			,	CorporateNo,		VendorName,			CEOName
+			,	Industry,			Sector,				Address
+			,	BankName,			BankAccountNo,		BankAccountName
+			,	PaymentCondition,	PaymentMethod,		VendorStatus
+			,	IncomTax,			LocalTax,			CurrencyCode
+			,	RegisterID,	RegistDate,	ModifierID,	ModifyDate
+		) VALUES (
+				#{companyCode},			#{vendorType},		#{vendorNo}
+			,	#{corporateNo},			#{vendorName},		#{cEOName}
+			,	#{industry},			#{sector},			#{address}
+			,	#{bankName},			#{bankAccountNo},	#{bankAccountName}
+			,	#{paymentCondition},	#{paymentMethod},	#{vendorStatus}
+			,	#{incomTax},			#{localTax},		#{currencyCode}
+			,	#{UR_Code},	NOW(3),	#{UR_Code},	NOW(3)
+		)
+	</insert>
+	
+	<update id="vendorInterfaceUpdate" parameterType="cmap" >
+		/*
+			account.baseInfo.vendorInterfaceUpdate
+		*/
+		UPDATE covi_account4j_si.act_vendor
+			SET
+				CompanyCode			= #{companyCode}
+			,	VendorType			= #{vendorType}
+			,	CorporateNo			= #{corporateNo}
+			,	VendorName			= #{vendorName}
+			,	CEOName				= #{cEOName}
+			,	Industry			= #{industry}
+			,	Sector				= #{sector}
+			,	Address				= #{address}
+			,	BankName			= #{bankName}
+			,	BankAccountNo		= #{bankAccountNo}
+			,	BankAccountName		= #{bankAccountName}
+			,	PaymentCondition	= #{paymentCondition}
+			,	PaymentMethod		= #{paymentMethod}
+			,	VendorStatus		= #{vendorStatus}
+			,	IncomTax			= #{incomTax}
+			,	LocalTax			= #{localTax}
+			,	CurrencyCode		= #{currencyCode}
+		WHERE	REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+	</update>
+	
+	<select id="getVendorBankInterfaceSaveCnt" resultType="cmap">
+		SELECT VendorID AS "VendorID" 
+		FROM covi_account4j_si.act_vendor  
+		WHERE VendorNo = #{vendorNo}
+	</select>
+	
+	<insert id="vendorBankInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.act_vendor_bank
+		(
+			VendorID,
+			BankCode,
+			BankName,
+			BankAccountNo,
+			BankAccountName,
+			BankCountryKey
+		)
+		VALUES
+		(
+			#{vendorID}
+			, #{bankCode}
+			, #{bankName}
+			, #{bankAccountNo}
+			, #{bankAccountName}
+			, #{bankCountryKey}
+		)
+	</insert>
+	
+	<delete id="vendorBankInterfaceDelete" parameterType="cmap" >
+		DELETE FROM covi_account4j_si.act_vendor_bank
+		WHERE VendorID = #{vendorID}
+	</delete>
+	
+	<select id="chkCompanyCodeCntExcel" resultType="java.lang.Long">
+		/*
+ 			baseInfo.chkCompanyCodeCntExcel
+ 			회사코드 검색
+ 		*/
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_base_code
+		WHERE CodeGroup = 'CompanyCode' 
+			AND 
+			<choose>
+				<when test="companyCodes != null">
+					<foreach collection="companyCodes" item="item" index="index" separator="," open="Code IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+		AND CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="chkVendorNoCntExcel" resultType="java.lang.Long">
+		/*
+ 			baseInfo.chkVendorNoCntExcel
+ 			사업자번호 체크
+ 		*/
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_vendor
+		WHERE 	REPLACE(VendorNo, '-', '') = REPLACE(#{vendorNo}, '-', '')
+		AND CompanyCode = #{companyCode}
+	</select>
+	
+	<insert id="insertVendorExcel" parameterType="cmap">
+	<![CDATA[
+ 		/*
+ 			baseInfo.insertVendorExcel
+ 			엑셀 거래처 등록 
+ 		*/
+		INSERT INTO covi_account4j_si.act_vendor
+		(
+			CompanyCode
+			, VendorType
+			, VendorNo
+			, BusinessNumber
+			, CorporateNo
+			, VendorName
+			, CEOName
+			, Industry
+			, Sector
+			, Address
+			, PaymentCondition
+			, PaymentMethod
+			, VendorStatus
+			, IncomTax
+			, LocalTax
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			 (SELECT BC.Code 
+				FROM covi_account4j_si.act_base_code BC
+				WHERE CodeGroup = 'CompanyCode'
+				AND CodeName = #{companyName}
+				AND CompanyCode = #{userCompanyCode})
+			, #{vendorType}
+			, #{vendorNo}
+			, #{vendorNo}
+			, #{corporateNo}
+			, #{vendorName}
+			, #{CEOName}
+			, #{industry}
+			, #{sector}
+			, #{address}
+			, #{paymentCondition}
+			, #{paymentMethod}
+			, #{vendorStatus}
+			, #{incomTax}
+			, #{localTax}
+			, #{SessionUser}
+			, NOW(3)
+			, #{SessionUser}
+			, NOW(3)
+		)
+	]]>
+    	<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<update id="updateVendorExcel" parameterType="cmap">
+		/* baseInfo.insertVendorExcel 엑셀 거래처 수정 */
+		UPDATE
+			covi_account4j_si.act_vendor
+		SET
+			CompanyCode = (
+				SELECT 
+					BC.Code 
+				FROM 
+					covi_account4j_si.act_base_code BC
+				WHERE 
+					BC.CodeGroup = 'CompanyCode'
+					AND BC.CodeName = #{companyName}
+					AND BC.CompanyCode = #{userCompanyCode}
+			),
+			VendorType = #{vendorType}, 
+			VendorNo = #{vendorNo},
+			BusinessNumber = #{vendorNo},
+			CorporateNo = #{corporateNo},
+			VendorName = #{vendorName},
+			CEOName = #{CEOName},
+			Industry = #{industry},
+			Sector = #{sector},
+			Address = #{address},
+			PaymentCondition = #{paymentCondition},
+			PaymentMethod = #{paymentMethod},
+			VendorStatus = #{vendorStatus},
+			IncomTax = #{incomTax},
+			LocalTax = #{localTax},
+			ModifierID = #{SessionUser},
+			ModifyDate = NOW(3)
+		WHERE
+			VendorID = #{VendorID}
+	</update>
+
+	<update id="mergeVendorBusinessNumber" parameterType="cmap">
+	    MERGE INTO  covi_account4j_si.act_vendor A
+		USING   dual on   (A.VENDORNO 	= #{businessPartner})
+		WHEN MATCHED 
+		THEN
+			UPDATE SET A.BusinessNumber = #{taxNumber}
+	</update>
+</mapper>
+	

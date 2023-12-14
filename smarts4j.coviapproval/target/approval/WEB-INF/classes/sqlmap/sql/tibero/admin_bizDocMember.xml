@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.bizDocMember">
+   <select id="selectBizDocgrid" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/>
+		  SELECT BD.EntCode AS "EntCode"
+		  			,Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS "EntName"
+		  			,BD.BizDocCode AS "BizDocCode"
+					,BD.BizDocID AS "BizDocID"
+					,BD.BizDocName AS "BizDocName"
+			        ,BD.BizDocType AS "BizDocType"
+			        ,(SELECT CodeName FROM sys_base_code WHERE Code = BizDocType AND CodeGroup = 'JobFunctionType') AS "BizDocTypeName"
+					,BD.Description AS "Description"
+					,BD.SortKey AS "SortKey"
+					,TO_CHAR(BD.InsertDate, 'YYYY-MM-DD HH24:MI') AS "InsertDate"
+					,BD.IsUse AS "IsUse"
+					,BDM.UR_Name AS "UR_Name"
+					,BDF.FormName AS "FormName"					
+			FROM jwf_bizdoc BD
+			LEFT OUTER JOIN (
+				SELECT A.BizDocID, LISTAGG(B.DisplayName,',') within group (ORDER BY B.DisplayName) AS UR_Name
+				from jwf_bizdocmember A
+				INNER JOIN sys_object_user B	ON A.UserCode = B.UserCode
+				GROUP BY A.BizDocID
+			) BDM ON BD.BizDocID = BDM.BizDocID
+			LEFT OUTER JOIN (
+				SELECT BDF.BizDocID,LISTAGG(Fn_BaseGetDictionary_S(#{lang}, BDF.FormName),',') within group (ORDER BY BDF.FormName) AS FormName 
+				FROM jwf_bizdocform BDF
+				GROUP BY BDF.BizDocID
+			) BDF ON BD.BizDocID = BDF.BizDocID
+			LEFT OUTER JOIN sys_object_domain D
+			ON D.DomainCode = BD.EntCode 
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test=" search != null and search != '' ">
+				    AND 
+				    <choose>
+						<when test='sel_Search.equalsIgnoreCase("BizDocCode")'>BizDocCode</when>
+						<otherwise>BizDocName</otherwise>
+					</choose> 
+				    LIKE '%'||#{search}||'%'
+				</if>					
+				 <if test="BizDocType != null and BizDocType != ''">
+				 	AND BD.BizDocType = #{BizDocType}
+				 </if>	
+				 <if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND DomainId = #{EntCode}
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						BizDocCode LIKE '%'||#{icoSearch}||'%' 			OR 
+						BizDocName LIKE '%'||#{icoSearch}||'%' 	   
+					)
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("BizDocName")'>BD.BizDocName</when>
+						<when test='sortColumn.equalsIgnoreCase("BizDocCode")'>BD.BizDocCode</when>
+						<when test='sortColumn.equalsIgnoreCase("Description")'>BD.Description</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>BDF.FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("BizDocTypeName")'>BD.BizDocType</when>
+						<when test='sortColumn.equalsIgnoreCase("UR_Name")'>BDM.UR_Name</when>
+						<when test='sortColumn.equalsIgnoreCase("InsertDate")'>BD.InsertDate</when>
+						<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+						<otherwise>BD.SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					BD.SortKey ASC
+			   </if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectBizDocgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+		  (SELECT 		BD.EntCode
+		  				,D.DomainId
+		  				,BD.BizDocCode
+						,BD.BizDocID
+						,BD.BizDocName
+				        ,BD.BizDocType
+						,BD.Description
+						,BD.SortKey
+						,TO_CHAR(BD.InsertDate, 'YYYY-MM-DD HH24:MI') AS "InsertDate"
+						,BD.IsUse
+						,BDM.UR_Name
+						,BDF.FormName							
+				FROM jwf_bizdoc BD
+			LEFT OUTER JOIN (
+				SELECT A.BizDocID, LISTAGG(B.DisplayName,',') within group (ORDER BY B.DisplayName) AS UR_Name
+				from jwf_bizdocmember A
+				INNER JOIN sys_object_user B	ON A.UserCode = B.UserCode
+				GROUP BY A.BizDocID
+			) BDM ON BD.BizDocID = BDM.BizDocID
+			LEFT OUTER JOIN (
+				SELECT BDF.BizDocID,LISTAGG(BDF.FormName,',') within group (ORDER BY BDF.FormName) AS FormName 
+				FROM jwf_bizdocform BDF
+				GROUP BY BDF.BizDocID
+			) BDF ON BD.BizDocID = BDF.BizDocID
+			LEFT OUTER JOIN sys_object_domain D
+			ON D.DomainCode = BD.EntCode 
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test=" search != null and search != '' ">
+					 <!-- AND ${sel_Search} LIKE '%'||REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1')||'%' -->
+				    AND 
+				    <choose>
+						<when test='sel_Search.equalsIgnoreCase("BizDocCode")'>BizDocCode</when>
+						<otherwise>BizDocName</otherwise>
+					</choose> 
+				    LIKE '%'||#{search}||'%'
+				</if>					
+				 <if test="BizDocType != null and BizDocType != ''">
+				 	AND BD.BizDocType = #{BizDocType}
+				 </if>			
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND BD.ENTCODE = #{EntCode}
+				</if>	
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						BizDocCode LIKE '%'||#{icoSearch}||'%' 			OR 
+						BizDocName LIKE '%'||#{icoSearch}||'%' 	   
+					)
+				</if>
+			</trim>
+		) A	
+	</select>
+	
+     <select id="selectBizDocData" parameterType="cmap" resultType="cmap">
+		SELECT 		BD.EntCode AS "EntCode"
+					,BD.BizDocCode AS "BizDocCode"
+					,BD.BizDocID AS "BizDocID"
+					,BD.BizDocName AS "BizDocName"
+					,BD.BizDocType AS "BizDocType"
+					,BD.Description AS "Description"
+					,BD.SortKey AS "SortKey"
+					,TO_CHAR(BD.InsertDate, 'YYYY-MM-DD HH24:MI') AS "InsertDate"
+					,BD.IsUse AS "IsUse"
+					,BDM.UR_Name AS "UR_Name"
+					,BDF.FormName AS "FormName"							
+		FROM jwf_bizdoc BD
+		LEFT OUTER JOIN(
+								SELECT A.BizDocID, LISTAGG(B.DisplayName,',') within group (ORDER BY B.DisplayName) AS UR_Name
+		 						FROM jwf_bizdocmember A
+								INNER JOIN sys_object_user B ON A.UserCode = B.UserCode
+								GROUP BY A.BizDocID) BDM ON BD.BizDocID = BDM.BizDocID
+		LEFT OUTER JOIN (
+								SELECT BDF.BizDocID,LISTAGG(BDF.FormName,',') within group (ORDER BY BDF.FormName) AS FormName 
+     			 						FROM jwf_bizdocform BDF
+								GROUP BY BDF.BizDocID) BDF ON BD.BizDocID = BDF.BizDocID
+		WHERE BD.BizDocID = #{BizDocID}
+	</select>
+    
+	<select id="duplicateBizdocCode" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) FROM jwf_bizdoc
+			WHERE BizDocCode = #{BizDocCode} 
+			AND EntCode = #{EntCode}
+		]]>
+	</select>	
+	<insert id="insertBizDoc" parameterType="cmap">
+		INSERT INTO jwf_bizdoc( 
+			EntCode
+			,BizDocCode 
+			,BizDocName
+			,BizDocType
+			,Description
+			,SortKey
+			,InsertDate
+			,IsUse
+		)
+		VALUES
+		( 
+			#{EntCode}
+	   		<choose>
+				<when test='BizDocCode != null and !BizDocCode.equalsIgnoreCase("")'>
+					, #{BizDocCode}
+				</when>
+				<otherwise>
+					, 'BIZDOC_CODE_' || jwf_bizdoc_code_seq.nextval		
+				</otherwise>
+			</choose>
+			,#{BizDocName}
+			,#{BizDocType}
+			,#{Description}
+			,#{SortKey}
+			,SYSDATE
+			,#{IsUse} 
+		)
+	</insert>
+	
+	<update id="updateBizDoc" parameterType="cmap">
+		<![CDATA[
+		UPDATE jwf_bizdoc
+		SET			
+			EntCode = #{EntCode}
+			,BizDocCode = #{BizDocCode}
+			,BizDocName = #{BizDocName}
+			,BizDocType = #{BizDocType}
+			,Description = #{Description}
+			,SortKey = 	#{SortKey}
+			,IsUse = #{IsUse}
+		WHERE BizDocID = #{BizDocID}
+		]]>
+	</update>
+	
+	<delete id="deleteBizDoc" parameterType="cmap">
+		<![CDATA[
+			DELETE FROM jwf_bizdoc		
+			WHERE BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	<delete id="deleteBizDocAfterForm" parameterType="cmap">
+	    <![CDATA[
+			DELETE FROM jwf_bizdocform		
+			WHERE	BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	<delete id="deleteBizDocAfterMember" parameterType="cmap">
+		<![CDATA[
+			DELETE FROM jwf_bizdocmember		
+			WHERE BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	 <select id="selectBizDocFormList" parameterType="cmap" resultType="cmap">
+	     <include refid="oracle.include.pagingHeader"/>
+		     SELECT BizDocFormID AS "BizDocFormID"
+						, BizDocID AS "BizDocID"
+						, SortKey AS "SortKey"
+						, FormPrefix AS "FormPrefix"
+						, FormName AS "FormName"		
+			FROM jwf_bizdocform 	
+			WHERE BizDocID = #{bizDocID}
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<otherwise>FormName</otherwise>
+				</choose> 
+				LIKE '%'||#{searchWord}||'%'
+			</if>					
+			<!-- ORDER BY 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<otherwise>SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					SortKey ASC
+			   </if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+    
+    <select id="selectBizDocFormListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	    SELECT COUNT(*)		
+		FROM jwf_bizdocform 	
+		WHERE BizDocID = #{bizDocID}
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+				<otherwise>FormName</otherwise>
+			</choose> 
+			LIKE '%'||#{searchWord}||'%'
+		</if>					
+	</select>
+	
+     <!-- 양식 목록 조회 -->
+    <select id="selectBizDocSelOrginFormgridCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT Count(1) FROM (
+			SELECT F.FormPrefix, Count(1) FROM jwf_forms F
+				JOIN jwf_formclass FC
+				ON fc.formclassid = F.formclassid
+			WHERE 1=1
+			<if test="bizEntCode!='ORGROOT'">
+				AND COMPANYCODE IN ('ORGROOT', #{bizEntCode})
+			</if>	
+			AND NOT EXISTS (
+				SELECT 'X' FROM jwf_bizdocform SUB
+				WHERE SUB.FORMPREFIX = F.FORMPREFIX 
+				AND SUB.BizDocID = #{bizDocID}
+			)
+			<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+           		AND 
+           		<choose>
+					<when test='SearchType.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='SearchType.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+           		</choose>
+          			like '%' || #{SearchWord} || '%'
+			</if>
+			GROUP BY F.FormPrefix, F.FormID
+		) Sub
+	</select>
+    <select id="selectBizDocSelOrginFormgrid" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT F.FormName AS "FormName"
+			 , F.FormPrefix AS "FormPrefix"
+			 , F.FormID AS "FormID"
+			 , FC.FormClassName AS "FormClassName"
+		FROM jwf_forms F
+			JOIN jwf_formclass FC
+			ON FC.formclassid = F.formclassid
+		WHERE 1=1 
+		<if test="bizEntCode!='ORGROOT'">
+			AND COMPANYCODE IN ('ORGROOT', #{bizEntCode})
+		</if>
+		AND NOT EXISTS (
+			SELECT 'X' FROM jwf_bizdocform SUB
+			WHERE SUB.FORMPREFIX = F.FORMPREFIX 
+			AND SUB.BizDocID = #{bizDocID}
+		) 
+		<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+           	AND 
+           	<choose>
+				<when test='SearchType.equalsIgnoreCase("FormName")'>F.FormName</when>
+				<when test='SearchType.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+           	</choose>
+        		like '%' || #{SearchWord} || '%'
+		</if>
+		GROUP BY F.FormPrefix, F.FormID, F.FormName, FC.FormClassName, F.SortKey
+		<!-- ORDER BY 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("FormClassName")'>FC.FormClassName</when>
+					<otherwise>F.SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+			     F.SortKey ASC
+		   </if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+    
+    <insert id="insertBizDocForm" parameterType="cmap">
+		INSERT INTO jwf_bizdocform( BizDocID, SortKey, FormPrefix, FormName, FormID )
+		VALUES( #{BizDocID}, #{SortKey}, #{FormPrefix}, #{FormName}, #{FormID}	)
+	</insert>
+     
+    <select id="selectBizDocFormData" parameterType="cmap" resultType="cmap">
+		SELECT BizDocFormID AS "BizDocFormID"
+					,BizDocID AS "BizDocID"
+					,SortKey AS "SortKey"
+					,FormPrefix AS "FormPrefix"
+					,FormName	 AS "FormName"		
+		FROM jwf_bizdocform 
+		WHERE BizDocFormID = #{BizDocFormID}		
+	</select>
+	
+    <update id="updateBizDocForm" parameterType="cmap">
+		UPDATE jwf_bizdocform
+		SET	SortKey = #{SortKey}
+				,FormPrefix = #{FormPrefix}
+				,FormName = #{FormName}			
+		WHERE BizDocFormID = #{BizDocFormID}
+	</update>
+	
+	<delete id="deleteBizDocForm" parameterType="cmap">
+		DELETE FROM jwf_bizdocform		
+		WHERE BizDocFormID = #{BizDocFormID}
+	</delete>
+    
+	
+	 <select id="selectBizDocMembergrid" parameterType="cmap" resultType="cmap">
+	     <include refid="oracle.include.pagingHeader"/>
+     		SELECT * FROM 
+     		(
+				  	SELECT A.BizDocID AS "BizDocID"
+				  	, A.BizDocMemberID AS "BizDocMemberID"
+				  	, B.DisplayName AS "UR_Name"
+				  	, B.UserCode AS "UR_Code"
+				  	, C.DeptName AS "DEPT_NAME"
+				  	, A.SortKey AS "SortKey"
+					FROM jwf_bizdocmember A
+					INNER JOIN sys_object_user B ON A.UserCode = B.UserCode
+					INNER JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode AND C.JobType = 'Origin'
+					WHERE BizDocID = #{BizDocID}
+     		) A
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+						<when test='sel_Search.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+						<otherwise>"DEPT_NAME"</otherwise>
+					</choose> 
+					LIKE '%'||#{search}||'%'
+				</if>						
+			</trim>		
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+						<when test='sortColumn.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+						<when test='sortColumn.equalsIgnoreCase("DEPT_NAME")'>"DEPT_NAME"</when>
+						<otherwise>"SortKey"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					"SortKey" ASC
+			   </if>
+			</trim>
+	     <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    
+    <select id="selectBizDocMembergridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM 
+   		(
+		  	SELECT A.BizDocID AS "BizDocID"
+		  	, A.BizDocMemberID AS "BizDocMemberID"
+		  	, B.DisplayName AS "UR_Name"
+		  	, B.UserCode AS "UR_Code"
+		  	, C.DeptName AS "DEPT_NAME"
+		  	, A.SortKey AS "SortKey"
+			FROM jwf_bizdocmember A
+			INNER JOIN sys_object_user B ON A.UserCode = B.UserCode
+			INNER JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode AND C.JobType = 'Origin'
+			WHERE BizDocID = #{BizDocID}
+   		) A
+		<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			WHERE 
+			<choose>
+				<when test='sel_Search.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+				<when test='sel_Search.equalsIgnoreCase("UR_Code")'>"UR_Code"</when>
+				<otherwise>"DEPT_NAME"</otherwise>
+			</choose> 
+			LIKE '%'||#{search}||'%'
+		</if>				
+	</select>
+	
+    <insert id="insertBizDocMember" parameterType="cmap">
+		INSERT INTO jwf_bizdocmember(		BizDocID		,SortKey		,UserCode		)
+		VALUES(	#{BizDocID}	,#{SortKey}		,#{UserCode}	)
+	</insert>
+	
+	<update id="updateBizDocMember" parameterType="cmap">
+		UPDATE jwf_bizdocmember
+		SET SortKey = 	#{SortKey}		
+		WHERE BizDocMemberID = #{BizDocMemberID}
+	</update>
+	
+	<delete id="deleteBizDocMember" parameterType="cmap">
+		DELETE FROM jwf_bizdocmember		
+		WHERE	BizDocMemberID = #{BizDocMemberID}
+	</delete>
+	
+    <select id="selectBizDocMemberData" parameterType="cmap" resultType="cmap">
+        SELECT A.* FROM
+			  (SELECT A.BizDocID AS "BizDocID"
+			  	, A.BizDocMemberID AS "BizDocMemberID"
+			  	, B.DisplayName AS "UR_Name"
+			  	, B.UserCode AS "UR_Code"
+			  	, C.DeptName AS "DEPT_NAME"
+			  	, A.SortKey AS "SortKey"
+				FROM jwf_bizdocmember A
+				INNER JOIN sys_object_user B ON A.UserCode = B.UserCode
+				INNER JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode AND C.JobType = 'Origin'		 		
+		) A
+		WHERE "BizDocMemberID" = #{BizDocMemberID}	
+	</select>
+	
+	<select id="selectBizDocFormAllList" parameterType="cmap" resultType="cmap">
+		SELECT 	BIZDOCFORMID AS "bizDocFormID"
+				,BIZDOCID AS "bizDocID"
+				,SORTKEY AS "sotrKey"
+				,FORMPREFIX AS "formPrefix"
+				,FORMNAME AS "formName"
+				,FORMID AS "formID"
+		FROM jwf_bizdocform 
+		WHERE BizDocID = #{bizDocID}
+	</select>
+    
+</mapper>
+

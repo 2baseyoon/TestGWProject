@@ -1,0 +1,1803 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.cardReceipt">
+
+	<select id="getCardReceiptList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardReceiptList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACR.ReceiptID AS "ReceiptID"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACR.Active AS "Active"
+			,	ACR.AmountWon AS "SortAmountWon"
+			,	CASE WHEN ACR.InfoIndex = 'A' THEN '승인' WHEN ACR.InfoIndex = 'B' THEN '매입' WHEN ACR.InfoIndex = 'C' THEN '취소' WHEN ACR.InfoIndex = 'D' THEN '부분취소' END AS "InfoIndex"
+			,	CASE WHEN ACR.IsPersonalUse = 'Y' THEN 'Y' ELSE 'N' END AS "IsPersonalUse"
+			,	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode})	AS "ActiveName"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END															  AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.ApproveNo AS "CardApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	ACR.CardUserCode "CardUserCode"
+			,	USR_CUC.DisplayName		AS "CardUserName"
+			,	USR_CUD.DeptName		AS "CardUserDept"
+			,	ACR.TossSenderUserCode AS "TossSenderUserCode"
+			,	USR_TSUC.DisplayName	AS "TossSenderUserName"
+			,	ACR.TossUserCode AS "TossUserCode"
+			,	USR_TUC.DisplayName		AS "TossUserName"
+			,	ACR.TossComment AS "TossComment"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		ACC.CardClass = #{cardClass}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="infoIndex != null and infoIndex !=''">
+		AND		ACR.InfoIndex = #{infoIndex}
+		</if>
+		<if test ="isPersonalUse != null and isPersonalUse !=''">
+		AND		CASE 	WHEN #{isPersonalUse} = 'N' AND ACR.IsPersonalUse = '' 
+						THEN '' 
+						ELSE #{isPersonalUse} 
+				END = ACR.IsPersonalUse
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoIndex")'>"InfoIndex"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPersonalUse")'>"IsPersonalUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>"SortAmountWon"</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossREM")'>"TossREM"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserCode")'>"CardUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserCode")'>"TossSenderUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserName")'>"TossSenderUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>"TossUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardReceiptExcelList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardReceiptExcelList
+	    */
+		SELECT	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode})	AS "ActiveName"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	CASE WHEN ACR.InfoIndex = 'A' THEN '승인' WHEN ACR.InfoIndex = 'B' THEN '매입' WHEN ACR.InfoIndex = 'C' THEN '취소' WHEN ACR.InfoIndex = 'D' THEN '부분취소' END AS "InfoIndex"
+			,	CASE WHEN ACR.IsPersonalUse = 'Y' THEN 'Y' ELSE 'N' END AS "IsPersonalUse"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	ACR.CardUserCode AS "CardUserCode"
+			,	USR_CUC.DisplayName		AS "DisplayName"
+			,	USR_CUD.DeptName		AS "CardUserDept"
+			,	ACR.TossSenderUserCode AS "TossSenderUserCode"
+			,	USR_TSUC.DisplayName	AS "TossSenderUserName"
+			,	ACR.TossUserCode AS "TossUserCode"
+			,	USR_TUC.DisplayName		AS "TossUserName"
+			,	ACR.TossComment AS "TossComment"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		ACC.CardClass = #{cardClass}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="infoIndex != null and infoIndex !=''">
+		AND		ACR.InfoIndex = #{infoIndex}
+		</if>
+		<if test ="isPersonalUse != null and isPersonalUse !=''">
+		AND		CASE 	WHEN #{isPersonalUse} = 'N' AND ACR.IsPersonalUse = '' 
+						THEN '' 
+						ELSE #{isPersonalUse} 
+				END = ACR.IsPersonalUse
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoIndex")'>"InfoIndex"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPersonalUse")'>"IsPersonalUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossREM")'>"TossREM"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserCode")'>"CardUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserCode")'>"TossSenderUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserName")'>"TossSenderUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>"TossUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	</select>
+	
+	<select id="getCardReceiptListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptListCnt
+	    */
+		SELECT	COUNT(*)
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		ACC.CardClass = #{cardClass}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="infoIndex != null and infoIndex !=''">
+		AND		ACR.InfoIndex = #{infoIndex}
+		</if>
+		<if test ="isPersonalUse != null and isPersonalUse !=''">
+		AND		CASE 	WHEN #{isPersonalUse} = 'N' AND ACR.IsPersonalUse = '' 
+						THEN '' 
+						ELSE #{isPersonalUse} 
+				END = ACR.IsPersonalUse
+		</if>
+	</select>
+	
+	<update id="updateCardReceiptTossUser" parameterType="cmap" >
+		/*
+	    	account.cardReceipt.updateCardReceiptTossUser
+	    */
+ 		UPDATE act_card_receipt
+ 			SET
+ 				TossUserCode		= #{tossUserCode}
+			,	TossSenderUserCode	= #{UR_Code}
+			,	TossDate			= SYSDATE
+			,	TossComment			= #{tossComment}
+ 		WHERE	ReceiptID	= #{receiptID}
+ 	</update>
+ 	
+	<select id="getCardReceiptCancelList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardReceiptCancelList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACR.ReceiptID AS "ReceiptID"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACR.Active AS "Active"
+			,	NVL(NULLIF(FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode}),''),'')	AS "ActiveName"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	ACR.CardUserCode AS "CardUserCode"
+			,	USR_CUC.DisplayName		AS "CardUserName"
+			,	USR_CUD.DeptName		AS "CardUserDept"
+			,	ACR.TossSenderUserCode AS "TossSenderUserCode"
+			,	USR_TSUC.DisplayName	AS "TossSenderUserName"
+			,	ACR.TossUserCode AS "TossUserCode"
+			,	USR_TUC.DisplayName		AS "TossUserName"
+			,	ACR.TossComment AS "TossComment"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND		ACR.InfoIndex	IN ('C','D')
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardReceiptCancelExcelList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardReceiptCancelExcelList
+	    */
+		SELECT	NVL(NULLIF(FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode}),''),'')	AS "ActiveName"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	ACR.CardUserCode AS "CardUserCode"
+			,	USR_CUC.DisplayName		AS "CardUserName"
+			,	USR_CUD.DeptName		AS "CardUserDept"
+			,	ACR.TossSenderUserCode AS "TossSenderUserCode"
+			,	USR_TSUC.DisplayName	AS "TossSenderUserName"
+			,	ACR.TossUserCode AS "TossUserCode"
+			,	USR_TUC.DisplayName		AS "TossUserName"
+			,	ACR.TossComment AS "TossComment"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND		ACR.InfoIndex	IN ('C','D')
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	</select>
+	
+	<select id="getCardReceiptCancelListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptCancelListCnt
+	    */
+		SELECT	COUNT(*)
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND		ACR.InfoIndex	IN ('C','D')
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+	</select>
+	
+	<select id="getCardReceiptUserList" parameterType="cmap" resultType="cmap">
+	    /*
+	    	account.cardReceipt.getCardReceiptUserList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACR.ReceiptID AS "ReceiptID"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACR.Active AS "Active"
+			,	CASE WHEN ACR.InfoIndex = 'A' THEN '승인' WHEN ACR.InfoIndex = 'B' THEN '매입' WHEN ACR.InfoIndex = 'C' THEN '취소' WHEN ACR.InfoIndex = 'D' THEN '부분취소' END AS "InfoIndex"
+			,	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode})	AS "ActiveName"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	(USR_TUC.DisplayName||':'||ACR.TossComment) AS "TossREM"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1	
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+			OR (#{cardNo} != '' AND	ACR.CardNo LIKE '%'||#{cardNo}||'%' AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+		)		
+		AND ACR.InfoIndex = 'A'
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="approveNo != null and approveNo !=''">
+		AND		ACR.ApproveNo LIKE '%'||#{approveNo}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoIndex")'>"InfoIndex"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPersonalUse")'>"IsPersonalUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossREM")'>"TossREM"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserCode")'>"CardUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserCode")'>"TossSenderUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserName")'>"TossSenderUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>"TossUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardReceiptUserExcelList" parameterType="cmap" resultType="cmap">
+	    /*
+	    	account.cardReceipt.getCardReceiptUserExcelList
+	    */
+		SELECT	ACR.ReceiptID AS "ReceiptID"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode})	AS "ActiveName"
+			,	CASE WHEN ACR.InfoIndex = 'A' THEN '승인' WHEN ACR.InfoIndex = 'B' THEN '매입' WHEN ACR.InfoIndex = 'C' THEN '취소' WHEN ACR.InfoIndex = 'D' THEN '부분취소' END AS "InfoIndex"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime, 'HH24:MI:SS'), 'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	(NVL(NULLIF(USR_TUC.DisplayName,''),'')||':'||NVL(NULLIF(ACR.TossComment,''),'')) AS "TossREM"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+			OR (#{cardNo} != '' AND	ACR.CardNo LIKE '%'||#{cardNo}||'%' AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+		)
+		AND ACR.InfoIndex = 'A'
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="approveNo != null and approveNo !=''">
+		AND		ACR.ApproveNo LIKE '%'||#{approveNo}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InfoIndex")'>"InfoIndex"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPersonalUse")'>"IsPersonalUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossREM")'>"TossREM"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserCode")'>"CardUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserCode")'>"TossSenderUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossSenderUserName")'>"TossSenderUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserCode")'>"TossUserCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>"TossUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossComment")'>"TossComment"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	</select>
+	
+	<select id="getCardReceiptUserListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptUserListCnt
+	    */
+		SELECT	COUNT(*)
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+			OR (#{cardNo} != '' AND	ACR.CardNo LIKE '%'||#{cardNo}||'%' AND #{approveNo} != '' AND ACR.ApproveNo= #{approveNo})
+		)
+		AND ACR.InfoIndex = 'A'
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="approveNo != null and approveNo !=''">
+		AND		ACR.ApproveNo LIKE '%'||#{approveNo}||'%'
+		</if>
+	</select>
+	
+	<update id="updateCardReceiptPersonal" parameterType="cmap" >
+		/*
+	    	account.cardReceipt.updateCardReceiptPersonal
+	    */
+ 		UPDATE act_card_receipt
+ 			SET
+ 				IsPersonalUse		= #{isPersonalUse}
+ 			,	TossUserCode		= null
+			,	TossSenderUserCode	= null
+			,	TossDate			= null
+			,	TossComment			= null
+ 		WHERE	ReceiptID	= #{receiptID}
+ 	</update>
+ 	
+	<select id="getCardReceiptUserPersonalUseList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardReceiptUserPersonalUseList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACR.ReceiptID AS "ReceiptID"
+			,	ACC.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACC.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACR.Active AS "Active"
+			,	FN_GETACTBASECODENAME('Active', ACR.Active, #{companyCode})	AS "ActiveName"
+			,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.ApproveDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.ApproveDate),	'YYYY.MM.DD')
+							 END
+						ELSE CASE	WHEN NVL(NULLIF(TO_CHAR(ACR.UseDate),''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE TO_CHAR(TO_DATE(ACR.UseDate),	'YYYY.MM.DD')
+							 END
+				END																AS "ApproveDate"
+			,	TO_CHAR(TO_DATE(ACR.ApproveTime,'HH24:MI:SS'),	'HH24:MI:SS') AS "ApproveTime"
+			,	ACR.ApproveNo AS "ApproveNo"
+			,	ACR.StoreName AS "StoreName"
+			,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND ACR.AmountWon > 0
+						THEN TO_CHAR(ACR.AmountWon*-1, '999,999,999,999,999,999,999,999')
+						ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+				END															AS "AmountWon"
+			,	CASE	WHEN ACR.ForeignCurrency = '840'
+						THEN 'USD'
+						ELSE ACR.ForeignCurrency
+				END															AS "ForeignCurrency"
+			,	(	'**********'
+					||	SUBSTR(ACR.CardNo,11)
+					||	'('
+					||	NVL(NULLIF(FN_GETACTBASECODENAME('CardCompany', ACC.CardCompany, #{companyCode}),''),'')
+					||	':'
+					||	NVL(NULLIF(USR_CUC.DisplayName,''),'')
+					||	')'
+				)						AS "CardNo"
+			,	ACR.CardUserCode AS "CardUserCode"
+			,	USR_CUC.DisplayName		AS "CardUserName"
+			,	USR_CUD.DeptName		AS "CardUserDept"
+			,	ACR.TossSenderUserCode AS "TossSenderUserCode"
+			,	USR_TSUC.DisplayName	AS "TossSenderUserName"
+			,	ACR.TossUserCode AS "TossUserCode"			
+			,	USR_TUC.DisplayName		AS "TossUserName"
+			,	ACR.TossComment AS "TossComment"
+			,	FN_GETACTBASECODENAME('IsPersonalUse', ACR.IsPersonalUse, #{companyCode})	AS "IsPersonalUseName"
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND		ACR.IsPersonalUse = 'Y'
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="approveNo != null and approveNo !=''">
+		AND		ACR.ApproveNo LIKE '%'||#{approveNo}||'%'
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACR.ApproveDate DESC, ACR.ApproveTime DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserName")'>"CardUserName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardUserDept")'>"CardUserDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>"ApproveNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>"StoreName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>TO_NUMBER(AmountWon)</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>"ForeignCurrency"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>"ApproveDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveTime")'>"ApproveTime"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPersonalUseName")'>"IsPersonalUseName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardReceiptUserPersonalUseListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptUserPersonalUseListCnt
+	    */
+		SELECT	COUNT(*)
+		FROM	act_card_receipt	ACR
+		LEFT OUTER JOIN
+				act_corp_card		ACC
+		ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN
+				sys_object_user	USR_CUC
+		ON		ACC.OWNERUSERCODE	= USR_CUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user_basegroup	USR_CUD
+		ON		USR_CUC.UserCode	= USR_CUD.UserCode
+		AND		USR_CUD.JobType 	= 'Origin'
+		LEFT OUTER JOIN
+				sys_object_user	USR_TSUC
+		ON		ACR.TossSenderUserCode	= USR_TSUC.UserCode
+		LEFT OUTER JOIN
+				sys_object_user	USR_TUC
+		ON		ACR.TossUserCode	= USR_TUC.UserCode
+		WHERE	1=1
+		AND		ACR.IsPersonalUse = 'Y'
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		ACC.CardClass = #{cardClass}
+		</if>
+		<if test ="cardUserCode != null and cardUserCode !=''">
+		AND		ACR.CardUserCode = #{cardUserCode}
+		</if>
+		<if test ="approveDateS != null and approveDateS !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[>=]]> REPLACE(#{approveDateS},'.','')
+		</if>
+		<if test ="approveDateE != null and approveDateE !=''">
+		AND		CASE	WHEN ACR.InfoIndex = 'A'
+						THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+				END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+		</if>
+		<if test ="active != null and active !=''">
+		AND		ACR.Active = #{active}
+		</if>
+		<if test ="storeName != null and storeName !=''">
+		AND		ACR.StoreName LIKE '%'||#{storeName}||'%'
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACR.CardNo LIKE '%'||#{cardNo}||'%'
+		</if>
+		<if test ="approveNo != null and approveNo !=''">
+		AND		ACR.ApproveNo LIKE '%'||#{approveNo}||'%'
+		</if>
+	</select>
+	
+	<insert id="cardReceiptInterfaceInsert" parameterType="cmap">
+		/*
+	    	account.cardReceipt.cardReceiptInterfaceInsert
+	    */
+	    INSERT INTO act_card_receipt (
+	    		ReceiptID
+	    	,	ApproveStatus
+			, 	DataIndex
+			,	SendDate
+	    	, 	ItemNo
+			, 	CardNo
+			, 	InfoIndex
+	    	, 	InfoType
+			, 	CardCompIndex
+			, 	CardRegType
+	    	,	CardType
+			,	BizPlaceNo
+			, 	Dept
+	    	, 	CardUserCode
+			, 	UseDate
+			, 	ApproveDate
+	    	, 	ApproveTime
+			, 	ApproveNo
+			, 	WithdrawDate
+	    	, 	CountryIndex
+			, 	AmountSign
+			, 	AmountWon
+	    	, 	ForeignCurrency
+			,	AmountForeign
+			,	StoreRegNo
+	    	,	StoreName
+			,	StoreNo
+			,	StoreRepresentative
+	    	,	StoreCondition
+			,	StoreCategory
+			,	StoreZipCode
+	    	,	StoreAddress1
+			,	StoreAddress2
+			,	StoreTel
+			,	StoreStatus
+	    	,	RepAmount
+			,	TaxAmount
+			,	ServiceAmount
+	    	,	Active
+			,	IntDate
+			,	CollNo
+	    	,	TaxType
+			,	TaxTypeDate
+			,	MerchCessDate
+	    	,	Class
+			,	TossUserCode
+			,	TossSenderUserCode
+	    	,	TossDate
+			,	TossComment
+			,	IsPersonalUse
+	    )VALUES (
+	    		#{receiptID}
+	    	,	#{approveStatus}
+			,	#{dataIndex}
+			,	#{sendDate}
+	    	,	#{itemNo}
+			,	#{cardNo}
+			,	#{infoIndex}
+	    	,	#{infoType}
+			,	#{cardCompIndex}
+			,	#{cardRegType}
+	    	,	#{cardType}
+			,	#{bizPlaceNo}
+			,	#{dept}
+	    	,	#{cardUserCode}
+			,	#{useDate}
+			,	#{approveDate}
+	    	,	#{approveTime}
+			,	#{approveNo}
+			,	#{withdrawDate}
+	    	,	#{countryIndex}
+			,	#{amountSign}
+			,	#{amountWon}
+	    	,	#{foreignCurrency}
+			,	#{amountForeign}
+			,	#{storeRegNo}
+	    	,	#{storeName}
+			,	#{storeNo}
+			,	#{storeRepresentative}
+	    	,	#{storeCondition}
+			,	#{storeCategory}
+			,	#{storeZipCode}
+	    	,	#{storeAddress1}
+			,	#{storeAddress2}
+			,	#{storeTel}
+			,	#{storeStatus}
+	    	,	#{repAmount}
+			,	#{taxAmount}
+			,	#{serviceAmount}
+	    	,	#{active}
+			,	#{intDate}
+			,	#{collNo}
+	    	,	#{taxType}
+			,	#{taxTypeDate}
+			,	#{merchCessDate}
+	    	,	#{class1}
+			,	#{tossUserCode}
+			,	#{tossSenderUserCode}
+	    	,	#{tossDate}
+			,	#{tossComment}
+			,	#{isPersonalUse}
+	    )
+	</insert>
+	
+	<update id="cardReceiptInterfaceUpdate" parameterType="cmap" >
+		/*
+	    	account.cardReceipt.cardReceiptInterfaceUpdate
+	    */
+	    UPDATE act_card_receipt
+	    	SET	
+					ApproveStatus              = #{approveStatus}
+				,	DataIndex                  = #{dataIndex}
+				,	SendDate                   = #{sendDate}
+				,	ItemNo                     = #{itemNo}
+				,	CardNo                     = #{cardNo}
+				,	InfoIndex                  = #{infoIndex}
+				,	InfoType                   = #{infoType}
+				,	CardCompIndex              = #{cardCompIndex}
+				,	CardRegType                = #{cardRegType}
+				,	CardType                   = #{cardType}
+				,	BizPlaceNo                 = #{bizPlaceNo}
+				,	Dept                       = #{dept}
+				,	CardUserCode               = #{cardUserCode}
+				,	UseDate                    = #{useDate}
+				,	ApproveDate                = #{approveDate}
+				,	ApproveTime                = #{approveTime}
+				,	ApproveNo                  = #{approveNo}
+				,	WithdrawDate               = #{withdrawDate}
+				,	CountryIndex               = #{countryIndex}
+				,	AmountSign                 = #{amountSign}
+				,	AmountWon                  = #{amountWon}
+				,	ForeignCurrency            = #{foreignCurrency}
+				,	AmountForeign              = #{amountForeign}
+				,	StoreRegNo                 = #{storeRegNo}
+				,	StoreName                  = #{storeName}
+				,	StoreNo                    = #{storeNo}
+				,	StoreRepresentative        = #{storeRepresentative}
+				,	StoreCondition             = #{storeCondition}
+				,	StoreCategory              = #{storeCategory}
+				,	StoreZipCode               = #{storeZipCode}
+				,	StoreAddress1              = #{storeAddress1}
+				,	StoreAddress2              = #{storeAddress2}
+				,	StoreTel                   = #{storeTel}
+				,	StoreStatus                = #{storeStatus}
+				,	RepAmount                  = #{repAmount}
+				,	TaxAmount                  = #{taxAmount}
+				,	ServiceAmount              = #{serviceAmount}
+				,	Active                     = #{active}
+				,	IntDate                    = #{intDate}
+				,	CollNo                     = #{collNo}
+				,	TaxType                    = #{taxType}
+				,	TaxTypeDate                = #{taxTypeDate}
+				,	MerchCessDate              = #{merchCessDate}
+				,	Class                      = #{class1}
+				,	TossUserCode               = #{tossUserCode}
+				,	TossSenderUserCode         = #{tossSenderUserCode}
+				,	TossDate                   = #{tossDate}
+				,	TossCOMMENT                = #{tossComment}
+				,	IsPersonalUse              = #{isPersonalUse}
+	    	WHERE ReceiptID	= #{receiptID}
+	</update>
+	
+	<select id="getCardReceiptInterfaceInsertCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptInterfaceInsertCnt
+	    */
+	    SELECT	COUNT(*)
+	    FROM	act_card_receipt
+		WHERE 	BizPlaceNo = #{bizPlaceNo}
+		AND 	CardNo = #{cardNo}
+		AND		InfoIndex = #{infoIndex}
+		AND 	ApproveDate = #{approveDate}
+		AND 	ApproveTime = #{approveTime}
+		AND 	ApproveNo = #{approveNo}
+	</select>
+	
+	<select id="getCardReceiptInterfaceIdInsertCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptInterfaceIdInsertCnt
+	    */
+	    SELECT	COUNT(*)
+	    FROM	act_card_receipt
+		WHERE 	ReceiptID  = #{receiptID}
+		AND		InfoIndex != #{infoIndex}
+	</select>
+	
+	<update id="cardReceiptInterfaceUpdateCardInfo" parameterType="cmap" >
+		/*
+	    	account.cardReceipt.cardReceiptInterfaceUpdateCardInfo
+	    */
+	    MERGE INTO ACT_CARD_RECEIPT ACR
+		USING ACT_CORP_CARD ACC
+		ON (ACR.CARDNO = ACC.CARDNO
+		<if test="CompanyCode != null and CompanyCode !=''">
+		AND	ACC.CompanyCode = #{CompanyCode}
+		</if>
+		)
+		WHEN MATCHED THEN UPDATE SET ACR.CARDCOMPINDEX = ACC.CARDCOMPANY, ACR.CARDUSERCODE = ACC.OWNERUSERCODE
+	</update>
+			
+	<select id="getCorpCardOwnerInfo" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCorpCardOwnerInfo
+	    */
+	    SELECT
+			ACC.OwnerUserCode AS "OwnerUserCode", 
+			SOUB.DeptCode AS "DeptCode"
+		FROM
+			act_corp_card ACC
+			LEFT OUTER JOIN sys_object_user SOU ON ACC.OwnerUserCode = SOU.UserCode
+			LEFT OUTER JOIN sys_object_user_basegroup SOUB ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+		WHERE
+			ACC.CardNo = #{cardNo}
+	</select>
+	
+	<select id="getCardReceiptCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardReceiptCnt
+	    */
+		SELECT
+			COUNT(*)
+		FROM
+			act_card_receipt
+		WHERE
+			ReceiptID = #{ReceiptID}
+	</select>
+	
+	<insert id="insertCardReceipt" parameterType="cmap" >
+		/*
+	    	account.cardReceipt.insertCardReceipt
+	    */
+	    INSERT INTO act_card_receipt (
+				ReceiptID
+			,	ApproveStatus
+			,	DataIndex
+			,	CardNo
+			,	InfoIndex
+			,	CardCompIndex
+			,	Dept
+			,	CardUserCode
+			,	UseDate
+			,	ApproveDate
+			,	ApproveTime
+			,	ApproveNo
+			,	AmountWon
+			,	StoreRegNo
+			,	StoreName
+			,	StoreNo
+			,	StoreRepresentative
+			,	StoreAddress1
+			,	StoreAddress2
+			,	StoreTel
+			,	RepAmount
+			,	TaxAmount
+			,	ServiceAmount
+			,	Active
+			,	Class
+	    ) VALUES (
+				#{ReceiptID}
+			,	#{ApproveStatus}
+			,	#{DataIndex}
+			,	#{CardNo}
+			,	#{InfoIndex}
+			,	#{CardCompIndex}
+			,	#{Dept}
+			,	#{CardUserCode}
+			,	#{UseDate}
+			,	#{ApproveDate}
+			,	#{ApproveTime}
+			,	#{ApproveNo}
+			,	#{AmountWon}
+			,	#{StoreRegNo}
+			,	#{StoreName}
+			,	#{StoreNo}
+			,	#{StoreRepresentative}
+			,	#{StoreAddress1}
+			,	#{StoreAddress2}
+			,	#{StoreTel}
+			,	#{RepAmount}
+			,	#{TaxAmount}
+			,	#{ServiceAmount}
+			,	#{Active}
+			,	#{Class}
+	    )
+ 	</insert>
+ 	
+ 	<update id="updateCardReceipt" parameterType="cmap" >
+ 		/*
+	    	account.cardReceipt.updateCardReceipt
+	    */
+ 		UPDATE
+ 			act_card_receipt
+ 		SET
+ 				ApproveStatus = #{ApproveStatus}
+			,	DataIndex = #{DataIndex}
+			,	CardNo = #{CardNo}
+			,	InfoIndex = #{InfoIndex}
+			,	CardCompIndex = #{CardCompIndex}
+			,	Dept = #{Dept}
+			,	CardUserCode = #{CardUserCode}
+			,	UseDate = #{UseDate}
+			,	ApproveDate = #{ApproveDate}
+			,	ApproveTime = #{ApproveTime}
+			,	ApproveNo = #{ApproveNo}
+			,	AmountWon = #{AmountWon}
+			,	StoreRegNo = #{StoreRegNo}
+			,	StoreName = #{StoreName} 
+			,	StoreNo = #{StoreNo}
+			,	StoreRepresentative = #{StoreRepresentative}
+			,	StoreAddress1 = #{StoreAddress1}
+			,	StoreAddress2 = #{StoreAddress2}
+			,	StoreTel = #{StoreTel}
+			,	RepAmount = #{RepAmount}
+			,	TaxAmount = #{TaxAmount}
+			,	ServiceAmount = #{ServiceAmount}
+			,	Active = #{Active}
+			,	Class = #{Class}
+ 		WHERE
+ 			ReceiptID = #{ReceiptID}
+ 	</update>
+ 	
+ 	<select id="getSendDelayCorpCardList" parameterType="cmap" resultType="cmap">
+ 		/*
+	    	account.cardReceipt.getSendDelayCorpCardList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 
+			COUNT(ACR.CardNo) AS "CNT", 
+			ACR.CardNo AS "CardNo",
+			MAX(ABC.CodeName) AS "CardClass", 
+			MAX(UUR.UserCode || ',' || UUR.MultiDisplayName || ',' || BBG.MultiDeptName) AS "OwnerUser",  
+			MAX(CCSU.SearchUser) AS "SearchUser"
+		FROM 
+			act_card_receipt ACR 
+		INNER JOIN 
+			act_corp_card ACC 
+		ON 
+			ACR.CardNo = ACC.CardNo
+		LEFT JOIN (
+			SELECT 
+				CSU.CORPCARDID AS CorpCardID, 
+				LISTAGG(CSU.OwnerUserCode || ',' || UR.MultiDisplayName || ',' || BG.MultiDeptName, '^^') WITHIN GROUP(ORDER BY 1) AS SearchUser
+			FROM 
+				act_corp_card_search_user CSU
+			INNER JOIN 
+				sys_object_user UR
+			ON 
+				CSU.OWNERUSERCODE = UR.UserCode
+			INNER JOIN 
+				sys_object_user_basegroup BG
+			ON 
+				UR.UserCode = BG.UserCode
+			GROUP BY 
+				CSU.CORPCARDID
+		) CCSU
+		ON 
+			CCSU.CorpCardID = ACC.CorpCardID
+		JOIN 
+			sys_object_user UUR
+		ON 
+			ACC.OwnerUserCode = UUR.UserCode
+		INNER JOIN 
+			sys_object_user_basegroup BBG
+		ON 
+			UUR.UserCode = BBG.UserCode
+		INNER JOIN 
+			act_base_code ABC
+		ON 
+			ACC.CardClass = ABC.Code
+		WHERE 
+			1 = 1
+			<if test ="approveDateS != null and approveDateS !=''">
+				AND	CASE
+						WHEN ACR.InfoIndex = 'A' THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+					END <![CDATA[>=]]> REPLACE(#{approveDateS}, '.', '')
+			</if>
+			<if test ="approveDateE != null and approveDateE !=''">
+				AND	CASE 
+						WHEN ACR.InfoIndex = 'A' THEN ACR.ApproveDate
+						ELSE ACR.UseDate
+					END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+			</if> 
+			<if test ="cardClass != null and cardClass !=''">
+				AND	ACC.CardClass = #{cardClass}
+			</if>
+			<if test ="companyCode != null and companyCode !=''">
+				AND	ACC.CompanyCode = #{companyCode}
+			</if>
+			<if test ="cardNo != null and cardNo !=''">
+				AND	ACR.CardNo LIKE '%' || #{cardNo} || '%'
+			</if>
+		GROUP BY 
+			ACR.CardNo, 
+			CCSU.CorpCardID
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UUR.MultiDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchName")'>CCSU.SearchName</when>
+					<when test='sortColumn.equalsIgnoreCase("CardClass")'>CardClass</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<otherwise>CNT</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getSendDelayCorpCardListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getSendDelayCorpCardListCnt
+	    */
+		SELECT 
+			COUNT(*) CNT
+		FROM (
+			SELECT 
+				COUNT(ACR.CardNo) AS CNT, 
+				ACR.CardNo AS CardNo, 
+				MAX(ACC.CardClass) AS CardClass, 
+				MAX(UUR.UserCode || ',' || UUR.MultiDisplayName || ',' || BBG.MultiDeptName) AS OwnerUser,  		
+				MAX(CCSU.SearchUser) AS SearchUser 
+			FROM 
+				act_card_receipt ACR 
+			INNER JOIN 
+				act_corp_card ACC 
+			ON 
+				ACR.CardNo = ACC.CardNo
+			LEFT JOIN (
+				SELECT 
+					CSU.CORPCARDID AS CorpCardID, 
+					LISTAGG(CSU.OwnerUserCode || ',' || UR.MultiDisplayName || ',' || BG.MultiDeptName, '^^') WITHIN GROUP(ORDER BY 1) AS SearchUser
+				FROM 
+					act_corp_card_search_user CSU
+				INNER JOIN 
+					sys_object_user UR
+				ON 
+					CSU.OWNERUSERCODE = UR.UserCode
+				INNER JOIN 
+					sys_object_user_basegroup BG
+				ON 
+					UR.UserCode = BG.UserCode
+				GROUP BY 
+					CSU.CORPCARDID
+			) CCSU
+			ON 
+				CCSU.CorpCardID = ACC.CorpCardID
+			JOIN 
+				sys_object_user UUR
+			ON 
+				ACC.OwnerUserCode = UUR.UserCode
+			INNER JOIN 
+				sys_object_user_basegroup BBG
+			ON 
+				UUR.UserCode = BBG.UserCode
+			WHERE 
+				1 = 1
+				<if test ="approveDateS != null and approveDateS !=''">
+					AND	CASE
+							WHEN ACR.InfoIndex = 'A' THEN ACR.ApproveDate
+							ELSE ACR.UseDate
+						END <![CDATA[>=]]> REPLACE(#{approveDateS}, '.', '')
+				</if>
+				<if test ="approveDateE != null and approveDateE !=''">
+					AND	CASE 
+							WHEN ACR.InfoIndex = 'A' THEN ACR.ApproveDate
+							ELSE ACR.UseDate
+						END <![CDATA[<=]]> REPLACE(#{approveDateE},'.','')
+				</if> 
+				<if test ="cardClass != null and cardClass !=''">
+					AND	ACC.CardClass = #{cardClass}
+				</if>
+				<if test ="companyCode != null and companyCode !=''">
+					AND	ACC.CompanyCode = #{companyCode}
+				</if>
+				<if test ="cardNo != null and cardNo !=''">
+					AND	ACR.CardNo LIKE '%' || #{cardNo} || '%'
+				</if>
+			GROUP BY 
+				ACR.CardNo, 
+				CCSU.CorpCardID
+		) Total
+	</select>
+	
+	<select id="getCardCompareListCnt" resultType="java.lang.Long">
+		/*
+	    	account.cardReceipt.getCardCompareListCnt
+	    */
+		SELECT	COUNT(*)
+		FROM	(
+					SELECT	A.CARDNO
+							,	SUM(A.AMOUNTWON) AS AMT_TOT
+							,	SUM(CASE WHEN NVL(A.ISPERSONALUSE,'N') ='N' AND NVL(A.ACTIVE,'N')='N'  THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_N
+							,	SUM(CASE WHEN NVL(A.ISPERSONALUSE,'N') ='N' AND NVL(A.ACTIVE,'')!='N'  THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_Y
+							,	SUM(CASE WHEN NVL(A.ISPERSONALUSE,'N') ='Y' THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_P
+					FROM		ACT_CARD_RECEIPT A
+					WHERE		1=1
+					<if test ="useDateS != null and useDateS !=''">
+					AND		A.USEDATE <![CDATA[>=]]> #{useDateS}
+					</if>
+					<if test ="useDateE != null and useDateE !=''">
+					AND		A.USEDATE <![CDATA[<=]]> #{useDateE}
+					</if>
+					GROUP BY A.CARDNO
+				)M
+		LEFT
+		JOIN	ACT_CORP_CARD B
+		ON		M.CARDNO = B.CARDNO
+		LEFT
+		JOIN	sys_object_user UR
+		ON		B.OwnerUserCode= UR.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		B.CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<select id="getCardCompareList" parameterType="cmap" resultType="cmap">
+		/*
+	    	account.cardReceipt.getCardCompareList
+	    */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	(substr(M.CARDNO,0,4)||'-'||substr(M.CARDNO,5,4)||'-'||substr(M.CARDNO,9,4)||'-'||substr(M.CARDNO,13,4)) AS CARDNO
+			,	FN_GETACTBASECODENAME('CardClass', B.CARDCLASS, #{companyCode})	AS CARDCLASS
+			,	B.OWNERUSERCODE
+			,	UR.DISPLAYNAME
+			,	TO_CHAR(M.AMT_TOT, '999,999,999,999,999,999,999,999') 		AS AMT_TOT	
+			,	TO_CHAR(M.AMT_USE_N, '999,999,999,999,999,999,999,999') 	AS AMT_USE_N	
+			,	TO_CHAR(M.AMT_USE_Y, '999,999,999,999,999,999,999,999') 	AS AMT_USE_Y	
+			,	TO_CHAR(M.AMT_USE_P, '999,999,999,999,999,999,999,999') 	AS AMT_USE_P	
+
+		FROM	(
+					SELECT	A.CARDNO
+							,	SUM(A.AMOUNTWON) AS AMT_TOT
+							,	SUM(CASE WHEN NVL(NULLIF(A.ISPERSONALUSE,''),'N') ='N' AND NVL(NULLIF(A.ACTIVE,''),'N')='N'  THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_N
+							,	SUM(CASE WHEN NVL(NULLIF(A.ISPERSONALUSE,''),'N') ='N' AND NVL(NULLIF(A.ACTIVE,''),'')!='N'  THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_Y
+							,	SUM(CASE WHEN NVL(NULLIF(A.ISPERSONALUSE,''),'N') ='Y' THEN A.AMOUNTWON ELSE 0 END	) AS AMT_USE_P
+					FROM		ACT_CARD_RECEIPT A
+					WHERE		1=1
+					<if test ="useDateS != null and useDateS !=''">
+					AND		A.USEDATE <![CDATA[>=]]> #{useDateS}
+					</if>
+					<if test ="useDateE != null and useDateE !=''">
+					AND		A.USEDATE <![CDATA[<=]]> #{useDateE}
+					</if>
+					GROUP BY A.CARDNO
+				)M
+		LEFT
+		JOIN	ACT_CORP_CARD B
+		ON		M.CARDNO = B.CARDNO
+		LEFT
+		JOIN	sys_object_user UR
+		ON		B.OwnerUserCode= UR.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		B.CompanyCode = #{companyCode}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,M.CARDNO ASC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CARDNO")'>"CARDNO"</when>
+					<when test='sortColumn.equalsIgnoreCase("CARDCLASS")'>"CARDCLASS"</when>
+					<when test='sortColumn.equalsIgnoreCase("DISPLAYNAME")'>"DISPLAYNAME"</when>
+					<when test='sortColumn.equalsIgnoreCase("AMT_TOT")'>"AMT_TOT"</when>
+					<when test='sortColumn.equalsIgnoreCase("AMT_USE_N")'>"AMT_USE_N"</when>
+					<when test='sortColumn.equalsIgnoreCase("AMT_USE_Y")'>"AMT_USE_Y"</when>
+					<when test='sortColumn.equalsIgnoreCase("AMT_USE_P")'>"AMT_USE_P"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+</mapper>

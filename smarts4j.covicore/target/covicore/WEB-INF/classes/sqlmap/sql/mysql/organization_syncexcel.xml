@@ -1,0 +1,974 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="organization.syncexcel">
+	<!-- 엑셀동기화 대상 계열사 확인 -->
+    <select id="checkSyncCompany" parameterType="cmap" resultType="cmap">
+    	SELECT OrgSyncType, DomainID, DomainURL FROM covi_smart4j.sys_object_domain
+    	WHERE DomainCode = #{CompanyCode}
+    </select>
+    
+    <!-- 부서 엑셀동기화 -->
+    <delete id="deleteFileDataDept">
+		DELETE FROM covi_syncdata.excel_orgdept 
+		WHERE CompanyCode = #{syncCompanyCode} AND GroupCode <![CDATA[<>]]> #{syncCompanyCode}
+	</delete>
+    
+    <insert id="insertFileDataDept" parameterType="cmap">
+    	INSERT INTO covi_syncdata.excel_orgdept
+    	(GroupCode, CompanyCode, MemberOf, DisplayName, MultiDisplayName, SortKey, IsUse, IsHR, IsDisplay, IsMail, PrimaryMail, ManagerCode)
+    	values
+    	(#{GroupCode}, #{CompanyCode}, #{MemberOf}, #{DisplayName}, #{MultiDisplayName}, #{SortKey}, #{IsUse}, #{IsHR}, #{IsDisplay}, #{IsMail}, #{PrimaryMail}, #{ManagerCode})
+    </insert>
+    
+    <!-- 사용자 엑셀동기화 -->
+    <delete id="deleteFileDataUser">
+		DELETE FROM covi_syncdata.excel_orguser WHERE CompanyCode = #{syncCompanyCode}
+	</delete>
+    
+    <insert id="insertFileDataUser" parameterType="cmap">
+    	INSERT INTO covi_syncdata.excel_orguser (
+    		UserCode,CompanyCode,DeptCode,LogonID,LogonPW,EmpNo,DisplayName,MultiDisplayName,JobPositionCode,JobTitleCode,JobLevelCode,SortKey,IsUse,IsHR,IsDisplay,UseMailConnect,EnterDate,RetireDate,BirthDiv,BirthDate,PhotoPath,MailAddress,ExternalMailAddress,ChargeBusiness,PhoneNumberInter,PhoneNumber,Mobile,Fax, UseMessengerConnect,LicSeq
+    	)
+    	VALUES (
+    		#{UserCode}, #{CompanyCode}, #{DeptCode}, #{LogonID}, #{LogonPW}, #{EmpNo}, #{DisplayName}, #{MultiDisplayName}, #{JobPositionCode}, #{JobTitleCode}, #{JobLevelCode}, #{SortKey}, #{IsUse}, #{IsHR}, #{IsDisplay}, #{UseMailConnect}, #{EnterDate}, #{RetireDate}, #{BirthDiv}, #{BirthDate}, #{PhotoPath}, #{MailAddress}, #{ExternalMailAddress}, #{ChargeBusiness}, #{PhoneNumberInter}, #{PhoneNumber}, #{Mobile}, #{Fax}, #{UseMessengerConnect}, #{LicSeq}
+    	)
+    </insert>
+    
+    <!-- 엑셀동기화 동기화 대상 추출 -->
+    <insert id="insertCompareObjectGroupForExcelINSERT" parameterType="cmap">
+    	INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_GROUP
+		(
+			SyncType
+			, GroupCode
+			, CompanyCode
+			, GroupType
+			, MemberOf
+			, GroupPath
+			, RegionCode		
+			, DisplayName
+			, MultiDisplayName
+			, ShortName
+			, MultiShortName
+			, OUName	
+			, OUPath
+			, SortKey
+			, SortPath
+			, IsUse
+			, IsDisplay
+			, IsMail
+			, IsHR
+			, PrimaryMail
+			, SecondaryMail
+			, ManagerCode
+			, Description
+			, ReceiptUnitCode
+			, ApprovalUnitCode
+			, Receivable
+			, Approvable
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+		)
+		SELECT
+			'INSERT' AS SyncType
+			, a.GroupCode
+			, a.CompanyCode
+			, 'Dept'
+			, a.MemberOf
+			, covi_syncdata.Fn_ComObjectPathCreate_Sync(a.GroupCode, 'ExcelGR')
+			, ''		
+			, a.DisplayName
+			, a.MultiDisplayName
+			, a.DisplayName
+			, a.MultiDisplayName
+			, NVARCHAR_REMOVE_SPECIAL_CHARACTER(a.DisplayName)
+			, covi_syncdata.Fn_ComOUPathCreate_Sync(a.GroupCode, 'ExcelGR')
+			, a.SortKey
+			, covi_syncdata.Fn_ComSortPathCreate_Sync(0,a.GroupCode,'ExcelGR')
+			, a.IsUse
+			, a.IsDisplay
+			, a.IsMail
+			, a.IsHR
+			, a.PrimaryMail
+			, ''
+			, a.ManagerCode
+			, ''
+			, a.GroupCode
+			, a.GroupCode
+			, '1'
+			, '1'
+			, NOW() AS RegistDate
+			, NOW() AS ModifyDate
+			, ''
+			, ''
+			, ''
+			, ''
+			, ''
+		FROM covi_syncdata.excel_orgdept a
+		LEFT JOIN covi_smart4j.sys_object_group b ON a.GroupCode = b.GroupCode
+		INNER JOIN covi_smart4j.sys_object_domain c ON c.DomainCode = a.CompanyCode
+		WHERE IFNULL(b.GroupCode, '') = ''
+    </insert>
+    
+    <insert id="insertCompareObjectGroupForExcelUPDATE" parameterType="cmap">
+	    INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_GROUP
+		(
+			SyncType
+			, GroupCode
+			, CompanyCode
+			, GroupType
+			, MemberOf
+			, GroupPath
+			, RegionCode		
+			, DisplayName
+			, MultiDisplayName
+			, ShortName
+			, MultiShortName
+			, OUName	
+			, OUPath
+			, SortKey
+			, SortPath
+			, IsUse
+			, IsDisplay
+			, IsMail
+			, IsHR
+			, PrimaryMail
+			, SecondaryMail
+			, ManagerCode
+			, Description
+			, ReceiptUnitCode
+			, ApprovalUnitCode
+			, Receivable
+			, Approvable
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+		)
+		SELECT
+			'UPDATE' AS SyncType
+			, a.GroupCode
+			, a.CompanyCode
+			, 'Dept'
+			, a.MemberOf
+			, covi_syncdata.Fn_ComObjectPathCreate_Sync(a.GroupCode, 'ExcelGR')
+			, ''		
+			, a.DisplayName
+			, a.MultiDisplayName
+			, a.DisplayName
+			, a.MultiDisplayName
+			, NVARCHAR_REMOVE_SPECIAL_CHARACTER(a.DisplayName)
+			, covi_syncdata.Fn_ComOUPathCreate_Sync(a.GroupCode, 'ExcelGR')
+			, a.SortKey
+			, covi_syncdata.Fn_ComSortPathCreate_Sync(0,a.GroupCode,'ExcelGR')
+			, a.IsUse
+			, a.IsDisplay
+			, a.IsMail
+			, b.IsHR
+			, a.PrimaryMail
+			, ''
+			, a.ManagerCode
+			, b.Description
+			, b.ReceiptUnitCode
+			, b.ApprovalUnitCode
+			, b.Receivable
+			, b.Approvable
+			, b.RegistDate
+			, NOW() AS ModifyDate
+			, b.Reserved1
+			, b.Reserved2
+			, b.Reserved3
+			, b.Reserved4
+			, b.Reserved5
+		FROM covi_syncdata.excel_orgdept a
+		INNER JOIN covi_smart4j.sys_object_group b ON a.GroupCode = b.GroupCode
+		INNER JOIN covi_smart4j.sys_object_domain c ON c.DomainCode = a.CompanyCode
+		WHERE b.IsHR = 'Y' AND a.IsUse = 'Y' AND b.GroupType = 'Dept'
+			AND
+				(
+					IFNULL(a.CompanyCode, '') 				<![CDATA[<>]]>		IFNULL(b.CompanyCode, '')
+					OR IFNULL(a.MemberOF, '') 				<![CDATA[<>]]>		IFNULL(b.MemberOF, '')
+					OR IFNULL(a.DisplayName, '') 			<![CDATA[<>]]>		IFNULL(b.DisplayName, '')
+					OR IFNULL(a.MultiDisplayName, '') 	<![CDATA[<>]]>		IFNULL(b.MultiDisplayName, '')
+					OR IFNULL(a.SortKey, '')						<![CDATA[<>]]>		IFNULL(b.SortKey, '')
+					OR IFNULL(a.IsDisplay, '') 					<![CDATA[<>]]>		IFNULL(b.IsDisplay, '')
+					OR IFNULL(a.IsMail, '') 						<![CDATA[<>]]>		IFNULL(b.IsMail, '')
+					OR IFNULL(a.PrimaryMail, '') 				<![CDATA[<>]]>		IFNULL(b.PrimaryMail, '')
+					OR IFNULL(a.ManagerCode, '') 			<![CDATA[<>]]>		IFNULL(b.ManagerCode, '')	
+				)
+	</insert>
+	
+	<insert id="insertCompareObjectGroupForExcelDELETE" parameterType="cmap">
+	    INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_GROUP
+		(
+			SyncType
+			, GroupCode
+			, CompanyCode
+			, GroupType
+			, MemberOf
+			, GroupPath
+			, RegionCode		
+			, DisplayName
+			, MultiDisplayName
+			, ShortName
+			, MultiShortName
+			, OUName	
+			, OUPath
+			, SortKey
+			, SortPath
+			, IsUse
+			, IsDisplay
+			, IsMail
+			, IsHR
+			, PrimaryMail
+			, SecondaryMail
+			, ManagerCode
+			, Description
+			, ReceiptUnitCode
+			, ApprovalUnitCode
+			, Receivable
+			, Approvable
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+		)
+		SELECT
+			'DELETE' AS SyncType
+			, b.GroupCode
+			, b.CompanyCode
+			, b.GroupType
+			, b.MemberOf
+			, b.GroupPath
+			, b.RegionCode		
+			, b.DisplayName
+			, b.MultiDisplayName
+			, b.ShortName
+			, b.MultiShortName
+			, b.OUName	
+			, b.OUPath
+			, b.SortKey
+			, b.SortPath
+			, b.IsUse
+			, b.IsDisplay
+			, b.IsMail
+			, b.IsHR
+			, b.PrimaryMail
+			, b.SecondaryMail
+			, b.ManagerCode
+			, b.Description
+			, b.ReceiptUnitCode
+			, b.ApprovalUnitCode
+			, b.Receivable
+			, b.Approvable
+			, b.RegistDate
+			, b.ModifyDate
+			, b.Reserved1
+			, b.Reserved2
+			, b.Reserved3
+			, b.Reserved4
+			, b.Reserved5
+		FROM covi_syncdata.excel_orgdept a
+		RIGHT JOIN covi_smart4j.sys_object_group b ON a.GroupCode = b.GroupCode
+		WHERE IFNULL(a.GroupCode, '') = '' AND b.IsHR = 'Y' AND b.IsUse = 'Y' AND b.GroupType = 'Dept' AND b.GroupCode not like '%Retire%'
+	</insert>
+	
+	<insert id="insertCompareObjectUserForExcelINSERT">
+	    INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_USER
+		(
+			SyncType
+			, UserCode
+			, LogonID
+			, LogonPassword
+			, EmpNo
+			, DisplayName
+			, NickName
+			, MultiDisplayName
+			, CompanyCode
+			, DeptCode
+			, JobTitleCode
+			, JobPositionCode
+			, JobLevelCode
+			, RegionCode
+			, Address
+			, MultiAddress
+			, HomePage
+			, PhoneNumber
+			, Mobile
+			, Fax
+			, IPPhone
+			, UseMessengerConnect
+			, SortKey
+			, SecurityLevel
+			, Description
+			, IsUse
+			, IsHR
+			, IsDisplay
+			, EnterDate
+			, RetireDate
+			, PhotoPath
+			, BirthDiv
+			, BirthDate
+			, UseMailConnect
+			, MailAddress
+			, ExternalMailAddress
+			, ChargeBusiness
+			, PhoneNumberInter
+			, LanguageCode
+			, MobileThemeCode
+			, TimeZoneCode
+			, InitPortal
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+			, LicSeq
+		)
+        SELECT
+			'INSERT' AS SyncType
+			, a.UserCode
+			, a.LogonID
+			, a.LogonPW
+			, a.EmpNo
+			, a.DisplayName
+			, a.DisplayName
+			, a.MultiDisplayName
+			, a.CompanyCode
+			, a.DeptCode
+			, a.JobTItleCode
+			, a.JobPositionCode
+			, a.JobLevelCode
+			, ''	
+			, ''
+			, ''
+			, ''
+			, a.PhoneNumber
+			, a.Mobile
+			, a.Fax
+			, ''
+			, a.UseMessengerConnect
+			, a.SortKey
+			, '90'
+			, ''
+			, a.IsUse
+			, a.IsHR
+			, a.IsDisplay
+			, a.EnterDate
+			, a.RetireDate
+			, a.PhotoPath
+			, a.BirthDiv
+			, a.BirthDate
+			, a.UseMailConnect
+			, a.MailAddress
+			, a.ExternalMailAddress
+			, a.ChargeBusiness
+			, a.PhoneNumberInter
+			, 'ko'
+			, 'MobileTheme_Base'
+			, 'TIMEZO0048'
+			, 0
+			, NOW() AS RegistDate
+			, NOW() AS ModifyDate
+			, ''
+			, ''
+			, ''
+			, ''
+			, ''
+			, a.LicSeq
+		FROM covi_syncdata.excel_orguser a
+		LEFT JOIN covi_smart4j.sys_object_user b ON a.UserCode = b.UserCode
+		INNER JOIN covi_smart4j.sys_object_domain c ON c.DomainCode = a.CompanyCode
+		INNER JOIN covi_syncdata.excel_orgdept d ON d.GroupCode = a.DeptCode
+		WHERE IFNULL(b.UserCode, '') = ''
+	</insert>
+	
+	<insert id="insertCompareObjectUserForExcelUPDATE">
+	    INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_USER
+		(
+        	SyncType
+			, UserCode
+			, LogonID
+			, LogonPassword
+			, EmpNo
+			, DisplayName
+			, NickName
+			, MultiDisplayName
+			, CompanyCode
+			, DeptCode
+			, JobTitleCode
+			, JobPositionCode
+			, JobLevelCode
+			, RegionCode
+			, Address
+			, MultiAddress
+			, HomePage
+			, PhoneNumber
+			, Mobile
+			, Fax
+			, IPPhone
+			, UseMessengerConnect
+			, SortKey
+			, SecurityLevel
+			, Description
+			, IsUse
+			, IsHR
+			, IsDisplay	
+			, EnterDate
+			, RetireDate
+			, PhotoPath
+			, BirthDiv
+			, BirthDate
+			, UseMailConnect
+			, MailAddress
+			, ExternalMailAddress
+			, ChargeBusiness
+			, PhoneNumberInter
+			, LanguageCode
+			, MobileThemeCode
+			, TimeZoneCode
+			, InitPortal
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+			, LicSeq
+		)
+		SELECT
+			'UPDATE' AS SyncType
+			, b.UserCode
+			, b.LogonID
+			, b.LogonPassword
+			, a.EmpNo
+			, a.DisplayName
+			, a.DisplayName
+			, a.MultiDisplayName
+			, a.CompanyCode
+			, a.DeptCode
+			, a.JobTItleCode
+			, a.JobPositionCode
+			, a.JobLevelCode
+			, c.RegionCode	
+			, b.Address
+			, b.MultiAddress
+			, b.HomePage
+			, a.PhoneNumber
+			, a.Mobile
+			, a.Fax
+			, b.IPPhone
+			, a.UseMessengerConnect
+			, a.SortKey
+			, b.SecurityLevel
+			, b.Description
+			, a.IsUse
+			, a.IsHR
+			, a.IsDisplay
+			, a.EnterDate
+			, a.RetireDate
+			, a.PhotoPath
+			, a.BirthDiv
+			, a.BirthDate
+			, b.UseMailConnect
+			, a.MailAddress
+			, a.ExternalMailAddress
+			, a.ChargeBusiness
+			, a.PhoneNumberInter
+			, b.LanguageCode
+			, b.MobileThemeCode
+			, b.TimeZoneCode
+			, b.InitPortal
+			, b.RegistDate
+			, NOW() AS ModifyDate
+			, b.Reserved1
+			, b.Reserved2
+			, b.Reserved3
+			, b.Reserved4
+			, b.Reserved5
+			, a.LicSeq
+		FROM covi_syncdata.excel_orguser a
+		INNER JOIN covi_smart4j.sys_object_user b ON a.UserCode = b.UserCode
+		INNER JOIN covi_smart4j.sys_object_user_basegroup c ON a.UserCode = c.UserCode
+		INNER JOIN covi_smart4j.sys_object_domain d ON d.DomainCode = a.CompanyCode
+		INNER JOIN covi_syncdata.excel_orgdept e ON e.GroupCode = a.DeptCode
+		WHERE b.IsHR = 'Y'
+			AND c.JobType='Origin'
+			AND
+				(
+					IFNULL(a.LogonID, '') <![CDATA[<>]]> IFNULL(b.LogonID, '')
+					OR IFNULL(a.EmpNo, '') <![CDATA[<>]]> IFNULL(b.EmpNo, '')
+					OR IFNULL(a.DisplayName, '') <![CDATA[<>]]> IFNULL(b.DisplayName, '')
+					OR IFNULL(a.CompanyCode,'') <![CDATA[<>]]> IFNULL(c.CompanyCode, '')			
+					OR IFNULL(a.DeptCode, '') <![CDATA[<>]]> IFNULL(c.DeptCode, '')
+					OR IFNULL(a.JobTitleCode, '') <![CDATA[<>]]> IFNULL(c.JobTitleCode, '')
+					OR IFNULL(a.JobPositionCode, '') <![CDATA[<>]]> IFNULL(c.JobPositionCode, '')
+					OR IFNULL(a.JobLevelCode, '') <![CDATA[<>]]> IFNULL(c.JobLevelCode, '')
+					OR IFNULL(a.SortKey, '') <![CDATA[<>]]> IFNULL(b.SortKey, '')					
+					OR IFNULL(a.IsDisplay, '') <![CDATA[<>]]> IFNULL(b.IsDisplay, '')
+					OR IFNULL(a.EnterDate, '') <![CDATA[<>]]> IFNULL(b.EnterDate, '')
+					OR IFNULL(a.RetireDate, '') <![CDATA[<>]]> IFNULL(b.RetireDate, '')
+					OR IFNULL(a.PhotoPath, '') <![CDATA[<>]]> IFNULL(b.PhotoPath, '')
+					OR IFNULL(a.BirthDiv, '') <![CDATA[<>]]> IFNULL(b.BirthDiv, '')
+					OR IFNULL(a.BirthDate, '') <![CDATA[<>]]> IFNULL(b.BirthDate, '')
+					OR IFNULL(a.MailAddress, '') <![CDATA[<>]]> IFNULL(b.MailAddress, '')
+					OR IFNULL(a.ExternalMailAddress, '') <![CDATA[<>]]> IFNULL(b.ExternalMailAddress, '')
+					OR IFNULL(a.UseMessengerConnect, '') <![CDATA[<>]]> IFNULL(b.UseMessengerConnect, '')
+					OR IFNULL(a.ChargeBusiness, '') <![CDATA[<>]]> IFNULL(b.ChargeBusiness, '')
+					OR IFNULL(a.PhoneNumberInter, '') <![CDATA[<>]]> IFNULL(b.PhoneNumberInter, '')
+					OR IFNULL(a.LicSeq, '') <![CDATA[<>]]> IFNULL(b.LicSeq, '')
+				)
+	</insert>
+	
+	<insert id="insertCompareObjectUserForExcelDELETE">
+	    INSERT INTO COVI_SYNCDATA.COMPARE_OBJECT_USER
+		(
+			SyncType
+			, UserCode
+			, LogonID
+			, LogonPassword
+			, EmpNo
+			, DisplayName
+			, NickName
+			, MultiDisplayName
+			, CompanyCode
+			, DeptCode
+			, JobTitleCode
+			, JobPositionCode
+			, JobLevelCode
+			, RegionCode
+			, Address
+			, MultiAddress
+			, HomePage
+			, PhoneNumber
+			, Mobile
+			, Fax
+			, IPPhone
+			, UseMessengerConnect
+			, SortKey
+			, SecurityLevel
+			, Description
+			, IsUse
+			, IsHR
+			, IsDisplay
+			, EnterDate
+			, RetireDate
+			, PhotoPath
+			, BirthDiv
+			, BirthDate
+			, UseMailConnect
+			, MailAddress
+			, ExternalMailAddress
+			, ChargeBusiness
+			, PhoneNumberInter
+			, LanguageCode
+			, MobileThemeCode
+			, TimeZoneCode
+			, InitPortal
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+			, LicSeq
+		)	
+		SELECT
+			'DELETE' AS SyncType
+			, b.UserCode
+			, b.LogonID
+			, b.LogonPassword
+			, b.EmpNo
+			, b.DisplayName
+			, b.NickName
+			, b.MultiDisplayName	
+			, c.CompanyCode AS CompanyCode
+			, CONCAT((select DomainID from covi_smart4j.sys_object_domain where domaincode = c.CompanyCode),'_RetireDept') AS DeptCode
+			, '' AS JobTItleCode
+			, '' AS JobPositionCode
+			, '' AS JobLevelCode
+			, '' AS RegionCode		
+			, b.Address
+			, b.MultiAddress
+			, b.HomePage
+			, b.PhoneNumber
+			, b.Mobile
+			, b.Fax
+			, b.IPPhone
+			, b.UseMessengerConnect
+			, b.SortKey
+			, b.SecurityLevel
+			, b.Description
+			, b.IsUse
+			, b.IsHR
+			, b.IsDisplay
+			, b.EnterDate
+			, b.RetireDate
+			, b.PhotoPath
+			, b.BirthDiv
+			, b.BirthDate
+			, b.UseMailConnect
+			, b.MailAddress
+			, b.ExternalMailAddress
+			, b.ChargeBusiness
+			, b.PhoneNumberInter
+			, b.LanguageCode
+			, b.MobileThemeCode
+			, b.TimeZoneCode
+			, b.InitPortal
+			, b.RegistDate
+			, b.ModifyDate
+			, b.Reserved1
+			, b.Reserved2
+			, b.Reserved3
+			, b.Reserved4
+			, b.Reserved5
+			, b.LicSeq
+		FROM covi_syncdata.excel_orguser a
+		INNER JOIN covi_smart4j.sys_object_user b ON a.UserCode = b.UserCode
+		INNER JOIN covi_smart4j.sys_object_user_basegroup c on b.usercode = c.usercode AND c.JobType = 'Origin'
+		WHERE b.IsHR = 'Y' AND b.IsUse = 'Y'
+		AND IFNULL(a.RetireDate,'') <![CDATA[<>]]> ''
+		AND DATE_FORMAT(a.RetireDate, '%Y%m%d') <![CDATA[<]]> DATE_FORMAT(NOW(),'%Y%m%d')
+	</insert>
+	
+	<!-- 동기화 대상 조회 -->
+	<select id="getExcelTempDeptDataList" parameterType="cmap" resultType="cmap">
+    	SELECT     
+   			SyncType AS deptSyncType, 
+   			GroupCode AS deptGroupCode, 
+   			CompanyCode AS deptCompanyCode, 
+   			MemberOf AS deptMemberOf, 
+   			DisplayName AS deptDisplayName, 
+   			MultiDisplayName AS deptMultiDisplayName,
+   			SortKey AS deptSortKey, 
+   			IsUse AS deptIsUse, 
+   			IsDisplay AS deptIsDisplay, 
+   			IsMail AS deptIsMail, 
+   			IsHR AS deptIsHR, 
+   			PrimaryMail AS deptPrimaryMail, 
+   			ManagerCode AS deptManagerCode
+  		FROM covi_syncdata.compare_object_group
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  			1 = 1
+  			<if test="syncType != null and syncType != ''">
+		    	AND SyncType = #{syncType}
+		  	</if>
+		  	<if test="searchType == 'GroupCode' and searchText != ''">
+		  		AND GroupCode like CONCAT('%', #{searchText}, '%')
+		  	</if>
+		  	<if test="searchType == 'DisplayName' and searchText != ''">
+		  		AND DisplayName like CONCAT('%', #{searchText}, '%')
+		  	</if>
+		  	<if test="searchType == 'GroupCodeSync' and searchText != ''">
+		  		AND GroupCode = #{searchText}
+		  	</if>
+  		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("deptGroupCode")'>deptGroupCode</when>
+					<when test='sortColumn.equalsIgnoreCase("deptCompanyCode")'>deptCompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("deptMemberOf")'>deptMemberOf</when>
+					<when test='sortColumn.equalsIgnoreCase("deptDisplayName")'>deptDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("deptSortKey")'>deptSortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("deptIsUse")'>deptIsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("deptIsHR")'>deptIsHR</when>
+					<when test='sortColumn.equalsIgnoreCase("deptIsDisplay")'>deptIsDisplay</when>
+					<when test='sortColumn.equalsIgnoreCase("deptIsMail")'>deptIsMail</when>
+					<when test='sortColumn.equalsIgnoreCase("deptPrimaryMail")'>deptPrimaryMail</when>
+					<when test='sortColumn.equalsIgnoreCase("deptManagerCode")'>deptManagerCode</when>
+					<otherwise>deptSyncType</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				deptSyncType ASC, deptGroupCode ASC
+		    </if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+    </select>
+	
+	<select id="getExcelTempDeptDataListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(A.GroupCode)
+  		FROM covi_syncdata.compare_object_group A 
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  			1 = 1
+  			<if test="syncType != null and syncType != ''">
+		    	AND A.SyncType = #{syncType}
+		  	</if>
+		  	<if test="searchType == 'GroupCode' and searchText != ''">
+		  		AND A.GroupCode like CONCAT('%', #{searchText}, '%')
+		  	</if>
+		  	<if test="searchType == 'DisplayName' and searchText != ''">
+		  		AND A.DisplayName like CONCAT('%', #{searchText}, '%')
+		  	</if>
+  		</trim>
+    </select>
+    
+    <select id="getExcelTempUserDataList" parameterType="cmap" resultType="cmap">
+    	SELECT     
+   			SyncType AS userSyncType, 
+   			UserCode AS userUserCode, 
+   			LogonID AS userLogonID, 
+   			EmpNo AS userEmpNo, 
+   			DisplayName AS userDisplayName, 
+   			CompanyCode AS userCompanyCode, 
+   			DeptCode AS userDeptCode, 
+   			JobTitleCode AS userJobTitleCode, 
+   			JobPositionCode AS userJobPositionCode, 
+   			JobLevelCode AS userJobLevelCode, 
+   			PhoneNumber AS userPhoneNumber, 
+   			Mobile AS userMobile, 
+   			Fax AS userFax, 
+   			useMessengerConnect AS useMessengerConnect,
+   			SortKey AS userSortKey, 
+   			IsUse AS userIsUse, 
+   			IsHR AS userIsHR, 
+   			IsDisplay AS userIsDisplay, 
+   			EnterDate AS userEnterDate, 
+   			RetireDate AS userRetireDate, 
+   			PhotoPath AS userPhotoPath, 
+   			UseMailConnect AS userUseMailConnect, 
+   			MailAddress AS userMailAddress, 
+   			ExternalMailAddress AS userExternalMailAddress, 
+   			ChargeBusiness AS userChargeBusiness, 
+   			PhoneNumberInter AS userPhoneNumberInter,
+   			LicSeq as userLicSeq,
+   			BirthDiv as userBirthDiv,
+   			BirthDate as userBirthDate,
+   			MultiDisplayName as userMultiDisplayName
+  		FROM covi_syncdata.compare_object_user
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  			1 = 1
+  			<if test="syncType != null and syncType != ''">
+		    	AND SyncType = #{syncType}
+		  	</if>
+		  	<if test="searchType == 'UserCode' and searchText != ''">
+		  		AND UserCode like CONCAT('%', #{searchText}, '%')
+		  	</if>
+		  	<if test="searchType == 'DisplayName' and searchText != ''">
+		  		AND DisplayName like CONCAT('%', #{searchText}, '%')
+		  	</if>
+  		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("userUserCode")'>userUserCode</when>
+					<when test='sortColumn.equalsIgnoreCase("userCompanyCode")'>userCompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("userSortKey")'>userSortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("userDisplayName")'>userDisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("userJobTitleCode")'>userJobTitleCode</when>
+					<when test='sortColumn.equalsIgnoreCase("userJobPositionCode")'>userJobPositionCode</when>
+					<when test='sortColumn.equalsIgnoreCase("userJobLevelCode")'>userJobLevelCode</when>
+					<when test='sortColumn.equalsIgnoreCase("userIsUse")'>userIsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("userIsHR")'>userIsHR</when>
+					<when test='sortColumn.equalsIgnoreCase("userUseMailConnect")'>userUseMailConnect</when>
+					<when test='sortColumn.equalsIgnoreCase("userMailAddress")'>userMailAddress</when>
+					<otherwise>userSyncType</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				userSyncType ASC, userUserCode ASC
+		    </if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+		   	LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+    </select>
+    
+    <select id="getExcelTempUserDataListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(A.UserCode)
+  		FROM covi_syncdata.compare_object_user A 
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+  			1 = 1
+  			<if test="syncType != null and syncType != ''">
+		    	AND A.SyncType = #{syncType}
+		  	</if>
+		  	<if test="searchType == 'UserCode' and searchText != ''">
+		  		AND A.UserCode like CONCAT('%', #{searchText}, '%')
+		  	</if>
+		  	<if test="searchType == 'DisplayName' and searchText != ''">
+		  		AND A.DisplayName like CONCAT('%', #{searchText}, '%')
+		  	</if>
+  		</trim>
+    </select>
+    
+    <delete id="deleteSelectDept">
+    	DELETE from covi_syncdata.compare_object_group WHERE GroupCode = #{GroupCode}
+    </delete>
+    
+    <delete id="deleteSelectUser">
+    	DELETE from covi_syncdata.compare_object_user WHERE UserCode = #{UserCode}
+    </delete>
+    
+    <delete id="deleteOtherCompanyGroup">
+    	DELETE from covi_syncdata.compare_object_group WHERE CompanyCode <![CDATA[<>]]> #{CompanyCode}
+    </delete>
+    
+    <delete id="deleteOtherCompanyUser">
+    	DELETE from covi_syncdata.compare_object_user WHERE CompanyCode <![CDATA[<>]]> #{CompanyCode}
+    </delete>
+    
+    <delete id="deleteNoMemberOf">
+    	DELETE from covi_syncdata.compare_object_group WHERE IFNULL(SortPath,'') = ''
+    </delete>
+    
+    <!-- 엑셀 다운로드 -->
+    <select id="selectallDeptList" parameterType="cmap" resultType="cmap">
+    	SELECT 
+			<choose>
+    			<when test='isSaaS == "Y"'>
+    				REPLACE(GroupCode, CONCAT(CompanyCode,'_'),'') AS GroupCode,
+					REPLACE(MemberOf, CONCAT(CompanyCode,'_'),'') AS MemberOf,
+    			</when>
+    			<otherwise>GroupCode,MemberOf,</otherwise>
+    		</choose>
+    		CompanyCode,DisplayName,MultiDisplayName,SortKey,IsUse,IsHR,IsDisplay,IsMail,PrimaryMail,ManagerCode
+    	FROM covi_smart4j.sys_object_group
+    	WHERE GroupType = 'Dept'
+    	AND IsUse = 'Y'
+    	AND IsHR = 'Y'
+    	AND CompanyCode = #{companyCode}
+    	AND GroupCode not like '%RetireDept'
+    	ORDER BY SortPath, GroupCode
+    </select>
+    
+    <select id="selectallDeptListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT 
+    		COUNT(*)
+    	FROM covi_smart4j.sys_object_group
+    	WHERE GroupType = 'Dept'
+    	AND IsUse = 'Y'
+    	AND IsHR = 'Y'
+    	AND CompanyCode = #{companyCode}
+    	AND GroupCode not like '%RetireDept'
+    </select>
+    
+    <select id="selectallUserList" parameterType="cmap" resultType="cmap">
+    	SELECT 
+    		<choose>
+    			<when test='isSaaS == "Y"'>
+    				REPLACE(A.UserCode, CONCAT(B.CompanyCode,'_'), '') AS UserCode,
+    				REPLACE(B.DeptCode, CONCAT(B.CompanyCode,'_'),'') AS DeptCode,
+    			</when>
+    			<otherwise>A.UserCode,B.DeptCode,</otherwise>
+    		</choose>
+    		B.CompanyCode,A.LogonID,'' AS LogonPW,
+    		A.EmpNo,A.DisplayName,A.MultiDisplayName,B.JobPositionCode,B.JobTitleCode,B.JobLevelCode,
+    		A.SortKey,A.IsUse,A.IsHR,A.IsDisplay,A.UseMailConnect,A.EnterDate,A.RetireDate,
+    		A.BirthDiv,A.BirthDate,A.PhotoPath,A.MailAddress,A.ExternalMailAddress,
+    		A.ChargeBusiness,A.PhoneNumberInter,A.PhoneNumber,A.Mobile,A.Fax,A.UseMessengerConnect
+    	FROM covi_smart4j.sys_object_user A
+    	INNER JOIN covi_smart4j.sys_object_user_basegroup B ON A.UserCode = B.UserCode
+    	WHERE A.IsUse = 'Y'
+    	AND A.IsHR = 'Y'
+    	AND B.JobType = 'Origin'
+    	AND B.CompanyCode = #{companyCode}
+    </select>
+    
+    <select id="selectallUserListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT 
+    		COUNT(*)
+    	FROM covi_smart4j.sys_object_user A
+    	INNER JOIN covi_smart4j.sys_object_user_basegroup B ON A.UserCode = B.UserCode
+    	WHERE A.IsUse = 'Y'
+    	AND A.IsHR = 'Y'
+    	AND B.JobType = 'Origin'
+    	AND B.CompanyCode = #{companyCode}
+    </select>
+    
+    <!-- SaaS -->
+    <!-- selectallDeptList와 통합, 22.02.04, jklee2
+    <select id="selectallDeptListSaaS" parameterType="cmap" resultType="cmap">
+    	SELECT
+			REPLACE(GroupCode, CONCAT(CompanyCode,'_'),'') AS GroupCode,
+			CompanyCode,
+			REPLACE(MemberOf, CONCAT(CompanyCode,'_'),'') AS MemberOf,
+			DisplayName,MultiDisplayName,
+			SortKey,IsUse,IsHR,IsDisplay,IsMail,PrimaryMail,ManagerCode
+    	FROM covi_smart4j.sys_object_group
+    	WHERE GroupType = 'Dept'
+    	AND IsUse = 'Y'
+    	AND IsHR = 'Y'
+    	AND CompanyCode = #{companyCode}
+    	AND GroupCode not like '%RetireDept'
+    	ORDER BY SortPath, GroupCode
+    </select>
+     -->
+    <!-- selectallUserList와 통합, 22.02.04, jklee2
+    <select id="selectallUserListSaaS" parameterType="cmap" resultType="cmap">
+    	SELECT 
+    		REPLACE(A.UserCode, CONCAT(B.CompanyCode,'_'), '') AS UserCode,B.CompanyCode,
+    		REPLACE(B.DeptCode, CONCAT(B.CompanyCode,'_'),'') AS DeptCode,
+    		A.LogonID,'' AS LogonPW,
+    		A.EmpNo,A.DisplayName,A.MultiDisplayName,B.JobPositionCode,B.JobTitleCode,B.JobLevelCode,
+    		A.SortKey,A.IsUse,A.IsHR,A.IsDisplay,A.UseMailConnect,A.EnterDate,A.RetireDate,
+    		A.BirthDiv,A.BirthDate,A.PhotoPath,A.MailAddress,A.ExternalMailAddress,
+    		A.ChargeBusiness,A.PhoneNumberInter,A.PhoneNumber,A.Mobile,A.Fax,A.UseMessengerConnect
+    	FROM covi_smart4j.sys_object_user A
+    	INNER JOIN covi_smart4j.sys_object_user_basegroup B ON A.UserCode = B.UserCode
+    	WHERE A.IsUse = 'Y'
+    	AND A.IsHR = 'Y'
+    	AND B.JobType = 'Origin'
+    	AND B.CompanyCode = #{companyCode}
+    </select>
+     -->
+    <select id="selectIsDuplicateUserCode" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_syncdata.excel_orguser a
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="Type == 'UserCode'">
+		  		AND a.UserCode = #{Code} 
+		  	</if>
+		  	<if test="Type == 'UserEmpNo'">
+		  		AND a.EmpNo = #{Code}
+			  	<if test='IsSaaS == "Y"'>
+					AND a.CompanyCode = #{CompanyCode}
+			  	</if>
+		  	</if>
+		  	<if test="Type == 'LogonID'">
+		  		AND a.LogonID = #{Code}
+		  	</if>
+		</trim> 
+    </select>
+    
+    <select id="selectIsDuplicateEmpno" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_syncdata.excel_orguser a
+		WHERE a.EmpNo = #{Code}
+		AND a.CompanyCode = #{CompanyCode}
+    </select> 
+    
+    <select id="selectIsDuplicateDeptCode" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(0) AS isDuplicate
+		FROM covi_syncdata.excel_orgdept
+		WHERE GroupCode = #{GroupCode}
+    </select> 
+    
+</mapper>

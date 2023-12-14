@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget">
+	<select id="getBudgetInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.CostCenter AS "CostCenter"
+			, A.AccountCode AS "AccountCode"
+			, MAX(A.AccountName) AS "AccountName"
+			, A.StandardBriefID AS "StandardBriefID"
+			, MAX(A.StandardBriefName) AS "StandardBriefName"
+			, MAX(A.ValidFrom) AS "ValidFrom"
+			, MAX(A.ValidTo) AS "ValidTo"
+			, MAX(BudgetAmount) AS "BudgetAmount"
+			, SUM(UsedAmount) AS "UsedAmount"
+		FROM (
+			SELECT * FROM (
+				SELECT
+					BR.CostCenter
+					, BR.AccountCode
+					, AC.AccountName
+					, ASB.StandardBriefID
+					, ASB.StandardBriefName
+					, BR.ValidFrom
+					, BR.ValidTo
+					, BR.BudgetAmount
+					, BER.UsedAmount
+				FROM bem_regist BR
+				LEFT OUTER JOIN bem_execute_regist BER ON BR.CostCenter = BER.BudgetCode 
+				    AND BR.CostCenter = BER.BudgetCode 
+					AND BR.AccountCode = BER.AccountCode 
+					AND BR.StandardBriefID = BER.StandardBriefID
+					AND BER.ExecuteDate BETWEEN BR.validFrom AND BR.validTo
+					AND BER.FiscalYear = BR.FiscalYear
+					AND (BER.Status = 'P' OR BER.Status = 'C')
+				LEFT OUTER JOIN act_standard_brief ASB ON BR.StandardBriefID = ASB.StandardBriefID
+				LEFT OUTER JOIN act_account AC ON BR.AccountCode = AC.AccountCode AND BR.CompanyCode = AC.CompanyCode 
+			) A
+			WHERE 1=1
+			<if test="CostCenter != null and CostCenter != ''">
+			AND CostCenter = #{CostCenter}
+			</if>
+			<if test="UseDate != null and UseDate != ''">
+			AND #{UseDate} BETWEEN ValidFrom AND ValidTo
+			</if>
+			<choose>
+				<when test="AccountCodes != null">
+				AND 
+					<foreach collection="AccountCodes" item="item" index="index" separator="," open="AccountCode IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<when test="StandardBriefIDs != null">
+				AND 
+					<foreach collection="StandardBriefIDs" item="item" index="index" separator="," open="StandardBriefID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					AND 1=2
+				</otherwise>
+			</choose>
+		) A
+		GROUP BY CostCenter, AccountCode, StandardBriefID
+	</select>
+</mapper>

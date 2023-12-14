@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.theme">
+	<select id="selectThemeCount" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM SYS_THEME A
+		INNER JOIN SYS_OBJECT_DOMAIN B ON A.DomainID = B.DomainID
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domainID != null and domainID != '' and domainID.length() gt 0">
+			 	AND A.DomainID = #{domainID}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+				AND A.DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+					#{domainID}
+				</foreach>
+			</if>
+		</trim>
+	</select>
+		
+	<select id="selectThemeList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	  ThemeID AS "ThemeID"
+				, DomainID AS "DomainID"
+				, DisplayName AS "DisplayName"
+				, SortKey AS "SortKey"
+				, Theme AS "Theme"
+				, ThemeType AS "ThemeType"
+				, ThemeName AS "ThemeName"
+				, IsUse AS "IsUse"
+				, IsThemeChange AS "IsThemeChange"
+				, IsSkinChange AS "IsSkinChange"
+				, BgColor AS "BgColor"
+				, BgImage AS "BgImage"
+				, Description AS "Description"
+				, RegID AS "RegID"
+				, ModID AS "ModID"
+				, ModDate AS "ModDate"
+		FROM (
+			SELECT	  A.ThemeID
+					, A.DomainID
+					, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+					, A.SortKey
+					, A.Theme
+					, A.ThemeType
+					, A.ThemeName
+					, A.IsUse
+					, A.IsThemeChange
+					, A.IsSkinChange
+					, A.BgColor
+					, A.BgImage
+					, A.Description
+					, A.RegID
+					, A.ModID
+					, TO_CHAR(NVL(A.ModDate , A.RegDate), 'YYYY.MM.DD HH24:MI:SS') AS ModDate
+			FROM SYS_THEME A
+			INNER JOIN SYS_OBJECT_DOMAIN B ON A.DomainID = B.DomainID
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="domainID != null and domainID != '' and domainID.length() gt 0">
+			 	AND DomainID = #{domainID}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+				AND DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+					#{domainID}
+				</foreach>
+			</if>
+		</trim>
+		<!-- ORDER BY 절 -->
+		<trim prefix="ORDER BY">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				SortKey ASC 
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("ThemeName")'>ThemeName</when>
+					<when test='sortColumn.equalsIgnoreCase("Theme")'>Theme</when>
+					<when test='sortColumn.equalsIgnoreCase("ModDate")'>ModDate</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectone" parameterType="cmap" resultType="cmap">		
+		SELECT ThemeID AS "ThemeID"
+			, DomainID AS "DomainID"
+			, SortKey AS "SortKey"
+			, Theme AS "ThemeCode"
+			, ThemeType AS "ThemeType"
+			, ThemeName AS "ThemeName"
+			, IsUse AS "IsUse"
+			, Description AS "Description"
+			, RegID AS "RegID"
+			, TO_CHAR(RegDate, 'YYYY.MM.DD HH24:MI:SS') AS "RegDate"
+		FROM SYS_THEME
+		WHERE 1=1
+		AND ThemeID = #{themeID}
+	</select>
+	
+	<!-- 도메인 추가 시 중복 체크  -->
+ 	<select id="chkDuplication"  parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) FROM SYS_THEME
+		WHERE Theme = #{themeCode}
+ 	</select>
+	
+	<insert id="insertTheme" parameterType="cmap" useGeneratedKeys="true">
+			INSERT INTO SYS_THEME(DomainID,  Theme, ThemeName, IsUse, Description, RegID)
+			VALUES (
+				#{domainID}, #{themeCode}, #{themeName}, 'Y', #{description}, #{regID}
+			)
+		<selectKey keyProperty="ThemeID" resultType="long" order="AFTER">
+			SELECT SYS_THEME_SEQ.CURRVAL FROM dual
+        </selectKey>
+	</insert>
+	
+	<update id="updateTheme" parameterType="cmap">
+		<![CDATA[
+		UPDATE SYS_THEME
+		SET DomainID = #{domainID}
+			, Theme = #{themeCode}
+			, ThemeName = #{themeName}
+			, Description = #{description}
+		WHERE ThemeID= #{themeID}
+		]]>
+	</update>
+	
+	<delete id="deleteTheme" parameterType="cmap">
+		<![CDATA[
+		DELETE FROM SYS_THEME
+		WHERE ThemeID= #{themeID}
+		]]>
+	</delete>
+</mapper>

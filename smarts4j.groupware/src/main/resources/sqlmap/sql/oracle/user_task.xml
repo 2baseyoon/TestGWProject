@@ -1,0 +1,1386 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.task">
+
+    <!--개인폴더(나의 업무) 조회  -->
+    <select id="selectPersonalFolderList" parameterType="cmap" resultType="cmap">
+        SELECT FolderID AS "FolderID"
+				, NVL(a.ParentFolderID,0) AS "ParentFolderID"
+			  	, DisplayName AS "DisplayName"
+			  	, LENGTH(IDPath)-LENGTH(REPLACE(IDPath,';','')) AS "depth"
+			  	, IsShare AS "IsShare"
+			  	, NVL(b.Cnt, 0) AS "ChildCnt"
+		FROM TASK_FOLDER a
+		LEFT JOIN (
+			SELECT  ParentFolderID, COUNT(*) AS Cnt
+			FROM    TASK_FOLDER
+			WHERE DeleteDate IS NULL 
+			GROUP BY ParentFolderID
+		) b ON a.FolderID = b.ParentFolderID
+		WHERE OwnerCode = #{userID}
+		AND DeleteDate IS NULL
+		ORDER BY "depth" ASC, a.RegistDate ASC
+    </select>
+    
+    <!--공유폴더(공유 업무) 조회  -->
+    <select id="selectShareFolderList" parameterType="cmap" resultType="cmap">
+    	SELECT DISTINCT a.FolderID AS "FolderID"
+				, a.ParentFolderID AS "ParentFolderID"
+				, a.DisplayName AS "DisplayName"
+				, LENGTH(IDPath)-LENGTH(REPLACE(IDPath,';','')) AS "depth"
+				, NVL(c.Cnt, 0) AS "ChildCnt"
+        		, a.RegistDate AS "RegistDate"
+		FROM TASK_FOLDER a
+		INNER JOIN TASK_FOLDER_SHARE_MEMBER b ON a.FolderID = b.FolderID
+		LEFT JOIN ( SELECT  ParentFolderID, COUNT(*) AS Cnt
+						FROM    TASK_FOLDER
+						WHERE DeleteDate IS NULL
+						GROUP BY ParentFolderID ) c ON a.FolderID = c.ParentFolderID
+		WHERE a.DeleteDate IS NULL
+		AND b.MemberCode IN 
+		<foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		AND a.OwnerCode != #{userID}
+		ORDER BY "depth" ASC, RegistDate ASC
+    </select>
+    
+	<!-- 사용자가 조회 권한이 있는 모든 폴더 (개인& 공유) 조회  (좌측 메뉴 검색용)-->
+	<select id="selectUserAllFolderList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT
+			  FolderID AS "FolderID"
+	  		, DisplayName AS "DisplayName"
+			, FolderState AS "FolderState"
+			, FolderStateCode AS "FolderStateCode"
+			, IsShare AS "IsShare"
+			, OwnerCode AS "OwnerCode"
+			, RegisterCode AS "RegisterCode"
+			, ParentFolderID AS "ParentFolderID"
+			, RegistDate AS "RegistDate"
+		FROM (
+			SELECT a.FolderID
+			  		, a.DisplayName
+					, a.State AS FolderState
+					, a.State AS FolderStateCode
+					, a.IsShare
+					, a.OwnerCode
+					, a.RegisterCode
+					, NVL(a.ParentFolderID,0) AS ParentFolderID
+					, RegistDate
+			FROM TASK_FOLDER a
+			LEFT JOIN TASK_FOLDER_SHARE_MEMBER b ON a.FolderID = b.FolderID 
+			WHERE ( (a.OwnerCode = #{userID}) OR (b.MemberCode IN 		
+			<foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+  			AND a.OwnerCode != #{userID}) )
+			AND a.DeleteDate IS NULL
+			<if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND a.State = #{stateCode} 
+			</if>
+			<if test="searchWord != null and searchWord != '' ">
+				AND a.DisplayName LIKE '%' || #{searchWord} || '%'
+			</if>
+		) B
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>DisplayName</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+
+    <!-- 사용자가 조회 권한이 있는 모든 업무 (개인& 공유) 조회 (좌측 메뉴 검색용)-->
+    <select id="selectUserAllTaskList" parameterType="cmap" resultType="cmap">
+       SELECT TaskID AS "TaskID"
+			, FolderID AS "FolderID"
+			, Subject AS "Subject"
+			, TaskState AS "TaskState"
+			, TaskStateCode AS "TaskStateCode"
+			, TaskProgress AS "TaskProgress"
+			, IsDelay AS "IsDelay"
+			, IsRead AS "IsRead"
+			, StartDate AS "StartDate"
+			, EndDate AS "EndDate"
+			, RegistDate AS "RegistDate"
+			, OwnerCode AS "OwnerCode"
+			, RegisterCode AS "RegisterCode"
+       FROM (
+       <![CDATA[
+	       	SELECT DISTINCT a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.Progress AS TaskProgress
+					, CASE WHEN
+						(a.State = 'Waiting'  AND (a.StartDate < SYSDATE  OR (a.EndDate+1) < SYSDATE )  )
+						OR
+						(a.State = 'Process' AND  ((a.EndDate+1) < SYSDATE) )
+					 	THEN 'Y' ELSE 'N' END
+					  AS IsDelay
+					, DECODE(d.ReadDate, NULL, 'N', 'Y') AS IsRead
+					, a.StartDate
+					, a.EndDate
+					, a.RegistDate
+					, a.OwnerCode
+					, a.RegisterCode
+			FROM TASK a
+			LEFT JOIN TASK_FOLDER b ON a.FolderID = b.FolderID
+			LEFT JOIN TASK_FOLDER_SHARE_MEMBER c ON b.FolderID = c.FolderID
+			LEFT JOIN TASK_READ d ON a.TaskID = d.TaskID AND d.UserID = #{userID}]]>
+			WHERE ( (a.OwnerCode = #{userID}) OR (c.MemberCode IN 
+				<foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			AND a.OwnerCode != #{userID}) )
+     		AND a.DeleteDate IS NULL
+			AND b.DeleteDate IS NULL
+			AND (a.IsTempSave IS NULL OR a.IsTempSave != 'Y') 
+       <if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+		 	AND a.State = #{stateCode} 
+	    </if>
+		<if test="searchWord != null and searchWord != '' ">
+		 	AND a.Subject LIKE '%' || #{searchWord} || '%'
+	   </if>
+		) temp
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				IsRead DESC, IsDelay DESC, RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+    </select>
+   
+	<!-- 해당사용자가 권한을 가진 모든 공유 폴더 목록 조회 -->
+	<select id="selectAllShareFolderList" parameterType="cmap" resultType="cmap">
+		/* queryID : user.task.selectAllShareFolderList */
+		SELECT  FolderID AS "FolderID"
+			  , ParentFolderID AS "ParentFolderID"
+			  , DisplayName AS "DisplayName"
+			  , FolderState AS "FolderState"
+			  , FolderStateCode AS "FolderStateCode"
+			  , IsShare AS "IsShare"
+			  , RegistDate AS "RegistDate"
+			  , OwnerName AS "OwnerName"
+			  , FolderProgress AS "FolderProgress"
+		FROM ( 
+			SELECT DISTINCT a.FolderID
+						  , a.ParentFolderID
+						  , a.DisplayName
+						  , a.State AS FolderState
+						  , a.State AS FolderStateCode
+						  , a.IsShare
+						  , a.RegistDate
+						  , Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+						  , a.Progress AS FolderProgress
+			FROM TASK_FOLDER a
+			INNER JOIN TASK_FOLDER_SHARE_MEMBER b ON a.FolderID = b.FolderID
+			LEFT JOIN SYS_OBJECT_USER c ON a.OwnerCode = c.UserCode
+			WHERE a.DeleteDate IS NULL
+			AND b.MemberCode IN 
+			<foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+			AND a.OwnerCode != #{userID} 
+		) temp
+		<trim prefix="WHERE" prefixOverrides="AND|OR ">
+			<if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND FolderStateCode = #{stateCode} 
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+					<when test="searchType == 'Subject'"> <!-- 제목 -->
+						AND DisplayName LIKE '%'||#{searchWord}||'%' 
+					</when>
+					<when test="searchType == 'OwnerName'"><!-- 소유자 -->
+						AND OwnerName LIKE '%'||#{searchWord}||'%' 
+					</when>
+					<when test="searchType == 'All'"><!-- 소유자 -->
+						AND (
+							DisplayName  LIKE '%'||#{searchWord}||'%' 
+							OR
+							OwnerName  LIKE '%'||#{searchWord}||'%' 
+						)
+					</when>
+				</choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>DisplayName</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+    
+     <!-- 특정 폴더 정보 조회 -->
+     <select id="selectFolderData" parameterType="cmap" resultType="cmap">
+        SELECT a.FolderID AS "FolderID"
+				  , NVL(a.ParentFolderID, 0) AS "ParentFolderID"
+				  , a.DisplayName AS "DisplayName"
+				  , a.State AS "FolderState"
+				  , a.State AS "State"
+				  , a.Description AS "Description"
+				  , a.IsShare AS "IsShare"
+				  , a.IDPath AS "IDPath"
+				  , a.RegisterCode AS "RegisterCode"
+				  , a.OwnerCode AS "OwnerCode"
+				  , TO_CHAR(a.RegistDate, 'YYYY/MM/DD HH24:MI:SS') AS "RegistDate"
+				  , Fn_BaseGetDictionary_S(#{lang}, b.MultiDisplayName) AS "RegisterName"
+				  , a.Progress AS "Progress"
+        FROM TASK_FOLDER a
+        LEFT JOIN SYS_OBJECT_USER b ON a.RegisterCode = b.UserCode 
+        WHERE a.FolderID = #{FolderID}
+     </select>
+    
+	<!-- 특정 폴더의 하위 폴더 항목 조회-->
+	<select id="selectFolderOfFolderList" parameterType="cmap" resultType="cmap">
+		SELECT	  FolderID AS "FolderID"
+				, DisplayName AS "DisplayName"
+				, FolderState AS "FolderState"
+				, FolderStateCode AS "FolderStateCode"
+				, IsShare AS "IsShare"
+				, OwnerCode AS "OwnerCode" 
+				, RegisterCode AS "RegisterCode" 
+				, ParentFolderID AS "ParentFolderID"
+				, RegistDate AS "RegistDate"
+				, OwnerName AS "OwnerName"
+				, FolderProgress AS "FolderProgress"
+		FROM ( 
+			SELECT DISTINCT	  a.FolderID
+							, a.DisplayName
+							, a.State AS FolderState
+							, a.State AS FolderStateCode
+							, a.IsShare
+							, a.OwnerCode
+							, a.RegisterCode
+							, NVL(a.ParentFolderID,0) AS ParentFolderID
+							, a.RegistDate
+							, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+							, a.Progress AS FolderProgress
+			FROM TASK_FOLDER a
+			LEFT JOIN TASK_FOLDER_SHARE_MEMBER b ON a.FolderID = b.FolderID
+			LEFT JOIN SYS_OBJECT_USER c ON a.OwnerCode = c.UserCode
+			WHERE NVL(a.ParentFolderID, 0)  = #{FolderID}
+			AND a.DeleteDate IS NULL
+			<if test="stateCode != null and stateCode != ''  and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND a.State = #{stateCode} 
+			</if>
+			<choose>
+				<when test="isMine!=null and isMine.equalsIgnoreCase('Y')">
+					AND a.OwnerCode  = #{userID}
+				</when>
+				<otherwise>
+					AND (b.MemberCode IN
+					<foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+					 AND a.OwnerCode != #{userID})
+				</otherwise>
+			</choose>
+		) temp
+		<trim prefix="WHERE" prefixOverrides="AND |OR">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+					<when test="searchType == 'Subject'"> <!-- 제목 -->
+						AND DisplayName LIKE '%'||#{searchWord}||'%' 
+					</when>
+					<when test="searchType == 'OwnerName'"><!-- 소유자 -->
+						AND OwnerName LIKE '%'||#{searchWord}||'%' 
+					</when>
+					<when test="searchType == 'All'"><!-- 소유자 -->
+						AND (
+							DisplayName LIKE '%'||#{searchWord}||'%' 
+							OR
+							OwnerName LIKE '%'||#{searchWord}||'%' 
+						)
+					</when>
+				</choose>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>DisplayName</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+    
+	<!-- 특정 폴더의 하위 업무 항목 조회-->
+	<select id="selectTaskOfFolderList" parameterType="cmap" resultType="cmap">
+		SELECT 	  TaskID AS "TaskID"
+				, FolderID AS "FolderID" 
+				, Subject AS "Subject"
+				, TaskState AS "TaskState"
+				, TaskStateCode AS "TaskStateCode"
+				, TaskProgress AS "TaskProgress"
+				, IsDelay AS "IsDelay"
+				, IsRead AS "IsRead"
+				, RegistDate AS "RegistDate"
+				, RegisterCode AS "RegisterCode"
+				, OwnerCode AS "OwnerCode"
+				, OwnerName AS "OwnerName"
+		FROM (
+			SELECT	  a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.Progress AS TaskProgress
+					, CASE	WHEN
+						(a.State = 'Waiting'  AND (a.StartDate <![CDATA[ < ]]> SYSDATE  OR a.EndDate <![CDATA[ < ]]>  SYSDATE )  )
+						OR
+						(a.State = 'Process' AND a.EndDate <![CDATA[ < ]]>  SYSDATE )
+							THEN 'Y'
+							ELSE 'N'
+							END AS IsDelay
+					, b.IsRead
+					, a.RegistDate
+					, a.RegisterCode
+					, a.OwnerCode
+					, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+					<!-- , CASE WHEN p.PerformerCode IS NULL THEN 'N' ELSE 'Y' END AS "IsPerformer" -->
+			FROM TASK a
+			LEFT JOIN (
+				SELECT	  TaskID
+						, DECODE(MAX(ReadDate), NULL, 'N', 'Y') AS IsRead
+				FROM TASK_READ
+				WHERE UserID = #{userID}
+				GROUP BY TaskID
+			) b ON a.TaskID = b.TaskID
+			LEFT JOIN SYS_OBJECT_USER c ON a.OwnerCode = c.UserCode
+			WHERE a.FolderID = #{FolderID}
+			AND a.DeleteDate IS NULL 
+			AND (a.IsTempSave IS NULL OR a.IsTempSave != 'Y') 
+		) temp
+		<trim prefix="WHERE" prefixOverrides="AND|OR">
+			<if test="FolderID!=null and FolderID.equalsIgnoreCase('0')"> 
+				AND OwnerCode =  #{userID}  <!-- 0인경우는 나의 업무, 공유 업무는 0에 업무 추가 불가. --> 
+			</if>
+			<if test="stateCode != null and stateCode != '' and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND TaskStateCode = #{stateCode} 
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+					<when test="searchType == 'Subject'"> <!-- 제목 -->
+						AND Subject LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="searchType == 'OwnerName'"><!-- 소유자 -->
+						AND OwnerName LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="searchType == 'All'"><!-- 소유자 -->
+						AND (
+							Subject LIKE '%' || #{searchWord} || '%'
+							OR
+							OwnerName LIKE '%' || #{searchWord} || '%'
+						)
+					</when>
+				</choose>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				IsRead DESC, IsDelay DESC, RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+    
+	<!-- 사용자의 모든 임시저장 항목 조회 -->
+	<select id="selectUserAllTempTaskList" parameterType="cmap" resultType="cmap">
+		SELECT	  TaskID AS "TaskID"
+				, FolderID AS "FolderID" 
+				, Subject AS "Subject"
+				, TaskState AS "TaskState"
+				, TaskStateCode AS "TaskStateCode"
+				, IsDelay AS "IsDelay"
+				, IsRead AS "IsRead"
+				, RegistDate AS "RegistDate"
+				, RegisterCode AS "RegisterCode"
+				, OwnerCode AS "OwnerCode"
+				, OwnerName AS "OwnerName"
+		FROM (
+			SELECT	  a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, CASE	WHEN
+								(a.State = 'Waiting'  AND (a.StartDate <![CDATA[ < ]]> SYSDATE OR a.EndDate <![CDATA[ < ]]> SYSDATE )  )
+								OR
+								(a.State = 'Process' AND a.EndDate <![CDATA[ < ]]> SYSDATE )
+							THEN 'Y'
+							ELSE 'N'
+							END AS IsDelay
+					, b.IsRead
+					, a.RegistDate
+					, a.RegisterCode
+					, a.OwnerCode
+					, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+			FROM TASK a
+			LEFT JOIN (
+				SELECT	  TaskID
+						, DECODE(MAX(ReadDate), NULL, 'N', 'Y') AS IsRead
+				FROM TASK_READ
+				WHERE UserID = #{userID}
+				GROUP BY TaskID
+			) b ON a.TaskID = b.TaskID
+			LEFT JOIN SYS_OBJECT_USER c ON a.OwnerCode = c.UserCode
+			WHERE a.RegisterCode = #{userID}
+			AND a.DeleteDate IS NULL 
+			AND a.IsTempSave = 'Y'
+			<!-- 임시저장 : IsTempSave = 'Y' -->
+			<if test="stateCode != null and stateCode != '' and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND a.State = #{stateCode} 
+			</if>
+			<if test="searchWord != null and searchWord != '' ">
+				AND a.Subject LIKE '%'||#{searchWord}||'%'
+			</if>
+		) temp
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				IsRead DESC, IsDelay DESC, RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+    
+	<select id="selectTempTaskOfFolderList" parameterType="cmap" resultType="cmap">
+		SELECT	  TaskID AS "TaskID"
+				, FolderID AS "FolderID" 
+				, Subject AS "Subject"
+				, TaskState AS "TaskState"
+				, TaskStateCode AS "TaskStateCode"
+				, TaskProgress AS "TaskProgress"
+				, IsDelay AS "IsDelay"
+				, IsRead AS "IsRead"
+				, RegistDate AS "RegistDate"
+				, RegisterCode AS "RegisterCode"
+				, OwnerCode AS "OwnerCode"
+				, OwnerName AS "OwnerName"
+		FROM (
+			SELECT	  a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.Progress AS TaskProgress
+					, CASE	WHEN
+								(a.State = 'Waiting'  AND (a.StartDate <![CDATA[ < ]]> SYSDATE  OR a.EndDate <![CDATA[ < ]]> SYSDATE )  )
+								OR
+								(a.State = 'Process' AND a.EndDate <![CDATA[ < ]]> SYSDATE )
+							THEN 'Y'
+							ELSE 'N'
+							END AS IsDelay
+					, b.IsRead
+					, a.RegistDate
+					, a.RegisterCode
+					, a.OwnerCode
+					, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+			FROM TASK a
+			LEFT JOIN (
+				SELECT	  TaskID
+						, DECODE(MAX(ReadDate), NULL, 'N', 'Y') AS IsRead
+				FROM TASK_READ
+				WHERE UserID = #{userID}
+				GROUP BY TaskID
+			) b ON a.TaskID = b.TaskID
+			LEFT JOIN SYS_OBJECT_USER c ON a.OwnerCode = c.UserCode
+			WHERE a.FolderID = #{FolderID}
+			AND a.DeleteDate IS NULL 
+			AND a.IsTempSave = 'Y'
+		) temp
+		<!-- 임시저장 : IsTempSave = 'Y' -->
+		<trim prefix="WHERE" prefixOverrides="AND|OR">
+			<if test="FolderID!=null and FolderID.equalsIgnoreCase('0')"> 
+				AND OwnerCode = #{userID}  <!-- 0인경우는 나의 업무, 공유 업무는 0에 업무 추가 불가. --> 
+			</if>
+			<if test="stateCode != null and stateCode != '' and stateCode != 'FolderState' and stateCode != 'TaskState' ">
+				AND TaskStateCode = #{stateCode} 
+			</if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose>
+					<when test="searchType == 'Subject'"> <!-- 제목 -->
+						AND Subject LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="searchType == 'OwnerName'"><!-- 소유자 -->
+						AND OwnerName LIKE '%' || #{searchWord} || '%'
+					</when>
+					<when test="searchType == 'All'"><!-- 소유자 -->
+						AND  (
+							Subject LIKE '%' || #{searchWord} || '%'
+							OR
+							OwnerName LIKE '%' || #{searchWord} || '%'
+						)
+					</when>
+				</choose>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" >
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				IsRead DESC, IsDelay DESC, RegistDate DESC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+	</select>
+    
+    <!-- 폴더 정보 추가 -->
+   <insert id="insertFolderData" parameterType="cmap" useGeneratedKeys="true">
+       INSERT INTO TASK_FOLDER(ParentFolderID,DisplayName,State,Description,IsShare,RegisterCode,OwnerCode,RegistDate,ModifyDate
+		<if test="Progress != null"><!-- 진도율 -->
+			, Progress
+		</if>	       
+       )
+	   VALUES(#{ParentFolderID},#{DisplayName},#{State},#{Description},#{IsShare},#{RegisterCode},#{OwnerCode}, SYSDATE, SYSDATE
+		<if test="Progress != null"><!-- 진도율 -->
+			,#{Progress}
+		</if>	   
+	   )
+	   <selectKey keyProperty="FolderID" resultType="long" order="AFTER">
+			SELECT TASK_FOLDER_SEQ.CURRVAL FROM dual
+      </selectKey>
+   </insert>
+   
+   <!--  특정 폴더의 하위 폴더 모두 조회 (자기 자신 제외) -->
+   <select id="selectChildFolder" parameterType="cmap" resultType="java.lang.String">
+      SELECT LISTAGG(FolderID, ';') WITHIN GROUP ( ORDER BY IDPATH)  AS "FolderIDs"
+	  FROM TASK_FOLDER
+	  WHERE 1=1
+	  AND FolderID != #{FolderID}
+	  CONNECT BY PRIOR FolderID = ParentFolderID
+	  START WITH FolderID = #{FolderID}
+   </select>
+    
+   <!-- 폴더 수정 시 기존 공유 대상 조회  -->
+   <select id="selectOldShareMember" parameterType="cmap" resultType="cmap">
+       SELECT MemberCode AS "Code", MemberType AS "Type"
+       FROM  TASK_FOLDER_SHARE_MEMBER
+       WHERE FolderID = #{FolderID}
+   </select>
+   
+   <!-- 폴더 정보 수정  -->
+   <update id="updateFolderData" parameterType="cmap" >
+       UPDATE TASK_FOLDER
+       SET DisplayName = #{DisplayName},
+       State = #{State},
+		<if test="Progress != null"><!-- 진도율 -->
+       Progress = #{Progress},
+		</if>       
+       Description = #{Description},
+       IsShare = #{IsShare},
+       ModifyDate = SYSDATE
+       WHERE FolderID = #{FolderID}
+   </update>
+   
+   <!-- 특정 폴더의 공유자 전체 삭제 -->
+   <delete id="deleteShareMemberData"  parameterType="cmap">
+       DELETE FROM TASK_FOLDER_SHARE_MEMBER
+	   WHERE FolderID IN
+	   <foreach item="item" index="index" collection="childFolderList" open="(" close=")" separator=",">
+            #{item}
+       </foreach>
+	    AND (
+	      <foreach collection="ShareMemberList" item="ShareMemberData" index="index" separator=" OR ">
+          (MemberCode=#{ShareMemberData.Code} AND MemberType=#{ShareMemberData.Type} )
+	      </foreach>
+	   )
+   </delete>
+   
+   <!-- 공유에 따라 폴더 IsShare 값 처리 -->
+   <update id="updateIsShare" parameterType="cmap">
+       BEGIN
+       
+       UPDATE TASK_FOLDER
+       SET IsShare = 'N'
+       WHERE FolderID NOT IN (
+	        SELECT b.FolderID FROM TASK_FOLDER_SHARE_MEMBER b
+			GROUP BY b.FolderID 
+		);
+		
+		UPDATE TASK_FOLDER 
+       SET IsShare = 'Y'
+       WHERE FolderID IN (
+	        SELECT b.FolderID FROM TASK_FOLDER_SHARE_MEMBER b
+			GROUP BY b.FolderID 
+		);
+		END;
+   </update> 
+   
+   <!-- 하위 항목의 공유 정보 삭제 -->
+   <delete id="deleteChildShareData" parameterType="cmap">
+       DELETE FROM TASK_FOLDER_SHARE
+	   WHERE FolderID IN 
+        <foreach item="item" index="index" collection="childFolderList" open="(" close=")" separator=",">
+            #{item}
+       </foreach>
+   </delete>
+   
+   <!-- 공유데이터 추가 - 추가용 -->
+   <insert id="insertShareMemberData" parameterType="cmap">
+	   INSERT ALL
+      <foreach collection="shareMemberList" item="shareMemberData" index="index">
+	        INTO TASK_FOLDER_SHARE_MEMBER (FolderID, MemberCode, MemberType,SortKey)
+	        VALUES(       #{FolderID},      	#{shareMemberData.Code},      	#{shareMemberData.Type},       	#{index}      )
+      </foreach>
+       SELECT * FROM DUAL
+   </insert>
+   
+   <!-- 공유 데이터 추가 - 수정용  -->
+   <insert id="insertModifyShareMemberData" parameterType="cmap">
+       INSERT ALL
+       <foreach item="folderItem" index="index1" collection="childFolderList">
+           <foreach item="memberItem" index="index2" collection="ShareMemberList">
+                INTO TASK_FOLDER_SHARE_MEMBER(FolderID, MemberCode, MemberType,SortKey)
+            	VALUES (#{folderItem},#{memberItem.Code},#{memberItem.Type},#{index2})
+       		</foreach>
+       </foreach>
+       SELECT * FROM DUAL
+   </insert>
+   
+   <!-- 폴더 삭제 -->
+   <update id="deleteFolderData" parameterType="cmap">
+       BEGIN
+       
+       UPDATE TASK_FOLDER
+	   SET DeleteDate = SYSDATE
+	   WHERE FolderID IN
+	   <foreach item="item" index="index" collection="childFolderList" open="(" close=");" separator=",">
+            #{item}
+       </foreach>
+       
+		
+	   UPDATE task
+	   SET DeleteDate = SYSDATE
+	   WHERE FolderID  IN
+	   <foreach item="item" index="index" collection="childFolderList" open="(" close=");" separator=",">
+            #{item}
+       </foreach>
+       
+		END; 
+   </update>
+   
+   <!-- 업무 정보 추가 -->
+   <insert id="insertTaskData" parameterType="cmap" useGeneratedKeys="true">
+		INSERT INTO TASK(FolderID, Subject, Description, State, StartDate, EndDate, RegistDate, ModifyDate, OwnerCode, RegisterCode
+		<if test="Mode != null and Mode.equalsIgnoreCase('IT')"><!-- 임시저장 -->
+			, IsTempSave
+		</if>
+		<if test="Progress != null"><!-- 진도율 -->
+			, Progress
+		</if>			
+		)
+		VALUES(#{FolderID}, #{Subject}, #{Description}, #{State}, #{StartDate}, #{EndDate}, SYSDATE, SYSDATE, #{OwnerCode}, #{RegisterCode}
+		<if test="Mode != null and Mode.equalsIgnoreCase('IT')"><!-- 임시저장 -->
+			, 'Y'
+		</if>
+		<if test="Progress != null"><!-- 진도율 -->
+			, #{Progress}
+		</if>			
+		)
+	   <selectKey keyProperty="TaskID" resultType="long" order="AFTER">
+			SELECT TASK_SEQ.CURRVAL FROM dual
+      </selectKey>
+   </insert>
+   
+   <!-- 업무 정보 수정 -->
+   <update id="updateTaskData" parameterType="cmap">
+       UPDATE TASK
+	   SET  Subject = #{Subject}
+			, State = #{State}
+			, Description = #{Description}
+			, StartDate = #{StartDate}
+			, EndDate = #{EndDate}
+			, ModifyDate = SYSDATE
+			<if test="Mode != null and Mode.equalsIgnoreCase('UT')"><!-- 임시저장을 등록상태로 변경 -->
+				, IsTempSave = 'N'   
+			</if>
+			<if test="Progress != null"><!-- 진도율 없을 경우 참고 -->
+				, Progress = #{Progress}
+			</if>
+	   WHERE TaskID = #{TaskID}
+   </update>
+   
+   <!-- 수행자 정보 추가  -->
+   <insert  id="insertTaskPerformerData" parameterType="cmap">
+		INSERT ALL
+    	<foreach collection="arrPerformer" item="performerData" index="index" >
+    	   INTO TASK_PERFORMER(TaskID,PerformerCode,SortKey)
+		   VALUES (        #{TaskID},       	#{performerData.PerformerCode},       	#{index}	       )
+       </foreach>
+       SELECT * FROM DUAL
+   </insert>
+   
+   <!-- 수행자 정보 삭제 -->
+   <delete id="deleteTaskPerformerData" parameterType="cmap">
+      	DELETE FROM TASK_PERFORMER
+		WHERE TaskID = #{TaskID} 
+   </delete>
+   
+   <!-- 기존 폴더명 조회 -->
+   <select id="selectOrginFolderName" parameterType="cmap" resultType="java.lang.String">
+       SELECT DisplayName AS "DisplayName"
+	   FROM TASK_FOLDER
+	   WHERE FolderID = #{originFolderID}
+   </select> 
+   
+   <!-- 기존 업무명 조회  -->
+   <select id="selectOrginTaskName" parameterType="cmap" resultType="java.lang.String">
+       SELECT Subject AS "Subject"
+	   FROM TASK
+	   WHERE TaskID = #{originTaskID}
+   </select> 
+   
+   <!-- 중복 폴더명칭 체크  -->
+   <select id="checkDuplicationFolder" parameterType="cmap" resultType="java.lang.Long">
+       SELECT COUNT(*) FROM TASK_FOLDER
+	   WHERE DisplayName = #{folderName}
+	   AND NVL(ParentFolderID,0) = #{targetFolderID}
+	   AND DeleteDate IS NULL
+  	   <if test="targetFolderID!=null and targetFolderID.equalsIgnoreCase('0')">
+  		  AND OwnerCode = #{ownerCode} -- 내가 하는 일 최상위에 위치할 경우 사용자 코드 체크
+  	   </if>
+  	   <if test="isCopy!=null and isCopy.equalsIgnoreCase('N')">
+  		  AND FolderID != #{originFolderID} 
+  	   </if>
+  	   <if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+  		  AND FolderID != #{originFolderID} 
+  	   </if>
+   </select>
+   
+   <!-- 중복 업무명칭 체크   -->
+   <select id="checkDuplicationTask" parameterType="cmap" resultType="java.lang.Long">
+       SELECT COUNT(*) FROM TASK
+	   WHERE Subject = #{taskName}
+	   AND FolderID = #{targetFolderID}
+	   AND DeleteDate IS NULL
+	  <if test="targetFolderID!=null and targetFolderID.equalsIgnoreCase('0')">
+	    AND OwnerCode = #{ownerCode}  -- 내가 하는 일 최상위에 위치할 경우 사용자 코드 체크
+	  </if>
+	 <if test="isCopy!=null and isCopy.equalsIgnoreCase('N')">
+	 	AND TaskID != #{originTaskID} 
+     </if>
+     <if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+	 	AND TaskID != #{originTaskID} 
+     </if>
+   </select>
+   
+   <!-- 업무 복사  -->
+   <insert id="copyTask" parameterType="cmap" useGeneratedKeys="true">
+       INSERT INTO TASK(FolderID, Subject, Description, State, StartDate, EndDate, RegistDate, ModifyDate, OwnerCode, RegisterCode, Progress)
+	   SELECT #{targetFolderID} AS FolderID
+	   		, #{saveName} AS Subject
+			, Description
+			, State
+			, StartDate
+			, EndDate
+			, SYSDATE AS RegistDate
+			, SYSDATE AS ModifyDate
+			, #{OwnerCode} AS OwnerCode
+			, #{RegisterCode}  AS RegisterCode
+			, Progress
+		FROM TASK
+		WHERE TaskID =#{originTaskID}
+		<selectKey keyProperty="TaskID" resultType="long" order="AFTER">
+			SELECT TASK_SEQ.CURRVAL FROM dual
+        </selectKey>
+   </insert>
+   
+   <!-- 복사된 업무의 파일 복사  -->
+   <insert id="copyTaskFile" parameterType="cmap" >
+    INSERT INTO SYS_FILE(StorageID,ServiceType,ObjectID,ObjectType,MessageID,Version,SaveType,LastSeq,Seq,FilePath,FileName,SavedName,Extention,Size_,ThumWidth,ThumHeight,Description,RegistDate,RegisterCode,CompanyCode) 
+	SELECT
+		StorageID,
+		ServiceType,
+		#{targetFolderID} AS "ObjectID",
+		ObjectType,
+		#{TaskID} AS "MessageID",
+		Version,
+		SaveType,
+		LastSeq,
+		Seq,
+		FilePath,
+		FileName,
+		SavedName,
+		Extention,
+		Size_,
+		ThumWidth,
+		ThumHeight,
+		Description,
+		RegistDate,
+		RegisterCode,
+		CompanyCode
+	  FROM SYS_FILE
+	 WHERE ServiceType = 'Task' 
+	   AND ObjectID = (SELECT a.FolderID FROM task a  LEFT JOIN sys_object_user b ON a.RegisterCode = b.UserCode LEFT JOIN task_folder c ON a.FolderId = c.FolderID WHERE a.TaskID = #{originTaskID})
+	   AND MessageID = #{originTaskID} 
+	   AND SaveType != 'INLINE'
+	   AND ObjectType = 'TKFD'
+   </insert>
+   
+   <!-- 수행자 정보 복사  -->
+   <insert id="copyTaskPerformer" parameterType="cmap" >
+       INSERT INTO TASK_PERFORMER(TaskID,PerformerCode,SortKey)
+	   SELECT #{TaskID} AS "TaskID", PerformerCode, SortKey
+	   FROM TASK_PERFORMER
+	   WHERE TaskID = #{originTaskID} ORDER BY SortKey
+   </insert>
+   
+   <!-- 업무 정보 삭제  -->
+   <update id="deleteTaskData" parameterType="cmap">
+       UPDATE TASK
+	   SET DeleteDate = SYSDATE
+	   WHERE TaskID = #{TaskID}
+   </update>
+   
+   <!-- 업무에 업로드된 파일 이동 -->
+   <update id="moveTaskFile" parameterType="cmap">
+	  UPDATE SYS_FILE
+	    SET ObjectID = #{targetFolderID}
+	  WHERE ServiceType = 'Task' 
+	    AND ObjectID = (SELECT a.FolderID FROM task a  LEFT JOIN sys_object_user b ON a.RegisterCode = b.UserCode LEFT JOIN task_folder c ON a.FolderId = c.FolderID WHERE a.TaskID = #{originTaskID})
+	    AND MessageID = #{originTaskID} 
+	    AND SaveType != 'INLINE'
+	    AND ObjectType = 'TKFD'
+   </update>
+   
+   <!-- 업무 이동  -->
+   <update id="moveTask" parameterType="cmap">
+      UPDATE TASK
+	  SET Subject = #{saveName}, 
+	  FolderID = #{targetFolderID}
+      WHERE TaskID = #{originTaskID}
+   </update>
+
+   <!-- 폴더 이동 -->
+   <update id="moveFolder" parameterType="cmap">
+      UPDATE TASK_FOLDER
+	  SET ParentFolderID = #{targetFolderID},
+	  DisplayName = #{saveName}
+	  WHERE FolderID = #{originFolderID}
+   </update>
+   
+    <!-- IDPath 수정 -->
+   <update id="updateFolderIDPath" parameterType="cmap">
+	   <if test="FolderID!=null">
+		       UPDATE TASK_FOLDER
+			   SET IDPath = (
+			   							  SELECT '0' ||SYS_CONNECT_BY_PATH(FolderID, ';')
+										  FROM task_folder A
+										  WHERE FolderID = #{FolderID}
+										  START WITH ParentFolderID IS NULL
+										  CONNECT BY PRIOR FolderID=ParentFolderID
+			   )
+			   WHERE FolderID = #{FolderID}
+       </if>
+       
+	   <if test="childFolderList!=null">
+	       BEGIN
+	 	  <foreach item="item" index="index" collection="childFolderList" >
+               UPDATE TASK_FOLDER
+			   SET IDPath = (
+			   							  SELECT '0' ||SYS_CONNECT_BY_PATH(FolderID, ';')
+										  FROM task_folder A
+										  WHERE FolderID =   #{item}
+										  START WITH ParentFolderID IS NULL
+										  CONNECT BY PRIOR FolderID=ParentFolderID
+			   )
+			   WHERE FolderID =   #{item};
+       	  </foreach>
+	       END;
+       </if>
+   </update>
+   
+   <!-- 자신과 하위 항목의 공유 폴더 개수 체크  -->
+  <select id="selectShareChildCnt" parameterType="cmap" resultType="java.lang.Long">
+       SELECT COUNT(*)
+	   FROM TASK_FOLDER
+	   WHERE IsShare = 'Y'
+	   AND FolderID IN 
+	    <foreach item="item" index="index" collection="childFolderList" open="(" close=")" separator=",">
+            #{item}
+       </foreach>
+   </select> 
+   
+  <!-- 공유 대상자 조회  -->
+  <select id="selectFolderShareMember" parameterType="cmap" resultType="cmap">
+     SELECT a.ShareID AS "ShareID"
+            , a.MemberCode AS "Code"
+			, a.MemberType AS "Type"
+			, ( CASE a.MemberType WHEN 'UR' THEN Fn_BaseGetDictionary_S(#{lang}, b.MultiDisplayName) ELSE Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) END ) AS "Name"
+			, Fn_BaseGetDictionary_S(#{lang},d.MultiDeptName) AS "DeptName"
+	FROM TASK_FOLDER_SHARE_MEMBER a
+	LEFT JOIN SYS_OBJECT_USER b ON a.MemberCode = b.UserCode AND a.MemberType = 'UR'
+	LEFT JOIN SYS_OBJECT_GROUP c ON a.MemberCode = c.GroupCode AND a.MemberType IN ('GR','CM')
+	LEFT JOIN SYS_OBJECT_USER_BASEGROUP d ON a.MemberCode = d.UserCode  AND a.MemberType = 'UR' AND d.JobType = 'Origin'
+	WHERE (b.IsUse = 'Y' OR c.IsUse = 'Y')
+	AND FolderID = #{FolderID}
+	ORDER BY a.SortKey
+  </select>
+  
+   <!-- 상위 폴더들의 공유 대상자 조회  -->
+  <select id="selectParentFolderShareMember" parameterType="cmap" resultType="cmap">
+       SELECT DISTINCT a.MemberCode AS "Code"
+			, a.MemberType AS "Type"
+			, ( CASE a.MemberType WHEN 'UR' THEN Fn_BaseGetDictionary_S(#{lang}, b.MultiDisplayName) ELSE Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) END ) AS "Name"
+			, Fn_BaseGetDictionary_S(#{lang},d.MultiDeptName) AS "DeptName"
+	FROM TASK_FOLDER_SHARE_MEMBER a
+	LEFT JOIN SYS_OBJECT_USER b ON a.MemberCode = b.UserCode AND a.MemberType = 'UR'
+	LEFT JOIN SYS_OBJECT_GROUP c ON a.MemberCode = c.GroupCode AND a.MemberType IN ('GR','CM')
+	LEFT JOIN SYS_OBJECT_USER_BASEGROUP d ON a.MemberCode = d.UserCode  AND a.MemberType = 'UR' AND d.JobType = 'Origin'
+	WHERE (b.IsUse = 'Y' OR c.IsUse = 'Y')
+	AND Fn_TaskIDPathCreate(#{ParentFolderID}) LIKE  '%;' || a.FolderID || ';%' 
+  </select>
+  
+  <!-- 이동 대상 폴더의 공유 대상자 조회(Code랑 Type만)  -->
+<!--   <select id="selectTargetFolderShareMember" parameterType="cmap" resultType="cmap">
+   SELECT DISTINCT a.MemberCode
+			, a.MemberType
+	FROM task_folder_share_member AS a
+	LEFT JOIN sys_object_user AS b ON a.MemberCode = b.UserCode AND a.MemberType = 'UR'
+	WHERE (b.IsUse = 'Y' OR c.IsUse = 'Y')
+	AND Fn_TaskIDPathCreate(#{targetFolderID}) LIKE  CONCAT('%;',a.FolderID,';%') 
+  </select> -->
+  
+  <!--상위 폴더의 공유자 정보를 하위 폴더들에 삽입  -->
+  <insert id="insertParentShareMemberToFolder" parameterType="cmap" >
+      BEGIN
+      <foreach item="item" index="index" collection="childFolderList">
+	        INSERT INTO TASK_FOLDER_SHARE_MEMBER(FolderID, MemberCode, MemberType, SortKey)
+			SELECT #{item}, temp.MemberCode, temp.MemberType , ROWNUM AS SortKey
+			FROM 
+			( SELECT DISTINCT a.MemberCode
+			, a.MemberType
+			FROM TASK_FOLDER_SHARE_MEMBER a 
+			WHERE Fn_TaskIDPathCreate(#{targetFolderID}) LIKE '%;' || FolderID || ';%' 
+			) temp ; 
+      </foreach>
+      END;
+  </insert>
+   
+   <!-- 특정 업무 정보 조회 -->
+   <select id="selectTaskData" parameterType="cmap" resultType="cmap">
+       SELECT a.TaskID AS "TaskID"
+			  , a.FolderID AS "FolderID"
+			  , c.DisplayName AS "FolderName"
+			  , a.Subject AS "Subject"
+			  , a.Description AS "Description"
+			  , a.State AS "TaskState"
+			  , a.State AS "TaskStateCode"
+			   ,TO_CHAR(a.StartDate,'YYYY/MM/DD HH24:MI') AS "StartDate"
+			  , TO_CHAR(a.EndDate,'YYYY/MM/DD HH24:MI') AS "EndDate"
+			  , TO_CHAR(a.RegistDate,'YYYY/MM/DD HH24:MI:SS') AS "RegistDate"
+			  , a.OwnerCode AS "OwnerCode"
+			  , a.RegisterCode AS "RegisterCode"
+			  , a.DeleteDate AS "DeleteDate"
+			  , a.IsTempSave AS "IsTempSave"
+			  , Fn_BaseGetDictionary_S(#{lang},b.MultiDisplayName) AS "RegisterName"
+			  , a.Progress AS "Progress"
+		FROM TASK a
+		LEFT JOIN SYS_OBJECT_USER b ON a.RegisterCode = b.UserCode  
+		LEFT JOIN TASK_FOLDER c ON a.FolderID = c.FolderID 
+		WHERE a.TaskID = #{TaskID}
+     </select>
+    
+   <!-- 수행자 정보 조회  -->
+   	<select id="selectTaskPerformerList" parameterType="cmap" resultType="cmap">
+   	    SELECT a.PerformerCode AS "Code"
+				, 'UR' AS "Type"
+				, Fn_BaseGetDictionary_S(#{lang},b.MultiDisplayName) AS "Name"
+				, Fn_BaseGetDictionary_S(#{lang},c.MultiDeptName) AS "DeptName"
+		FROM TASK_PERFORMER a
+		LEFT JOIN SYS_OBJECT_USER b ON a.PerformerCode = b.UserCode 
+		LEFT JOIN SYS_OBJECT_USER_BASEGROUP c ON a.PerformerCode = c.UserCode  AND c.JobType = 'Origin'
+		WHERE a.TaskID = #{TaskID}
+		AND b.IsUse = 'Y'
+		AND b.IsDisplay = 'Y'
+		ORDER BY a.SortKey
+   	</select>
+   	
+   	<!-- 공유 대상에 속하는 모든 사용자 조회 -->
+   	<select id="selectShareMemberUser" parameterType="cmap" resultType="cmap">
+   	    <include refid="oracle.include.pagingHeader"/>
+   	     SELECT R.* FROM (
+			   	    SELECT DISTINCT temp."Code"
+			   	    		, temp."Name"
+			   	    		, temp."Type"
+			   	    		, Fn_BaseGetDictionary_S(#{lang}, temp."DeptName") AS "DeptName"
+			   	    		, temp."PhotoPath"
+			   	    		FROM (  
+			   	    				<if test="FolderID!=null and !FolderID.equalsIgnoreCase('0')">
+									 	SELECT B.UserCode  AS "Code"
+												, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS "Name"
+												, 'UR' AS "Type"
+												, C.MultiDeptName AS "DeptName"
+												, B.PhotoPath AS "PhotoPath"
+										FROM task_folder A
+										INNER JOIN sys_object_user B ON A.OwnerCode = B.UserCode OR A.RegisterCode = B.UserCode
+										LEFT JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode
+										WHERE B.IsUse = 'Y' AND B.IsDisplay = 'Y' AND C.JobType = 'Origin'
+										AND A.FolderID = #{FolderID}			
+													
+										UNION ALL
+									 </if>
+									
+									 <if test="FolderID!=null and FolderID.equalsIgnoreCase('0')">
+									 	SELECT B.UserCode  AS "Code"
+												, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS "Name"
+												, 'UR' AS "Type"
+												, C.MultiDeptName AS "DeptName"
+												, B.PhotoPath AS "PhotoPath"
+										FROM sys_object_user B
+										LEFT JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode
+										WHERE B.IsUse = 'Y' AND B.IsDisplay = 'Y' AND C.JobType = 'Origin'
+										AND B.UserCode = #{userCode}
+										
+										UNION ALL
+									 </if>
+			   	    		
+			   	    				   SELECT  a.UserCode AS "Code"
+												, Fn_BaseGetDictionary_S(#{lang}, a.MultiDisplayName) AS "Name"
+												, 'UR' AS "Type"
+												, b.MultiDeptName AS "DeptName"
+												, a.PhotoPath AS "PhotoPath"
+										FROM (SELECT UserCode, MultiDisplayName, PhotoPath FROM SYS_OBJECT_USER WHERE IsUse = 'Y' AND IsDisplay = 'Y') a
+										LEFT JOIN (SELECT UserCode, MultiDeptName FROM SYS_OBJECT_USER_BASEGROUP WHERE JobType = 'Origin') b ON a.UserCode = b.UserCode 
+										LEFT JOIN (SELECT UserCode, GroupCode FROM SYS_OBJECT_GROUP_MEMBER WHERE IsUse = 'Y') c ON a.UserCode = c.UserCode 
+										LEFT JOIN (SELECT GroupPath, GroupCode FROM SYS_OBJECT_GROUP WHERE IsUse = 'Y' AND IsDisplay = 'Y') d ON c.GroupCode = d.GroupCode 
+										INNER JOIN (SELECT MemberCode AS Code, MemberType AS Type FROM TASK_FOLDER_SHARE_MEMBER WHERE FolderID = #{FolderID}) m				<!-- 폴더지정 공유자	 -->
+										ON (m.type = 'UR' AND (a.UserCode = m.Code OR (a.UserCode = (SELECT ownercode FROM TASK_FOLDER WHERE FolderID = #{FolderID} AND ROWNUM = 1))))				<!--  폴더생성 소유자 -->
+												OR (m.type = 'GR' AND (c.GroupCode = m.Code OR d.GroupPath LIKE '%;'||m.Code|| ';%' ) )											<!-- 폴더지정 그룹 -->		
+				   				 ) temp
+				<trim prefix="WHERE" prefixOverrides="OR|AND" >
+			 		 <if test="KeyWord!=null and KeyWord !='' ">
+				        AND temp."Name" LIKE '%' || #{KeyWord} || '%' 
+				     </if>
+			 		 <if test="searchWord!=null and searchWord !='' ">
+				        AND temp."Name" LIKE '%' || #{searchWord} || '%' 
+				     </if>
+				</trim>
+		) R
+		<trim prefix='ORDER BY'>
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				R."Name" ASC
+			</if>
+			<if test="sortColumn != '' and sortColumn != null and sortDirection != '' and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>R."DeptName"</when>
+					<otherwise>R."Name"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+   	</select>
+   	
+   	<!-- 공유 대상에 속하는 모든 사용자 조회(Count) -->
+   	<select id="selectShareMemberUserCnt" parameterType="cmap" resultType="java.lang.Long">
+   	     SELECT COUNT(*) FROM (
+			   	    SELECT DISTINCT temp."Code"
+			   	    		, temp."Name"
+			   	    		, temp."Type"
+			   	    		, temp."DeptName"
+			   	    		, temp."PhotoPath"
+			   	    		FROM (  
+			   	    					<if test="FolderID!=null and !FolderID.equalsIgnoreCase('0')">
+										 	SELECT B.UserCode  AS "Code"
+													, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS "Name"
+													, 'UR' AS "Type"
+													, C.MultiDeptName AS "DeptName"
+													, B.PhotoPath AS "PhotoPath"
+											FROM task_folder A
+											INNER JOIN sys_object_user B ON A.OwnerCode = B.UserCode OR A.RegisterCode = B.UserCode
+											LEFT JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode
+											WHERE B.IsUse = 'Y' AND B.IsDisplay = 'Y' AND C.JobType = 'Origin'
+											AND A.FolderID = #{FolderID}			
+														
+											UNION ALL
+									 </if>
+									
+									 <if test="FolderID!=null and FolderID.equalsIgnoreCase('0')">
+									 	SELECT B.UserCode  AS "Code"
+												, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS "Name"
+												, 'UR' AS "Type"
+												, C.MultiDeptName AS "DeptName"
+												, B.PhotoPath AS "PhotoPath"
+										FROM sys_object_user B
+										LEFT JOIN sys_object_user_basegroup C ON B.UserCode = C.UserCode
+										WHERE B.IsUse = 'Y' AND B.IsDisplay = 'Y' AND C.JobType = 'Origin'
+										AND B.UserCode = #{userCode}
+										
+										UNION ALL
+									 </if>
+			   	    		
+			   	    		
+			   	    					SELECT  a.UserCode AS "Code"
+												, Fn_BaseGetDictionary_S(#{lang}, a.MultiDisplayName) AS "Name"
+												, 'UR' AS "Type"
+												, Fn_BaseGetDictionary_S(#{lang}, b.MultiDeptName) AS "DeptName"
+												, a.PhotoPath AS "PhotoPath"
+										FROM (SELECT UserCode, MultiDisplayName, PhotoPath FROM SYS_OBJECT_USER WHERE IsUse = 'Y' AND IsDisplay = 'Y') a
+										LEFT JOIN (SELECT UserCode, MultiDeptName FROM SYS_OBJECT_USER_BASEGROUP WHERE JobType = 'Origin') b ON a.UserCode = b.UserCode 
+										LEFT JOIN (SELECT UserCode, GroupCode FROM SYS_OBJECT_GROUP_MEMBER WHERE IsUse = 'Y') c ON a.UserCode = c.UserCode 
+										LEFT JOIN (SELECT GroupPath, GroupCode FROM SYS_OBJECT_GROUP WHERE IsUse = 'Y' AND IsDisplay = 'Y') d ON c.GroupCode = d.GroupCode 
+										INNER JOIN (SELECT MemberCode AS Code, MemberType AS Type FROM TASK_FOLDER_SHARE_MEMBER WHERE FolderID = #{FolderID}) m			<!--  폴더지정 공유자	 -->
+										ON (m.type = 'UR' AND (a.UserCode = m.Code OR (a.UserCode = (SELECT ownercode FROM TASK_FOLDER WHERE FolderID = #{FolderID}  AND ROWNUM = 1))))				<!-- 폴더생성 소유자 -->
+												OR (m.type = 'GR' AND (c.GroupCode = m.Code OR d.GroupPath LIKE '%;'||m.Code|| ';%' ) )											<!--  폴더지정 그룹 -->		
+				   				 ) temp
+				<trim prefix="WHERE" prefixOverrides="OR|AND" >
+			 		 <if test="KeyWord!=null and KeyWord !='' ">
+				        AND temp."Name" LIKE '%' || #{KeyWord} || '%' 
+				     </if>
+			 		 <if test="searchWord!=null and searchWord !='' ">
+				        AND temp."Name" LIKE '%' || #{searchWord} || '%' 
+				     </if>
+				</trim>
+		) R
+   	</select>
+   	
+   	
+   	<!-- 공유 대상에 속하는 모든 사용자 조회 (간단 - 필요없는 동적 쿼리 삭제)-->
+   	<select id="selectShareMemberUserSimple" parameterType="cmap" resultType="cmap">
+ 	    SELECT  DISTINCT  a.UserCode AS "Code"
+    				, c.GroupCode AS "GroupCode"
+					, ';' || d.GroupPath AS "GroupPath"
+					, 'UR' AS "Type"
+					, a.PhotoPath AS "PhotoPath"
+		FROM (SELECT UserCode, MultiDisplayName, PhotoPath FROM SYS_OBJECT_USER WHERE IsUse = 'Y' AND IsDisplay = 'Y') a
+		LEFT JOIN (SELECT UserCode, MultiDeptName FROM SYS_OBJECT_USER_BASEGROUP WHERE JobType = 'Origin') b ON a.UserCode = b.UserCode 
+		LEFT JOIN (SELECT UserCode, GroupCode FROM SYS_OBJECT_GROUP_MEMBER WHERE IsUse = 'Y') c ON a.UserCode = c.UserCode 
+		LEFT JOIN (SELECT GroupPath, GroupCode FROM SYS_OBJECT_GROUP WHERE IsUse = 'Y' AND IsDisplay = 'Y') d ON c.GroupCode = d.GroupCode 
+		INNER JOIN (SELECT MemberCode AS Code, MemberType AS Type FROM TASK_FOLDER_SHARE_MEMBER WHERE FolderID = #{FolderID}) m				<!-- 폴더지정 공유자	 -->
+		ON (m.type = 'UR' AND (a.UserCode = m.Code OR (a.UserCode = (SELECT ownercode FROM TASK_FOLDER WHERE FolderID = #{FolderID}  AND ROWNUM = 1))))				<!--  폴더생성 소유자 -->
+				OR (m.type = 'GR' AND (c.GroupCode = m.Code OR d.GroupPath LIKE '%;'||m.Code|| ';%' ) )											<!-- 폴더지정 그룹 -->		
+   	</select>
+   	
+   	<!-- 공유자가 아닌 수행자 삭제 -->
+   	<delete id="deleteNoSharePerformer" parameterType="cmap">
+   	    DELETE FROM TASK_PERFORMER 
+   	    WHERE TaskID IN (SELECT T.TaskID FROM TASK T WHERE T.FolderID = #{FolderID} )
+   	    <if test="shareUserList.size != 0 "> 
+			AND PerformerCode NOT IN 
+		     <foreach item="item" index="index" collection="shareUserList" open="(" close=")" separator=",">
+           		 #{item.Code}
+      		 </foreach>
+		</if>
+   	</delete>
+   	
+   	<!-- 특정사용자의 특정 업무 읽음 정보 조회  -->
+   	<select id="selectTaskReadDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) AS "Cnt"
+		FROM TASK_READ
+		WHERE TaskID = #{TaskID} AND UserID = #{UserID}
+   	</select>
+   	
+   	<!-- 업무 읽음 정보 저장  -->
+   	<insert id="insertTaskReadData" parameterType="cmap">
+		INSERT INTO TASK_READ (TaskID, UserID, ReadDate)
+		VALUES (#{TaskID}, #{UserID}, SYSDATE)
+   	</insert>
+  
+   	<!-- 수행자 정보 삭제  -->
+   	<delete id="deletePerformerData" parameterType="cmap">
+   	    DELETE FROM TASK_PERFORMER
+   	    WHERE TaskID = #{originTaskID}
+   	</delete>
+   	
+	<select id="selectTaskSearchList" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+   	    SELECT A.TaskID AS "TaskID"
+			, A.FolderID AS "FolderID"
+			, A.Subject AS "Subject"
+			, A.TaskState AS "TaskState"
+			, A.TaskStateCode AS "TaskStateCode"
+			, A.TaskProgress AS "TaskProgress"
+			, A.IsDelay AS "IsDelay"
+			, A.IsRead AS "IsRead"
+			, A.RegistDate AS "RegistDate"
+			, A.RegisterCode AS "RegisterCode"
+			, A.OwnerCode AS "OwnerCode"
+			, A.OwnerName AS "OwnerName"
+		FROM (
+			SELECT DISTINCT a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.Progress AS TaskProgress
+					, CASE WHEN (a.State = 'Waiting' AND (a.StartDate <![CDATA[ < ]]> SYSDATE OR a.EndDate <![CDATA[ < ]]> SYSDATE))
+								OR
+								(a.State = 'Process' AND a.EndDate <![CDATA[ < ]]> SYSDATE) THEN 'Y'
+						   ELSE 'N'
+						   END AS IsDelay
+					, b.IsRead
+					, TO_CHAR(a.RegistDate, 'YYYY.MM.DD HH24:MI:SS') AS RegistDate
+					, a.RegisterCode
+					, a.OwnerCode
+					, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+			FROM task a
+			LEFT JOIN (
+				SELECT	  TaskID
+						, DECODE(MAX(ReadDate), NULL, 'N', 'Y') AS IsRead
+				FROM TASK_READ
+				WHERE UserID = #{userID}
+				GROUP BY TaskID
+			) b ON a.TaskID = b.TaskID
+			LEFT JOIN sys_object_user c ON a.OwnerCode = c.UserCode
+			LEFT JOIN task_folder d ON d.FolderID = a.FolderID
+			LEFT JOIN task_folder_share_member e ON e.FolderID = d.FolderID
+			<trim prefix="WHERE" prefixOverrides="AND|OR">
+			    AND a.DeleteDate IS NULL
+				AND (a.IsTempSave IS NULL OR a.IsTempSave != 'Y')
+		        AND ((a.OwnerCode = #{userID}) OR (e.MemberCode IN
+		        <foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+					 AND d.OwnerCode != #{userID}))
+				<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND A.Subject LIKE '%' || #{searchWord} || '%'
+				</if>
+	       </trim>
+		) A
+	    <trim prefix="ORDER BY" prefixOverrides=",">
+	    	<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				RegistDate DESC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("TaskState")'>TaskState</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+   	</select>
+   	
+   	<select id="selectTaskSearchListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+			SELECT DISTINCT a.TaskID
+					, a.FolderID
+					, a.Subject
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.Progress AS TaskProgress
+					, CASE WHEN (a.State = 'Waiting' AND (a.StartDate <![CDATA[ < ]]> SYSDATE OR a.EndDate <![CDATA[ < ]]> SYSDATE))
+								OR
+								(a.State = 'Process' AND a.EndDate <![CDATA[ < ]]> SYSDATE) THEN 'Y'
+						   ELSE 'N'
+						   END AS IsDelay
+					, b.IsRead
+					, TO_CHAR(a.RegistDate, 'YYYY.MM.DD HH24:MI:SS') AS RegistDate
+					, a.RegisterCode
+					, a.OwnerCode
+					, Fn_BaseGetDictionary_S(#{lang}, c.MultiDisplayName) AS OwnerName
+			FROM task a
+			LEFT JOIN (
+				SELECT	  TaskID
+						, DECODE(MAX(ReadDate), NULL, 'N', 'Y') AS IsRead
+				FROM TASK_READ
+				WHERE UserID = #{userID}
+				GROUP BY TaskID
+			) b ON a.TaskID = b.TaskID
+			LEFT JOIN sys_object_user c ON a.OwnerCode = c.UserCode
+			LEFT JOIN task_folder d ON d.FolderID = a.FolderID
+			LEFT JOIN task_folder_share_member e ON e.FolderID = d.FolderID
+			<trim prefix="WHERE" prefixOverrides="AND|OR">
+			    AND a.DeleteDate IS NULL
+				AND (a.IsTempSave IS NULL OR a.IsTempSave != 'Y')
+		        AND ((a.OwnerCode = #{userID}) OR (e.MemberCode IN
+		        <foreach collection="subjectArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				 AND d.OwnerCode != #{userID}))
+				<if test="searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND A.Subject LIKE '%' || #{searchWord} || '%'
+				</if>
+	       </trim>
+		) A
+   	</select>
+</mapper>

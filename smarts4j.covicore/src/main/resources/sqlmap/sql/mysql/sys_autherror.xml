@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="autherror">    
+ 	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+    SELECT B.* FROM (
+		SELECT A.*
+		     , (SELECT Fn_BaseGetDictionary_S(#{lang}, IFNULL(MultiDeptName,'')) FROM sys_object_user_basegroup WHERE UserCode = A.UserCode  AND JobType = 'Origin') AS DeptName 
+		FROM (
+				SELECT  LogID 
+					  , Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName) AS AuthErrorUserName 
+				  	  , u.UserCode AS UserCode
+					  , SiteName 
+					  , a.LogonID 
+					  , PageURL 
+					  , PageParam 
+					  , IPAddress
+					  , Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS CompanyCode
+					  , AuditClass
+					  , AuditMethod
+					  , ErrorType
+					  , ErrorMessage
+					  , ErrorDate
+				FROM LOG_AUTHERROR AS a
+				INNER JOIN covi_smart4j.sys_object_domain D ON a.CompanyCode = D.DomainCode
+				LEFT JOIN sys_object_user u ON u.LogonID = a.LogonID
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">ErrorDate BETWEEN #{startDate} AND #{endDate}</if>
+					<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode} </if>
+				</trim>
+			)A
+		)B
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		 	<if test="searchText != null and searchText != '' ">( B.AuthErrorUserName LIKE CONCAT('%', #{searchText}, '%') OR  B.DeptName LIKE CONCAT('%', #{searchText}, '%'))</if>
+    	</trim>
+    	<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("PageURL")'>PageURL</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("AuthErrorUserName")'>AuthErrorUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<otherwise>ErrorDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>	
+ 	<select id="selectCount" resultType="java.lang.Long">
+			SELECT COUNT(*)
+			FROM LOG_AUTHERROR AS e
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">ErrorDate BETWEEN #{startDate} AND #{endDate}</if>
+				<if test="companyCode != null and companyCode != '' ">AND CompanyCode = #{companyCode} </if>
+			 	<if test="searchText != null and searchText != '' ">
+			 	AND (e.LogonID IN (SELECT UserCode FROM sys_object_user_basegroup
+									WHERE Fn_BaseGetDictionary_S(#{lang}, IFNULL(MultiDeptName,'')) LIKE CONCAT('%', #{searchText}, '%') 
+									AND JobType = 'Origin'
+									)
+									OR e.LogonID IN (SELECT UserCode FROM sys_object_user where Fn_BaseGetDictionary_S(#{lang}, IFNULL(MultiDisplayName,'')) LIKE CONCAT('%', #{searchText}, '%') ))
+			 	</if>
+	    	</trim>
+	</select>	
+</mapper>

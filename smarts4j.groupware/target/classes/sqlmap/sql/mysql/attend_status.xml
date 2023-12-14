@@ -1,0 +1,2778 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="attend.status">
+
+	<!-- 대상일 조회 -->
+	<select id="getDayScope" parameterType="cmap" resultType="string">
+		SELECT covi_smart4j.fn_attend_getDayScope(#{DateTerm},#{TargetDate},#{CompanyCode})
+	</select>
+
+	<!-- 근태현황 출퇴근 정보 조회 -->
+	<select id="getUserAttStatusProc" statementType="CALLABLE"  parameterType="cmap" resultType="cmap">
+		{CALL covi_smart4j.sp_attend_getUserAttendStatus(#{UserCode},#{CompanyCode},#{StartDate},#{EndDate})}
+	</select>
+
+	<select id="getUserAttStatus" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			dayList
+			,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName,JobTitleName,EnterDate,PhotoPath
+			,weekd
+			,DAY(dayList) v_day
+			,TargetUserCode
+			,UserCode #사용자코드
+			,SchName #근무제명
+			,VacFlag #휴가여부
+			,VacOffFlag #휴가구분
+			,CASE WHEN VacFlag IS NOT NULL THEN (VacCodeName) END VacName
+			,CASE WHEN VacFlag IS NOT NULL THEN (VacStartTime) END VacStartTime
+			,CASE WHEN VacFlag IS NOT NULL THEN (VacEndTime) END VacEndTime
+			,CASE WHEN VacFlag IS NOT NULL THEN (VacAmPmVacDay) END VacAmPmVacDay
+			,WorkSts #휴일구분
+			,AttDayStartTime
+			,AttDayEndTime
+			,AttStartTime
+			,AttEndTime
+			,DATE_FORMAT(AttDayStartTime, '%h:%i%p') v_AttDayStartTime #스케줄출근시간
+			,DATE_FORMAT(AttDayEndTime, '%h:%i%p') v_AttDayEndTime #스케줄퇴근시간
+			,IF(DATE_FORMAT(AttDayStartTime, '%Y%m%d')  <  DATE_FORMAT(AttDayEndTime, '%Y%m%d'),'Y','N') v_NextDayYn
+			,DATE_FORMAT(AttStartTime, '%h:%i%p') v_AttStartTime #출근시간
+			,DATE_FORMAT(AttEndTime, '%h:%i%p') v_AttEndTime #퇴근시간
+
+			,DATE_FORMAT(AttDayStartTime, '%H') v_AttDayStartHour #스케줄출근시간
+			,DATE_FORMAT(AttDayStartTime, '%i') v_AttDayStartMin #스케줄출근시간
+			,DATE_FORMAT(AttDayEndTime, '%H') v_AttDayEndHour #스케줄퇴근시간
+			,DATE_FORMAT(AttDayEndTime, '%i') v_AttDayEndMin #스케줄퇴근시간
+
+			,DATE_FORMAT(AttStartTime, '%H') v_AttStartHour #실출근시간
+			,DATE_FORMAT(AttStartTime, '%i') v_AttStartMin #실출근시간
+			,DATE_FORMAT(AttEndTime, '%H') v_AttEndHour #실퇴근시간
+			,DATE_FORMAT(AttEndTime, '%i') v_AttEndMin #실퇴근시간
+
+			,AttConfirmYn
+			,StartSts  #출근상태
+			,EndSts  #퇴근상태
+			,AttAc
+			,AttReal
+			,ExtenAc
+			,HoliAc
+			,IFNULL(ExtenCnt,0) ExtenCnt
+			,IFNULL(HoliCnt,0) HoliCnt
+			,AssYn
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)+IF(AssYn='Y',0,VacTime) TotWorkTime #해당일 총 근무시간
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(AssYn='Y',0,VacTime) AttRealTime #출퇴근 인정시간
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)				  AttRealConfTime #출퇴근 인정실시간
+			,TIMESTAMPDIFF(MINUTE, AttStartTime, AttEndTime) v_startToEndSec #출퇴근 실 근무시간
+			,jh_JobStsName #근무상태
+			,Etc
+			,UserEtc
+			,ExtenNotEnough
+			,HoliNotEnough
+			,DATE_FORMAT(ExtenStart, '%H%i') v_ExtenStartTime #연장근무 종료시간
+			,DATE_FORMAT(ExtenEnd, '%H%i') v_ExtenEndTime #연장근무 종료시간
+			,DATE_FORMAT(HoliStart, '%H%i') v_HoliStartTime #휴일근무 종료시간
+			,DATE_FORMAT(HoliEnd, '%H%i') v_HoliEndTime #휴일근무 종료시간
+
+			,IF(CoreStartTime IS NOT NULL AND CoreEndTime IS NOT NULL and WorkSts = 'ON',
+				 CONCAT(TIME_FORMAT(CoreStartTime,'%H:%i'),'~',TIME_FORMAT(CoreEndTime,'%H:%i')),'') CoreTime
+			,IF(AttDayStartTime IS NOT NULL AND AttDayStartTime != '' AND AttDayEndTime IS NOT NULL AND AttDayEndTime != '' ,
+				IF(DATE_FORMAT(AttDayStartTime,'%H%i%s') <=  TIME_FORMAT(CoreStartTime,'%H%i%s')
+					AND DATE_FORMAT(AttDayEndTime,'%H%i%s') >= TIME_FORMAT(CoreEndTime,'%H%i%s')
+					,'Y','N')
+				,NULL) CoreTimeObey
+			,WorkAddr
+			,WorkZone
+			,WorkPointX
+			,WorkPointY
+			,StartPointX
+			,StartPointY
+			,StartAddr
+			,EndPointX
+			,EndPointY
+			,EndAddr
+			,VacCnt
+			,WorkingSystemType
+			,MonthlyAttAcSum
+			,StartChannel
+			,StartIpAddr
+	 		,EndChannel
+	 		,EndIpAddr
+		FROM
+		(
+			SELECT
+				dl.dayList
+				,weekd
+				,TargetUserCode
+				,TargetUserCode UserCode
+				,DeptCode
+				#출퇴근
+				,m.CommuSeq
+				,IFNULL(m.Etc,'') Etc
+				,m.TardyReason
+				,m.UserEtc
+				,m.LeaveEarlyReason
+				,m.AttStartTime
+				,m.AttEndTime
+				,case when VacCnt >= 1 then 0 else IFNULL(m.AttReal,0) end AttReal
+				,IFNULL(m.AttAc,0) AttAc
+				,IFNULL(m.AttIdle,0) AttIdle
+				,IFNULL(m.ExtenReal,0) ExtenReal
+				,IFNULL(m.ExtenAc,0) ExtenAc
+				,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough #연장근무 시 퇴근시간이 연장 신청 퇴근 시간보다 작을 시 시간 계산 안함
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliStart AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough #휴일근무 시 퇴근시간이  퇴근 시간보다 작을 시 시간 계산 안함
+				,m.ExtenStart
+				,m.ExtenEnd
+				,IFNULL(m.HoliReal,0) HoliReal
+				,IFNULL(m.HoliAc,0) HoliAc
+				,m.HoliStart
+				,m.HoliEnd
+				,m.ExtenCnt
+				,m.HoliCnt
+				,m.AttConfirmYn
+				,m.AttConfirmTime
+				,m.StartSts
+				,m.EndSts
+				,m.StartPointX
+				,m.StartPointY
+				,m.StartAddr
+				,m.EndPointX
+				,m.EndPointY
+				,m.EndAddr
+				,m.StartChangeYn
+				,m.EndChangeYn
+				,m.CoreStartTime
+				,m.CoreEndTime
+
+				#근무제
+				,j.WorkSts
+				,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+				,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+				,j.NextDayYn
+				,j.ConfmYn
+				,IFNULL(j.AssYn,'N') AssYn
+				,j.WorkZone
+				,j.WorkAddr
+				,j.WorkPointX
+				,j.WorkPointY
+				,j.AllowRadius
+				,j.StartZone
+				,j.StartPointX jobStartPointX
+				,j.StartPointY jobStartPointY
+				,j.EndZone
+				,j.EndPointX jobEndPointX
+				,j.EndPointY jobEndPointY
+				,j.Etc jobEtc
+				,case when  DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <  DATE_FORMAT(j.JobDate,'%Y%m%d') THEN 0 else j.AttDayAc end AttDayAc
+				,IFNULL(s.SchName,'') SchName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName) schMultiDisplayName
+				,BaseYn
+				#근무상태
+				,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName),'+') , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName) ), '' ) jh_JobStsName
+				,MIN(jh.StartTime) jh_StartTime
+				#휴가
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacFlag,'') VacFlag
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacCodeName,'') VacCodeName
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacStartTime,'') VacStartTime
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacEndTime,'') VacEndTime
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacAmPmVacDay,'') VacAmPmVacDay
+				,case when IFNULL(vv.VacCnt,0) >= 1 then
+					  IFNULL(j.AttDayAC,0)
+				 else
+					 case when IFNULL(vv.VacCnt,0) > 0 then
+						IFNULL(j.AttDayAC,0)*IFNULL(vv.VacCnt,0)
+					 else case when j.WorkSts = 'HOL' AND j.AttDayAC>0 then
+						j.AttDayAC
+					 else 0  END end  end VacTime
+				,VacOffFlag
+				,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName,JobTitleName,EnterDate,PhotoPath
+				,JobPositionSortKey,DeptSortKey,SortKey,VacCnt
+				,JobLevelSortKey
+				,JobTitleSortKey
+				,JobTitlecode
+				,IFNULL(s.WorkingSystemType, 0) as WorkingSystemType
+				,IFNULL(m.MonthlyAttAcSum, 0) as MonthlyAttAcSum
+				,IFNULL(h.StartChannel, m.StartChannel) AS StartChannel
+		 		,IFNULL(h.StartIpAddr, m.StartAddr) AS StartIpAddr
+		 		,IFNULL(h2.EndChannel, m.EndChannel) AS EndChannel
+		 		,IFNULL(h2.EndIpAddr, m.EndAddr) AS EndIpAddr
+		]]>
+			FROM
+			(
+				SELECT
+					daylist ,weekd
+					,UserCode TargetUserCode
+					,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName,JobTitleName,EnterDate,PhotoPath,DeptCode
+					,JobPositionSortKey,DeptSortKey,SortKey
+					,JobLevelSortKey
+					,JobTitleSortKey
+					,JobTitlecode
+		FROM
+				(
+					SELECT
+						daylist
+						,weekd
+					FROM covi_smart4j.attendance_daylist
+					WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+				) dl ,(
+					SELECT
+						u.UserCode
+						,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName))>0
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName)
+							,u.DisplayName) DisplayName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobLevelName) JobLevelName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobTitleName) JobTitleName
+						,u.EnterDate
+						,b.JobPositionSortKey
+						,b.JobLevelSortKey
+						,b.JobTitleSortKey
+						,b.JobTitlecode
+						,b.DeptSortKey
+						,b.SortKey
+						,u.PhotoPath
+						,DeptCode
+						,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath
+					FROM covi_smart4j.sys_object_user_basegroup  b
+					JOIN covi_smart4j.sys_object_user u					ON b.UserCode = u.UserCode
+					LEFT JOIN covi_smart4j.sys_object_group sog			ON b.DeptCode = sog.GroupCode
+					WHERE b.CompanyCode = #{CompanyCode}
+					<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+						U.UserCode = #{user.UserCode} AND DeptCode = #{user.DeptCode}
+					</foreach>
+				) u
+			)dl
+			LEFT JOIN covi_smart4j.attendance_commuting_mst m	 ON dl.dayList = m.TargetDate		AND m.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = m.UserCode
+			LEFT JOIN covi_smart4j.attendance_commuting_history h	 ON m.TargetDate = h.TargetDate		AND m.CommuSeq = h.CommuSeq AND m.AttStartTime = h.StartTime AND m.UserCode = h.UserCode
+			LEFT JOIN covi_smart4j.attendance_commuting_history h2	 ON m.TargetDate = h2.TargetDate	AND m.CommuSeq = h2.CommuSeq AND m.AttEndTime = h2.EndTime AND m.UserCode = h2.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_job j			 ON dl.dayList = j.JobDate			AND j.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = j.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_schedule s	 ON j.SchSeq = s.SchSeq
+			LEFT JOIN covi_smart4j.attendance_mng_job_history jh ON dl.dayList = jh.JobDate			AND TargetUserCode = jh.UserCode			AND jh.CompanyCode = #{CompanyCode}
+			LEFT JOIN (SELECT  dayList, ur_code, v.VacFlag, v.VacOffFlag, v.VacCnt, v.VacCodeName, v.VacStartTime, v.VacEndTime, v.VacAmPmVacDay
+						FROM  covi_smart4j.attendance_daylist d
+						LEFT JOIN (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+						, GROUP_CONCAT(vd.VacFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacFlag
+						, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+						, GROUP_CONCAT(IFNULL(vd.StartTime,'00:00') ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacStartTime
+						, GROUP_CONCAT(IFNULL(vd.EndTime,'00:00') ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacEndTime
+						, GROUP_CONCAT(bc.CodeName ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacCodeName
+						, CONCAT(IFNULL( SUM(AmVacDay),0),'|',IFNULL( SUM(PmVacDay),0)) as VacAmPmVacDay
+						from (select UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+									,CASE WHEN VacOffFlag = 'AM' THEN
+									VacDay
+									END as AmVacDay
+									,CASE WHEN VacOffFlag = 'PM' THEN
+									VacDay
+									END as PmVacDay
+								from covi_smart4j.vm_vacationinfo_day
+								where 1=1
+							<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+									 UR_Code = #{user.UserCode}
+							</foreach>
+								) vd
+							left join covi_smart4j.sys_base_code bc
+								on bc.DomainID = #{domainID}
+								AND bc.codegroup='VACATION_TYPE'
+								AND bc.CODE=vd.VacFlag
+								AND vd.VacDate BETWEEN #{StartDate} AND #{EndDate}
+						group by vd.VacDate, vd.UR_Code) v ON d.dayList = v.VacDate
+						WHERE  d.dayList BETWEEN #{StartDate} AND #{EndDate}
+						GROUP BY  ur_code, dayList) vv
+				ON dl.dayList = vv.dayList AND dl.TargetUserCode = vv.UR_Code
+			GROUP BY dayList , TargetUserCode , DeptCode
+		) att
+		<!--2021.08.03 근태현황 목록 출력 sorting 보정. 이전:ORDER BY DeptFullPath,DeptSortKey,JobPositionSortKey,SortKey,UserCode,dayList-->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			DisplayName ASC
+				  		</if>
+				  	</foreach>
+				  	, SortKey, JobTitlecode, EnterDate, UserCode, dayList ASC
+			  	</when>
+			</choose>
+		</trim>
+	</select>
+
+	<select id="getUserAttStatusV2" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			dayList
+			,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath
+			,weekd
+			,DAY(dayList) v_day
+			,TargetUserCode
+			,UserCode
+			,SchName
+			,VacFlag
+			,VacOffFlag
+			,VacCodeName
+			,VacAmPmVacDay
+			,CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VacFlag,'|',1)) END VacName
+			,CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VacFlag,'|',-1)) END VacName2
+			,WorkSts
+			,AttDayStartTime
+			,AttDayEndTime
+			,AttStartTime
+			,AttEndTime
+			,DATE_FORMAT(AttDayStartTime, '%h:%i%p') v_AttDayStartTime
+			,DATE_FORMAT(AttDayEndTime, '%h:%i%p') v_AttDayEndTime
+			,DATE_FORMAT(mAttDayStartTime,'%Y-%m-%d %H:%i:%s') AS mAttDayStartTime
+			,DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s') AS mAttDayEndTime
+			,IF(
+				WorkingSystemType='0',
+				IF(DATE_FORMAT(AttDayStartTime, '%Y%m%d')  <  DATE_FORMAT(AttDayEndTime, '%Y%m%d'),'Y','N'),
+				IF(DATE_FORMAT(mAttDayStartTime, '%Y%m%d')  <  DATE_FORMAT(mAttDayEndTime, '%Y%m%d'),'Y','N')
+			) as v_NextDayYn
+			,DATE_FORMAT(AttStartTime, '%h:%i%p') v_AttStartTime
+			,DATE_FORMAT(AttEndTime, '%h:%i%p') v_AttEndTime
+
+			,DATE_FORMAT(AttDayStartTime, '%H') v_AttDayStartHour
+			,DATE_FORMAT(AttDayStartTime, '%i') v_AttDayStartMin
+			,DATE_FORMAT(AttDayEndTime, '%H') v_AttDayEndHour
+			,DATE_FORMAT(AttDayEndTime, '%i') v_AttDayEndMin
+
+			,DATE_FORMAT(AttStartTime, '%H') v_AttStartHour
+			,DATE_FORMAT(AttStartTime, '%i') v_AttStartMin
+			,IF(
+				WorkingSystemType='2' AND DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s')<DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s'),
+				DATE_FORMAT(mAttDayEndTime, '%H'),
+				DATE_FORMAT(AttEndTime, '%H')
+			) as v_AttEndHour
+			,IF(
+				WorkingSystemType='2' AND DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s')<DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s'),
+				DATE_FORMAT(mAttDayEndTime, '%i'),
+				DATE_FORMAT(AttEndTime, '%i')
+			) as v_AttEndMin
+
+			,AttConfirmYn
+			,StartSts
+			,EndSts
+			,AttAc
+			,AttAcD
+			,AttAcN
+			,AttReal
+			,IF(ExtenNotEnough='Y',ExtenAc,0) ExtenAc
+			,IF(ExtenNotEnough='Y',ExtenAcD,0) ExtenAcD
+         	,IF(ExtenNotEnough='Y',ExtenAcN,0) ExtenAcN
+			,IF(HoliNotEnough='Y',HoliAc,0) HoliAc
+			,IF(HoliNotEnough='Y',HoliAcD,0) HoliAcD
+         	,IF(HoliNotEnough='Y',HoliAcN,0) HoliAcN
+			,IFNULL(ExtenCnt,0) ExtenCnt
+			,IFNULL(HoliCnt,0) HoliCnt
+			,AssYn
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)+IF(AssYn='Y',0,VacTime) TotWorkTime
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(AssYn='Y',0,VacTime) AttRealTime
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)				  AttRealConfTime
+			,TIMESTAMPDIFF(MINUTE, AttStartTime, AttEndTime) v_startToEndSec
+			,jh_JobStsName
+			,Etc
+			,UserEtc
+			,ExtenNotEnough
+			,HoliNotEnough
+			,DATE_FORMAT(ExtenStart, '%H%i') v_ExtenStartTime
+			,DATE_FORMAT(ExtenEnd, '%H%i') v_ExtenEndTime
+			,DATE_FORMAT(HoliStart, '%H%i') v_HoliStartTime
+			,DATE_FORMAT(HoliEnd, '%H%i') v_HoliEndTime
+
+			,IF(CoreStartTime IS NOT NULL AND CoreEndTime IS NOT NULL and WorkSts = 'ON',
+				 CONCAT(TIME_FORMAT(CoreStartTime,'%H:%i'),'~',TIME_FORMAT(CoreEndTime,'%H:%i')),'') CoreTime
+			,IF(AttDayStartTime IS NOT NULL AND AttDayStartTime != '' AND AttDayEndTime IS NOT NULL AND AttDayEndTime != '' ,
+				IF(DATE_FORMAT(AttDayStartTime,'%H%i%s') <=  TIME_FORMAT(CoreStartTime,'%H%i%s')
+					AND DATE_FORMAT(AttDayEndTime,'%H%i%s') >= TIME_FORMAT(CoreEndTime,'%H%i%s')
+					,'Y','N')
+				,NULL) CoreTimeObey
+			,WorkAddr
+			,WorkZone
+			,WorkPointX
+			,WorkPointY
+			,StartPointX
+			,StartPointY
+			,StartAddr
+			,EndPointX
+			,EndPointY
+			,EndAddr
+			,VacCnt
+			,userWorkInfo
+			,MonthlyAttAcSum
+			,WorkingSystemType
+			,CoreSchTimeYn
+			,CoreStartTimeHour
+			,CoreStartTimeMin
+			,CoreEndTimeHour
+			,CoreEndTimeMin
+			,CoreSchTime
+			,GoWorkTimeYn
+			,GoWorkStartTimeHour
+			,GoWorkStartTimeMin
+			,GoWorkEndTimeHour
+			,GoWorkEndTimeMin
+			,GoWorkEndTime
+			,OffWorkTimeYn
+			,OffWorkStartTimeHour
+			,OffWorkStartTimeMin
+			,OffWorkEndTimeHour
+			,OffWorkEndTimeMin
+			,OffWorkEndTime
+		FROM
+		(
+			SELECT
+				dl.dayList
+				,weekd
+				,TargetUserCode
+				,TargetUserCode UserCode
+				,DeptCode
+				,m.CommuSeq
+				,IFNULL(m.Etc,'') Etc
+				,m.TardyReason
+				,m.UserEtc
+				,m.LeaveEarlyReason
+				,m.AttStartTime
+				,m.AttEndTime
+				,m.AttDayStartTime AS mAttDayStartTime
+				,m.AttDayEndTime AS mAttDayEndTime
+				,case when VacCnt >= 1 then 0 else IFNULL(m.AttReal,0) end AttReal
+				,IFNULL(m.AttAc,0) AttAc
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as AttAcD
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as AttAcN
+				,IFNULL(m.AttIdle,0) AttIdle
+				,IFNULL(m.ExtenReal,0) ExtenReal
+				,IFNULL(m.ExtenAc,0) ExtenAc
+				,CASE WHEN m.ExtenCnt>1 THEN
+					SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0))
+				ELSE
+					IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END  as ExtenAcD
+                ,CASE WHEN m.ExtenCnt>1 THEN
+					SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0))
+				ELSE
+                	IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END  as ExtenAcN
+                ,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliStart AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+				,m.ExtenStart
+				,m.ExtenEnd
+				,IFNULL(m.HoliReal,0) HoliReal
+				,IFNULL(m.HoliAc,0) HoliAc
+				,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as HoliAcD
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as HoliAcN
+                ,m.HoliStart
+				,m.HoliEnd
+				,m.ExtenCnt
+				,m.HoliCnt
+				,m.AttConfirmYn
+				,m.AttConfirmTime
+				,m.StartSts
+				,m.EndSts
+				,m.StartPointX
+				,m.StartPointY
+				,m.StartAddr
+				,m.EndPointX
+				,m.EndPointY
+				,m.EndAddr
+				,m.StartChangeYn
+				,m.EndChangeYn
+				,m.CoreStartTime
+				,m.CoreEndTime
+				,IFNULL(m.MonthlyAttAcSum, 0) as MonthlyAttAcSum
+
+				,j.WorkSts
+				,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+				,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+				,j.NextDayYn
+				,j.ConfmYn
+				,IFNULL(j.AssYn,'N') AssYn
+				,j.WorkZone
+				,j.WorkAddr
+				,j.WorkPointX
+				,j.WorkPointY
+				,j.AllowRadius
+				,j.StartZone
+				,j.StartPointX jobStartPointX
+				,j.StartPointY jobStartPointY
+				,j.EndZone
+				,j.EndPointX jobEndPointX
+				,j.EndPointY jobEndPointY
+				,j.Etc jobEtc
+				,case when  DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <  DATE_FORMAT(j.JobDate,'%Y%m%d') THEN 0 else j.AttDayAc end AttDayAc
+				,IFNULL(s.SchName,'') SchName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName) schMultiDisplayName
+				,BaseYn
+				,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName),'+') , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName) ), '' ) jh_JobStsName
+				,MIN(jh.StartTime) jh_StartTime
+				,IF(SUM(IFNULL(vv.VacCnt,0)) >  0,VacFlag,'') VacFlag
+				,case when IFNULL(vv.VacCnt,0) >= 1 then
+					  IFNULL(j.AttDayAC,0)
+				 else
+					 case when IFNULL(vv.VacCnt,0) > 0 then
+						IFNULL(j.AttDayAC,0)*IFNULL(vv.VacCnt,0)
+					 else case when j.WorkSts = 'HOL' AND j.AttDayAC>0 then
+						j.AttDayAC
+					 else 0  END end  end VacTime
+				,VacOffFlag
+				,VacCodeName
+				,VacAmPmVacDay
+				,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath
+				,JobPositionSortKey,DeptSortKey,SortKey,VacCnt
+				,JobLevelSortKey
+				,JobTitlecode
+				,Fn_attend_getUserWorkInfo(TargetUserCode, dl.dayList) as userWorkInfo
+				  ,IFNULL(s.WorkingSystemType, 0) as WorkingSystemType
+				  ,IFNULL(s.CoreTimeYn, 'N') as CoreSchTimeYn
+				  ,IFNULL(s.CoreStartTimeHour, '00') as CoreStartTimeHour
+				  ,IFNULL(s.CoreStartTimeMin, '00') as CoreStartTimeMin
+				  ,IFNULL(s.CoreEndTimeHour, '00') as CoreEndTimeHour
+				  ,IFNULL(s.CoreEndTimeMin, '00') as CoreEndTimeMin
+				  ,CONCAT(IFNULL(s.CoreStartTimeHour, '00'),':',IFNULL(s.CoreStartTimeMin, '00'),'~',IFNULL(s.CoreEndTimeHour, '00'),':',IFNULL(s.CoreEndTimeMin, '00')) as CoreSchTime
+				  ,IFNULL(s.GoWorkTimeYn, 'N') as GoWorkTimeYn
+				  ,IFNULL(s.GoWorkStartTimeHour, '00') as GoWorkStartTimeHour
+				  ,IFNULL(s.GoWorkStartTimeMin, '00') as GoWorkStartTimeMin
+				  ,IFNULL(s.GoWorkEndTimeHour, '00') as GoWorkEndTimeHour
+				  ,IFNULL(s.GoWorkEndTimeMin, '00') as GoWorkEndTimeMin
+				  ,CONCAT(IFNULL(s.GoWorkStartTimeHour, '00'),':',IFNULL(s.GoWorkStartTimeMin, '00'),'~',IFNULL(s.GoWorkEndTimeHour, '00'),':',IFNULL(s.GoWorkEndTimeMin, '00')) as GoWorkEndTime
+				  ,IFNULL(s.OffWorkTimeYn, 'N') as OffWorkTimeYn
+				  ,IFNULL(s.OffWorkStartTimeHour, '00') as OffWorkStartTimeHour
+				  ,IFNULL(s.OffWorkStartTimeMin, '00') as OffWorkStartTimeMin
+				  ,IFNULL(s.OffWorkEndTimeHour, '00') as OffWorkEndTimeHour
+				  ,IFNULL(s.OffWorkEndTimeMin, '00') as OffWorkEndTimeMin
+				 ,CONCAT(IFNULL(s.OffWorkStartTimeHour, '00'),':',IFNULL(s.OffWorkStartTimeMin, '00'),'~',IFNULL(s.OffWorkEndTimeHour, '00'),':',IFNULL(s.OffWorkEndTimeMin, '00')) as OffWorkEndTime
+				]]>
+		FROM
+		(
+			SELECT
+				daylist ,weekd
+				,UserCode TargetUserCode
+				,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath,DeptCode
+				,JobPositionSortKey,DeptSortKey,SortKey
+				,JobLevelSortKey
+				,JobTitlecode
+			FROM
+			(
+				SELECT
+				daylist
+				,weekd
+				FROM covi_smart4j.attendance_daylist
+				WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+			) dl ,(
+				SELECT
+					u.UserCode
+					,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName))>0
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName)
+					,u.DisplayName) DisplayName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobTitleName) JobTitleName
+					,u.EnterDate
+					,b.JobPositionSortKey
+					,b.JobLevelSortKey
+					,b.JobTitlecode
+					,b.DeptSortKey
+					,b.SortKey
+					,u.PhotoPath
+					,DeptCode
+					,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath
+				FROM covi_smart4j.sys_object_user_basegroup  b
+				JOIN covi_smart4j.sys_object_user u					ON b.UserCode = u.UserCode
+				LEFT JOIN covi_smart4j.sys_object_group sog			ON b.DeptCode = sog.GroupCode
+				WHERE b.CompanyCode = #{CompanyCode}
+				<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+					U.UserCode = #{user.UserCode} AND DeptCode = #{user.DeptCode}
+				</foreach>
+			) u
+		)dl
+			LEFT JOIN covi_smart4j.attendance_commuting_mst m	 ON dl.dayList = m.TargetDate		AND m.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = m.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_job j			 ON dl.dayList = j.JobDate			AND j.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = j.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_schedule s	 ON j.SchSeq = s.SchSeq
+			LEFT JOIN covi_smart4j.attendance_mng_job_history jh ON dl.dayList = jh.JobDate			AND TargetUserCode = jh.UserCode			AND jh.CompanyCode = #{CompanyCode}
+			LEFT JOIN (select vd.VacDate, vd.UR_Code, SUM(vd.VacDay) as VacCnt
+						, GROUP_CONCAT(vd.VacFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacFlag
+						, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+						, GROUP_CONCAT(vd.StartTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as StartTime
+						, GROUP_CONCAT(vd.EndTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as EndTime
+						, GROUP_CONCAT(bc.CodeName ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacCodeName
+						, CONCAT(IFNULL( SUM(AmVacDay),0),'|',IFNULL( SUM(PmVacDay),0)) as VacAmPmVacDay
+						from (select UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+									,CASE WHEN VacOffFlag = 'AM' THEN
+									VacDay
+									END as AmVacDay
+									,CASE WHEN VacOffFlag = 'PM' THEN
+									VacDay
+									END as PmVacDay
+								from covi_smart4j.vm_vacationinfo_day
+								where 1=1
+								<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+									UR_Code = #{user.UserCode}
+								</foreach>
+								) vd
+								left join covi_smart4j.sys_base_code bc
+								on bc.DomainID = #{domainID}
+								AND bc.codegroup='VACATION_TYPE'
+								AND bc.CODE=vd.VacFlag
+								AND vd.VacDate BETWEEN #{StartDate} AND #{EndDate}
+						group by vd.VacDate, vd.UR_Code) vv
+				ON dl.dayList = vv.VacDate AND dl.TargetUserCode = vv.UR_Code
+			LEFT JOIN (select SUM(IFNULL(NULLIF(IdleTime,''),0)) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts
+				from covi_smart4j.attendance_mng_extensionholiday group by jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts) eho ON m.TargetDate = eho.jobDate AND m.UserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = 'GENERAL' AND eho.ApprovalSts = 'Y'
+			LEFT JOIN (select SUM(IFNULL(NULLIF(IdleTime,''),0)) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts
+				from covi_smart4j.attendance_mng_extensionholiday group by jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts) ehh ON m.TargetDate = ehh.jobDate AND m.UserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = 'GENERAL' AND ehh.ApprovalSts = 'Y'
+			GROUP BY dayList , TargetUserCode , DeptCode
+			) att
+		ORDER BY SortKey, JobPositionSortKey, JobLevelSortKey, JobTitlecode, EnterDate, DisplayName, dayList ASC
+	</select>
+
+	<select id="getUserAttStatusWeekly" parameterType="cmap" resultType="cmap">
+		SELECT
+			dayList, DeptFullPath, UserName,
+			DeptName, JobPositionName,JobLevelName, JobTitleName, EnterDate,	PhotoPath,
+			TargetUserCode,	UserCode, SortKey, JobPositionSortKey,
+			JobLevelSortKey, JobTitleSortKey, DeptSortKey, JobTitlecode
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, AttDayStartTime_${index}
+			, AttDayEndTime_${index}
+			, AttDayWeeksNum_${index}
+			, AttAc_${index}
+			, AttAcD_${index}
+			, AttAcN_${index}
+			, AttReal_${index}
+			, ExtenAc_${index}
+			, ExtenAcD_${index}
+			, ExtenAcN_${index}
+			, HoliAc_${index}
+			, HoliAcD_${index}
+			, HoliAcN_${index}
+			, TotWorkTime_${index}
+			, AttRealConfTime_${index}
+			, userWorkInfo_${index}
+			, MonthlyAttAcSum_${index}
+			, WorkingSystemType_${index}
+		</foreach>
+			,Fn_attend_getUserAttendDayNightWorkTime(UserCode, #{CompanyCode}, #{StartDate}, #{EndDate}, #{NightStartDate}, #{NightEndDate},#{HolNightStartDate}, #{HolNightEndDate},#{ExtNightStartDate},#{ExtNightEndDate}) as summary
+
+		FROM(
+			SELECT
+				dayList, DeptFullPath,
+				 UserName,
+				DeptName, JobPositionName,JobLevelName, JobTitleName, EnterDate,	PhotoPath,
+				TargetUserCode,	UserCode, SortKey, JobPositionSortKey,
+				JobLevelSortKey, JobTitleSortKey, DeptSortKey, JobTitlecode
+				<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+					, AttDayStartTime_${index}
+					, AttDayEndTime_${index}
+					, ${item} as AttDayWeeksNum_${index}
+					, IFNULL(SUM(AttAc_${index}),0) as AttAc_${index}
+					, IFNULL(SUM(AttAcD_${index}),0) as AttAcD_${index}
+					, IFNULL(SUM(AttAcN_${index}),0) as AttAcN_${index}
+					, IFNULL(SUM(AttReal_${index}),0) as AttReal_${index}
+					, IFNULL(SUM(ExtenAc_${index}),0) as ExtenAc_${index}
+					, IFNULL(SUM(ExtenAcD_${index}),0) as ExtenAcD_${index}
+					, IFNULL(SUM(ExtenAcN_${index}),0) as ExtenAcN_${index}
+					, IFNULL(SUM(HoliAc_${index}),0) as HoliAc_${index}
+					, IFNULL(SUM(HoliAcD_${index}),0) as HoliAcD_${index}
+					, IFNULL(SUM(HoliAcN_${index}),0) as HoliAcN_${index}
+					, IFNULL(SUM(TotWorkTime_${index}),0) as TotWorkTime_${index}
+					, IFNULL(SUM(AttRealConfTime_${index}),0) as AttRealConfTime_${index}
+					, MAX(userWorkInfo_${index}) as userWorkInfo_${index}
+					, MAX(MonthlyAttAcSum_${index}) as MonthlyAttAcSum_${index}
+					, MAX(WorkingSystemType_${index}) as WorkingSystemType_${index}
+				</foreach>
+			FROM (
+				SELECT
+					dayList
+					,DeptFullPath,DisplayName as UserName
+					,DeptName,JobPositionName,JobLevelName,JobTitleName,EnterDate,PhotoPath
+					,TargetUserCode,UserCode,SchName,VacFlag,VacOffFlag,WorkSts
+					,AttDayStartTime,AttDayEndTime,AttStartTime,AttEndTime
+					,AttConfirmYn,StartSts,EndSts,
+					SortKey,
+					JobPositionSortKey,
+					JobLevelSortKey,
+					JobTitleSortKey,
+					DeptSortKey,
+					JobTitlecode
+				<foreach collection="listRangeFronToDate" item="item" index="index" separator="" open="" close="">
+					<foreach item="value" index="key" collection="item.entrySet()" separator="">
+						, #{key} as AttDayStartTime_${index}
+						, #{value} as AttDayEndTime_${index}
+						, case when (dayList between #{key} and #{value}) and (WorkSts = 'ON' or WorkSts = 'HOL') then sum(AttAc) END as AttAc_${index}
+						, case when (dayList between #{key} and #{value}) and (WorkSts = 'ON' or WorkSts = 'HOL') then sum(AttAcD) END as AttAcD_${index}
+						, case when (dayList between #{key} and #{value}) and (WorkSts = 'ON' or WorkSts = 'HOL') then sum(AttAcN) END as AttAcN_${index}
+						, case when (dayList between #{key} and #{value})  then sum(AttRealTime) END as AttReal_${index}
+						, case when (dayList between #{key} and #{value})  then sum(ExtenAc) END as ExtenAc_${index}
+						, case when (dayList between #{key} and #{value})  then sum(ExtenAcD) END as ExtenAcD_${index}
+						, case when (dayList between #{key} and #{value})  then sum(ExtenAcN) END as ExtenAcN_${index}
+						, case when (dayList between #{key} and #{value})  then sum(HoliAc) END as HoliAc_${index}
+						, case when (dayList between #{key} and #{value})  then sum(HoliAcD) END as HoliAcD_${index}
+						, case when (dayList between #{key} and #{value})  then sum(HoliAcN) END as HoliAcN_${index}
+						, case when (dayList between #{key} and #{value})  then sum(TotWorkTime) END as TotWorkTime_${index}
+						, case when (dayList between #{key} and #{value})  then sum(AttRealConfTime) END as AttRealConfTime_${index}
+						, case when (dayList between #{key} and #{value})  then MAX(userWorkInfo) END as userWorkInfo_${index}
+						, case when (dayList between #{key} and #{value})  then MAX(MonthlyAttAcSum) END as MonthlyAttAcSum_${index}
+						, case when (dayList between #{key} and #{value})  then MAX(WorkingSystemType) END as WorkingSystemType_${index}
+					</foreach>
+				</foreach>
+				FROM (SELECT
+					 dayList
+					,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName,JobTitleName,EnterDate,PhotoPath
+					,TargetUserCode,UserCode,SchName,VacFlag,VacOffFlag,WorkSts
+					,AttDayStartTime,AttDayEndTime,AttStartTime,AttEndTime
+					,AttConfirmYn,StartSts,EndSts
+					,AttAc
+					,AttAcD
+					,AttAcN
+					,AttReal
+					,IF(ExtenNotEnough='Y',ExtenAc,0) ExtenAc
+					,IF(ExtenNotEnough='Y',ExtenAcD,0) ExtenAcD
+					,IF(ExtenNotEnough='Y',ExtenAcN,0) ExtenAcN
+					,IF(HoliNotEnough='Y',HoliAc,0) HoliAc
+					,IF(HoliNotEnough='Y',HoliAcD,0) HoliAcD
+					,IF(HoliNotEnough='Y',HoliAcN,0) HoliAcN
+					,IFNULL(ExtenCnt,0) ExtenCnt
+					,IFNULL(HoliCnt,0) HoliCnt
+					,MonthlyAttAcSum
+					,WorkingSystemType
+					,AssYn
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)+IF(AssYn='Y',0,VacTime) TotWorkTime
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(AssYn='Y',0,VacTime) AttRealTime
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)	 AttRealConfTime
+					,TIMESTAMPDIFF(MINUTE, AttStartTime, AttEndTime) v_startToEndSec
+					,jh_JobStsName
+					,Etc
+					,UserEtc
+					,ExtenNotEnough
+					,HoliNotEnough
+
+					,IF(CoreStartTime IS NOT NULL AND CoreEndTime IS NOT NULL and WorkSts = 'ON',
+						 CONCAT(TIME_FORMAT(CoreStartTime,'%H:%i'),'~',TIME_FORMAT(CoreEndTime,'%H:%i')),'') CoreTime
+					,IF(AttDayStartTime IS NOT NULL AND AttDayStartTime != '' AND AttDayEndTime IS NOT NULL AND AttDayEndTime != '' ,
+						IF(DATE_FORMAT(AttDayStartTime,'%H%i%s') <![CDATA[<=]]>  TIME_FORMAT(CoreStartTime,'%H%i%s')
+							AND DATE_FORMAT(AttDayEndTime,'%H%i%s') <![CDATA[>=]]> TIME_FORMAT(CoreEndTime,'%H%i%s')
+							,'Y','N')
+						,NULL) CoreTimeObey
+					,WorkAddr
+					,WorkZone
+					,WorkPointX
+					,WorkPointY
+					,StartPointX
+					,StartPointY
+					,StartAddr
+					,EndPointX
+					,EndPointY
+					,EndAddr
+					,VacCnt
+					,userWorkInfo
+					,SortKey,
+					JobPositionSortKey,
+					JobLevelSortKey,
+					JobTitleSortKey,
+					DeptSortKey,
+					JobTitlecode
+				FROM
+				(
+					SELECT
+						dl.dayList
+						,weekd
+						,TargetUserCode
+						,TargetUserCode UserCode
+						,DeptCode
+						,m.CommuSeq
+						,IFNULL(m.Etc,'') Etc
+						,m.TardyReason
+						,m.UserEtc
+						,m.LeaveEarlyReason
+						,m.AttStartTime
+						,m.AttEndTime
+						,case when VacCnt <![CDATA[>=]]> 1 then 0 else IFNULL(m.AttReal,0) end AttReal
+						,IFNULL(m.AttAc,0) AttAc
+						,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as AttAcD
+						,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as AttAcN
+						,IFNULL(m.AttIdle,0) AttIdle
+						,IFNULL(m.ExtenReal,0) ExtenReal
+						,IFNULL(m.ExtenAc,0) ExtenAc
+						,CASE WHEN m.ExtenCnt>1 THEN
+							SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0))
+						ELSE
+							IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END  as ExtenAcD
+						,CASE WHEN m.ExtenCnt>1 THEN
+							SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0))
+						ELSE
+							IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END  as ExtenAcN
+						,IF(m.AttEndTime is not null and m.AttEndTime <![CDATA[>=]]> m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+						,IF(m.AttStartTime is not null and m.AttStartTime <![CDATA[<=]]> m.HoliStart AND m.AttEndTime is not null and m.AttEndTime <![CDATA[>=]]> m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+						,m.ExtenStart
+						,m.ExtenEnd
+						,IFNULL(m.HoliReal,0) HoliReal
+						,IFNULL(m.HoliAc,0) HoliAc
+						,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as HoliAcD
+						,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as HoliAcN
+						,m.HoliStart
+						,m.HoliEnd
+						,m.ExtenCnt
+						,m.HoliCnt
+						,m.AttConfirmYn
+						,m.AttConfirmTime
+						,m.StartSts
+						,m.EndSts
+						,m.StartPointX
+						,m.StartPointY
+						,m.StartAddr
+						,m.EndPointX
+						,m.EndPointY
+						,m.EndAddr
+						,m.StartChangeYn
+						,m.EndChangeYn
+						,m.CoreStartTime
+						,m.CoreEndTime
+						,IFNULL(m.MonthlyAttAcSum, 0) MonthlyAttAcSum
+						,s.WorkingSystemType
+						,j.WorkSts
+						,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+						,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+						,j.NextDayYn
+						,j.ConfmYn
+						,IFNULL(j.AssYn,'N') AssYn
+						,j.WorkZone
+						,j.WorkAddr
+						,j.WorkPointX
+						,j.WorkPointY
+						,j.AllowRadius
+						,j.StartZone
+						,j.StartPointX jobStartPointX
+						,j.StartPointY jobStartPointY
+						,j.EndZone
+						,j.EndPointX jobEndPointX
+						,j.EndPointY jobEndPointY
+						,j.Etc jobEtc
+						,case when  DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <![CDATA[<]]>  DATE_FORMAT(j.JobDate,'%Y%m%d') THEN 0 else j.AttDayAc end AttDayAc
+						,IFNULL(s.SchName,'') SchName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName) schMultiDisplayName
+						,BaseYn
+						,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName),'+') , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName) ), '' ) jh_JobStsName
+						,MIN(jh.StartTime) jh_StartTime
+						,IF(SUM(IFNULL(VacCnt,0)) >  0,VacFlag,'') VacFlag
+						,case when IFNULL(vv.VacCnt,0) >= 1 then
+								IFNULL(j.AttDayAC,0)
+							else case when IFNULL(VacCnt,0) > 0 then
+								IFNULL(j.AttDayAC,0)*IFNULL(VacCnt,0)
+							else case when j.WorkSts = 'HOL' AND j.AttDayAC > 0 then j.AttDayAC else 0 END end end VacTime
+						,VacOffFlag
+						,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName, JobTitleName,
+						EnterDate,
+						PhotoPath,
+						JobPositionSortKey,
+						DeptSortKey,
+						JobLevelSortKey,
+						JobTitleSortKey,
+						SortKey,
+						VacCnt,
+						JobTitlecode,
+						Fn_attend_getUserWorkInfo(TargetUserCode, dl.dayList) as   userWorkInfo
+
+				FROM
+				(
+				SELECT
+				daylist ,weekd
+				,UserCode TargetUserCode
+				,DeptFullPath,DisplayName,DeptName,JobPositionName,JobLevelName, JobTitleName,EnterDate,PhotoPath,DeptCode
+				,JobPositionSortKey,DeptSortKey,SortKey
+				,JobLevelSortKey
+				,JobTitleSortKey
+				,JobTitlecode
+				FROM
+				(
+				SELECT
+				daylist
+				,weekd
+				FROM covi_smart4j.attendance_daylist
+				WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+				) dl ,(
+				SELECT
+				u.UserCode
+				,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName))>0
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName)
+				,u.DisplayName) DisplayName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobLevelName) JobLevelName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobTitleName) JobTitleName
+				,u.EnterDate
+				,b.JobPositionSortKey
+				,b.JobLevelSortKey
+				,b.JobTitleSortKey
+				,b.JobTitlecode
+				,b.DeptSortKey
+				,b.SortKey
+				,u.PhotoPath
+				,DeptCode
+				,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath
+					FROM covi_smart4j.sys_object_user_basegroup  b
+					JOIN covi_smart4j.sys_object_user u					ON b.UserCode = u.UserCode
+					LEFT JOIN covi_smart4j.sys_object_group sog			ON b.DeptCode = sog.GroupCode
+					WHERE b.CompanyCode = #{CompanyCode}
+					<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+						U.UserCode = #{user.UserCode} AND DeptCode = #{user.DeptCode}
+					</foreach>
+					) u
+				)dl
+						LEFT JOIN covi_smart4j.attendance_commuting_mst m	 ON dl.dayList = m.TargetDate		AND m.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = m.UserCode
+						LEFT JOIN covi_smart4j.attendance_mng_job j			 ON dl.dayList = j.JobDate			AND j.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = j.UserCode
+						LEFT JOIN covi_smart4j.attendance_mng_schedule s	 ON j.SchSeq = s.SchSeq
+						LEFT JOIN covi_smart4j.attendance_mng_job_history jh ON dl.dayList = jh.JobDate			AND TargetUserCode = jh.UserCode			AND jh.CompanyCode = #{CompanyCode}
+						LEFT JOIN (select vd.VacDate, vd.UR_Code, SUM(vd.VacDay) as VacCnt
+									, GROUP_CONCAT(vd.VacFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacFlag
+									, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+									, GROUP_CONCAT(vd.StartTime ORDER BY vd.VacOffFlag SEPARATOR '|') as StartTime
+									, GROUP_CONCAT(vd.EndTime ORDER BY vd.VacOffFlag SEPARATOR '|') as EndTime
+									from covi_smart4j.vm_vacationinfo_day vd
+									where vd.VacDate BETWEEN #{StartDate} AND #{EndDate}
+									<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+										vd.UR_Code = #{user.UserCode}
+									</foreach>
+									group by vd.VacDate, vd.UR_Code) vv
+								ON dl.dayList = vv.VacDate AND dl.TargetUserCode = vv.UR_Code
+						LEFT JOIN (select IFNULL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from covi_smart4j.attendance_mng_extensionholiday) eho ON dl.dayList = eho.jobDate AND dl.TargetUserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = #{CompanyCode} AND eho.ApprovalSts = 'Y'
+						LEFT JOIN (select IFNULL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from covi_smart4j.attendance_mng_extensionholiday) ehh ON dl.dayList = ehh.jobDate AND dl.TargetUserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = #{CompanyCode} AND ehh.ApprovalSts = 'Y'
+						GROUP BY dayList , TargetUserCode , DeptCode
+				) att
+				GROUP BY TargetUserCode, dayList, WorkSts
+			  ) tt
+				GROUP BY dayList, UserCode
+			) tb
+			GROUP BY UserCode
+		)tbl
+	WHERE 1=1
+	<if test='weeklyWorkValue != null and weeklyWorkValue != "" and weeklyWorkValue != "0"'>
+		<if test='weeklyWorkType != null and weeklyWorkType != "" and weeklyWorkType == "over"'>
+			AND (
+			<foreach collection="WeeksNum" item="item" index="index" separator="or" open="" close="">
+				TotWorkTime_${index} <![CDATA[>]]> #{weeklyWorkValue}
+			</foreach>
+			)
+		</if>
+		<if test='weeklyWorkType != null and weeklyWorkType != "" and weeklyWorkType == "under"'>
+			AND (
+			<foreach collection="WeeksNum" item="item" index="index" separator="and" open="" close="">
+				TotWorkTime_${index} <![CDATA[<=]]> #{weeklyWorkValue}
+			</foreach>
+			)
+		</if>
+	</if>
+	<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, SortKey, JobTitlecode, EnterDate, dayList ASC
+			  	</when>
+			</choose>
+		</trim>
+	</select>
+
+
+	<select id="getUserAttStatusDaily" parameterType="cmap" resultType="cmap">
+		SELECT
+		dayList
+		,DeptFullPath, UserName
+		,DeptName,JobPositionName, JobTitleName,JobLevelName,EnterDate,PhotoPath
+		,TargetUserCode,UserCode,SchName,VacCnt,VacFlag,VacOffFlag,VacAmPmVacDay,VacCodeName,WorkSts
+		,AttDayStartTime,AttDayEndTime,AttStartTime,AttEndTime
+		,AttConfirmYn,StartSts,EndSts,
+		SortKey,
+		JobPositionSortKey,
+		JobLevelSortKey,
+		JobTitleSortKey,
+		DeptSortKey,
+		JobTitlecode
+		, AttAc
+		, AttAcD
+		, AttAcN
+		, AttReal
+		, ExtenAc
+		, ExtenAcD
+		, ExtenAcN
+		, HoliAc
+		, HoliAcD
+		, HoliAcN
+		, TotWorkTime
+		, AttRealTime
+		, AttRealConfTime
+		, MonthlyAttAcSum
+		, WorkingSystemType
+		, userWorkInfo
+		,DATE_FORMAT(AttDayStartTime, '%h:%i%p') v_AttDayStartTime
+		,DATE_FORMAT(AttDayEndTime, '%h:%i%p') v_AttDayEndTime
+		,IF(DATE_FORMAT(AttDayStartTime, '%Y%m%d')  <![CDATA[<]]>  DATE_FORMAT(AttDayEndTime, '%Y%m%d'),'Y','N') v_NextDayYn
+		,DATE_FORMAT(AttStartTime, '%h:%i%p') v_AttStartTime
+		,DATE_FORMAT(AttEndTime, '%h:%i%p') v_AttEndTime
+
+		,DATE_FORMAT(AttDayStartTime, '%H') v_AttDayStartHour
+		,DATE_FORMAT(AttDayStartTime, '%i') v_AttDayStartMin
+		,DATE_FORMAT(AttDayEndTime, '%H') v_AttDayEndHour
+		,DATE_FORMAT(AttDayEndTime, '%i') v_AttDayEndMin
+
+		,DATE_FORMAT(AttStartTime, '%H') v_AttStartHour
+		,DATE_FORMAT(AttStartTime, '%i') v_AttStartMin
+		,DATE_FORMAT(AttEndTime, '%H') v_AttEndHour
+		,DATE_FORMAT(AttEndTime, '%i') v_AttEndMins
+		,StartPointX
+		,StartPointY
+		,StartAddr
+		,EndPointX
+		,EndPointY
+		,EndAddr
+		,CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VacFlag,'|',1)) END VacName
+		,CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VacFlag,'|',-1)) END VacName2
+		FROM (
+			SELECT
+				dayList
+				,DeptFullPath,DisplayName as UserName
+				,DeptName,JobPositionName, JobTitleName,JobLevelName,EnterDate,PhotoPath
+				,TargetUserCode,UserCode,SchName,VacCnt,VacFlag,VacOffFlag,VacAmPmVacDay,VacCodeName,WorkSts
+				,AttDayStartTime,AttDayEndTime,AttStartTime,AttEndTime
+				,AttConfirmYn,StartSts,EndSts,
+				SortKey,
+				JobPositionSortKey,
+				JobLevelSortKey,
+				JobTitleSortKey,
+				DeptSortKey,
+				JobTitlecode
+				, case when WorkSts = 'ON' or WorkSts = 'HOL' then IFNULL(AttAc, 0) END as AttAc
+				, case when WorkSts = 'ON' or WorkSts = 'HOL' then IFNULL(AttAcD, 0) END as AttAcD
+				, case when WorkSts = 'ON' or WorkSts = 'HOL' then IFNULL(AttAcN, 0) END as AttAcN
+				, IFNULL(AttReal, 0) as AttReal
+				, IFNULL(ExtenAc, 0) as ExtenAc
+				, IFNULL(ExtenAcD, 0) as ExtenAcD
+				, IFNULL(ExtenAcN, 0) as ExtenAcN
+				, IFNULL(HoliAc, 0) as HoliAc
+				, IFNULL(HoliAcD, 0) as HoliAcD
+				, IFNULL(HoliAcN, 0) as HoliAcN
+				, IFNULL(TotWorkTime, 0) as TotWorkTime
+				, IFNULL(AttRealTime, 0) as AttRealTime
+				, IFNULL(AttRealConfTime, 0) as AttRealConfTime
+				, MonthlyAttAcSum
+				, WorkingSystemType
+				, userWorkInfo
+				, StartPointX
+				, StartPointY
+				, StartAddr
+				, EndPointX
+				, EndPointY
+				, EndAddr
+			FROM (SELECT
+					dayList
+					,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,JobLevelName,EnterDate,PhotoPath
+					,TargetUserCode,UserCode,SchName,VacFlag,VacOffFlag,VacAmPmVacDay,VacCodeName,WorkSts
+					,AttDayStartTime,AttDayEndTime,AttStartTime,AttEndTime
+					,AttConfirmYn,StartSts,EndSts
+					,AttAc
+					,AttAcD
+					,AttAcN
+					,AttReal
+					,IF(ExtenNotEnough='Y',ExtenAc,0) ExtenAc
+					,IF(ExtenNotEnough='Y',ExtenAcD,0) ExtenAcD
+					,IF(ExtenNotEnough='Y',ExtenAcN,0) ExtenAcN
+					,IF(HoliNotEnough='Y',HoliAc,0) HoliAc
+					,IF(HoliNotEnough='Y',HoliAcD,0) HoliAcD
+					,IF(HoliNotEnough='Y',HoliAcN,0) HoliAcN
+					,IFNULL(ExtenCnt,0) ExtenCnt
+					,IFNULL(HoliCnt,0) HoliCnt
+					,MonthlyAttAcSum
+					,WorkingSystemType
+					,AssYn
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)+IF(AssYn='Y',0,VacTime) TotWorkTime
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(AssYn='Y',0,VacTime) AttRealTime
+					,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)	 AttRealConfTime
+					,TIMESTAMPDIFF(MINUTE, AttStartTime, AttEndTime) v_startToEndSec
+					,jh_JobStsName
+					,Etc
+					,UserEtc
+					,ExtenNotEnough
+					,HoliNotEnough
+
+					,IF(CoreStartTime IS NOT NULL AND CoreEndTime IS NOT NULL and WorkSts = 'ON',
+					CONCAT(TIME_FORMAT(CoreStartTime,'%H:%i'),'~',TIME_FORMAT(CoreEndTime,'%H:%i')),'') CoreTime
+					,IF(AttDayStartTime IS NOT NULL AND AttDayStartTime != '' AND AttDayEndTime IS NOT NULL AND AttDayEndTime != '' ,
+					IF(DATE_FORMAT(AttDayStartTime,'%H%i%s') <![CDATA[<=]]>  TIME_FORMAT(CoreStartTime,'%H%i%s')
+					AND DATE_FORMAT(AttDayEndTime,'%H%i%s') <![CDATA[>=]]> TIME_FORMAT(CoreEndTime,'%H%i%s')
+					,'Y','N')
+					,NULL) CoreTimeObey
+					,WorkAddr
+					,WorkZone
+					,WorkPointX
+					,WorkPointY
+					,StartPointX
+					,StartPointY
+					,StartAddr
+					,EndPointX
+					,EndPointY
+					,EndAddr
+					,VacCnt
+					,userWorkInfo
+					,SortKey,
+					JobPositionSortKey,
+					JobLevelSortKey,
+					JobTitleSortKey,
+					DeptSortKey,
+					JobTitlecode
+				FROM
+				(
+					SELECT
+						dl.dayList
+						,weekd
+						,TargetUserCode
+						,TargetUserCode UserCode
+						,DeptCode
+						,m.CommuSeq
+						,IFNULL(m.Etc,'') Etc
+						,m.TardyReason
+						,m.UserEtc
+						,m.LeaveEarlyReason
+						,m.AttStartTime
+						,m.AttEndTime
+						,case when VacCnt <![CDATA[>=]]> 1 then 0 else IFNULL(m.AttReal,0) end AttReal
+						,IFNULL(m.AttAc,0) AttAc
+						,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as AttAcD
+						,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as AttAcN
+						,IFNULL(m.AttIdle,0) AttIdle
+						,IFNULL(m.ExtenReal,0) ExtenReal
+						,IFNULL(m.ExtenAc,0) ExtenAc
+						,CASE WHEN m.ExtenCnt>1 THEN
+							SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0))
+						ELSE
+							IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END  as ExtenAcD
+						,CASE WHEN m.ExtenCnt>1 THEN
+							SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0))
+						ELSE
+							IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END  as ExtenAcN
+						,IF(m.AttEndTime is not null and m.AttEndTime <![CDATA[>=]]> m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+						,IF(m.AttStartTime is not null and m.AttStartTime <![CDATA[<=]]> m.HoliStart AND m.AttEndTime is not null and m.AttEndTime <![CDATA[>=]]> m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+						,m.ExtenStart
+						,m.ExtenEnd
+						,IFNULL(m.HoliReal,0) HoliReal
+						,IFNULL(m.HoliAc,0) HoliAc
+						,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as HoliAcD
+						,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as HoliAcN
+						,m.HoliStart
+						,m.HoliEnd
+						,m.ExtenCnt
+						,m.HoliCnt
+						,m.AttConfirmYn
+						,m.AttConfirmTime
+						,m.StartSts
+						,m.EndSts
+						,m.StartPointX
+						,m.StartPointY
+						,m.StartAddr
+						,m.EndPointX
+						,m.EndPointY
+						,m.EndAddr
+						,m.StartChangeYn
+						,m.EndChangeYn
+						,m.CoreStartTime
+						,m.CoreEndTime
+						,IFNULL(m.MonthlyAttAcSum, 0) MonthlyAttAcSum
+						,s.WorkingSystemType
+						,j.WorkSts
+						,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+						,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+						,j.NextDayYn
+						,j.ConfmYn
+						,IFNULL(j.AssYn,'N') AssYn
+						,j.WorkZone
+						,j.WorkAddr
+						,j.WorkPointX
+						,j.WorkPointY
+						,j.AllowRadius
+						,j.StartZone
+						,j.StartPointX jobStartPointX
+						,j.StartPointY jobStartPointY
+						,j.EndZone
+						,j.EndPointX jobEndPointX
+						,j.EndPointY jobEndPointY
+						,j.Etc jobEtc
+						,case when  DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <![CDATA[<]]>  DATE_FORMAT(j.JobDate,'%Y%m%d') THEN 0 else j.AttDayAc end AttDayAc
+						,IFNULL(s.SchName,'') SchName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName) schMultiDisplayName
+						,BaseYn
+						,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName),'+') , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName) ), '' ) jh_JobStsName
+						,MIN(jh.StartTime) jh_StartTime
+						,IF(SUM(IFNULL(VacCnt,0)) >  0,VacFlag,'') VacFlag
+						,case when IFNULL(vv.VacCnt,0) >= 1 then
+								IFNULL(j.AttDayAC,0)
+							else case when IFNULL(VacCnt,0) > 0 then
+								IFNULL(j.AttDayAC,0)*IFNULL(VacCnt,0)
+							else case when j.WorkSts = 'HOL' AND j.AttDayAC > 0 then j.AttDayAC else 0 END end end VacTime
+						,VacOffFlag
+						,VacAmPmVacDay
+						,VacCodeName
+						,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName, JobLevelName,
+						EnterDate,
+						PhotoPath,
+						JobPositionSortKey,
+						DeptSortKey,
+						JobLevelSortKey,
+						JobTitleSortKey,
+						SortKey,
+						VacCnt,
+						JobTitlecode,
+						Fn_attend_getUserWorkInfo(TargetUserCode, dl.dayList) as   userWorkInfo
+
+					FROM
+					(
+						SELECT
+							daylist ,weekd
+							,UserCode TargetUserCode
+							,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,JobLevelName,EnterDate,PhotoPath,DeptCode
+							,JobPositionSortKey,DeptSortKey,SortKey
+							,JobLevelSortKey
+							,JobTitleSortKey
+							,JobTitlecode
+						FROM
+						(
+							SELECT
+							daylist
+							,weekd
+							FROM covi_smart4j.attendance_daylist
+							WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+						) dl ,(
+							SELECT
+							u.UserCode
+							,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName))>0
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName)
+							,u.DisplayName) DisplayName
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobTitleName) JobTitleName
+							,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobLevelName) JobLevelName
+							,u.EnterDate
+							,b.JobPositionSortKey
+							,b.JobLevelSortKey
+							,b.JobTitleSortKey
+							,b.JobTitlecode
+							,b.DeptSortKey
+							,b.SortKey
+							,u.PhotoPath
+							,DeptCode
+							,(SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = sog.MemberOf) DeptFullPath
+							FROM covi_smart4j.sys_object_user_basegroup  b
+							JOIN covi_smart4j.sys_object_user u					ON b.UserCode = u.UserCode
+							LEFT JOIN covi_smart4j.sys_object_group sog			ON b.DeptCode = sog.GroupCode
+							WHERE b.CompanyCode = #{CompanyCode}
+							<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+								U.UserCode = #{user.UserCode} AND DeptCode = #{user.DeptCode}
+							</foreach>
+							) u
+						)dl
+						LEFT JOIN covi_smart4j.attendance_commuting_mst m	 ON dl.dayList = m.TargetDate		AND m.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = m.UserCode
+						LEFT JOIN covi_smart4j.attendance_mng_job j			 ON dl.dayList = j.JobDate			AND j.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = j.UserCode
+						LEFT JOIN covi_smart4j.attendance_mng_schedule s	 ON j.SchSeq = s.SchSeq
+						LEFT JOIN covi_smart4j.attendance_mng_job_history jh ON dl.dayList = jh.JobDate			AND TargetUserCode = jh.UserCode			AND jh.CompanyCode = #{CompanyCode}
+						LEFT JOIN (select vd.VacDate, vd.UR_Code, SUM(vd.VacDay) as VacCnt
+									, GROUP_CONCAT(vd.VacFlag ORDER BY  vd.StartTime, vd.StartTime,vd.VacOffFlag SEPARATOR '|') as VacFlag
+									, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+									, GROUP_CONCAT(vd.StartTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as StartTime
+									, GROUP_CONCAT(vd.EndTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as EndTime
+									, GROUP_CONCAT(bc.CodeName ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacCodeName
+									,CONCAT(IFNULL( SUM(AmVacDay),0),'|',IFNULL( SUM(PmVacDay),0)) as VacAmPmVacDay
+									from (select UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+											,CASE WHEN VacOffFlag = 'AM' THEN
+												VacDay
+											END as AmVacDay
+											,CASE WHEN VacOffFlag = 'PM' THEN
+												VacDay
+											END as PmVacDay
+											from covi_smart4j.vm_vacationinfo_day
+												where 1=1
+													AND VacDate BETWEEN #{StartDate} AND #{EndDate}
+													<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+														UR_Code = #{user.UserCode}
+													</foreach>
+												) vd
+											left join covi_smart4j.sys_base_code bc
+											on bc.DomainID = #{domainID}
+											AND bc.codegroup='VACATION_TYPE'
+											AND bc.CODE=vd.VacFlag
+										group by vd.VacDate, vd.UR_Code) vv
+								ON dl.dayList = vv.VacDate AND dl.TargetUserCode = vv.UR_Code
+						LEFT JOIN (select IFNULL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from covi_smart4j.attendance_mng_extensionholiday) eho ON dl.dayList = eho.jobDate AND dl.TargetUserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = #{CompanyCode} AND eho.ApprovalSts = 'Y'
+						LEFT JOIN (select IFNULL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from covi_smart4j.attendance_mng_extensionholiday) ehh ON dl.dayList = ehh.jobDate AND dl.TargetUserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = #{CompanyCode} AND ehh.ApprovalSts = 'Y'
+						GROUP BY dayList , TargetUserCode , DeptCode
+				) att
+				GROUP BY TargetUserCode, dayList, WorkSts
+			) tb
+			GROUP BY UserCode, dayList
+		) tbl
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, SortKey, JobTitlecode, EnterDate, dayList ASC
+			  	</when>
+			</choose>
+		</trim>
+	</select>
+	<!-- 근무상태 조회 -->
+	<select id="getUserJobHistory" parameterType="cmap" resultType="cmap">
+		SELECT
+			JobStsHisSeq
+			,amjh.JobStsSeq
+			,UserCode
+			,JobDate
+			, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},amjh.JobStsName) JobStsName
+			,Etc
+			,StartTime
+			,EndTime
+			,TIME_FORMAT(str_to_date(StartTime,'%H%i'),'%H:%i') v_StartTime
+			,TIME_FORMAT(str_to_date(EndTime,'%H%i'),'%H:%i') v_EndTime
+
+			,TIME_FORMAT(str_to_date(StartTime,'%H%i'),'%h') v_StartHour
+			,TIME_FORMAT(str_to_date(StartTime,'%H%i'),'%i') v_StartMin
+			,TIME_FORMAT(str_to_date(StartTime,'%H%i'),'%p') v_StartAP
+			,TIME_FORMAT(str_to_date(EndTime,'%H%i'),'%h') v_EndHour
+			,TIME_FORMAT(str_to_date(EndTime,'%H%i'),'%i') v_EndMin
+			,TIME_FORMAT(str_to_date(EndTime,'%H%i'),'%p') v_EndAP
+
+			,TIME_FORMAT(str_to_date(StartTime,'%H%i'),'%H') t_StartHour
+			,TIME_FORMAT(str_to_date(EndTime,'%H%i'),'%H') t_EndHour
+			, amjh.ProcessId
+			, amjs.ReqMethod
+			, amjs.UpdMethod
+			, amjs.DelMethod
+		FROM covi_smart4j.attendance_mng_job_history amjh
+   LEFT JOIN covi_smart4j.attendance_mng_job_status amjs  ON amjh.JobStsSeq = amjs.JobStsSeq AND amjs.CompanyCode = amjs.CompanyCode
+		WHERE amjh.CompanyCode = #{CompanyCode}
+		<if test='UserCode != null and UserCode != ""'>
+			AND UserCode = #{UserCode}
+		</if>
+		<if test='StartDate != null and StartDate != ""'>
+			AND JobDate <![CDATA[>=]]> #{StartDate}
+		</if>
+		<if test='EndDate != null and EndDate != ""'>
+			AND JobDate <![CDATA[<=]]> #{EndDate}
+		</if>
+		<if test='TargetDate != null and TargetDate != ""'>
+			AND JobDate = #{TargetDate}
+		</if>
+		<if test='JobStsHisSeq != null and JobStsHisSeq != ""'>
+			AND amjh.JobStsHisSeq = #{JobStsHisSeq}
+		</if>
+	</select>
+
+	<select id="getDayList" parameterType="cmap" resultType="cmap">
+		SELECT
+			dayList
+			,DATE_FORMAT(dayList,'%m') dMonth
+			,DATE_FORMAT(dayList,'%d') dDate
+			,weekd
+		FROM covi_smart4j.attendance_dayList
+		WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+	</select>
+
+	<!-- 기간 별 근무 시간 -->
+	<update id="getUserAttWorkTimeProc" statementType="CALLABLE" parameterType="cmap" >
+		{ CALL covi_smart4j.sp_attend_getUserAttendWorkTime(#{UserCode},#{CompanyCode},#{StartDate},#{EndDate},#{TargetUserCode, mode=OUT, jdbcType=VARCHAR},#{WorkDay, mode=OUT, jdbcType=VARCHAR},#{WorkTime, mode=OUT, jdbcType=VARCHAR},#{TotWorkTime, mode=OUT, jdbcType=VARCHAR},#{TotAcWorkTime, mode=OUT, jdbcType=VARCHAR},#{AttRealTime, mode=OUT, jdbcType=VARCHAR},#{ExtenAc, mode=OUT, jdbcType=VARCHAR},#{HoliAc, mode=OUT, jdbcType=VARCHAR},#{JobStsSumTime, mode=OUT, jdbcType=VARCHAR},#{TotConfWorkTime, mode=OUT, jdbcType=VARCHAR},#{RemainTime, mode=OUT, jdbcType=VARCHAR},#{NormalCnt, mode=OUT, jdbcType=VARCHAR},#{FixWorkTime, mode=OUT, jdbcType=VARCHAR},#{TotRealWorkTime, mode=OUT, jdbcType=VARCHAR},#{ExptVacTime, mode=OUT, jdbcType=VARCHAR},#{k, mode=OUT, jdbcType=VARCHAR}) }
+	</update>
+
+	<select id="getUserAttWorkTime" parameterType="cmap" resultType="cmap">
+		SELECT
+			TargetUserCode
+			,covi_smart4j.fn_attend_getTimeFormat(SUM(AttReal)+SUM(ExtenAc)+SUM(HoliAc)+SUM(VacTime),'M') TotWorkTime #해당기간 총 근무시간
+			,covi_smart4j.fn_attend_getTimeFormat(SUM(AttReal)+SUM(VacTime),'M') v_AttRealTime #출퇴근 인정시간
+			,covi_smart4j.fn_attend_getTimeFormat(SUM(ExtenAc),'M') v_ExtenAc #연장근무시간
+			,covi_smart4j.fn_attend_getTimeFormat(SUM(HoliAc),'M') v_HoliAc #휴일근무시간
+			,covi_smart4j.fn_attend_getTimeFormat(SUM(JobStsSumTime),'S') JobStsSumTime #근무상태 시간
+			,covi_smart4j.fn_attend_getTimeFormat((#{RemainTime}*60)-(SUM(AttReal)+SUM(ExtenAc)+SUM(HoliAc)+SUM(VacTime)),'M') RemainTime #남은시간
+		FROM
+		(
+			SELECT
+				TargetUserCode
+				,dayList
+				,IFNULL(AttReal,0) AttReal
+				,IFNULL(AttAc,0) AttAc
+				,IFNULL(AttIdle,0) AttIdle
+				,IFNULL(ExtenAc,0) ExtenAc
+				,IFNULL(HoliAc,0) HoliAc
+				,IFNULL(AttAc,0)*IF(SUM(IFNULL(VacCnt,0))>0,1,0) VacTime
+				,IFNULL(SUM(TIME_TO_SEC(TIMEDIFF(CONCAT(EndTime,'00'),CONCAT(StartTime,'00')))),0) JobStsSumTime
+			FROM (
+				SELECT
+					daylist,weekd,#{UserCode} TargetUserCode
+				FROM covi_smart4j.attendance_daylist
+				WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+			) dl
+			LEFT JOIN covi_smart4j.attendance_commuting_mst m
+			ON dl.dayList = m.TargetDate
+			AND m.CompanyCode = #{CompanyCode}
+			AND dl.TargetUserCode = m.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_job_history jh
+			ON dl.dayList = jh.JobDate
+			AND TargetUserCode = jh.UserCode
+			AND jh.CompanyCode = #{CompanyCode}
+			LEFT JOIN (
+				SELECT
+					A.*
+					,1 as VacCnt
+				FROM covi_smart4j.vm_vacationinfo_day A
+				LEFT JOIN covi_smart4j.sys_base_code C ON A.GUBUN = C.CODE
+				LEFT JOIN covi_smart4j.sys_base_code D ON A.VacFlag = D.CODE
+			) v
+			ON dl.dayList BETWEEN v.Sdate AND v.Edate
+			AND dl.TargetUserCode = v.UR_Code
+			GROUP BY dl.dayList
+		) att
+		GROUP BY TargetUserCode
+	</select>
+
+	<!-- 기간별 근로정보 지정 소정(최대)근로 기준 시간 조회 -->
+	 <select id="getUserWorkTime" statementType="CALLABLE"  parameterType="cmap" resultType="cmap">
+		{CALL covi_smart4j.sp_attend_getUserWorkTime(#{UserCode},#{CompanyCode},#{StartDate},#{EndDate})}
+	</select>
+
+	<!-- 근태기록 추가/수정 팝업 정보 조회 -->
+	<select id="getUserAttData" parameterType="cmap" resultType="cmap">
+		SELECT
+			u.UserCode
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName) DisplayName
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDeptName) DeptName
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiJobPositionName) JobPositionName
+
+			,DATE_FORMAT(#{TargetDate},'%Y.%m.%d') TargetDate
+			,DATE_FORMAT(#{TargetDate},'%m월 %d일') TargetDate_KOR
+			,DATE_FORMAT(m.AttStartTime,'%Y.%m.%d %H:%i:%s') AttStartTime
+			,DATE_FORMAT(m.AttEndTime,'%Y.%m.%d %H:%i:%s') AttEndTime
+
+			,DATE_FORMAT(m.AttStartTime,'%Y.%m.%d') AttStart_Date
+			,DATE_FORMAT(m.AttStartTime,'%h') AttStart_Hour
+			,DATE_FORMAT(m.AttStartTime,'%i') AttStart_Min
+			,DATE_FORMAT(m.AttStartTime,'%p') AttStart_AP
+
+			,DATE_FORMAT(m.AttEndTime,'%Y.%m.%d') AttEnd_Date
+			,DATE_FORMAT(m.AttEndTime,'%h') AttEnd_Hour
+			,DATE_FORMAT(m.AttEndTime,'%i') AttEnd_Min
+			,DATE_FORMAT(m.AttEndTime,'%p') AttEnd_AP
+
+			,m.Etc
+			,m.UserEtc
+			,s.SchName
+		FROM
+		(
+			SELECT
+				u.UserCode
+				,u.MultiDisplayName
+				,MultiDeptName
+				,MultiJobPositionName
+			FROM covi_smart4j.sys_object_user_basegroup  b
+			JOIN covi_smart4j.sys_object_user u
+			ON b.UserCode = u.UserCode
+			AND b.JobType = 'Origin'
+			WHERE u.UserCode = #{UserCode}
+		) u LEFT JOIN (
+			SELECT * FROM  covi_smart4j.attendance_commuting_mst
+			WHERE CompanyCode = #{CompanyCode} AND TargetDate = #{TargetDate} AND UserCode = #{UserCode}
+			limit 1
+		) m
+		ON u.UserCode = m.UserCode
+		LEFT JOIN ( SELECT * FROM covi_smart4j.attendance_mng_job WHERE CompanyCode = #{CompanyCode} ) j
+		ON u.UserCode = j.UserCode
+		AND j.JobDate = #{TargetDate}
+		LEFT JOIN ( SELECT * FROM covi_smart4j.attendance_mng_schedule WHERE CompanyCode = #{CompanyCode} ) s
+		ON j.SchSeq = s.SchSeq
+	</select>
+
+	<!-- 기타근무 리스트 조회  -->
+	<select id="getJobStatus" parameterType="cmap" resultType="cmap">
+		SELECT
+			JobStsSeq
+			,amm.AttSeq
+			,JobStsName
+			,MultiDIsplayName
+			,amjs.ValidYn
+		FROM covi_smart4j.attendance_mng_job_status amjs
+		JOIN covi_smart4j.attendance_mng_mst amm
+		ON amm.AttSeq = amjs.AttSeq
+		AND amm.CompanyCode = #{CompanyCode}
+		WHERE 1=1
+		<if test='ValidYn != null and ValidYn != ""'>
+			AND amjs.ValidYn = #{ValidYn}
+		</if>
+		ORDER BY JobStsSeq
+	</select>
+
+	<!-- 연장근무 일정 조회 -->
+	<select id="getExtensionInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			ExHoSeq
+			,u.UserCode
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName) DisplayName
+			,JobDate
+			,DATE_FORMAT(JobDate,'%Y.%m.%d') TargetDate
+			,JobStsName
+			,ApprovalSts
+			,StartTime
+			,DATE_FORMAT(StartTime,'%Y.%m.%d') StartDate
+			,DATE_FORMAT(StartTime,'%h') StartHour
+			,DATE_FORMAT(StartTime,'%i') StartMin
+			,DATE_FORMAT(StartTime,'%p') StartAP
+			,DATE_FORMAT(StartTime,'%h:%i%p') StartTimeStr
+			,EndTime
+			,DATE_FORMAT(EndTime,'%Y.%m.%d') EndDate
+			,DATE_FORMAT(EndTime,'%h') EndHour
+			,DATE_FORMAT(EndTime,'%i') EndMin
+			,DATE_FORMAT(EndTime,'%p') EndAP
+			,DATE_FORMAT(EndTime,'%h:%i%p') EndTimeStr
+			,IdleTime
+			,TIME_FORMAT(CONCAT(IdleTime,'00'),'%H') IdleHour
+			,TIME_FORMAT(CONCAT(IdleTime,'00'),'%i') IdleMin
+			,WorkTime
+			,TIME_FORMAT(CONCAT(WorkTime,'00'),'%H') AcHour
+			,TIME_FORMAT(CONCAT(WorkTime,'00'),'%i') AcMin
+			,Etc
+		FROM covi_smart4j.attendance_mng_extensionholiday ex
+		JOIN covi_smart4j.sys_object_user u
+		ON u.UserCode = ex.UserCode
+		WHERE CompanyCode = #{CompanyCode}
+		<if test='ExHoSeq != null and ExHoSeq != "" '>
+			 AND ExHoSeq = #{ExHoSeq}
+		</if>
+		<if test='ReqType != null and ReqType != "" '>
+			 AND JobStsName = #{ReqType}
+		</if>
+		AND ApprovalSts = 'Y'
+		AND ex.UserCode = #{UserCode}
+		AND JobDate = #{JobDate}
+	</select>
+
+	<!-- 근태현황 목록형 리스트 조회 -->
+	<select id="getUserAttStatusByList" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	SELECT UserCode
+			,CASE
+				WHEN a.MemberOf = 'ORGROOT' THEN ''
+				ELSE (SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = a.MemberOf) 
+			 END AS DeptFullPath
+			,Fn_BaseGetDictionary_S(#{lang}, MultiDeptName) AS DeptName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS DisplayName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiJobPositionName) AS JobPositionName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiJobTitleName) AS JobTitleName
+			,dayList
+			,DAYOFWEEK(dayList) weekd
+			,WEEKOFYEAR(ADDDATE( dayList, - WEEKDAY(dayList) + #{FirstWeek} ) ) weeko
+			,DATE_FORMAT(dayList,'%c/%e') v_dayList
+			,StartSts
+			,EndSts
+			,DATE_FORMAT(AttDayStartTime, '%h:%i%p') v_AttDayStartTime
+			,DATE_FORMAT(AttDayEndTime, '%h:%i%p') v_AttDayEndTime
+			,DATE_FORMAT(AttStartTime, '%h:%i%p') v_AttStartTime
+			,DATE_FORMAT(AttEndTime, '%h:%i%p') v_AttEndTime
+			,MonthlyAttAcSum MonthlyAttAcSum
+			,IFNULL(Etc,'') Etc
+			,covi_smart4j.fn_attend_getTimeFormat(IF(AssYn='Y',AttAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' ,HoliAc,0)+IF(IFNULL(SUM(VacCnt),0)>  0 ,IFNULL(SUM(AttDayAC),0)*SUM(VacCnt),0), 'H') TotWorkTime
+			,covi_smart4j.fn_attend_getTimeFormat(IF(AssYn='Y',AttAc,AttReal)+IF(IFNULL(SUM(VacCnt),0)>  0 ,IFNULL(SUM(AttDayAC),0)*SUM(VacCnt),0),'M') v_AttRealTime
+			,covi_smart4j.fn_attend_getTimeFormat(ExtenAc,'M') v_ExtenAc
+			,covi_smart4j.fn_attend_getTimeFormat(HoliAc,'M') v_HoliAc
+			,covi_smart4j.fn_attend_getTimeFormat(startToEnd - (AttIdle+ case when ExtenNotEnough = 'Y' then (ExtenReal - ExtenAc) else 0 end
+					+ case when HoliNotEnough = 'Y' then (HoliReal - HoliAc) else 0 end),'M')  v_startToEnd
+			,CASE WHEN StartSts ='lbl_n_att_absent' THEN 0 ELSE covi_smart4j.fn_attend_getTimeFormat(AttIdle,'M') END v_AttIdle
+			,IF(AssYn='Y',AttAc,AttReal)+(IFNULL(AttAc,0)*IF(SUM(IFNULL(VacCnt,0))>  0,1,0)) AttRealTime
+			,covi_smart4j.fn_attend_getTimeFormat(AttIdle+ case when ExtenNotEnough = 'Y' then (ExtenReal - ExtenAc) else 0 end
+					+ case when HoliNotEnough = 'Y' then (HoliReal - HoliAc) else 0 end ,'M') AttIdle
+			,AttConfirmYn
+			,sum(VacCnt) VacCnt
+			, case when sum(VacCnt)>0 then (SELECT CodeName FROM covi_smart4j.vm_vacationinfo_day vm
+				JOIN covi_smart4j.sys_base_code D ON D.CodeGroup ='VACATION_TYPE' AND  VM.VacFlag = D.CODE
+				WHERE vm.UR_Code = UserCode AND vm.VacDate = date_format(dayList,'%Y-%m-%d') ORDER BY vm.VacationInfoID desc				LIMIT 1) END VacName
+			,ExtenCnt
+			,HoliCnt
+			,WorkSts
+			,(SELECT SchName FROM covi_smart4j.attendance_mng_schedule ams WHERE ams.SchSeq = a.SchSeq) SchName
+			,CASE WHEN StartSts ='lbl_att_beingLate' THEN TRUNCATE(TIMESTAMPDIFF(SECOND, AttStartTime , AttDayStartTime)/60, 0) ELSE '' END LateMin
+			,JobStsName
+		FROM
+		(
+			SELECT m.TargetDate dayList
+				,ur.UserCode UserCode
+				,og.MemberOf
+				,MultiDeptName
+				,ur.MultiDisplayName
+				,MultiJobPositionName
+				,MultiJobTitleName
+				,EnterDate
+				,m.CommuSeq
+				,m.StartSts
+				,m.EndSts
+				,m.AttStartTime
+				,m.AttEndTime
+				,IFNULL(TIMESTAMPDIFF(MINUTE, m.AttStartTime, m.AttEndTime), 0) startToEnd
+				,IFNULL(m.AttReal,0) AttReal
+				,IFNULL(m.AttAc,0) AttAc
+             	,0 AttDayAC
+				,IFNULL(m.AttIdle,0) AttIdle
+				,IFNULL(m.ExtenReal,0) ExtenReal
+				,IFNULL(m.ExtenAc,0) ExtenAc
+				,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliEnd AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+				,IFNULL(m.HoliReal,0) HoliReal
+				,IFNULL(m.HoliAc,0) HoliAc
+				,IFNULL(m.ExtenCnt,0) ExtenCnt
+				,IFNULL(m.HoliCnt,0) HoliCnt
+				,IFNULL(m.AttConfirmYn,'N') AttConfirmYn
+				,IFNULL(m.MonthlyAttAcSum, 0) MonthlyAttAcSum
+				,m.Etc
+				,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+				,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+				,IFNULL(j.AssYn,'N') AssYn
+				,WorkSts WorkSts
+				,j.SchSeq
+				,0 VacCnt
+				,IF(COUNT(jh.JobStsHisSeq) > 0 ,IF( COUNT(jh.JobStsHisSeq) > 1 , CONCAT(jh.JobStsName,'+') , jh.JobStsName), '' ) JobStsName
+				,bg.SortKey, bg.JobPositionSortKey, bg.JobLevelSortKey, bg.JobTitleSortKey, bg.JobTitlecode, ur.DisplayName
+		   FROM covi_smart4j.sys_object_user ur
+	       JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode} AND bg.JobType = 'Origin'
+	       JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+	       JOIN covi_smart4j.attendance_commuting_mst m	  ON ur.UserCode = m.UserCode
+	  LEFT JOIN covi_smart4j.attendance_mng_job j		  ON m.TargetDate = j.JobDate	AND m.UserCode = j.UserCode
+  	  LEFT JOIN covi_smart4j.attendance_mng_job_history jh		  ON m.TargetDate = jh.JobDate	AND m.UserCode = jh.UserCode
+		  WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%') ]]>
+			<if test='RetireUser neq "Y"'>
+				AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+			</if>
+		    AND m.TargetDate BETWEEN #{StartDate} AND #{EndDate}
+			<!-- 직책   -->
+			<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+				AND bg.JobTitleCode = #{sJobTitleCode}
+			</if>
+			<!-- 직급 -->
+			<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+				AND bg.JobLevelCode = #{sJobLevelCode}
+			</if>
+			<if test='sUserTxt != null and sUserTxt != ""'>
+				AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+			</if>
+			<if test='SchSeq != null and SchSeq != ""'>
+				AND j.SchSeq = #{SchSeq}
+			</if>
+		    <if test='AttStatus == "B10" '>
+	 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between 1  AND 10*60 ]]>
+			</if>
+		    <if test='AttStatus == "A1" '>
+	 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between -60*60 AND  0]]>
+			</if>
+		    <if test='AttStatus == "LATE" '>
+	 	   		 AND StartSts='lbl_att_beingLate'
+			</if>
+		GROUP by m.TargetDate, ur.UserCode
+		<if test='(AttStatus == null or AttStatus == "") and (SchSeq == null or SchSeq == "")'>
+		UNION
+		SELECT a.VacDate
+				, a.UR_Code
+				,og.MemberOf
+				,MultiDeptName
+				,ur.MultiDisplayName
+				,MultiJobPositionName
+				,MultiJobTitleName
+				,EnterDate
+				,''
+				,''
+				,''
+				,''
+				,''
+				,0
+				,0
+				,0 AttAc
+				,IFNULL(j.AttDayAC,0) AttDayAC
+				,0
+				,0
+				,0
+				,''
+				,0
+				,0
+				,0
+				,0
+				,''
+				,''
+				,0
+				,''
+				,''
+				,''
+				,''
+				,''
+				,''
+				,SUM(a.VacDay) VacCnt
+				,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(JobStsName,'+') , JobStsName), '' ) JobStsName
+				,bg.SortKey, bg.JobPositionSortKey, bg.JobLevelSortKey, bg.JobTitleSortKey, bg.JobTitlecode, ur.DisplayName
+			 FROM covi_smart4j.sys_object_user ur
+		     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode}  AND bg.JobType = 'Origin'
+	         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+			 join covi_smart4j.vm_vacationinfo_day A  ON ur.UserCode = a.UR_Code
+	    LEFT JOIN covi_smart4j.attendance_mng_job j		  ON a.VacDate = j.JobDate	AND ur.UserCode = j.UserCode	
+        LEFT JOIN covi_smart4j.attendance_mng_job_history jh		  ON a.VacDate = jh.JobDate	AND ur.UserCode = jh.UserCode
+			WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+			<if test='RetireUser neq "Y"'>
+				AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+			</if>
+			  AND a.VacDate  BETWEEN #{StartDate} AND #{EndDate}
+			<!-- 직책   -->
+			<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+				AND bg.JobTitleCode = #{sJobTitleCode}
+			</if>
+			<!-- 직급 -->
+			<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+				AND bg.JobLevelCode = #{sJobLevelCode}
+			</if>
+			<if test='sUserTxt != null and sUserTxt != ""'>
+				AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+			</if>
+	     GROUP by a.VacDate, a.UR_Code
+	     </if>
+	 ) A
+	 GROUP BY dayList,UserCode
+	 ORDER BY 
+		<choose>
+			<when test="orgOrders != null and orgOrders != '' ">
+			  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+			  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+			  			JobTitleSortKey ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+			  			JobLevelSortKey ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+			  			JobPositionSortKey ASC
+			  		</if>
+	  				<if test="orgOrder != null and orgOrder == 'DN'">
+			  			DisplayName ASC
+			  		</if>
+			  	</foreach>
+			  	, SortKey ASC, dayList, JobTitlecode, EnterDate, UserCode
+		  	</when>
+		  	<otherwise>
+		  		<![CDATA[ SortKey ASC, JobTitleSortKey ASC, JobLevelSortKey ASC, JobPositionSortKey ASC, DisplayName ASC ]]>
+		  	</otherwise>
+		</choose>	
+	<if test='pageSize != null and pageOffset != null'>
+		LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+
+	<!-- 근태현황 목록형 리스트 조회 -->
+	<select id="getUserAttStatusByListCnt" parameterType="cmap" resultType="java.lang.Long">
+	  SELECT COUNT(dayList)
+	FROM (
+		SELECT dayList, UserCode
+			FROM
+			(
+				SELECT m.TargetDate dayList
+					,ur.UserCode UserCode
+					,0 VacCnt
+			   FROM covi_smart4j.sys_object_user ur
+		       JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode} AND bg.JobType = 'Origin'
+		       JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+		       JOIN covi_smart4j.attendance_commuting_mst m	  ON ur.UserCode = m.UserCode
+		  LEFT JOIN covi_smart4j.attendance_mng_job j		  ON m.TargetDate = j.JobDate	AND m.UserCode = j.UserCode
+			  WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+				<if test='RetireUser neq "Y"'>
+					AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+				</if>
+
+			    AND m.TargetDate BETWEEN #{StartDate} AND #{EndDate}
+				<!-- 직책   -->
+				<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+					AND bg.JobTitleCode = #{sJobTitleCode}
+				</if>
+				<!-- 직급 -->
+				<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+					AND bg.JobLevelCode = #{sJobLevelCode}
+				</if>
+				<if test='sUserTxt != null and sUserTxt != ""'>
+					AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+				</if>
+				<if test='SchSeq != null and SchSeq != ""'>
+					AND j.SchSeq = #{SchSeq}
+				</if>
+			    <if test='AttStatus == "B10" '>
+		 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between 1  AND 10*60 ]]>
+				</if>
+			    <if test='AttStatus == "A1" '>
+		 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between -60*60 AND  0]]>
+				</if>
+			    <if test='AttStatus == "LATE" '>
+		 	   		 AND StartSts='lbl_att_beingLate'
+				</if>
+		<if test='(AttStatus == null or AttStatus == "") and (SchSeq == null or SchSeq == "")'>
+			UNION
+			SELECT dl.dayList
+					, a.UR_Code
+					, SUM(a.VacDay) VacCnt
+				 FROM covi_smart4j.sys_object_user ur
+			     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode}  AND bg.JobType = 'Origin'
+		         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+				 join covi_smart4j.vm_vacationinfo_day A  ON ur.UserCode = a.UR_Code
+				 JOIN covi_smart4j.attendance_daylist dl ON dl.dayList = A.VacDate
+			    WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+				<if test='RetireUser neq "Y"'>
+					AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+				</if>
+				  AND dl.dayList  BETWEEN #{StartDate} AND #{EndDate}
+				<!-- 직책   -->
+				<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+					AND bg.JobTitleCode = #{sJobTitleCode}
+				</if>
+				<!-- 직급 -->
+				<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+					AND bg.JobLevelCode = #{sJobLevelCode}
+				</if>
+				<if test='sUserTxt != null and sUserTxt != ""'>
+					AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+				</if>
+		     GROUP by dl.dayList, a.UR_Code
+		     </if>
+		 ) A
+		 GROUP BY dayList,UserCode ) A
+	</select>
+
+
+	<!-- 휴무일 ( 공휴일 )  -->
+
+	<!-- 회사 휴무일 조회 -->
+	<select id="getHolidaySchList" parameterType="cmap" resultType="cmap">
+		SELECT
+			CompanyCode
+			,HolidayStart
+			,HolidayEnd
+			,HolidayName
+			,GoogleYn
+			,Etc
+		FROM
+			covi_smart4j.attendance_mng_holiday_schedule
+		WHERE
+			CompanyCode = #{CompanyCode}
+		<if test='year != null and year !=""'>
+			AND	#{year} BETWEEN DATE_FORMAT(HolidayStart,'%Y') AND DATE_FORMAT(HolidayStart,'%Y')
+		</if>
+		<if test='StartDate != null and StartDate !=""'>
+			AND	HolidayStart <![CDATA[ >= ]]> #{StartDate}
+		</if>
+		<if test='EndDate != null and EndDate !=""'>
+			AND	HolidayEnd <![CDATA[ <= ]]> #{EndDate}
+		</if>
+		<!-- <if test='StartDate != null and StartDate != null'>
+		AND
+		((
+			HolidayStart <![CDATA[ >= ]]> #{StartDate}
+			AND
+			HolidayEnd <![CDATA[ <= ]]> #{EndDate}
+		) OR (
+			HolidayStart BETWEEN  #{StartDate} AND #{EndDate}
+		) OR (
+			HolidayEnd BETWEEN  #{StartDate} AND #{EndDate}
+		))
+		</if> -->
+		<if test='GoogleCheck != null and GoogleCheck !=""'>
+		AND GoogleYn <![CDATA[ <> ]]>  'Y'
+		</if>
+
+		<if test='HolidayStart != null and HolidayStart !=""'>
+		AND HolidayStart = #{HolidayStart}
+		</if>
+		<if test='HolidayEnd != null and HolidayEnd !=""'>
+		AND HolidayEnd = #{HolidayEnd}
+		</if>
+		<if test='GoogleYn != null and GoogleYn !=""'>
+		AND GoogleYn = #{GoogleYn}
+		</if>
+	</select>
+
+
+	<!-- 연장 휴일 근무 상태 변경 -->
+	<insert id="setExHoDataProc" statementType="CALLABLE" parameterType="cmap">
+		{CALL covi_smart4j.sp_attend_setCommuteByRequest(#{UserCode},#{CompanyCode},#{TargetDate},#{ReqType},#{ReqGubun},#{StartTime},#{EndTime},#{AcTime},#{IdleTime},#{Etc},#{BillName},#{ProcessId},#{FormInstId},#{ExHoSeq})}
+	</insert>
+
+	<!-- 기타근무 상태 변경 ( 삭제 ) -->
+	<delete id="deleteJobHisData" parameterType="String" >
+		DELETE FROM covi_smart4j.attendance_mng_job_history
+		WHERE JobStsHisSeq = #{JobStsHisSeq}
+	</delete>
+
+	<update id="updateJobHisData" parameterType="cmap" >
+		UPDATE covi_smart4j.attendance_mng_job_history SET
+			ModifyerCode = #{RegUserCode}
+			,ModifyDate = now()
+			<if test='JobStsSeq != null and JobStsSeq !=""'>
+			,JobStsSeq =  #{JobStsSeq}
+			</if>
+			<if test='JobStsName != null and JobStsName !=""'>
+			,JobStsName =  #{JobStsName}
+			</if>
+			<if test='Etc != null and Etc !=""'>
+			,Etc =  #{Etc}
+			</if>
+			<if test='StartTime != null and StartTime !=""'>
+			,StartTime =  #{StartTime}
+			</if>
+			<if test='EndTime != null and EndTime !=""'>
+			,EndTime =  #{EndTime}
+			</if>
+		WHERE JobStsHisSeq = #{JobStsHisSeq}
+	</update>
+
+	<!-- 사용자 비고 입력 -->
+	<update id="setUserEtc" parameterType="cmap">
+		UPDATE covi_smart4j.attendance_commuting_mst SET
+			UserEtc = #{UserEtc}
+		WHERE CommuSeq = #{CommuSeq}
+	</update>
+
+	<!-- 내 근태현황 다운로드 엑셀 리스트 -->
+	<select id="getMyAttExcelInfo" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT
+			DeptName
+			,DisplayName
+			,JobPositionName
+			,EnterDate
+			,dayList
+			,IFNULL( schMultiDisplayName ,'') SchName
+			,CASE
+				WHEN WorkSts = 'ON' THEN DATE_FORMAT(AttDayStartTime,'%Y-%m-%d %H:%i')
+				WHEN WorkSts = 'OFF' THEN covi_smart4j.Fn_GetSelDictionary(#{lang},'lbl_att_sch_holidaySts',#{CompanyCode})
+				ELSE ''
+			END AttDayStartTime
+			,CASE
+				WHEN WorkSts = 'ON' THEN DATE_FORMAT(AttDayEndTime,'%Y-%m-%d %H:%i')
+				WHEN WorkSts = 'OFF' THEN covi_smart4j.Fn_GetSelDictionary(#{lang},'lbl_att_sch_holidaySts',#{CompanyCode})
+				ELSE ''
+			END AttDayEndTime
+			,IF( AttStartTime IS NOT NULL , DATE_FORMAT(AttStartTime,'%Y-%m-%d %H:%i:%s'),'') AttStartTime
+			,IF( AttEndTime IS NOT NULL , DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s') , '') AttEndTime
+			,IF( StartSts IS NOT NULL , covi_smart4j.Fn_GetSelDictionary(#{lang},StartSts,#{CompanyCode}) , '') StartSts
+			,IF( EndSts IS NOT NULL , covi_smart4j.Fn_GetSelDictionary(#{lang},EndSts,#{CompanyCode}) , '') EndSts
+			,covi_smart4j.fn_attend_getTimeFormat(IF(f_AssYn='Y',f_AttAc,f_AttReal)+ IF(ExtenNotEnough = 'Y' , f_ExtenAc , 0) +IF(HoliNotEnough = 'Y' , f_HoliAc, 0)+f_VacTime,'M') v_TotWorkTime #해당일 총 근무시간
+			,covi_smart4j.fn_attend_getTimeFormat(f_AttAcN,'M') v_TotWorkNTime
+			,covi_smart4j.fn_attend_getTimeFormat(IF(f_AssYn='Y',f_AttAc,f_AttReal)+ IF(ExtenNotEnough = 'Y' , f_ExtenAc , 0) +IF(HoliNotEnough = 'Y' , f_HoliAc, 0)+f_VacTime,'M') v_TotWorkDTime
+			,covi_smart4j.fn_attend_getTimeFormat(IF(f_AssYn='Y',f_AttAc,f_AttReal)+f_VacTime,'M') v_AttRealTime #출퇴근 인정시간
+			,covi_smart4j.fn_attend_getTimeFormat(IF(f_AssYn='Y',f_AttAc,f_AttReal)+f_VacTime-IFNULL(f_AttAcN,0),'M') v_AttRealDTime
+			,covi_smart4j.fn_attend_getTimeFormat(f_AttAcN,'M') v_AttRealNTime
+			,covi_smart4j.fn_attend_getTimeFormat(f_AttAcD,'M') v_AttAcD
+			,covi_smart4j.fn_attend_getTimeFormat(f_AttAcN,'M') v_AttAcN
+			,covi_smart4j.fn_attend_getTimeFormat(f_ExtenAc,'M') v_ExtenAc
+			,covi_smart4j.fn_attend_getTimeFormat(f_HoliAc,'M') v_HoliAc
+			,covi_smart4j.fn_attend_getTimeFormat(IF(ExtenNotEnough='Y',f_ExtenAcD,0),'M') v_ExtenAcD
+         	,covi_smart4j.fn_attend_getTimeFormat(IF(ExtenNotEnough='Y',f_ExtenAcN,0),'M') v_ExtenAcN
+			,covi_smart4j.fn_attend_getTimeFormat(IF(HoliNotEnough='Y',f_HoliAcD,0),'M') v_HoliAcD
+         	,covi_smart4j.fn_attend_getTimeFormat(IF(HoliNotEnough='Y',f_HoliAcN,0),'M') v_HoliAcN
+			,f_VacFlag as VacFlag
+			,CASE WHEN f_VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=f_VacFlag) END VacName
+			,f_AssYn as AssYn
+		FROM
+			(
+			SELECT
+				DeptName
+				,DisplayName
+				,JobPositionName
+				,EnterDate
+				,dayList
+				,j.WorkSts
+				,j.AttDayStartTime
+				,j.AttDayEndTime
+				,IF(SettingValue = 'Y' , m.AttStartTime , NULL ) AttStartTime
+				,IF(SettingValue = 'Y' , m.AttEndTime , NULL ) AttEndTime
+				,m.StartSts
+				,m.EndSts
+				,IFNULL(j.AssYn,'N') f_AssYn
+				,IFNULL(m.AttReal,0) f_AttReal
+                ,IFNULL(fn_attend_getNightDayTimeV2(IF(IFNULL(j.AssYn,'N')='Y',j.AttDayStartTime,m.AttStartTime), IF(IFNULL(j.AssYn,'N')='Y',j.AttDayEndTime,m.AttEndTime), #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as f_AttRealD
+                ,IFNULL(fn_attend_getNightDayTimeV2(IF(IFNULL(j.AssYn,'N')='Y',j.AttDayStartTime,m.AttStartTime), IF(IFNULL(j.AssYn,'N')='Y',j.AttDayEndTime,m.AttEndTime), #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as f_AttRealN
+				,IFNULL(m.AttAc,0) f_AttAc
+                ,IFNULL(fn_attend_getNightDayTimeV2(j.AttDayStartTime, j.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as f_AttAcD
+                ,IFNULL(fn_attend_getNightDayTimeV2(j.AttDayStartTime, j.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as f_AttAcN
+				,IFNULL(m.AttIdle,0) f_AttIdle
+				,IFNULL(m.ExtenReal,0) f_ExtenReal
+				,IFNULL(m.ExtenAc,0) f_ExtenAc
+				,SUM(IFNULL(fn_attend_getNightDayTime(eho.StartTime, eho.EndTime, eho.WorkTime, #{ExtNightStartDate}, #{ExtNightEndDate}, 'D'),0))  as f_ExtenAcD
+                ,SUM(IFNULL(fn_attend_getNightDayTime(eho.StartTime, eho.EndTime, eho.WorkTime, #{ExtNightStartDate}, #{ExtNightEndDate}, 'N'),0))  as f_ExtenAcN
+				,IFNULL(m.HoliReal,0) f_HoliReal
+				,IFNULL(m.HoliAc,0) f_HoliAc
+				,SUM(IFNULL(fn_attend_getNightDayTime(ehh.StartTime, ehh.EndTime, ehh.WorkTime, #{HolNightStartDate}, #{HolNightEndDate}, 'D'),0))  as f_HoliAcD
+                ,SUM(IFNULL(fn_attend_getNightDayTime(ehh.StartTime, ehh.EndTime, ehh.WorkTime, #{HolNightStartDate}, #{HolNightEndDate}, 'N'),0))  as f_HoliAcN
+				,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliStart AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough #휴일근무 시 퇴근시간이 연장 신청 퇴근 시간보다 작을 시 시간 계산 안함
+				,IF(s.MultiDisplayName IS NOT NULL , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName), s.SchName) schMultiDisplayName
+				,IF(SUM(IFNULL(VacCnt,0))>0,VacFlag,'') f_VacFlag
+				,IFNULL(m.AttAc,0)*IF(SUM(IFNULL(VacCnt,0))>0,1,0) f_VacTime
+				,VacName
+				,SettingValue
+			FROM
+			(
+				SELECT
+					daylist , weekd
+					,UserCode TargetUserCode
+					,DisplayName,DeptName,JobPositionName,EnterDate
+					,SettingValue
+				FROM
+				(
+					SELECT
+						daylist,weekd
+					FROM covi_smart4j.attendance_daylist
+					WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+				) dl ,(
+					SELECT
+						u.UserCode
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName) DisplayName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+						,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+						,u.EnterDate
+					FROM covi_smart4j.sys_object_user_basegroup  b
+					JOIN covi_smart4j.sys_object_user u
+					ON b.UserCode = u.UserCode
+					WHERE u.UserCode = #{UserCode}
+					AND b.CompanyCode = #{CompanyCode}
+					AND b.DeptCode = #{DeptCode}
+				) u , (
+					SELECT
+						SettingValue
+					FROM covi_smart4j.sys_base_config
+					WHERE settingkey = 'CommuteTimeYn'
+					AND IsUse = 'Y'
+					ORDER BY DomainID DESC
+					LIMIT 1
+				) t
+			)dl
+			LEFT JOIN	covi_smart4j.attendance_commuting_mst m
+				ON dl.dayList = m.TargetDate
+				AND m.CompanyCode = #{CompanyCode}
+				AND dl.TargetUserCode = m.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_job j
+				ON dl.dayList = j.JobDate
+				AND j.CompanyCode = #{CompanyCode}
+				AND dl.TargetUserCode = j.UserCode
+			LEFT JOIN covi_smart4j.attendance_mng_schedule s
+				ON j.SchSeq = s.SchSeq
+			LEFT JOIN (
+				SELECT
+					A.*
+					,VacDay as VacCnt
+					,IF(N.CodeName IS NULL OR N.CodeName = '' , D.CodeName , N.CodeName ) VacName
+				FROM covi_smart4j.vm_vacationinfo_day A
+				LEFT JOIN covi_smart4j.sys_base_code C ON A.GUBUN = C.CODE
+				LEFT JOIN covi_smart4j.sys_base_code D ON A.VacFlag = D.CODE	
+				LEFT JOIN covi_smart4j.sys_base_code N ON D.ReservedInt = N.CodeID	
+			) v 
+				ON dayList = v.VacDate
+				AND TargetUserCode = v.UR_Code
+			GROUP BY dayList
+		) att]]>
+	</select>
+
+	<select id="getUserApprovalList" parameterType="cmap" resultType="cmap">
+	/* attend.status.getUserApprovalList */
+	select distinct BillName, ProcessId, JobDate, JobStsName 
+	from (SELECT 	JobStsName
+				,JobDate
+				,ProcessId
+				,BillName
+		 FROM covi_smart4j.attendance_mng_extensionholiday ex
+		 JOIN covi_smart4j.sys_object_user u		ON u.UserCode = ex.UserCode
+		WHERE CompanyCode = #{CompanyCode}
+		  AND ApprovalSts = 'Y'
+		  AND ex.UserCode = #{UserCode}
+		  AND JobDate = #{TargetDate}
+		  AND ProcessId IS NOT null
+	UNION all
+	   SELECT 	'C'
+				,TargetDate
+				,ProcessId
+				,BillName
+		 FROM covi_smart4j.attendance_mng_calling ex
+		 JOIN covi_smart4j.sys_object_user u		ON u.UserCode = ex.UserCode
+		WHERE CompanyCode = #{CompanyCode}
+		  AND ex.UserCode = #{UserCode}
+		  AND TargetDate = #{TargetDate}
+		  AND ProcessId IS NOT null 
+	UNION ALL
+		 SELECT 	'V'
+				,vacDate
+				,vi.ProcessId
+				,reqtitle BillName
+		 FROM covi_smart4j.vm_vacationinfo_day ex
+		 JOIN covi_smart4j.vm_vacationinfo vi ON ex.VacationInfoID = vi.VacationInfoID 
+		 JOIN covi_smart4j.attendance_request ar ON vi.ProcessID = ar.ProcessID
+		WHERE ex.UR_Code = #{UserCode}
+		  AND vacDate = #{TargetDate}
+		  AND vi.ProcessId IS NOT null 		  
+		  ) a
+
+	</select>
+
+	<select id="getUserAttStatusInfo" parameterType="cmap" resultType="cmap">
+	SELECT UserCode, DeptFullPath, UserName, DeptName, JobPositionName,
+			JobTitleName, JobLevelName, EnterDate, PhotoPath, DeptCode,
+			JobPositionSortKey, DeptSortKey, SortKey, JobLevelSortKey, JobTitlecode
+	FROM
+		(SELECT u.UserCode,
+			IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName)) > 0,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName),
+				u.DisplayName) UserName,
+			IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDeptName)) > 0,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDeptName),
+				DeptName) DeptName,
+			IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobPositionName)) > 0,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobPositionName),
+				JobPositionName) JobPositionName,
+			IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobTitleName)) > 0,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobTitleName),
+				JobTitleName) JobTitleName,
+			IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobLevelName)) > 0,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiJobLevelName),
+				JobLevelName) JobLevelName,
+			u.EnterDate,
+			b.JobPositionSortKey,
+			b.JobLevelSortKey,
+			b.JobTitlecode,
+			b.DeptSortKey,
+			b.SortKey,
+			u.PhotoPath,
+			DeptCode,
+			(SELECT DisplayName
+				FROM covi_smart4j.sys_object_group r
+				WHERE GroupCode = sog.MemberOf) DeptFullPath
+		FROM covi_smart4j.sys_object_user_basegroup b
+		JOIN covi_smart4j.sys_object_user u ON b.UserCode = u.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog
+			ON b.DeptCode = sog.GroupCode
+		WHERE b.CompanyCode = #{CompanyCode}
+		<foreach collection="userCodeList" item="user" open="AND (" close=")"  separator=") OR (">
+			U.UserCode = #{user.UserCode} AND DeptCode = #{user.DeptCode}
+		</foreach>
+	) tb
+	ORDER BY SortKey, JobPositionSortKey, JobLevelSortKey, JobTitlecode, EnterDate ASC
+	</select>
+
+	<!-- 기간 별 근무 시간 휴무/연장 근무에 대한 주야 근무 구분 처리 -->
+	<update id="getUserAttWorkWithDayAndNightTimeProc" statementType="CALLABLE" parameterType="cmap">
+		{ CALL covi_smart4j.sp_attend_getUserAttendDayNightWorkTime(#{UserCode},#{CompanyCode},#{StartDate},#{EndDate},#{NightStartDate},#{NightEndDate},#{HolNightStartDate},#{HolNightEndDate},#{ExtNightStartDate},#{ExtNightEndDate},#{TargetUserCode, mode=OUT, jdbcType=VARCHAR},#{WorkDay, mode=OUT, jdbcType=VARCHAR},#{WorkTime, mode=OUT, jdbcType=VARCHAR},#{TotWorkTime, mode=OUT, jdbcType=VARCHAR},#{TotAcWorkTime, mode=OUT, jdbcType=VARCHAR},#{AttRealTime, mode=OUT, jdbcType=VARCHAR},#{AttRealDTime, mode=OUT, jdbcType=VARCHAR},#{AttRealNTime, mode=OUT, jdbcType=VARCHAR},#{ExtenAc, mode=OUT, jdbcType=VARCHAR},#{ExtenAcD, mode=OUT, jdbcType=VARCHAR},#{ExtenAcN, mode=OUT, jdbcType=VARCHAR},#{HoliAc, mode=OUT, jdbcType=VARCHAR},#{HoliAcD, mode=OUT, jdbcType=VARCHAR},#{HoliAcN, mode=OUT, jdbcType=VARCHAR},#{AttAc, mode=OUT, jdbcType=VARCHAR},#{AttAcD, mode=OUT, jdbcType=VARCHAR},#{AttAcN, mode=OUT, jdbcType=VARCHAR},#{JobStsSumTime, mode=OUT, jdbcType=VARCHAR},#{TotConfWorkTime, mode=OUT, jdbcType=VARCHAR},#{RemainTime, mode=OUT, jdbcType=VARCHAR},#{NormalCnt, mode=OUT, jdbcType=VARCHAR},#{FixWorkTime, mode=OUT, jdbcType=VARCHAR},#{TotRealWorkTime, mode=OUT, jdbcType=VARCHAR},#{ExptVacTime, mode=OUT, jdbcType=VARCHAR},#{k, mode=OUT, jdbcType=VARCHAR}) }
+	</update>
+
+	<select id="getUserAttExcelInfoV2" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+			dayList
+			,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath
+			,weekd
+			,DAY(dayList) v_day
+			,TargetUserCode
+			,UserCode
+			,SchName
+			,VacFlag
+			,VacOffFlag
+			,CASE WHEN VacFlag IS NOT NULL THEN (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE DomainID = #{domainID} AND codegroup='VACATION_TYPE' AND CODE=VacFlag) END VacName
+			,WorkSts
+			,AttDayStartTime
+			,AttDayEndTime
+			,AttStartTime
+			,AttEndTime
+			,DATE_FORMAT(AttDayStartTime, '%h:%i%p') v_AttDayStartTime
+			,DATE_FORMAT(AttDayEndTime, '%h:%i%p') v_AttDayEndTime
+			,DATE_FORMAT(mAttDayStartTime,'%Y-%m-%d %H:%i:%s') AS mAttDayStartTime
+			,DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s') AS mAttDayEndTime
+			,IF(
+				WorkingSystemType='0',
+				IF(DATE_FORMAT(AttDayStartTime, '%Y%m%d')  <  DATE_FORMAT(AttDayEndTime, '%Y%m%d'),'Y','N'),
+				IF(DATE_FORMAT(mAttDayStartTime, '%Y%m%d')  <  DATE_FORMAT(mAttDayEndTime, '%Y%m%d'),'Y','N')
+			) as v_NextDayYn
+			,DATE_FORMAT(AttStartTime, '%h:%i%p') v_AttStartTime
+			,DATE_FORMAT(AttEndTime, '%h:%i%p') v_AttEndTime
+
+			,DATE_FORMAT(AttDayStartTime, '%H') v_AttDayStartHour
+			,DATE_FORMAT(AttDayStartTime, '%i') v_AttDayStartMin
+			,DATE_FORMAT(AttDayEndTime, '%H') v_AttDayEndHour
+			,DATE_FORMAT(AttDayEndTime, '%i') v_AttDayEndMin
+
+			,DATE_FORMAT(AttStartTime, '%H') v_AttStartHour
+			,DATE_FORMAT(AttStartTime, '%i') v_AttStartMin
+			,IF(
+				WorkingSystemType='2' AND DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s')<DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s'),
+				DATE_FORMAT(mAttDayEndTime, '%H'),
+				DATE_FORMAT(AttEndTime, '%H')
+			) as v_AttEndHour
+			,IF(
+				WorkingSystemType='2' AND DATE_FORMAT(mAttDayEndTime,'%Y-%m-%d %H:%i:%s')<DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s'),
+				DATE_FORMAT(mAttDayEndTime, '%i'),
+				DATE_FORMAT(AttEndTime, '%i')
+			) as v_AttEndMin
+
+			,AttConfirmYn
+			,StartSts
+			,EndSts
+			,AttAc
+			,AttAcD
+			,AttAcN
+			,AttReal
+			,IF(ExtenNotEnough='Y',ExtenAc,0) ExtenAc
+			,IF(ExtenNotEnough='Y',ExtenAcD,0) ExtenAcD
+         	,IF(ExtenNotEnough='Y',ExtenAcN,0) ExtenAcN
+			,IF(HoliNotEnough='Y',HoliAc,0) HoliAc
+			,IF(HoliNotEnough='Y',HoliAcD,0) HoliAcD
+         	,IF(HoliNotEnough='Y',HoliAcN,0) HoliAcN
+			,IFNULL(ExtenCnt,0) ExtenCnt
+			,IFNULL(HoliCnt,0) HoliCnt
+			,AssYn
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)+IF(AssYn='Y',0,VacTime) TotWorkTime
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(AssYn='Y',0,VacTime) AttRealTime
+			,IF(AssYn='Y',AttDayAc,AttReal)+ IF(ExtenNotEnough = 'Y' , ExtenAc , 0) +IF(HoliNotEnough = 'Y' , HoliAc,0)				  AttRealConfTime
+			,TIMESTAMPDIFF(MINUTE, AttStartTime, AttEndTime) v_startToEndSec
+			,jh_JobStsName
+			,Etc
+			,UserEtc
+			,ExtenNotEnough
+			,HoliNotEnough
+			,DATE_FORMAT(ExtenStart, '%H%i') v_ExtenStartTime
+			,DATE_FORMAT(ExtenEnd, '%H%i') v_ExtenEndTime
+			,DATE_FORMAT(HoliStart, '%H%i') v_HoliStartTime
+			,DATE_FORMAT(HoliEnd, '%H%i') v_HoliEndTime
+
+			,IF(CoreStartTime IS NOT NULL AND CoreEndTime IS NOT NULL and WorkSts = 'ON',
+				 CONCAT(TIME_FORMAT(CoreStartTime,'%H:%i'),'~',TIME_FORMAT(CoreEndTime,'%H:%i')),'') CoreTime
+			,IF(AttDayStartTime IS NOT NULL AND AttDayStartTime != '' AND AttDayEndTime IS NOT NULL AND AttDayEndTime != '' ,
+				IF(DATE_FORMAT(AttDayStartTime,'%H%i%s') <=  TIME_FORMAT(CoreStartTime,'%H%i%s')
+					AND DATE_FORMAT(AttDayEndTime,'%H%i%s') >= TIME_FORMAT(CoreEndTime,'%H%i%s')
+					,'Y','N')
+				,NULL) CoreTimeObey
+			,WorkAddr
+			,WorkZone
+			,WorkPointX
+			,WorkPointY
+			,StartPointX
+			,StartPointY
+			,StartAddr
+			,EndPointX
+			,EndPointY
+			,EndAddr
+			,VacCnt
+			,userWorkInfo
+			,MonthlyAttAcSum
+			,WorkingSystemType
+			,CoreSchTimeYn
+			,CoreStartTimeHour
+			,CoreStartTimeMin
+			,CoreEndTimeHour
+			,CoreEndTimeMin
+			,CoreSchTime
+			,GoWorkTimeYn
+			,GoWorkStartTimeHour
+			,GoWorkStartTimeMin
+			,GoWorkEndTimeHour
+			,GoWorkEndTimeMin
+			,GoWorkEndTime
+			,OffWorkTimeYn
+			,OffWorkStartTimeHour
+			,OffWorkStartTimeMin
+			,OffWorkEndTimeHour
+			,OffWorkEndTimeMin
+			,OffWorkEndTime
+		FROM
+		(
+			SELECT
+				dl.dayList
+				,weekd
+				,TargetUserCode
+				,TargetUserCode UserCode
+				,DeptCode
+				,m.CommuSeq
+				,IFNULL(m.Etc,'') Etc
+				,m.TardyReason
+				,m.UserEtc
+				,m.LeaveEarlyReason
+				,m.AttStartTime
+				,m.AttEndTime
+				,m.AttDayStartTime AS mAttDayStartTime
+				,m.AttDayEndTime AS mAttDayEndTime
+				,case when VacCnt >= 1 then 0 else IFNULL(m.AttReal,0) end AttReal
+				,IFNULL(m.AttAc,0) AttAc
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'D'),0)  as AttAcD
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, IFNULL(j.AttDayIdle,IFNULL(m.AttIdle,0)), 'N'),0)  as AttAcN
+				,IFNULL(m.AttIdle,0) AttIdle
+				,IFNULL(m.ExtenReal,0) ExtenReal
+				,IFNULL(m.ExtenAc,0) ExtenAc
+				,CASE WHEN m.ExtenCnt>1 THEN
+					SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0))
+				ELSE
+					IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END  as ExtenAcD
+                ,CASE WHEN m.ExtenCnt>1 THEN
+					SUM(IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0))
+				ELSE
+                	IFNULL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END  as ExtenAcN
+                ,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliStart AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+				,m.ExtenStart
+				,m.ExtenEnd
+				,IFNULL(m.HoliReal,0) HoliReal
+				,IFNULL(m.HoliAc,0) HoliAc
+				,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as HoliAcD
+                ,IFNULL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as HoliAcN
+                ,m.HoliStart
+				,m.HoliEnd
+				,m.ExtenCnt
+				,m.HoliCnt
+				,m.AttConfirmYn
+				,m.AttConfirmTime
+				,m.StartSts
+				,m.EndSts
+				,m.StartPointX
+				,m.StartPointY
+				,m.StartAddr
+				,m.EndPointX
+				,m.EndPointY
+				,m.EndAddr
+				,m.StartChangeYn
+				,m.EndChangeYn
+				,m.CoreStartTime
+				,m.CoreEndTime
+				,IFNULL(m.MonthlyAttAcSum, 0) as MonthlyAttAcSum
+
+				,j.WorkSts
+				,IF(j.AttDayStartTime = '0000-00-00 00:00:00', '',j.AttDayStartTime) AttDayStartTime
+				,IF(j.AttDayEndTime = '0000-00-00 00:00:00', '',j.AttDayEndTime) AttDayEndTime
+				,j.NextDayYn
+				,j.ConfmYn
+				,IFNULL(j.AssYn,'N') AssYn
+				,j.WorkZone
+				,j.WorkAddr
+				,j.WorkPointX
+				,j.WorkPointY
+				,j.AllowRadius
+				,j.StartZone
+				,j.StartPointX jobStartPointX
+				,j.StartPointY jobStartPointY
+				,j.EndZone
+				,j.EndPointX jobEndPointX
+				,j.EndPointY jobEndPointY
+				,j.Etc jobEtc
+				,case when  DATE_FORMAT(#{UR_TimeZone},'%Y%m%d') <  DATE_FORMAT(j.JobDate,'%Y%m%d') THEN 0 else j.AttDayAc end AttDayAc
+				,IFNULL(s.SchName,'') SchName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},s.MultiDisplayName) schMultiDisplayName
+				,BaseYn
+				,IF(COUNT(JobStsHisSeq) > 0 ,IF( COUNT(JobStsHisSeq) > 1 , CONCAT(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName),'+') , covi_smart4j.Fn_BaseGetDictionary_S(#{lang},jh.JobStsName) ), '' ) jh_JobStsName
+				,MIN(jh.StartTime) jh_StartTime
+				,IF(SUM(IFNULL(VacCnt,0)) >  0,VacFlag,'') VacFlag
+				,case when IFNULL(VacCnt,0) >= 1 then
+								IFNULL(j.AttDayAC,0)
+					else case when IFNULL(VacCnt,0) >0 then  IFNULL(j.AttDayAC,0)*IFNULL(VacCnt,0)
+					else case when j.WorkSts = 'HOL' AND j.AttDayAC>0 then j.AttDayAC else 0 END end end VacTime
+				,VacOffFlag
+				,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath
+				,JobPositionSortKey,DeptSortKey,SortKey,VacCnt
+				,JobLevelSortKey
+				,JobTitlecode
+				,Fn_attend_getUserWorkInfo(TargetUserCode, dl.dayList) as userWorkInfo
+				  ,IFNULL(s.WorkingSystemType, 0) as WorkingSystemType
+				  ,IFNULL(s.CoreTimeYn, 'N') as CoreSchTimeYn
+				  ,IFNULL(s.CoreStartTimeHour, '00') as CoreStartTimeHour
+				  ,IFNULL(s.CoreStartTimeMin, '00') as CoreStartTimeMin
+				  ,IFNULL(s.CoreEndTimeHour, '00') as CoreEndTimeHour
+				  ,IFNULL(s.CoreEndTimeMin, '00') as CoreEndTimeMin
+				  ,CONCAT(IFNULL(s.CoreStartTimeHour, '00'),':',IFNULL(s.CoreStartTimeMin, '00'),'~',IFNULL(s.CoreEndTimeHour, '00'),':',IFNULL(s.CoreEndTimeMin, '00')) as CoreSchTime
+				  ,IFNULL(s.GoWorkTimeYn, 'N') as GoWorkTimeYn
+				  ,IFNULL(s.GoWorkStartTimeHour, '00') as GoWorkStartTimeHour
+				  ,IFNULL(s.GoWorkStartTimeMin, '00') as GoWorkStartTimeMin
+				  ,IFNULL(s.GoWorkEndTimeHour, '00') as GoWorkEndTimeHour
+				  ,IFNULL(s.GoWorkEndTimeMin, '00') as GoWorkEndTimeMin
+				  ,CONCAT(IFNULL(s.GoWorkStartTimeHour, '00'),':',IFNULL(s.GoWorkStartTimeMin, '00'),'~',IFNULL(s.GoWorkEndTimeHour, '00'),':',IFNULL(s.GoWorkEndTimeMin, '00')) as GoWorkEndTime
+				  ,IFNULL(s.OffWorkTimeYn, 'N') as OffWorkTimeYn
+				  ,IFNULL(s.OffWorkStartTimeHour, '00') as OffWorkStartTimeHour
+				  ,IFNULL(s.OffWorkStartTimeMin, '00') as OffWorkStartTimeMin
+				  ,IFNULL(s.OffWorkEndTimeHour, '00') as OffWorkEndTimeHour
+				  ,IFNULL(s.OffWorkEndTimeMin, '00') as OffWorkEndTimeMin
+				 ,CONCAT(IFNULL(s.OffWorkStartTimeHour, '00'),':',IFNULL(s.OffWorkStartTimeMin, '00'),'~',IFNULL(s.OffWorkEndTimeHour, '00'),':',IFNULL(s.OffWorkEndTimeMin, '00')) as OffWorkEndTime
+				]]>
+		FROM
+		(
+		SELECT
+		daylist ,weekd
+		,UserCode TargetUserCode
+		,DeptFullPath,DisplayName,DeptName,JobPositionName, JobTitleName,EnterDate,PhotoPath,DeptCode
+		,JobPositionSortKey,DeptSortKey,SortKey
+		,JobLevelSortKey
+		,JobTitlecode
+		FROM
+		(
+		SELECT
+		daylist
+		,weekd
+		FROM covi_smart4j.attendance_daylist
+		WHERE dayList BETWEEN #{StartDate} AND #{EndDate}
+		) dl ,(
+		SELECT
+		u.UserCode
+		,IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName))>0
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},u.MultiDisplayName)
+		,u.DisplayName) DisplayName
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiDeptName) DeptName
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobPositionName) JobPositionName
+		,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},MultiJobTitleName) JobTitleName
+		,u.EnterDate
+		,b.JobPositionSortKey
+		,b.JobLevelSortKey
+		,b.JobTitlecode
+		,b.DeptSortKey
+		,b.SortKey
+		,u.PhotoPath
+		,DeptCode
+		,sog.DisplayName as DeptFullPath
+		FROM covi_smart4j.sys_object_user_basegroup  b
+		JOIN covi_smart4j.sys_object_user u					ON b.UserCode = u.UserCode
+		LEFT JOIN covi_smart4j.sys_object_group sog			ON b.DeptCode = sog.GroupCode
+		WHERE b.CompanyCode = #{CompanyCode}
+		AND sog.GroupPath LIKE CONCAT(#{groupPath}, '%')
+		<!-- 직책   -->
+		<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+			AND b.JobTitleCode = #{sJobTitleCode}
+		</if>
+		<!-- 직급 -->
+		<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+			AND b.JobLevelCode = #{sJobLevelCode}
+		</if>
+
+		) u
+		)dl
+		LEFT JOIN covi_smart4j.attendance_commuting_mst m	 ON dl.dayList = m.TargetDate		AND m.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = m.UserCode
+		LEFT JOIN covi_smart4j.attendance_mng_job j			 ON dl.dayList = j.JobDate			AND j.CompanyCode = #{CompanyCode}			AND dl.TargetUserCode = j.UserCode
+		LEFT JOIN covi_smart4j.attendance_mng_schedule s	 ON j.SchSeq = s.SchSeq
+		LEFT JOIN covi_smart4j.attendance_mng_job_history jh ON dl.dayList = jh.JobDate			AND TargetUserCode = jh.UserCode			AND jh.CompanyCode = #{CompanyCode}
+		LEFT JOIN (SELECT  dayList, UR_Code, v.VacFlag, v.VacOffFlag, v.VacCnt
+		FROM  covi_smart4j.attendance_daylist d
+		LEFT JOIN (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+					, GROUP_CONCAT(vd.VacFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacFlag
+					, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+					, GROUP_CONCAT(vd.StartTime ORDER BY vd.VacOffFlag SEPARATOR '|') as StartTime
+					, GROUP_CONCAT(vd.EndTime ORDER BY vd.VacOffFlag SEPARATOR '|') as EndTime
+					from covi_smart4j.vm_vacationinfo_day vd
+					group by vd.VacDate, vd.UR_Code) v ON d.dayList = v.VacDate
+					WHERE  d.dayList BETWEEN #{StartDate} AND #{EndDate}
+					GROUP BY  ur_code, dayList) vv
+		ON dl.dayList = vv.VacDate AND dl.TargetUserCode = vv.UR_Code
+		LEFT JOIN (select SUM(IFNULL(NULLIF(IdleTime,''),0)) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts
+			from covi_smart4j.attendance_mng_extensionholiday group by jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts) eho ON m.TargetDate = eho.jobDate AND m.UserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = 'GENERAL' AND eho.ApprovalSts = 'Y'
+		LEFT JOIN (select SUM(IFNULL(NULLIF(IdleTime,''),0)) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts
+			from covi_smart4j.attendance_mng_extensionholiday group by jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts) ehh ON m.TargetDate = ehh.jobDate AND m.UserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = 'GENERAL' AND ehh.ApprovalSts = 'Y'
+		WHERE 1=1
+		<if test='AttStatus == "B10" '>
+			<![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between 1  AND 10*60 ]]>
+		</if>
+		<if test='AttStatus == "A1" '>
+			<![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between -60*60 AND  0]]>
+		</if>
+		<if test='AttStatus == "LATE" '>
+			AND StartSts='lbl_att_beingLate'
+		</if>
+		GROUP BY dayList , TargetUserCode , DeptCode
+		) att
+		ORDER BY SortKey, JobPositionSortKey, JobLevelSortKey, JobTitlecode, EnterDate, DisplayName, dayList ASC
+	</select>
+	
+	<!-- 근태현황 엑셀 리스트 조회 -->
+	<select id="getUserAttStatusByExcelList" parameterType="cmap" resultType="cmap">
+	/* attend.status.getUserAttStatusByExcelList */
+	<![CDATA[
+	SELECT UserCode
+			,CASE
+				WHEN a.MemberOf = 'ORGROOT' THEN ''
+				ELSE (SELECT DisplayName FROM covi_smart4j.sys_object_group r WHERE GroupCode = a.MemberOf) 
+			 END AS DeptFullPath
+			,Fn_BaseGetDictionary_S(#{lang}, MultiDeptName) AS DeptName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS DisplayName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiJobPositionName) AS JobPositionName
+			,Fn_BaseGetDictionary_S(#{lang}, MultiJobTitleName) AS JobTitleName
+			,EnterDate
+			,dayList
+			,DAYOFWEEK(dayList) weekd
+			,WEEKOFYEAR(SUBDATE( dayList, DAYOFWEEK(dayList) - #{FirstWeek} + case when DAYOFWEEK(dayList) < #{FirstWeek} then 7 ELSE 0 END) ) weeko
+			,DATE_FORMAT(dayList,'%c/%e') v_dayList
+			,StartSts
+			,Fn_GetSelDictionary(#{lang},StartSts,#{domainID}) StartStsName
+			,EndSts
+			,Fn_GetSelDictionary(#{lang},EndSts,#{domainID}) EndStsName
+			,DATE_FORMAT(AttDayStartTime, '%H:%i') v_AttDayStartTime
+			,DATE_FORMAT(AttDayEndTime, '%H:%i') v_AttDayEndTime
+			,DATE_FORMAT(AttStartTime, '%H:%i') v_AttStartTime
+			,DATE_FORMAT(AttEndTime, '%H:%i') v_AttEndTime
+			,MonthlyAttAcSum MonthlyAttAcSum
+			,IFNULL(Etc,'') Etc
+			,IF(AssYn='Y', AttAc, AttReal) + IF(ExtenNotEnough = 'Y', ExtenAc , 0) + IF(HoliNotEnough = 'Y', HoliAc, 0) + IF(IFNULL(SUM(VacCnt), 0) > 0, IFNULL(SUM(AttDayAC), 0) * SUM(VacCnt), 0) TotWorkTime
+			,IF(AssYn='Y', AttAc, AttReal) + IF(ExtenNotEnough = 'Y', ExtenAc , 0) + IF(HoliNotEnough = 'Y', HoliAc, 0)  v_AttRealTime
+			,ExtenAc v_ExtenAc
+			,HoliAc v_HoliAc
+			,startToEnd - (AttIdle+ case when ExtenNotEnough = 'Y' then (ExtenReal - ExtenAc) else 0 end
+					+ case when HoliNotEnough = 'Y' then (HoliReal - HoliAc) else 0 end)  v_startToEnd
+			,CASE WHEN StartSts ='lbl_n_att_absent' THEN 0 ELSE AttIdle END v_AttIdle
+			,IF(AssYn='Y',AttAc,AttReal)+(IFNULL(AttAc,0)*IF(SUM(IFNULL(VacCnt,0))>  0,1,0)) AttRealTime
+			,AttIdle+ case when ExtenNotEnough = 'Y' then (ExtenReal - ExtenAc) else 0 end
+					+ case when HoliNotEnough = 'Y' then (HoliReal - HoliAc) else 0 end  AttIdle
+			,AttConfirmYn
+			,sum(VacCnt) VacCnt
+			, case when sum(VacCnt)>0 then (SELECT CodeName FROM covi_smart4j.vm_vacationinfo_day vm
+				JOIN covi_smart4j.sys_base_code D ON D.CodeGroup ='VACATION_TYPE' AND  VM.VacFlag = D.CODE
+				WHERE vm.UR_Code = UserCode AND vm.VacDate = date_format(dayList,'%Y-%m-%d') ORDER BY vm.VacationInfoID desc				LIMIT 1) END VacName
+			,ExtenCnt
+			,HoliCnt
+			,WorkSts
+			,(SELECT SchName FROM covi_smart4j.attendance_mng_schedule ams WHERE ams.SchSeq = a.SchSeq) SchName
+			,(SELECT WorkingSystemType FROM covi_smart4j.attendance_mng_schedule ams WHERE ams.SchSeq = a.SchSeq) WorkingSystemType
+			,CASE WHEN StartSts ='lbl_att_beingLate' THEN TRUNCATE(TIMESTAMPDIFF(SECOND, AttStartTime , AttDayStartTime)/60, 0) ELSE '' END LateMin
+			,(SELECT GROUP_CONCAT(CONCAT(jh.JobStsName,'(',jh.StartTime,'~',jh.EndTime,')')  SEPARATOR '/') 
+				FROM attendance_mng_job_history jh where a.dayList = jh.JobDate	AND a.UserCode = jh.UserCode) JobStsName
+			,ExtenNotEnough
+			,DATE_FORMAT(ExtenStart, '%H:%i') ExtenStart
+			,DATE_FORMAT(ExtenEnd, '%H:%i') ExtenEnd
+			,HoliNotEnough
+			,DATE_FORMAT(HoliStart, '%H:%i') HoliStart
+			,DATE_FORMAT(HoliEnd, '%H:%i') HoliEnd
+		FROM
+		(
+			SELECT m.TargetDate dayList
+				,ur.UserCode UserCode
+				,og.MemberOf
+				,MultiDeptName
+				,ur.MultiDisplayName
+				,MultiJobPositionName
+				,MultiJobTitleName
+				,EnterDate
+				,m.CommuSeq
+				,m.StartSts
+				,m.EndSts
+				,m.AttStartTime
+				,m.AttEndTime
+				,IFNULL(TIMESTAMPDIFF(MINUTE, m.AttStartTime, m.AttEndTime), 0) startToEnd
+				,IFNULL(m.AttReal,0) AttReal
+				,IFNULL(m.AttAc,0) AttAc
+             	,0 AttDayAC
+				,IFNULL(m.AttIdle,0) AttIdle
+				,IFNULL(m.ExtenReal,0) ExtenReal
+				,IFNULL(m.ExtenAc,0) ExtenAc
+				,IF(m.AttEndTime is not null and m.AttEndTime >= m.ExtenEnd , 'Y' , 'N' ) ExtenNotEnough
+				,IF(m.AttStartTime is not null and m.AttStartTime <= m.HoliEnd AND m.AttEndTime is not null and m.AttEndTime >= m.HoliEnd , 'Y' , 'N' ) HoliNotEnough
+				,IFNULL(m.HoliReal,0) HoliReal
+				,IFNULL(m.HoliAc,0) HoliAc
+				,IFNULL(m.ExtenCnt,0) ExtenCnt
+				,IFNULL(m.HoliCnt,0) HoliCnt
+				,IFNULL(m.AttConfirmYn,'N') AttConfirmYn
+				,IFNULL(m.MonthlyAttAcSum, 0) MonthlyAttAcSum
+				,m.Etc
+				,IF(IFNULL(m.AttDayStartTime,j.AttDayStartTime) = '0000-00-00 00:00:00', '',IFNULL(m.AttDayStartTime,j.AttDayStartTime)) AttDayStartTime
+				,IF(IFNULL(m.AttDayEndTime,j.AttDayEndTime) = '0000-00-00 00:00:00', '',IFNULL(m.AttDayEndTime,j.AttDayEndTime)) AttDayEndTime
+				,IFNULL(j.AssYn,'N') AssYn
+				,WorkSts WorkSts
+				,j.SchSeq
+				,0 VacCnt
+				,bg.SortKey, bg.JobPositionSortKey, bg.JobLevelSortKey, bg.JobTitleSortKey, bg.JobTitlecode, ur.DisplayName
+				,ExtenStart
+				,ExtenEnd
+				,HoliStart
+				,HoliEnd
+		   FROM covi_smart4j.sys_object_user ur
+	       JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode} AND bg.JobType = 'Origin'
+	       JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+	       JOIN covi_smart4j.attendance_commuting_mst m	  ON ur.UserCode = m.UserCode
+	  LEFT JOIN covi_smart4j.attendance_mng_job j		  ON m.TargetDate = j.JobDate	AND m.UserCode = j.UserCode
+		  WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%') ]]>
+			<if test='RetireUser neq "Y"'>
+				AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+			</if>
+		    AND m.TargetDate BETWEEN #{StartDate} AND #{EndDate}
+			<!-- 직책   -->
+			<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+				AND bg.JobTitleCode = #{sJobTitleCode}
+			</if>
+			<!-- 직급 -->
+			<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+				AND bg.JobLevelCode = #{sJobLevelCode}
+			</if>
+			<if test='sUserTxt != null and sUserTxt != ""'>
+				AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+			</if>
+			<if test='SchSeq != null and SchSeq != ""'>
+				AND j.SchSeq = #{SchSeq}
+			</if>
+		    <if test='AttStatus == "B10" '>
+	 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between 1  AND 10*60 ]]>
+			</if>
+		    <if test='AttStatus == "A1" '>
+	 	   		 <![CDATA[AND  TIMESTAMPDIFF(SECOND, m.AttStartTime , j.AttDayStartTime) between -60*60 AND  0]]>
+			</if>
+		    <if test='AttStatus == "LATE" '>
+	 	   		 AND StartSts='lbl_att_beingLate'
+			</if>
+		<if test='(AttStatus == null or AttStatus == "") and (SchSeq == null or SchSeq == "")'>
+		UNION
+		SELECT a.VacDate
+				, a.UR_Code
+				,og.MemberOf
+				,MultiDeptName
+				,ur.MultiDisplayName
+				,MultiJobPositionName
+				,MultiJobTitleName
+				,EnterDate
+				,''
+				,''
+				,''
+				,''
+				,''
+				,0
+				,0
+				,0 AttAc
+				,IFNULL(j.AttDayAC,0) AttDayAC
+				,0
+				,0
+				,0
+				,''
+				,0
+				,0
+				,0
+				,0
+				,''
+				,''
+				,0
+				,''
+				,''
+				,''
+				,''
+				,''
+				,j.SchSeq
+				,SUM(a.VacDay) VacCnt
+				,bg.SortKey, bg.JobPositionSortKey, bg.JobLevelSortKey, bg.JobTitleSortKey, bg.JobTitlecode, ur.DisplayName
+				,'','','',''
+			 FROM covi_smart4j.sys_object_user ur
+		     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode =#{CompanyCode}  AND bg.JobType = 'Origin'
+	         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND bg.DeptCode = og.GroupCode
+			 join covi_smart4j.vm_vacationinfo_day A  ON ur.UserCode = a.UR_Code
+	    LEFT JOIN covi_smart4j.attendance_mng_job j		  ON a.VacDate = DATE_FORMAT(j.JobDate, '%Y-%m-%d')	AND ur.UserCode = j.UserCode	
+			WHERE og.GroupPath LIKE CONCAT(#{GroupPath},'%')
+			<if test='RetireUser neq "Y"'>
+				AND ur.IsUse ='Y'				AND ur.IsDisplay ='Y'
+			</if>
+			  AND a.VacDate  BETWEEN #{StartDate} AND #{EndDate}
+			<!-- 직책   -->
+			<if test='sJobTitleCode != null and sJobTitleCode != ""'>
+				AND bg.JobTitleCode = #{sJobTitleCode}
+			</if>
+			<!-- 직급 -->
+			<if test='sJobLevelCode != null and sJobLevelCode != ""'>
+				AND bg.JobLevelCode = #{sJobLevelCode}
+			</if>
+			<if test='sUserTxt != null and sUserTxt != ""'>
+				AND ur.DisplayName LIKE CONCAT('%',#{sUserTxt},'%')
+			</if>
+	     GROUP by a.VacDate, a.UR_Code
+	     </if>
+	 ) A
+	 GROUP BY dayList,UserCode
+	 ORDER BY 
+		<choose>
+			<when test="orgOrders != null and orgOrders != '' ">
+			  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+			  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+			  			JobTitleSortKey ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+			  			JobLevelSortKey ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+			  			JobPositionSortKey ASC
+			  		</if>
+	  				<if test="orgOrder != null and orgOrder == 'DN'">
+			  			DisplayName ASC
+			  		</if>
+			  	</foreach>
+			  	, SortKey ASC, dayList, JobTitlecode, EnterDate, UserCode
+		  	</when>
+		  	<otherwise>
+		  		<![CDATA[ SortKey ASC, JobTitleSortKey ASC, JobLevelSortKey ASC, JobPositionSortKey ASC, DisplayName ASC, dayList ]]>
+		  	</otherwise>
+		</choose>	
+	<if test='pageSize != null and pageOffset != null'>
+		LIMIT #{pageSize} OFFSET #{pageOffset}
+	</if>
+	</select>
+	
+	<update id="updateAttConfirm" parameterType="cmap" >
+		UPDATE attendance_commuting_mst
+		SET AttConfirmYn = #{attConfirmYn}
+			<choose>
+				<when test='attConfirmYn != null and attConfirmYn != "" and attConfirmYn == "Y"'>
+				  	, AttConfirmTime = NOW(3)
+			  	</when>
+			  	<otherwise>
+			  		, AttConfirmTime = NULL
+			  	</otherwise>
+			</choose>	
+		WHERE UserCode IN 
+		<foreach collection="userList" item="item" index="index" separator="," open="(" close=")">
+			#{item}
+		</foreach>
+		AND TargetDate BETWEEN DATE_FORMAT(#{sDate}, '%Y-%m-%d') AND DATE_FORMAT(#{eDate}, '%Y-%m-%d')
+	</update>
+	
+	<select id="getUserDayOff" parameterType="cmap" resultType="string">
+		/* attend.status.getUserDayOff */
+		<![CDATA[
+		SELECT GROUP_CONCAT(TB.dayList) AS dayOff
+		FROM (SELECT  AD.dayList
+					, AD.WeekNum
+					, AMJ.JobDate
+					, AMJ.WorkSts
+					, HOL.HolidayStart
+					, CASE WHEN (AMJ.WorkSts = 'ON') THEN 'O'
+						   WHEN AMJ.WorkSts IS NULL AND HOL.HolidayStart IS NOT NULL THEN 'H'
+						   WHEN AMJ.WorkSts IS NULL AND HOL.HolidayStart IS NULL AND (AD.WeekNum = '5' OR AD.WeekNum = '6') THEN 'H'
+						   WHEN (AMJ.WorkSts = 'HOL' OR WorkSts = 'OFF') THEN 'H' 
+						   ELSE 'O' END AS HolidayFlag
+			FROM  (SELECT dayList, weekd AS WeekNum
+				   FROM covi_smart4j.attendance_daylist
+				   WHERE dayList BETWEEN #{StandardStartDate} AND #{StandardEndDate}) AD
+				   LEFT JOIN
+				  (SELECT DATE_FORMAT(JobDate, '%Y-%m-%d') AS JobDate, WorkSts
+				   FROM covi_smart4j.attendance_mng_job
+				   WHERE UserCode = #{userCode}) AMJ ON AD.dayList = AMJ.JobDate
+				  LEFT JOIN 
+				  (SELECT DATE_FORMAT(HolidayStart, '%Y-%m-%d') as HolidayStart, HolidayName	
+				   FROM covi_smart4j.attendance_mng_holiday_schedule
+				   WHERE CompanyCode = #{companyCode}
+				   AND DATE_FORMAT(HolidayStart,'%Y') BETWEEN DATE_FORMAT(#{StandardStartDate}, '%Y') AND DATE_FORMAT(#{StandardEndDate}, '%Y')) HOL ON AD.dayList = HOL.HolidayStart) TB
+		WHERE TB.HolidayFlag = 'H'
+		]]>
+	</select>
+</mapper>

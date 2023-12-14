@@ -1,0 +1,87 @@
+<tr id="combiCostApp@@{ProofCode}_divRow1_@@{KeyNo}_@@{Rownum}" name="DivRowTR" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}">
+	<td align="center">
+		<div class="chkStyle01">
+			<input type="checkbox" id="combiCostApp@@{ProofCode}_rowCk_@@{KeyNo}_@@{Rownum}" 
+				name="DivCheck" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}">
+			<label for="combiCostApp@@{ProofCode}_rowCk_@@{KeyNo}_@@{Rownum}"><span></span></label>
+		</div>
+	</td>
+	<td>
+		<div class="searchBox02">
+			<span>
+				<input type="hidden" id='combiCostApp@@{ProofCode}_accCD_@@{KeyNo}_@@{Rownum}' 
+					name="DivAccCd" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{accCDVal}" class="HtmlCheckXSS ScriptCheckXSS">
+				<input type="text" id='combiCostApp@@{ProofCode}_accNM_@@{KeyNo}_@@{Rownum}' 
+					name="DivAccNm" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{accNMVal}" disabled="true" class="HtmlCheckXSS ScriptCheckXSS">
+				<button type="button" class="btnSearchType01" 
+				onClick="CombineCostApplication@@{RequestType}.combiCostApp_callAccountPopup('@@{ProofCode}', '@@{KeyNo}','@@{Rownum}')"><spring:message code='Cache.ACC_btn_search'/></button>
+			</span>
+		</div>
+	</td>
+	<td name="noSBArea">
+		<div class="searchBox02">
+			<span>
+				<input type="hidden" id='combiCostApp@@{ProofCode}_SBCD_@@{KeyNo}_@@{Rownum}' 
+					name="DivSBCd" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{SBCDVal}" class="HtmlCheckXSS ScriptCheckXSS">
+				<input type="text" id='combiCostApp@@{ProofCode}_SBNM_@@{KeyNo}_@@{Rownum}' 
+					name="DivSBNm" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{SBNMVal}" disabled="true" class="HtmlCheckXSS ScriptCheckXSS">
+				<button type="button" class="btnSearchType01" 
+				onClick="CombineCostApplication@@{RequestType}.combiCostApp_callStandardBriefPopup('@@{ProofCode}', '@@{KeyNo}','@@{Rownum}')"><spring:message code='Cache.ACC_btn_search'/></button>
+			</span>
+		</div>
+	</td>
+	<td>
+		<div class="">
+			<span name ='AccCtrlField' keyno="@@{KeyNo}" rownum="@@{Rownum}">
+			</span>
+		</div>
+	</td>
+	<td>
+		<div class="searchBox02">
+			<span>
+				<input type="hidden" id='combiCostApp@@{ProofCode}_CCCD_@@{KeyNo}_@@{Rownum}' 
+					name="DivCCCd" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{CCCDVal}" class="HtmlCheckXSS ScriptCheckXSS">
+				<input type="text" id='combiCostApp@@{ProofCode}_CCNM_@@{KeyNo}_@@{Rownum}' 
+					name="DivCCNm" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{CCNMVal}" disabled="true" class="HtmlCheckXSS ScriptCheckXSS">
+				<button type="button" class="btnSearchType01"
+				onClick="CombineCostApplication@@{RequestType}.combiCostApp_callCostCenterPopup('@@{ProofCode}', '@@{KeyNo}','@@{Rownum}')"><spring:message code='Cache.ACC_btn_search'/></button>
+			</span>
+		</div>
+	</td>
+	<td name="noIOArea">
+		<div class="searchBox02">
+			<span>
+				<input type="hidden" id='combiCostApp@@{ProofCode}_IOCD_@@{KeyNo}_@@{Rownum}' 
+					name="DivIOCd" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{IOCDVal}" class="HtmlCheckXSS ScriptCheckXSS">
+				<input type="text" id='combiCostApp@@{ProofCode}_IONM_@@{KeyNo}_@@{Rownum}' 
+					name="DivIONm" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					value="@@{IONMVal}" disabled="true" class="HtmlCheckXSS ScriptCheckXSS">
+				<button type="button" class="btnSearchType01" 
+				onClick="CombineCostApplication@@{RequestType}.combiCostApp_callIOPopup('@@{ProofCode}', '@@{KeyNo}','@@{Rownum}')"><spring:message code='Cache.ACC_btn_search'/></button>
+			</span>
+		</div>
+	</td>
+	<td>
+		<div class="searchBox02"  id='@@{billReqAmtID}'>
+			<input type="text" id='combiCostApp@@{ProofCode}_billReqAmt_@@{KeyNo}_@@{Rownum}'
+				 name="DivAmountField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"  tag="Amount" datafield="Amount" rownum="@@{Rownum}"
+				 onblur="CombineCostApplication@@{RequestType}.combiCostApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')"  value="@@{AmountVal}" style="text-align: right;">
+		</div>
+	</td>
+	<td name="noBDArea" align="right" id='combiCostApp@@{ProofCode}_renAmt_@@{KeyNo}_@@{Rownum}'>
+	</td>
+	<td>
+		<div class="searchBox02">
+			<textarea class="total_acooungting_table_txt HtmlCheckXSS ScriptCheckXSS" id='combiCostApp@@{ProofCode}_divComment_@@{KeyNo}_@@{Rownum}'
+					 name="DivCommentField" tag="Comment" datafield="UsageComment" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" rownum="@@{Rownum}"
+					 onkeyup="CombineCostApplication@@{RequestType}.combiCostApp_divInputChange(this, '@@{ProofCode}', '@@{KeyNo}', '@@{Rownum}')">@@{UsageCommentVal}</textarea>
+		</div>
+	</td>
+</tr>

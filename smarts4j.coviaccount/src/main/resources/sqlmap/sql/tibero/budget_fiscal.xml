@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget.fiscal">
+		<select id="getBudgetFiscalListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*)
+			FROM  bem_base_term e
+			WHERE e.CompanyCode = #{companyCode}
+			AND   e.FiscalYear = #{fiscalYear}
+   	</select>
+	<select id="getBudgetFiscalList"  parameterType="cmap" resultType="cmap">
+		SELECT a.FiscalYear "FiscalYear"
+		    	,	a.BaseTerm "BaseTerm"
+		    	,   a.BaseTermName "BaseTermName"
+		    	,	a.PeriodLabel "PeriodLabel"
+		    	,   FN_GETACTBASECODENAME('PeriodLabel',a.PeriodLabel,'ALL') "PeriodLabelName"
+				,	to_char(a.ValidFrom, 'yyyy-mm-dd')||'~'||  to_char(a.ValidTo, 'yyyy-mm-dd')  "ValidTerm"
+				,   FN_GETACTBASECODENAME('CompanyCode',a.CompanyCode,'ALL') "CompanyCodeName"
+		FROM  (
+			SELECT   e.FiscalYear, BaseTerm, PeriodLabel, ValidFrom, ValidTo
+					,   ROW_NUMBER() OVER(ORDER BY  b.sortKey, e.ordinal) RNum
+					, b.CodeName BaseTermName
+					, sortKey
+					, e.ordinal
+					, e.CompanyCode
+			FROM   bem_base_term e 
+			LEFT JOIN act_base_code b on e.BaseTerm = b.code and B.CodeGroup = 'BaseTerm'
+			WHERE e.CompanyCode = #{companyCode}
+			  AND e.FiscalYear = #{fiscalYear}
+		) a	
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="pageSize != null and pageOffset != null">
+			 		RNUM BETWEEN #{pageOffset}+1 AND #{pageOffset}+#{pageSize}
+			</if>
+		</trim>	
+		ORDER BY  sortKey, ordinal	 	
+	</select>
+	<select id="getBudgetFiscalCode" resultType="cmap">
+		SELECT Code "Code", Reserved1 "Reserved1"
+		FROM   act_base_code a
+		WHERE  CodeGroup='FiscalYearBasis'
+		AND    isGroup='N'
+	</select>
+	<select id="getBudgetFiscalMaxYear" resultType="long">
+		SELECT MAX(FiscalYear) "FiscalYear" FROM bem_base_term WHERE CompanyCode = 'ALL'
+	</select>
+	<update id="saveBudgetFiscalCode" parameterType="cmap" >
+		MERGE INTO act_base_code a
+		USING (SELECT #{code} code FROM dual) b ON (a.CodeGroup='FiscalYearBasis' AND a.code= b.code)
+		WHEN MATCHED THEN   
+		UPDATE SET    Reserved1 = #{date}
+		WHEN NOT MATCHED THEN	
+		INSERT (CodeGroup, Code, CodeName, Reserved1, isGroup, IsUse, SortKey, RegistDate, ModifyDate)
+		VALUES ('FiscalYearBasis', b.code, b.code, #{date}, 'N', 'Y', 1, sysdate, SYSDATE)
+	</update>
+	
+	<insert id="addBudgetFiscal" parameterType="cmap" >
+    	MERGE INTO bem_base_term a
+		USING (
+				SELECT #{companyCode} CompanyCode, baseterm, #{fiscalYear} fiscalyear, ordinal Ordinal, periodlabel, periodlabelname
+						,add_months( to_date(#{fiscalYear}||#{yearStart}||'01','yyyymmdd'), (ordinal-1)*#{addTerm}) ValidFrom
+						,add_months( to_date(#{fiscalYear}||#{yearStart}||'01','yyyymmdd'), (ordinal)*#{addTerm})-1 ValidTo
+				FROM  bem_base_term
+				WHERE CompanyCode = 'ALL'
+			    AND   fiscalyear = #{orgFiscalYear}
+				and   baseterm = #{baseTerm}) b on (a.CompanyCode=b.CompanyCode and a.fiscalyear=b.fiscalyear and a.baseterm=b.baseterm and a.periodlabel = b.periodlabel)
+		WHEN MATCHED THEN
+		UPDATE 	SET a.ValidFrom = b.ValidFrom, a.ValidTo = b.ValidTo
+					,a.ModifierID = #{UR_Code},a.ModifyDate=SYSDATE
+		WHEN NOT MATCHED THEN
+		INSERT (CompanyCode,     BaseTerm,   FiscalYear,   Ordinal,   ValidFrom,   Validto,   PeriodLabel,   PeriodLabelName, RegisterID ,RegistDate ,ModifierID  ,ModifyDate)
+		VALUES (B.CompanyCode, b.BaseTerm, b.FiscalYear, b.Ordinal, b.ValidFrom, b.Validto, b.PeriodLabel, b.PeriodLabelName, #{UR_Code} ,SYSDATE  ,#{UR_Code}  ,SYSDATE)
+	</insert>
+	
+	<select id="getFiscalYearByDate" resultType="long">
+		SELECT MAX(FiscalYear) FiscalYear 
+		FROM bem_base_term
+	    WHERE  CompanyCode = #{companyCode}
+	    AND TO_DATE(#{executeDate},'YYYY-MM-DD') BETWEEN ValidFrom AND ValidTo
+	</select>
+</mapper>
+

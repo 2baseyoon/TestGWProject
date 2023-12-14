@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.common">
+    
+    <insert id="insertLegacy" parameterType="hashmap">
+    <![CDATA[
+        INSERT covi_approval4j.jwf_legacy
+        (
+        	Parameters,
+        	Mode,
+        	State,
+        	EventTime,
+        	ErrorMessage,
+        	ErrorStackTrace,
+        	ErrorClass,
+        	DeleteTime
+        )
+        VALUES
+        (
+        	#{parameters},
+        	#{mode},
+        	#{state},
+        	NOW(3),
+        	#{errorMessage},
+        	#{errorStackTrace},
+        	#{errorClass},
+        	#{deleteTime}
+        );
+    ]]>
+	</insert>
+	
+	<insert id="insertLegacy_param" parameterType="hashmap">
+    <![CDATA[
+        INSERT covi_approval4j.jwf_legacy
+        (
+        	Parameters,
+        	Mode,
+        	State,
+        	EventTime,
+        	ErrorMessage,
+        	ErrorStackTrace,
+        	ErrorClass,
+        	DeleteTime,
+        	FormInstID,
+        	ProcessID,
+			FormPrefix,
+			DocNumber,
+			ApproverId,
+			ApvMode,
+			FormInfoExt,
+			ApprovalContext
+        )
+        VALUES
+        (
+        	#{parameters},
+        	#{mode},
+        	#{state},
+        	NOW(3),
+        	#{errorMessage},
+        	#{errorStackTrace},
+        	#{errorClass},
+        	#{deleteTime},
+        	#{FormInstID},
+        	#{ProcessID},
+			#{FormPrefix},
+			#{DocNumber},
+			#{ApproverId},
+			#{ApvMode},
+			#{FormInfoExt},
+			#{ApprovalContext}
+        );
+    ]]>
+	</insert>
+    
+    <select id="selectGrid" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT a.LegacyID,
+				a.FormInstID,
+				a.Parameters,
+				a.Mode,
+				a.State,
+				a.EventTime,
+				a.ErrorMessage,
+				a.ErrorStackTrace,
+				a.ErrorClass,
+				a.DeleteTime,
+				IFNULL(a.ProcessID,(SELECT f.ProcessID FROM covi_approval4j.jwf_forminstance f WHERE a.FormInstID = f.FormInstID AND f.FormInstID IS NOT null)) ProcessID,
+				a.ApvMode,
+				a.ApproverId,
+				a.DocNumber,
+				b.Subject, 
+				b.InitiatorName, 
+				c.FormName,
+				(SELECT p.ProcessState FROM covi_approval4j.jwf_process p WHERE p.FormInstID = a.FormInstID AND p.ProcessID = b.ProcessID) ProcessState,
+				(SELECT BusinessData1 FROM covi_approval4j.jwf_processdescription WHERE FormInstID = a.FormInstID LIMIT 1) BusinessData1,
+				(SELECT BusinessData2 FROM covi_approval4j.jwf_processdescription WHERE FormInstID = a.FormInstID LIMIT 1) BusinessData2,
+				a.LastRetryTime
+			FROM covi_approval4j.jwf_legacy a
+			LEFT OUTER JOIN covi_approval4j.jwf_forminstance b ON a.FormInstID = b.FormInstID
+			LEFT OUTER JOIN covi_approval4j.jwf_forms c ON b.FormID = c.FormID
+			WHERE 1=1
+			AND a.DeleteTime IS NULL
+			AND a.Mode = #{searchMode}
+		<if test="searchState != null and searchState != ''">
+			AND a.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND a.EventTime BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("Subject")'>b.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("DocNumber")'>a.DocNumber</when>
+				<otherwise>a.FormInstID</otherwise>
+			</choose> 
+			like CONCAT('%', #{searchWord},'%')
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				a.FormInstID = #{icoSearch} OR 
+				b.Subject LIKE CONCAT('%',#{icoSearch},'%') OR 
+				b.InitiatorName LIKE CONCAT('%',#{icoSearch},'%') OR
+				c.FormName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				a.DocNumber LIKE CONCAT('%',#{icoSearch},'%')		   
+			)
+		</if>
+		<if test="EntCode != null and EntCode != ''">
+			AND EXISTS (
+				select 'x' from covi_approval4j.jwf_forminstance fi
+				where fi.forminstid = a.forminstid
+				and fi.entcode = #{EntCode}
+			)
+		</if>
+		) AS LegacyErrorList
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("LegacyID")'>LegacyID</when>
+					<when test='sortColumn.equalsIgnoreCase("FormInstID")'>FormInstID</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+					<when test='sortColumn.equalsIgnoreCase("ApvMode")'>ApvMode</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNumber")'>DocNumber</when>
+					<when test='sortColumn.equalsIgnoreCase("EventTime")'>EventTime</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<otherwise>LegacyID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectGridCount" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_approval4j.jwf_legacy a
+		LEFT OUTER JOIN covi_approval4j.jwf_forminstance b ON a.FormInstID = b.FormInstID
+		LEFT OUTER JOIN covi_approval4j.jwf_forms c ON b.FormID = c.FormID
+		WHERE 1=1
+		AND DeleteTime IS NULL
+		AND a.Mode = #{searchMode}
+		<if test="searchState != null and searchState != ''">
+			AND a.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND EventTime BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("Subject")'>b.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("DocNumber")'>a.DocNumber</when>
+				<otherwise>a.FormInstID</otherwise>
+			</choose> 
+			like CONCAT('%', #{searchWord},'%')
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				a.FormInstID = #{icoSearch} OR 
+				b.Subject LIKE CONCAT('%',#{icoSearch},'%') OR 
+				b.InitiatorName LIKE CONCAT('%',#{icoSearch},'%') OR
+				c.FormName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				a.DocNumber LIKE CONCAT('%',#{icoSearch},'%')
+			)
+		</if>
+		<if test="EntCode != null and EntCode != ''">
+			AND EXISTS (
+				select 'x' from covi_approval4j.jwf_forminstance fi
+				where fi.forminstid = a.forminstid
+				and fi.entcode = #{EntCode}
+			)
+		</if>
+	</select>
+	
+    <select id="selectReceiptPersonInfo" parameterType="cmap" resultType="cmap">
+        select 
+			BG.DeptCode AS DeptID
+			, BG.DeptName
+			, CONCAT(BG.JobLevelCode, ';', BG.JobLevelName) AS JobLevel
+			, CONCAT(BG.JobTitleCode, ';', BG.JobTitleName) AS JobTitle
+			, CONCAT(BG.JobPositionCode, ';', BG.JobPositionName) AS JobPosition
+		from covi_smart4j.sys_object_user U 
+		join covi_smart4j.sys_object_user_basegroup BG on U.UserCode = BG.UserCode
+		where U.UserCode = #{urCode}
+		<choose>
+			<when test="oucode != null and oucode != '' and oucode.length() gt 0">
+				AND BG.DeptCode = #{oucode}
+			</when>
+			<otherwise>AND JobType = 'Origin'</otherwise>
+		</choose>
+    </select>
+    
+    <update id="deleteLegacyErrorLog" parameterType="cmap">
+		update covi_approval4j.jwf_legacy
+		set DeleteTime = now(3)
+		where Legacyid = #{legacyID}
+	</update>
+    <update id="updateLegacyRetryFlag" parameterType="cmap">
+		update covi_approval4j.jwf_legacy
+		set LastRetryTime = now(3)
+		where Legacyid = #{LegacyID}
+	</update>
+	<insert id="insertLegacyIfHistory" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_legacy_if_history (
+		  ApvMode
+		  ,IfType
+		  ,LegacyInfo
+		  ,Parameters
+		  ,ActionValue
+		  ,LegacyKey
+		  ,State
+		  ,ErrorStackTrace
+		  ,RawResponse
+		  ,ResultCode
+		  ,ResultMessage
+		  ,FormPrefix
+		  ,FormInstID
+		  ,ProcessID
+		  ,UserCode
+		  ,Subject
+		  ,EventStartTime
+		  ,EventEndTime
+		  ,ElapsedTime
+		  ,LegacyConfigID
+		  ,RegistDate )
+		VALUES (
+		  #{ApvMode}
+		  ,#{IfType}
+		  ,#{LegacyInfo}
+		  ,#{Parameters}
+		  ,#{ActionValue}
+		  ,#{LegacyKey}
+		  ,#{State}
+		  ,#{ErrorStackTrace}
+		  ,#{RawResponse}
+		  ,#{ResultCode}
+		  ,#{ResultMessage}
+		  ,#{FormPrefix}
+		  ,#{FormInstID}
+		  ,#{ProcessID}
+		  ,#{UserCode}
+		  ,#{Subject}
+		  ,#{EventStartTime}
+		  ,#{EventEndTime}
+		  ,#{ElapsedTime}
+		  ,#{LegacyConfigID}
+		  ,now(3)
+		)
+	</insert>
+	
+	<select id="selectLegacyIfHistory" parameterType="cmap" resultType="cmap">
+        select 
+        	LegacyHistoryID
+			,ApvMode
+			,IfType
+			,LegacyInfo
+			,Parameters
+			,ActionValue
+			,LegacyKey
+			,State
+			,ErrorStackTrace
+			,RawResponse
+			,ResultCode
+			,ResultMessage
+			,FormPrefix
+			,FormInstID
+			,ProcessID
+			,UserCode
+			,Subject
+			,EventStartTime
+			,EventEndTime
+			,ElapsedTime
+			,LegacyConfigID
+			,RegistDate
+		from covi_approval4j.jwf_legacy_if_history
+		where LegacyHistoryID = #{LegacyHistoryID}
+    </select>
+    
+    <select id="selectEachGrid" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT ih.LegacyHistoryID,
+				ih.ApvMode,
+				ih.IfType,
+				ih.LegacyInfo,
+				ih.Parameters,
+				ih.ActionValue,
+				ih.LegacyKey,
+				ih.State,
+				ih.ErrorStackTrace,
+				ih.RawResponse,
+				ih.ResultCode,
+				ih.ResultMessage,
+				ih.FormPrefix,
+				ih.FormInstID,
+				IFNULL(ih.ProcessID,b.ProcessID) ProcessID,
+				ih.UserCode,
+				ih.Subject,
+				ih.EventStartTime,
+				ih.EventEndTime,
+				ih.ElapsedTime,
+				ih.LegacyConfigID,
+				ih.RegistDate,
+				ih.DeleteDate,
+				ih.LastRetryTime,
+				ic.Seq,
+				ic.ProgramName,
+				b.DocNo,
+				b.InitiatorName, 
+				c.FormName,
+				p.ProcessState,
+				pd.BusinessData1,
+				pd.BusinessData2
+			FROM covi_approval4j.jwf_legacy_if_history ih
+			LEFT OUTER join covi_approval4j.jwf_legacy_if_config ic on ih.LegacyConfigID = ic.LegacyConfigID 
+			JOIN covi_approval4j.jwf_forminstance b ON ih.FormInstID = b.FormInstID
+			<if test="EntCode != null and EntCode != ''">
+				AND b.EntCode = #{EntCode}
+			</if>
+			LEFT OUTER JOIN covi_approval4j.jwf_forms c ON b.FormID = c.FormID
+			LEFT OUTER JOIN covi_approval4j.jwf_process p ON p.ProcessID = b.ProcessID
+			LEFT OUTER join covi_approval4j.jwf_processdescription pd on pd.ProcessDescriptionID = p.ProcessDescriptionID 
+			WHERE 1=1
+			AND ih.DeleteDate IS NULL
+		<if test="searchState != null and searchState != ''">
+			AND ih.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND ih.RegistDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("ApvMode")'>ih.ApvMode</when>
+				<when test='searchType.equalsIgnoreCase("ProgramName")'>ic.ProgramName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("Subject")'>ih.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("DocNo")'>b.DocNo</when>
+				<otherwise>ih.forminstid</otherwise>
+			</choose> 
+			like CONCAT('%', #{searchWord},'%')
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				ic.ProgramName = #{icoSearch} OR 
+				c.FormName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				ih.Subject LIKE CONCAT('%',#{icoSearch},'%') OR
+				b.InitiatorName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				b.DocNo LIKE CONCAT('%',#{icoSearch},'%') OR
+				ih.forminstid LIKE CONCAT('%',#{icoSearch},'%') 
+			)
+		</if>
+		) AS LegacyErrorList
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("ApvMode")'>ApvMode</when>
+					<when test='sortColumn.equalsIgnoreCase("Seq")'>Seq</when>
+					<when test='sortColumn.equalsIgnoreCase("IfType")'>IfType</when>
+					<when test='sortColumn.equalsIgnoreCase("ProgramName")'>ProgramName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormInstID")'>FormInstID</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("State")'>State</when>
+					<otherwise>LegacyHistoryID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectEachGridCount" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM covi_approval4j.jwf_legacy_if_history ih
+		LEFT OUTER join covi_approval4j.jwf_legacy_if_config ic on ih.LegacyConfigID = ic.LegacyConfigID 
+		JOIN covi_approval4j.jwf_forminstance b ON ih.FormInstID = b.FormInstID
+		<if test="EntCode != null and EntCode != ''">
+			AND b.EntCode = #{EntCode}
+		</if>
+		LEFT OUTER JOIN covi_approval4j.jwf_forms c ON b.FormID = c.FormID
+		LEFT OUTER JOIN covi_approval4j.jwf_process p ON p.ProcessID = b.ProcessID
+		LEFT OUTER join covi_approval4j.jwf_processdescription pd on pd.ProcessDescriptionID = p.ProcessDescriptionID 
+		WHERE 1=1
+		AND ih.DeleteDate IS NULL
+		<if test="searchState != null and searchState != ''">
+			AND ih.State = #{searchState}	
+		</if>
+		<if test="startDate != '' or endDate != ''">
+			AND ih.RegistDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})		
+		</if>
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("ApvMode")'>ih.ApvMode</when>
+				<when test='searchType.equalsIgnoreCase("IfType")'>ih.IfType</when>
+				<when test='searchType.equalsIgnoreCase("ProgramName")'>ic.ProgramName</when>
+				<when test='searchType.equalsIgnoreCase("FormName")'>c.FormName</when>
+				<when test='searchType.equalsIgnoreCase("Subject")'>ih.Subject</when>
+				<when test='searchType.equalsIgnoreCase("InitiatorName")'>b.InitiatorName</when>
+				<when test='searchType.equalsIgnoreCase("DocNo")'>b.DocNo</when>
+				<otherwise>ih.forminstid</otherwise>
+			</choose> 
+			like CONCAT('%', #{searchWord},'%')
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND (
+				ic.ProgramName = #{icoSearch} OR 
+				c.FormName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				ih.Subject LIKE CONCAT('%',#{icoSearch},'%') OR
+				b.InitiatorName LIKE CONCAT('%',#{icoSearch},'%') OR 
+				b.DocNo LIKE CONCAT('%',#{icoSearch},'%') OR
+				ih.forminstid LIKE CONCAT('%',#{icoSearch},'%') 
+			)
+		</if>
+	</select>
+	
+	<update id="deleteEachLegacyErrorLog" parameterType="cmap">
+		update covi_approval4j.jwf_legacy_if_history
+		set DeleteDate = now(3)
+		where LegacyHistoryID = #{legacyHistoryID}
+	</update>
+	
+</mapper>
+
+

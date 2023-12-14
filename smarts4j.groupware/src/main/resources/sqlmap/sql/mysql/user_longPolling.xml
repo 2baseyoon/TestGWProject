@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.longPolling">
+    <!-- 퀵메뉴(즐겨찾기 메뉴)의 통합 알림 개수 조회 -->
+    <select id="selectAlarmListCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(*) 
+		FROM sys_alarm_list AS a
+		WHERE a.DeleteDate IS NULL 
+		AND a.UserCode = #{userID}
+		AND a.IsNew IS NULL
+		AND a.ReceivedDate > DATE_ADD(now(), INTERVAL -14 DAY)
+		<if test="alarmType == 'Integrated'">
+			AND ReservedInt1 is null
+		</if>
+		<if test="alarmType == 'Mention'">
+			AND ReservedInt1  = -1
+		</if>
+    </select>
+    
+    <!-- 퀵메뉴(즐겨찾기 메뉴)의 미결함 개수 조회 -->
+    <select id="selectApprovalListCnt" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM (
+				SELECT A.ProcessID
+				FROM COVI_APPROVAL4J.JWF_Process AS A
+				INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+				INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+				INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+				WHERE C.UserCode = #{userID}
+				AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T018','T019')
+				AND C.State = 1
+				AND B.State = 288
+				AND A.ProcessState = 288
+				AND A.DeleteDate IS NULL
+				
+				<if test="userID != null and userID != '' ">
+					UNION ALL
+					
+					SELECT A.ProcessID
+					FROM COVI_APPROVAL4J.JWF_Process AS A
+					INNER JOIN COVI_APPROVAL4J.JWF_Workitem AS B ON A.ProcessID = B.ProcessID
+					INNER JOIN COVI_APPROVAL4J.JWF_Performer AS C ON B.WorkItemID = C.WorkItemID
+					INNER JOIN COVI_APPROVAL4J.JWF_ProcessDescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+					WHERE B.DeputyID = #{userID}
+					AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017')
+					AND C.State = 1
+					AND B.State = 288
+					AND A.ProcessState = 288
+					AND A.DeleteDate IS NULL
+				</if>
+			) AS ApprovalList
+    </select>
+    
+     
+    <!-- 퀵메뉴 (즐겨찾기 메뉴) 카운트 조회  -->
+    <select id="selectNonReadRecentlyMessageCnt" parameterType="cmap" resultType="java.lang.Long">
+       	SELECT COUNT(*)
+			FROM board_message AS BM
+			LEFT JOIN sys_object_folder AS SOF ON BM.FolderID = SOF.FolderID
+			<if test='aclDataArr != null and aclDataArr.length != 0'>
+			INNER JOIN sys_object_user_acl AS ACL ON SOF.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}			
+			</if>
+			LEFT JOIN board_config AS BC ON BM.FolderID = BC.FolderID
+			LEFT JOIN BOARD_CONFIG_DEFAULT AS BCD ON SOF.FolderType = BCD.FolderType
+			LEFT JOIN board_message_reader AS BMR ON BM.MessageID = BMR.MessageID AND BMR.ReaderCode = #{userID}
+			WHERE BM.DeleteDate IS NULL
+			AND SOF.DeleteDate IS NULL 
+			AND SOF.IsUse = 'Y'
+			AND BM.IsCurrent = 'Y'
+			AND BM.MsgType NOT IN ('N', 'B', 'S')
+			AND BM.MsgState IN ('C', 'A')
+			AND IF(SOF.FolderType = 'OneToOne', BM.OwnerCode = #{userID} OR (SELECT OwnerCode FROM sys_object_folder WHERE FolderID = BM.FolderID) LIKE CONCAT('%',#{userID},';%') , 1=1)
+			AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{userID})
+			AND (BM.UseSecurity != 'Y' OR (BM.UseSecurity = 'Y' AND BM.CreatorCode = #{userID}))
+			AND (BM.ExpiredDate IS NULL OR  BM.ExpiredDate  <![CDATA[ >= ]]> NOW() )
+			AND IFNULL(BC.UseIncludeRecentReg, BCD.UseIncludeRecentReg) = 'Y'
+			AND BM.RegistDate >= DATE_ADD(NOW(), INTERVAL -14 DAY)
+			AND BMR.ReaderCode IS NULL		
+		<if test="boardMenuID != null and boardMenuID != '' ">
+			AND SOF.MenuID = #{boardMenuID}
+		</if>
+    </select>
+    
+      <!-- 퀵메뉴 (즐겨찾기) 좌측 오늘의 일정 개수 조회 -->
+    <select id="selectTodayScheduleCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+	        # 개인일정만
+	        SELECT
+	        	E.EventID, E.FolderType
+	        FROM covi_smart4j.EVENT AS E
+	        LEFT JOIN covi_smart4j.EVENT_DATE AS ED ON E.EventID = ED.EventID
+	        INNER JOIN covi_smart4j.SYS_OBJECT_FOLDER AS FD ON E.FolderID = FD.FolderID AND FD.FolderType = 'Schedule.Person' AND FD.DeleteDate IS NULL
+	        <if test='aclDataArr != null and aclDataArr.length != 0'>
+			INNER JOIN sys_object_user_acl AS ACL ON FD.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ObjectType = #{objectType} AND ACL.ServiceType IN ('Schedule', 'Community')
+			</if>
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		-- 이주내에 시작하는 일정
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		-- 이전에 시작해서 이후에 끝나는 일정
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		-- 이주에 끝나는 일정
+				AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND (E.RegisterCode = #{userID} OR E.OwnerCode = #{userID} )
+			]]>
+	        
+	        UNION ALL
+	        
+	        # 참석자로 등록된 개인일정
+	        SELECT
+	        	E.EventID, E.FolderType
+	        FROM covi_smart4j.EVENT AS E
+	        LEFT JOIN covi_smart4j.EVENT AS LE ON E.LinkEventID = LE.EventID AND LE.DeleteDate IS NULL
+	        LEFT JOIN covi_smart4j.EVENT_DATE AS ED ON LE.EventID = ED.EventID
+	        INNER JOIN covi_smart4j.SYS_OBJECT_FOLDER AS FD ON E.FolderID = FD.FolderID AND FD.FolderType = 'Schedule.Person' AND FD.DeleteDate IS NULL
+	        <if test='aclDataArr != null and aclDataArr.length != 0'>
+			INNER JOIN sys_object_user_acl AS ACL ON FD.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ObjectType = #{objectType} AND ACL.ServiceType IN ('Schedule', 'Community')			
+			</if>
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		-- 이주내에 시작하는 일정
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		-- 이전에 시작해서 이후에 끝나는 일정
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		-- 이주에 끝나는 일정
+				AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND E.OwnerCode = #{userID}
+		        AND E.EventType = 'A'
+			]]>
+	        	        
+	        UNION ALL
+	        
+	        # 개인일정 제외하고
+	        SELECT
+	        	E.EventID, E.FolderType
+	        FROM covi_smart4j.EVENT AS E
+	        LEFT JOIN covi_smart4j.EVENT_DATE AS ED ON E.EventID = ED.EventID
+	        INNER JOIN covi_smart4j.SYS_OBJECT_FOLDER AS FD ON E.FolderID = FD.FolderID AND FD.FolderType <![CDATA[ <> ]]> 'Schedule.Person' AND FD.DeleteDate IS NULL
+	        <if test='aclDataArr != null and aclDataArr.length != 0'>
+			INNER JOIN sys_object_user_acl AS ACL ON FD.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ObjectType = #{objectType} AND ACL.ServiceType IN ('Schedule', 'Community')			
+			</if>
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		-- 이주내에 시작하는 일정
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		-- 이전에 시작해서 이후에 끝나는 일정
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		-- 이주에 끝나는 일정
+				AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND FD.FolderType LIKE 'Schedule%'
+		        AND E.IsPublic = 'Y'
+			]]>
+	        
+	        # 개인일정 공유 이벤트
+	        UNION ALL
+	        
+			SELECT 
+				E.EventID, E.FolderType
+			FROM covi_smart4j.EVENT AS E
+			INNER JOIN	covi_smart4j.SYS_OBJECT_FOLDER AS FD	ON FD.FolderType = 'Schedule.Share'
+			INNER JOIN	covi_smart4j.EVENT_SHARE AS ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{userID}
+			INNER JOIN	covi_smart4j.EVENT_DATE AS ED				ON E.EventID = ED.EventID
+			<![CDATA[
+			WHERE  E.FolderType = 'Schedule.Person'
+				AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		-- 이주내에 시작하는 일정
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		-- 이전에 시작해서 이후에 끝나는 일정
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		-- 이주에 끝나는 일정
+				AND E.DeleteDate IS NULL
+	        	AND E.IsDisplay = 'Y'
+			]]>			
+		) AS A
+		WHERE FolderType LIKE '%Schedule%'
+    </select>
+    
+    <!-- 참여하지 않은 설문 개수 조회 -->
+    <select id="selectSurveyCnt" parameterType="cmap" resultType="java.lang.Long">
+    	SELECT COUNT(*)
+		FROM (
+		        SELECT A.SurveyID
+		        , A.SurveyStartDate AS D_SurveyStartDate
+		        , A.SurveyEndDate AS D_SurveyEndDate
+		        , Fn_SurveyTargetRespondent_R(A.SurveyID,#{userID}) AS IsTargetRespondent 
+		        FROM covi_smart4j.survey AS A 
+		        LEFT JOIN covi_smart4j.survey_respondent AS B ON A.SurveyID = B.SurveyID AND B.RespondentCode = #{userID}
+		        WHERE A.State = 'F'
+		        AND B.SurveyID IS NULL
+		        AND A.DeleteDate IS NULL
+		        AND CommunityID = 0
+		) AS Proc
+		<![CDATA[
+		WHERE  Proc.IsTargetRespondent = 'Y' AND  D_SurveyStartDate <= NOW() AND D_SurveyEndDate >= NOW()
+		]]>	
+    </select>
+    
+    <select id="selectShareFeedCount" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_smart4j.feed_message_sharer FMS
+		LEFT JOIN covi_smart4j.feed_message FM ON FMS.MessageID = FM.MessageID AND FMS.Version = FM.Version 
+		LEFT JOIN covi_smart4j.sys_object_folder AS SOF ON SOF.FolderID = FM.FolderID
+		WHERE FMS.SharerCode = #{userCode} 
+		AND FMS.IsConfirm = 'N'
+		AND FM.MessageState = 'A'
+		AND FM.DeleteDate IS NULL
+	</select>
+</mapper>
+

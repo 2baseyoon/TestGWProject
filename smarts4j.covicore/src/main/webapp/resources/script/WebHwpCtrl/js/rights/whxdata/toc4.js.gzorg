@@ -1,0 +1,1 @@
+gXMLBuffer ="<?xml version=\"1.0\" encoding=\"utf-8\" ?><data  src=\"toc3.js\"  name=\"모양 복사\" url=\"edit/quick_format.htm\"><item name=\"셀 모양 복사\" url=\"edit/quick_format(cell).htm\" /></data>";

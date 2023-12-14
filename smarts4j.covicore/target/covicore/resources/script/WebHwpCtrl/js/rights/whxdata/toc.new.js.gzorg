@@ -1,0 +1,4 @@
+(function() {
+var toc =  [{"type":"item","name":"한글과컴퓨터 웹한글 기안기","url":"introduction/hwpcontrol(intro).htm"},{"type":"book","name":"파일","key":"toc1","url":"menu/file.htm"},{"type":"book","name":"편집","key":"toc3","url":"menu/edit.htm"},{"type":"book","name":"보기","key":"toc5","url":"menu/view.htm"},{"type":"book","name":"입력","key":"toc6","url":"menu/insert.htm"},{"type":"book","name":"서식","key":"toc8","url":"menu/format.htm"},{"type":"book","name":"쪽","key":"toc14","url":"menu/page.htm"},{"type":"book","name":"표","key":"toc16","url":"menu/table.htm"},{"type":"item","name":"협업","url":"edit/collaborate.html"},{"type":"item","name":"단축키 일람","url":"shortcut/shortcut(table).htm"},{"type":"item","name":"사용권","url":"right/rights.htm"},{"type":"item","name":"오픈소스 사용 현황","url":"oss/oss_notice.htm"},{"type":"item","name":"제약 사항","url":"support/restriction.htm"}];
+window.rh.model.publish(rh.consts('KEY_TEMP_DATA'), toc, { sync:true });
+})();

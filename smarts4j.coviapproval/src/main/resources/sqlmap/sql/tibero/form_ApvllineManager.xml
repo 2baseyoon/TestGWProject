@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.apvlinemanager">
+	<resultMap type="cmap" id="commentResult">
+		<result property="Comment" column="Comment" jdbcType="CLOB" javaType="java.lang.String" />	
+		<result property="Comment_fileInfo" column="Comment_fileInfo" jdbcType="CLOB" javaType="java.lang.String" />	
+	</resultMap>
+	
+     <!-- 특정 사용자의 개인결재선 목록 조회  -->
+    <select id="selectPrivateDomainList" parameterType="cmap" resultType="cmap">
+        SELECT
+        	PrivateDomainDataID AS "PrivateDomainDataID"
+        	, DisplayName AS "DisplayName"
+        	, Abstract AS "Abstract"
+        	, Description AS "Description"
+        	, PrivateContext AS "PrivateContext"
+        	, DefaultYN AS "DefaultYN"
+		FROM jwf_privatedomaindata 
+		WHERE CustomCategory = 'APPROVERCONTEXT'
+		AND OwnerID = #{userID}
+		ORDER BY DisplayName ASC
+    </select>
+	
+    <!-- 특정 사용자의 개인결재선 목록 삭제  -->
+    <delete id="deletePrivateDomain" parameterType="cmap">
+        DELETE FROM jwf_privatedomaindata 
+		WHERE PrivateDomainDataID = #{privateDomainID}
+    </delete>
+    
+    <!-- 개인결재선 데이터 변경 (결재선 멤버 삭제)-->
+    <update id="updatePrivateDomain" parameterType="cmap">
+        UPDATE jwf_privatedomaindata
+		SET Abstract = #{abstract}, PrivateContext = #{privateContext}
+		WHERE PrivateDomainDataID =  #{privateDomainDataID}
+    </update>
+
+    <!-- 공용 배포 목록 조회  -->
+    <select id="selectDistributionList" parameterType="cmap" resultType="cmap">
+	    SELECT
+	    	GroupID AS "GroupID"
+	    	, GroupCode AS "GroupCode"
+	    	, GroupName AS "GroupName"
+	    	, Description AS "Description"
+		FROM jwf_group
+		WHERE EntCode = #{entCode}
+		ORDER BY SortKey
+    </select>
+    
+    <select id="selectDistributionMember" parameterType="cmap" resultType="cmap">
+	   SELECT GroupCode AS "Code", MultiDisplayName AS "Name" FROM (
+      		SELECT gr.GroupCode ,gr.MultiDisplayName FROM jwf_groupmember mem 
+			INNER JOIN sys_object_group gr ON mem.UserCode = gr.GroupCode
+			WHERE mem.GroupID =  #{groupID}
+			UNION ALL
+			SELECT ur.UserCode, ur.MultiDisplayName FROM jwf_groupmember mem 
+			INNER JOIN sys_object_user ur ON mem.UserCode = ur.UserCode
+			WHERE GroupID = #{groupID}
+		) Member
+    </select>
+    
+    <!-- 개인수신처 목록 조회  -->
+    <select id="selectPrivateDistributionList" parameterType="cmap" resultType="cmap">
+	 	SELECT
+	 		GroupID AS "GroupID"
+	 		, Type AS "Type"
+	 		, DisplayName AS "DisplayName"
+	 		, OwnerID AS "OwnerID"
+		FROM jwf_privategroup
+		WHERE Type='D' and OwnerID = #{userID}
+    </select>
+    
+    <!-- 특정 개인수신처의 멤버 조회 -->
+    <select id = "selectPrivateDistributionMember" parameterType="cmap" resultType="cmap">
+	    SELECT
+	    	GroupMemberID AS "GroupMemberID"
+	    	, GroupID AS "GroupID"
+	    	, Type AS "Type"
+	    	, ReceiptID AS "ReceiptID"
+	    	, ReceiptName AS "ReceiptName"
+	    	, ReceiptDeptID AS "ReceiptDeptID"
+	    	, ReceiptDeptName AS "ReceiptDeptName"
+	    	, DNName AS "DNName"
+	    	, HasChild AS "HasChild"
+	    	, SortKey AS "SortKey"
+	    FROM jwf_privategroupmember 
+		WHERE GroupID = #{groupID}
+    </select>
+    
+    <!-- 개인수신처 삭제 -->
+    <delete id = "deletePrivateDistribution" parameterType="cmap">
+        DELETE FROM jwf_privategroup 
+		WHERE GroupID = #{groupID}
+    </delete>
+    
+    <!-- 개인수신처 삭제 시 해당 멤버 삭제 -->
+    <delete id = "deletePrivateDistributionMember" parameterType="cmap">
+		DELETE FROM jwf_privategroupmember
+		WHERE GroupID = #{groupID}
+    </delete>
+    
+    <!-- 개인수신처의 특정 수신자 삭제 -->
+    <delete id = "deletePrivateDistributionMemberData" parameterType="cmap">
+    	DELETE FROM jwf_privategroupmember
+		WHERE GroupMemberID = #{groupMemberID}
+    </delete>
+
+    <update  id = "updataPrivateDomainDefaultY" parameterType="cmap">
+        UPDATE jwf_privatedomaindata
+		SET DefaultYN = 'Y'
+		WHERE PrivateDomainDataID= #{PrivateDomainID}
+    </update>
+    
+    <update  id = "updataPrivateDomainDefaultN" parameterType="cmap">
+       UPDATE jwf_privatedomaindata
+	   SET DefaultYN = 'N'
+	   WHERE OwnerID = #{userID}
+    </update>
+    
+    <select id="checkAbsentMember" parameterType="cmap" resultType="cmap">
+       <![CDATA[     
+			SELECT ur.UserCode AS "PERSON_CODE"
+					, 0 AS "PERSON_ID"
+					, ur.MultiDisplayName AS "DISPLAY_NAME"
+					, bg.DeptCode AS "UNIT_CODE"
+					, bg.MultiDeptName AS "UNIT_NAME"
+					, bg.JobTitleCode||';'||bg.MultiJobTitleName AS "JOBTITLE_Z"
+					, bg.JobLevelCode||';'||bg.MultiJobLevelName AS "JOBLEVEL_Z"
+					, bg.JobPositionCode||';'||bg.MultiJobPositionName AS "JOBPOSITION_Z"
+					,bg.CompanyCode AS "ENT_CODE"
+			FROM sys_object_user_basegroup bg
+			LEFT JOIN sys_object_user ur ON ur.UserCode = bg.UserCode
+			WHERE ur.IsUse = 'Y'
+			AND ur.UserCode IN 
+		]]>
+	 	<foreach collection="userCodes" item="userCode" index="index"  open="(" close=")" separator=",">
+           #{userCode}
+        </foreach>
+    </select>
+    
+    <select id="checkAbsentGroup" parameterType="cmap" resultType="cmap">
+       	SELECT GroupCode AS "GroupCode", MultiDisplayName AS "MultiDisplayName"
+		FROM sys_object_group
+		WHERE	IsUse = 'Y'
+		AND 	GroupType = 'Dept'
+		AND		GroupCode IN
+	 	<foreach collection="groupCodes" item="groupCode" index="index"  open="(" close=")" separator=",">
+           #{groupCode}
+        </foreach>
+    </select>
+    
+    
+    <insert id = "insertPrivateDomainData" parameterType="cmap">
+        <![CDATA[
+        	INSERT INTO jwf_privatedomaindata(CustomCategory,DisplayName,OwnerID,Abstract,Description,PrivateContext)
+			VALUES(#{customCategory},#{displayName},#{ownerID},#{abstract},#{description},#{privateContext})
+   		]]>
+    </insert>
+    
+    <insert id = "insertPrivateDistribution" parameterType="cmap" useGeneratedKeys="true" keyProperty="GroupID"  keyColumn="GroupID">
+        <![CDATA[
+        	INSERT INTO jwf_privategroup(Type,DisplayName,OwnerID) 
+        	VALUES(#{type},#{displayName},#{ownerID})
+   		]]>
+   		<selectKey keyProperty="GroupID" resultType="long" order="AFTER">
+            SELECT JWF_PRIVATEGROUP_SEQ.CURRVAL FROM DUAL
+        </selectKey>
+   		
+    </insert>
+    
+    <insert id = "insertPrivateDistributionMember" parameterType="cmap" >
+        <![CDATA[
+	        INSERT INTO jwf_privategroupmember(GroupID,Type,ReceiptID,ReceiptName,ReceiptDeptID,ReceiptDeptName,DNName,HasChild,SortKey)
+			VALUES (#{groupID},#{type},#{receiptID},#{receiptName},#{receiptDeptID},#{receiptDeptName},#{DNName},#{hasChild},#{sortKey})
+		]]>
+    </insert>
+    
+	<select id="selectApvlineAuth" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM jwf_privategroup G 
+		INNER JOIN jwf_privategroupmember M ON G.GROUPID = M.GROUPID 
+		WHERE G.OWNERID = #{ownerID}
+		AND G.GROUPID  = #{groupID}
+	</select>
+	
+	<select id="selectDocCommentList" parameterType="cmap" resultType="cmap" resultMap="commentResult">
+    SELECT  CommentID AS "CommentID", 
+		ParentCommentID AS "ParentCommentID", 
+		FormInstID AS "FormInstID", 
+		ParentProcessID AS "ParentProcessID", 
+		ProcessID AS "ProcessID", 
+		Step AS "Step", 
+		Sort AS "Sort", 
+		DOC_COMMENT AS "Comment", 
+		Comment_fileInfo AS "Comment_fileInfo", 
+		ApprovalMode AS "ApprovalMode", 
+		ApprovalState AS "ApprovalState", 
+    	TO_CHAR(RegistDate,'YYYY-MM-DD HH24:MI') AS "RegistDate", 
+		TO_CHAR(ModifyDate,'YYYY-MM-DD HH24:MI') AS "ModifyDate", 
+    	RegistURCode AS "RegistURCode", 
+		RegistURName AS "RegistURName", 
+		RegistGRCode AS "RegistGRCode", 
+		RegistGRName AS "RegistGRName", 
+		RegistTitleCode AS "RegistTitleCode", 
+		RegistTitleName AS "RegistTitleName", 
+		RegistLevelCode AS "RegistLevelCode", 
+		RegistLevelName AS "RegistLevelName", 
+    	RegistPositionCode AS "RegistPositionCode", 
+		RegistPositionName AS "RegistPositionName", 
+		ReplyCount AS "ReplyCount"    
+    FROM JWF_DOC_COMMENT
+    WHERE FormInstID = #{FormInstID} 
+    <if test="ProcessID != null and ProcessID != ''">
+		AND ProcessID = #{ProcessID}
+	</if>
+    ORDER BY NVL(ParentCommentID, CommentID), Sort, Step
+    </select>
+    
+    <insert id="addDocComment" parameterType="cmap">
+    <![CDATA[
+		INSERT INTO JWF_DOC_COMMENT(CommentID,FormInstID,ProcessID,ParentProcessID,Doc_comment,Comment_fileinfo,ApprovalMode,ApprovalState,RegistURCode,RegistURName,RegistGRCode,RegistGRName,Step,Sort,ReplyCount,RegistDate)
+		VALUES(comment_seq.nextval,#{FormInstID},#{ProcessID},#{ParentProcessID},#{Comment},#{Comment_fileinfo},#{ApprovalMode},#{ApprovalState},#{RegistURCode},#{RegistURName},#{RegistGRCode},#{RegistGRName},0,1,0,sysdate)
+   		]]>
+    </insert>
+    <insert id="addDocCommentReply" parameterType="cmap">
+    <![CDATA[
+		INSERT INTO JWF_DOC_COMMENT(CommentID,ParentCommentID,FormInstID,ProcessID,ParentProcessID,Comment_fileinfo,ApprovalMode,ApprovalState,RegistURCode,RegistURName,RegistGRCode,RegistGRName,Step,Sort,Doc_comment,ReplyCount,RegistDate)
+		SELECT comment_seq.nextval,(CASE Step+1 WHEN 1 THEN CommentID ELSE ParentCommentID END) AS "CommentID",FormInstID,#{ProcessID},ParentProcessID,Comment_fileinfo,ApprovalMode,ApprovalState,#{RegistURCode},#{RegistURName},#{RegistGRCode},#{RegistGRName},Step+1,Sort+1
+		, #{Comment},0,sysdate
+		FROM JWF_DOC_COMMENT
+		WHERE CommentID = #{CommentID}
+   		]]>
+    </insert>
+    <update id="updateDocCommentSort" parameterType="cmap">
+		DECLARE
+	    	MCI NUMBER(10,0);
+	    	
+	    	BEGIN
+	    	SELECT MAX(CommentID) INTO MCI
+	    	FROM JWF_DOC_COMMENT WHERE FormInstID = #{FormInstID} AND ParentCommentID = #{GroupCommentID};
+	
+			UPDATE JWF_DOC_COMMENT
+			SET Sort = Sort+1
+			WHERE  NOT CommentID IN (MCI) and FormInstID = #{FormInstID} AND ParentCommentID = #{GroupCommentID} and Sort >= (SELECT Sort FROM JWF_DOC_COMMENT WHERE CommentID = MCI);
+	
+		END;
+    </update>
+    <update id="updateCommentRelpyCnt" parameterType="String">
+        UPDATE JWF_DOC_COMMENT
+		SET ReplyCount = ReplyCount+1  
+		WHERE CommentID =  #{CommentID}
+    </update>
+    <update id="modifyDocComment" parameterType="String">
+        UPDATE JWF_DOC_COMMENT
+		SET Doc_comment = #{Comment}, ModifyDate = sysdate  
+		WHERE CommentID =  #{CommentID}
+    </update>
+    <delete id="delDocComment" parameterType="String">
+		DELETE FROM JWF_DOC_COMMENT
+		WHERE
+			CommentID = #{CommentID}
+	</delete>
+	<update id="delRelpyCnt" parameterType="String">
+        UPDATE JWF_DOC_COMMENT
+		SET ReplyCount = ReplyCount-1
+		WHERE CommentID = #{ParentStepID}
+    </update>
+	
+</mapper>
+

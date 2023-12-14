@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.sample">
+    
+	<update id= "update_one" parameterType="cmap" >
+       <![CDATA[
+        UPDATE gwuser.jwf_legacy
+		SET eventtime = to_char(sysdate,'yyyy-MM-dd HH24:MI:SS')
+		WHERE legacyid = 18300
+	   ]]>
+    </update>
+    
+</mapper>

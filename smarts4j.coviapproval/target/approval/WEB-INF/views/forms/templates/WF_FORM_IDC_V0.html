@@ -1,0 +1,197 @@
+<!--실 결재양식 내용 부분 시작 -->
+<!-- 신청내역  -->
+<table class="tableStyle linePlus mt10 table_10">
+    <colgroup>
+        <col style="width: 12%">
+        <col style="width: 88%">
+    </colgroup>
+    <tbody>
+        <tr>
+	        <td  colspan="3" style="border-right: hidden;border-left: hidden;border-top: hidden;font-weight:bold;">
+	    		신청내역
+	    	</td>
+        </tr>
+	    <tr>
+	        <th style="font-family:맑은고딕;">고객사 명</th>
+	        <td >
+	            <input type="text" id="customerName" data-type="mField" value="{{ doc.BodyContext.customerName }}" required="" style="width: 99%;" name="customerName" title="고객사 명">
+	        </td>
+	    </tr>
+	    <tr>
+	        <th style="font-family:맑은고딕;">신청타입</th>
+	        <td>
+	        	<span data-type="mField" data-element-type="rdo_v" data-node-name="customerCount">
+	        		<input type="radio"  id="50"  name="customerCount" value="4" data-text="50"><label for ="50">50</label>
+	                <input type="radio"  id="100"  name="customerCount" value="0" data-text="Type-A(100)" checked="checked"><label for ="100">100</label>
+	                <input type="radio"  id="200"  name="customerCount" value="1" data-text="Type-B(200)"><label for ="200">200</label>
+	                <input type="radio"  id="300"  name="customerCount" value="2" data-text="Type-C(300)"><label for ="300">300</label>
+	                <input type="radio"  id="etcCount"  name="customerCount" value="3" data-text="기타:"><label for ="etcCount" style="margin-right:2px;">기타:</label>
+	            </span>        
+				<input type="text" data-type="mField" id="etc" value="{{ doc.BodyContext.etc }}" style="width:150px; height:23px; ">
+	        </td>
+	    </tr>
+	    <tr>
+	        <th style="font-family:맑은고딕;">호스팅 기간</th>
+	        <td>
+	              <input type="text" data-type="mField" id="SDATE" value="{{ doc.BodyContext.SDATE }}" data-pattern="date" title="계약기간 시작일" required="">
+	                <b>&nbsp;~&nbsp;</b>
+	                <input type="text" data-type="mField" id="EDATE" value="{{ doc.BodyContext.EDATE }}" data-pattern="date" title="계약기간 종료일" required="" onchange="validateVacDate();">
+	        </td>
+	    </tr>
+	    <tr>
+	        <th style="font-family:맑은고딕;">사용자 수</th>
+	        <td >
+	            <input type="text" id="userCount" data-type="mField" value="{{ doc.BodyContext.userCount }}" required="" style="width: 99%;" name="userCount" title="사용자 수">
+	        </td>
+	    </tr>
+	</tbody>
+</table>
+
+<table class="tableStyle linePlus mt10 table_10">
+    <colgroup>
+        <col style="width: 5%;">
+        <col style="width: 17%;">
+        <col style="width: 78%;">
+    </colgroup>
+    <tbody>
+    	<tr>
+    	   <th colspan="2">신청 시스템</th>
+            <th>특이사항</th>
+    	</tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_Groupware">
+	                <input type="checkbox" id="chkBox_Groupware" name="chkBox_Groupware" value="Groupware">
+		    	</div>
+	    	</td>
+	    	<td>그룹웨어</td>
+	    	<td><input type="text" data-type="mField" id="etc_Groupware" value="{{ doc.BodyContext.etc_Groupware }}" style="width:100%"></td>
+	    </tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_Mail">
+	                <input type="checkbox" id="chkBox_Mail" name="chkBox_Mail" value="Mail" >
+		    	</div>
+	    	</td>
+	    	<td>메일</td>
+	    	<td><input type="text" data-type="mField" id="etc_Mail" value="{{ doc.BodyContext.etc_Mail }}" style="width:100%"></td>
+	    </tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_Worktalk">
+	                <input type="checkbox" id="chkBox_Worktalk" name="chkBox_Worktalk" value="Worktalk">
+		    	</div>
+	    	</td>
+	    	<td>메신저</td>
+	    	<td><input type="text" data-type="mField" id="etc_Worktalk" value="{{ doc.BodyContext.etc_Worktalk}}" style="width:100%"></td>
+	    </tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_Spam">
+	                <input type="checkbox" id="chkBox_Spam" name="chkBox_Spam" value="Spam">
+		    	</div>
+	    	</td>
+	    	<td>스팸</td>
+	    	<td><input type="text" data-type="mField" id="etc_Spam" value="{{ doc.BodyContext.etc_Spam }}" style="width:100%" ></td>
+	    </tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_noEvidence">
+	                <input type="checkbox" id="chkBox_noEvidence" name="chkBox_noEvidence" value="noEvidence">
+		    	</div>
+	    	</td>
+	    	<td>무증빙</td>
+	    	<td><input type="text" data-type="mField" id="etc_noEvidence" value="{{ doc.BodyContext.etc_noEvidence }}" style="width:100%" ></td>
+	    </tr>
+	    <tr>
+	    	<td align="center">
+		    	 <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_Etc">
+	                <input type="checkbox" id="chkBox_Etc" name="chkBox_Etc" value="Etc">
+		    	</div>
+	    	</td>
+	    	<td>기타</td>
+	    	<td><input type="text" data-type="mField" id="etc_etc" value="{{ doc.BodyContext.etc_etc }}" style="width:100%" ></td>
+	    </tr>
+	</tbody>
+</table>
+
+<table class="tableStyle linePlus mt10 table_10 multi-row-table" id="MultiRowTable1" style="width: 100%; display: none;">
+	<colgroup>
+       <col style="width: 5%;"></col>
+       <col style="width: 15%;"></col>
+       <col style="width: 9%"></col>
+       <col style="width: 9%;"></col>
+       <col style="width: 9%;"></col>
+       <col style="width: 9%;"></col>
+       <col style="width: 9%;"></col>
+       <col style="width: 17%;"></col>
+       <col style="width: 18%;"></col>
+	</colgroup>
+	<tbody>
+		<tr>
+		    <td colspan="9" style="border-right: hidden;border-left: hidden;border-top: hidden;font-weight:bold;">설정내역</td>
+  		</tr>
+		<tr class="multi-row-control">
+	       <td colspan="9" style="text-align:right;">
+	           <input type="button" value="+추가" class="usa multi-row-add">
+	           <input type="button" value="-삭제" class="usa multi-row-del-auto">
+	       </td>
+	   </tr>
+	   <tr>
+	       <th style="width: 3%;">NO</th>
+	       <th style="width: 15%;">시스템</th>
+	       <th style="width: 8%">NAME</th>
+	       <th style="width: 8%;">CPU</th>
+	       <th style="width: 8%;">MEM</th>
+	       <th style="width: 8%;">DISK1</th>
+	       <th style="width: 8%;">DISK2</th>
+	       <th style="width: 15%;">할당IP</th>
+	       <th style="width: 27%;">비고</th>
+	   </tr>
+	   <tr class="multi-row-template">
+	        <td style="width: 30px; text-align: center;">
+	            <span class="multi-row-seq">1</span>
+	        </td>
+	        <td>
+	            <input title="시스템"  type="text" data-type="rField" name="System" style="width: 100%;" >
+	        </td>
+	        <td>
+	        	<input title="Name" type="text" data-type="rField" name="Name" style="width: 100%;" >
+			</td>
+	        <td>
+	            <input title="CPU" type="text" data-type="rField" name="Cpu" style="width: 100%;" data-pattern="currency">
+	        </td>
+	        <td>
+	            <input title="MEM" type="text" data-type="rField" name="Mem" style="width: 100%;" data-pattern="currency">
+	        </td>
+	        <td>
+	            <input title="DISK1" type="text" data-type="rField" name="Disk1" style="width: 100%;" data-pattern="currency">
+	        </td>
+	        <td>
+	            <input title="DISK2" type="text" data-type="rField" name="Disk2" style="width: 100%;" data-pattern="currency">
+	        </td>
+	        <td>
+	            <input title="할당IP" type="text" data-type="rField" name="IP" style="width: 100%;">
+	        </td>
+	        <td>
+	           	<input title="비고" type="text" data-type="rField" name="ETC" style="width: 100%;" >
+	        </td>
+	    </tr>
+	</tbody>
+</table>
+
+<table class="tableStyle linePlus mt10 table_10">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 88%;">
+    </colgroup>
+    <tbody>
+	    <tr>
+	    	<th>비고</th>
+	    	<td style="min-height: 150px; overflow: auto;">
+	    		<textarea data-type="mField" id="note" rows="5" style="width: 98%;">{{ doc.BodyContext.note }}</textarea>
+			</td>
+	    </tr>
+	</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

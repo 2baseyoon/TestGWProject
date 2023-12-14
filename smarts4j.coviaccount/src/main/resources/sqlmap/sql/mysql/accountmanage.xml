@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.accountmanage">
+
+	<select id="getAccountmanagelist" parameterType="cmap" resultType="cmap">
+	    SELECT	AC.AccountID
+	    	,	AC.CompanyCode
+	    	,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',AC.CompanyCode,#{companyCode})		AS CompanyName
+	    	,	AC.AccountCode
+			,	AC.AccountName
+			,	AC.AccountShortName
+			,	covi_account4j_si.Fn_GetBaseCodeName('AccountClass',AC.AccountClass,#{companyCode})	AS AccountClassName
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxType',AC.TaxType,#{companyCode})			AS TaxTypeName
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxCode',AC.TaxCode,#{companyCode})			AS TaxCodeName
+			,	AC.IsUse
+			,	DATE_FORMAT(AC.RegistDate,'%Y-%m-%d %T') AS RegistDate
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				)</when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AC.AccountID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountShortName")'>AccountShortName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountClassName")'>AccountClassName</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxCodeName")'>TaxCodeName</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxTypeName")'>TaxTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getAccountmanageExcellist" parameterType="cmap" resultType="cmap">
+	    SELECT	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',AC.CompanyCode,#{companyCode})		AS CompanyName
+	    	,	AC.AccountCode
+	    	,	AC.AccountName
+			,	AC.AccountShortName
+			,	covi_account4j_si.Fn_GetBaseCodeName('AccountClass',AC.AccountClass,#{companyCode})	AS AccountClassName
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxType',AC.TaxType,#{companyCode})			AS TaxTypeName
+			,	covi_account4j_si.Fn_GetBaseCodeName('TaxCode',AC.TaxCode,#{companyCode})			AS TaxCodeName
+			,	AC.TaxType
+			,	AC.TaxCode
+			,	AC.IsUse
+			,	AC.RegistDate AS RegistDate
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		ORDER BY AC.AccountID
+	</select>
+	
+	<select id="getAccountCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_account4j_si.act_account
+	    WHERE	AccountCode	= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<select id="getAccountmanagelistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="getAccountManageDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	AC.AccountID
+			,	AC.AccountClass
+	    	,	AC.AccountCode
+			,	AC.AccountName
+			,	AC.AccountShortName
+			,	AC.TaxCode
+			,	AC.TaxType
+			,	AC.IsUse
+			,	AC.Description
+			,	AC.CompanyCode
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	AC.AccountID = #{accountID}
+	</select>
+	
+	<insert id="insertAccountManageInfo" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.act_account (
+				CompanyCode
+			,	AccountClass
+			,	AccountCode
+			,	AccountName
+			,	AccountShortName
+			,	TaxCode
+			,	TaxType
+			,	IsUse
+			,	Description
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{accountClass}
+			,	#{accountCode}
+			,	#{accountName}
+			,	#{accountShortName}
+			,	#{taxCode}
+			,	#{taxType}
+			,	#{isUse}
+			,	#{description}
+			,	#{UR_Code}
+			,	NOW(3)
+			,	#{UR_Code}
+			,	NOW(3)
+	    )
+ 	</insert>
+ 	
+	<update id="updateAccountManageInfo" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.updateAccountManageInfo
+	    */
+ 		UPDATE covi_account4j_si.act_account
+ 			SET	IsUse				= #{isUse}
+			<if test = "listPage == 'N'.toString()">
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+ 			,	Description			= #{description}
+			,	TaxType				= #{taxType}
+			,	TaxCode				= #{taxCode}
+			</if>
+ 		WHERE	AccountID	= #{accountID}
+ 	</update>
+	
+	<delete id="deleteAccountManageInfo">
+	    DELETE FROM covi_account4j_si.act_account		
+		WHERE	AccountID = #{accountID}	
+	</delete>
+	
+	<select id="getAccountCodeAccountID" parameterType="cmap" resultType="java.lang.String">
+	    SELECT AC.AccountID
+	    FROM	covi_account4j_si.act_account AC
+	    WHERE	AC.AccountCode = #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<update id="updateAccountManageInfoExcel" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.updateAccountManageInfoExcel
+	    */
+ 		UPDATE covi_account4j_si.act_account
+ 			SET	IsUse				= #{isUse}
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+ 			,	Description			= #{description}
+ 			,	TaxType				= #{taxType}
+ 			,	TaxCode				= #{taxCode}
+ 		WHERE	AccountID	= #{accountID}
+ 	</update>
+	
+	<select id="getAccountmanageInterfaceSaveCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_account4j_si.act_account
+	    WHERE	AccountCode	= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<insert id="accountmanageInterfaceInsert" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.accountmanageInterfaceInsert
+	    */
+	    INSERT INTO covi_account4j_si.act_account (
+					CompanyCode
+				,	AccountClass
+				,	AccountCode
+				,	AccountName
+				,	AccountShortName
+				,	IsUse
+				,	Description
+				,	RegisterID
+				,	RegistDate
+				,	ModifierID
+				,	ModifyDate
+		    ) VALUES (
+					#{companyCode}
+				,	#{accountClass}
+				,	#{accountCode}
+				,	#{accountName}
+				,	#{accountShortName}
+				,	#{isUse}
+				,	#{description}
+				,	#{UR_Code}
+				,	NOW(3)
+				,	#{UR_Code}
+				,	NOW(3)
+		    )
+	</insert>
+	
+	<update id="accountmanageInterfaceUpdate" parameterType="cmap" >
+		/*
+			account.accountmanage.accountmanageInterfaceUpdate
+		*/
+		UPDATE covi_account4j_si.act_account
+	 			SET	IsUse			= #{isUse}
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+			,	Description			= #{description}
+		WHERE	AccountCode			= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</update>
+</mapper>
+

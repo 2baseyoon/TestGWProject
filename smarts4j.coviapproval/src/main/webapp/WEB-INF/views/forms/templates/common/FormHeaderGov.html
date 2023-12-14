@@ -1,0 +1,134 @@
+<!-- 문서유통상단 -->
+<table id="docInfoTB" class="tableStyle linePlus fsbTop" cellpadding="0" cellspacing="0" style="background-color:white; border:1px solid #c3d7df;">
+	<colgroup>
+        <col style="width: 20%">
+        <col style="width: 30%">
+        <col style="width: 20%">
+        <col style="width: 30%">
+    </colgroup>
+    <tbody>
+    	<tr>
+	    	<!--문서번호-->
+	    	<th><spring:message code='Cache.lbl_apv_DocNo'/></th>
+	    	<td style="text-align:left;">
+	    		{{ doc.FormInstanceInfo.DocNo }}
+	    	</td>
+	    	<!--보안등급-->
+	    	<th><spring:message code='Cache.lbl_SecurityLevel'/></th>
+	    	<td style="text-align:left;">
+	    		<select data-type="dField" id="DocLevel" data-element-type="sel_d_v" data-binding="post"></select>
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<!--보존기간-->
+	    	<th><spring:message code='Cache.lbl_preservationPeriod'/></th>
+	    	<td style="text-align:left;">
+	    		<select data-type="dField" id="SaveTerm" data-element-type="sel_d_v" data-binding="post"></select>
+	    	</td>
+	    	<!--공개여부-->
+	    	<th><spring:message code='Cache.lbl_apv_Publication'/></th>
+	    	<td style="text-align:left;">
+	            <select data-type="mField" onchange="g_chkdocInfoHWP(this)" id="RELEASE_CHECK" data-element-type="sel_d_t" data-binding="post">
+		    		<option value="1"><spring:message code='Cache.lbl_apv_open'/></option> <!-- 공개 -->
+	    			<option value="3"><spring:message code='Cache.lbl_Private'/></option> <!-- 비공개 -->
+	    		</select>
+	    		
+	    		<div data-type="mField" data-element-type="chk_d" id="RELEASE_CODE" data-node-name="RELEASE_CODE" style = "display: none">
+		            <input type="checkbox" name="RELEASE_CODE" value="1" id="RELEASE_CODE_1" /> <label for="RELEASE_CHECK_1">1호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="2" id="RELEASE_CODE_2" /> <label for="RELEASE_CHECK_2">2호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="3" id="RELEASE_CODE_3" /> <label for="RELEASE_CHECK_3">3호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="4" id="RELEASE_CODE_4" /> <label for="RELEASE_CHECK_4">4호</label><br>
+		            <input type="checkbox" name="RELEASE_CODE" value="5" id="RELEASE_CODE_5" /> <label for="RELEASE_CHECK_5">5호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="6" id="RELEASE_CODE_6" /> <label for="RELEASE_CHECK_6">6호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="7" id="RELEASE_CODE_7" /> <label for="RELEASE_CHECK_7">7호</label>
+		            <input type="checkbox" name="RELEASE_CODE" value="8" id="RELEASE_CODE_7" /> <label for="RELEASE_CHECK_8">8호</label>
+		            <input type="hidden" id="RELEASE_RESTRICTION" class="input-required mw150p" name="returnDataField">
+	            </div>
+	            
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<!--결재유형-->
+	    	<th><spring:message code='Cache.lbl_apv_apvType'/></th>
+	    	<td style="text-align:left;">
+	    		
+	            <select data-type="mField" onchange="g_chkdocInfoHWP(this)" id="RECEIVE_CHECK" data-element-type="sel_d_t" data-binding="post">
+	    			<option value="indoc"><spring:message code='Cache.Approval_InternalPayment'/></option><!-- 내부결재 -->
+					<option value="else" selected="selected"><spring:message code='Cache.Approval_TrialDelivery'/></option><!-- 시행발송 -->
+	    		</select>
+	    		<input type="hidden" style="width: 38%; display: none" id="ReceiveNamesR" name="returnDataField" readonly="readonly">
+				<input type="hidden" style="width: 55%; display: none" id="Receivepaper" name="returnDataField">
+				<input type="hidden" style="width: 38%; display: none" id="RECEIVEGOV_INFO" name="returnDataField" readonly="readonly">
+				
+	    	</td>
+	    	<!--인장선택-->
+	    	<th><spring:message code='Cache.lbl_apv_stempkind'/></th>
+	    	<td style="text-align:left;">
+	    		<select data-type="mField" class="hidden" id="SENDERMASTER" data-element-type="sel_d_t" style="width:150px;" title="인장" onchange="setSenderMasterAndSealSignAndChief();">
+			  		<option value="">선택</option>
+				</select>
+	    	</td>
+	    </tr>
+	    <!-- <tr>
+	    </tr> -->
+       </tbody>
+</table>
+
+
+<!-- 제목 -->
+<table  class="tableStyle linePlus mt10"  id="tblFormSubject" cellpadding="0" cellspacing="0" >
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+    <tr>
+        <th id="TIT_SUBJECT"><spring:message code='Cache.lbl_Title'/></th>
+        <td><input type="text" class="w100" data-type="dField" id="Subject" value="{{ doc.FormInstanceInfo.Subject }}" title="<spring:message code='Cache.lbl_Title'/>" data-model="FormInstanceInfo.Subject" data-binding="pre" style="height:25px;" required></td>
+    </tr>
+</table>
+
+<!-- 요약전 -->
+<input type="hidden" data-type="mField" id="SummaryContent" value="{{ doc.BodyContext.SummaryContent }}" />
+
+<table class="table_10" style="display: none">
+	<!-- 한글 본문 데이터 -->
+	<input type="hidden" data-type="mField" id="BODY_CONTEXT_HWP" value="{{ doc.BodyContext.BODY_CONTEXT_HWP }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	
+	<!-- 발신자 스탬프 -->
+	<input type="hidden" data-type="mField" id="STAMP" value="{{ doc.BodyContext.STAMP }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!-- 발신자 로고 -->
+	<input type="hidden" data-type="mField" id="LOGO" value="{{ doc.BodyContext.LOGO }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!-- 발신자 심볼 -->
+	<input type="hidden" data-type="mField" id="SYMBOL" value="{{ doc.BodyContext.SYMBOL }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	
+	<!-- 발신자 명 -->
+	<input type="hidden" data-type="mField" id="CHIEF" value="{{ doc.BodyContext.CHIEF }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!-- 수신처 -->
+	<input type="hidden" data-type="mField" id="RECEIVE_INFO" value="{{ doc.BodyContext.RECEIVE_INFO }}" data-binding="pre" style=" border:0px;" readonly="readonly" /> 
+	<!-- 발신처 관리 > 캠페인(상) -->
+	<input type="hidden" data-type="mField" id="CAMPAIGN_T" value="{{ doc.BodyContext.CAMPAIGN_T }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!-- 발신처 관리 > 캠페인(하) -->
+	<input type="hidden" data-type="mField" id="CAMPAIGN_F" value="{{ doc.BodyContext.CAMPAIGN_F }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!-- 결재 수신처 구분 -->
+	<input type="hidden" data-type="mField" id="RECEIVEGOV_TYPE" value="{{ doc.BodyContext.RECEIVEGOV_TYPE }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  기관명 -->
+	<input type="hidden" data-type="mField" id="ORGAN" value="{{ doc.BodyContext.ORGAN }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  전화번호 -->
+	<input type="hidden" data-type="mField" id="TELEPHONE" value="{{ doc.BodyContext.TELEPHONE }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  E-mail -->
+	<input type="hidden" data-type="mField" id="EMAIL" value="{{ doc.BodyContext.EMAIL }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  우편번호 -->
+	<input type="hidden" data-type="mField" id="ZIPCODE" value="{{ doc.BodyContext.ZIPCODE }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  주소 -->
+	<input type="hidden" data-type="mField" id="ADDRESS" value="{{ doc.BodyContext.ADDRESS }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  HomePage -->
+	<input type="hidden" data-type="mField" id="HOMEURL" value="{{ doc.BodyContext.HOMEURL }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  팩스번호 -->
+	<input type="hidden" data-type="mField" id="FAX" value="{{ doc.BodyContext.FAX }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+	<!--  본문 -->
+	<input type="hidden" data-type="mField" id="BODY" value="{{ doc.BodyContext.BODY }}" data-binding="pre" style=" border:0px;" readonly="readonly" />
+</table>
+
+<!-- 저장할 필요 없지만 필요한 필드들 -->
+<input type="hidden" id="RECEIVEGOV_NAMES" /><!-- 수신처 팝업에서 사용됨 (대외전자) -->
+

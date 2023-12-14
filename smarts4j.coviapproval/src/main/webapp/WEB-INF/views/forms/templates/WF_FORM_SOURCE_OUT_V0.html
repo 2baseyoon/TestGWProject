@@ -1,0 +1,142 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 multi-row-table tableStyle linePlus mt10" id="multiTable" cellpadding="0" cellspacing="0">
+	<colgroup>
+		<col style="width: 12%;"/>
+      	<col style="width: 15%;"/>
+      	<col style="width: 15%;"/>
+      	<col style="width: 20%;"/>
+      	<col style="width: 10%;"/>
+      	<col style="width: 28%;"/>
+	</colgroup>
+
+	<tbody>
+	  	<tr>
+			<th>고객사</th>
+		  	<td colspan="5">
+		  		<input type="text" id="Customer_Name" data-type="mField" value="{{ doc.BodyContext.Customer_Name }}" style="width: 99%;"/>
+		  	</td>
+	  	</tr>
+	  	<tr>
+		  	<th>계약명</th>
+		  	<td colspan="5">
+			  	<input type="text" id="Contract_Name" data-type="mField" value="{{ doc.BodyContext.Contract_Name }}" style="width: 99%;"/>
+		  	</td>
+	  	</tr>
+	  	<tr>
+		  	<th>구분</th>
+		  	<td colspan="5">
+			  	<div data-type="mField" data-element-type="rdo_d" data-node-name="Contract_Type" title="구분">
+	            	<input type="radio" name="Contract_Type" value="MP" checked="checked"/>MP&nbsp;&nbsp;&nbsp;
+	            	<input type="radio" name="Contract_Type" value="CP"/>CP&nbsp;&nbsp;&nbsp;
+	        	</div>
+		  	</td>
+	  	</tr>
+	  	<tr>
+			<th>DB</th>
+		  	<td colspan="5">
+			  	<div data-type="mField" data-element-type="rdo_d" data-node-name="DBType" title="DB">
+	            	<input type="radio" name="DBType" value="mysql" checked="checked"/>MariaDB&nbsp;&nbsp;&nbsp;
+	            	<input type="radio" name="DBType" value="oracle"/>Oracle&nbsp;&nbsp;&nbsp;
+	            	<input type="radio" name="DBType" value="mssql"/>MSSQL&nbsp;&nbsp;&nbsp;
+	            	<input type="radio" name="DBType" value="tibero"/>Tibero
+	        	</div>
+		  	</td>
+	  	</tr>
+	  	<tr>
+		  	<th>납품시스템</th>
+		  	<td colspan="5">
+			  	<span data-type="mField" data-element-type="chk_d" data-node-name="Systems" title="납품시스템">
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" value="groupware" checked="checked"/>Groupware</label><br/>
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" value="approval"/>전자결재</label><br/>
+                    <label style="line-height: 150%;"><input type="checkbox" name="Systems" value="govdocs"/>공공(문서유통,기록물철)</label><br/>
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" value="mail"/>메일</label><br/>
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" value="webhard"/>웹하드</label><br/>
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" value="account"/>e-Accounting</label><br/>
+                    <label style="line-height: 150%;"><input type="checkbox" name="Systems" value="eumtalk"/>이음톡</label><br/>
+	            	<label style="line-height: 150%;"><input type="checkbox" name="Systems" id="Systems_etc" value="etc"/>기타</label>
+	        	</span>
+	        	(<input type="text" id="etc" data-type="mField" value="{{ doc.BodyContext.etc }}" style="width: 30%;"/>)
+		  	</td>
+	  	</tr>
+	  	<!-- 2023.01.04 모듈별라이센스 추가 -->
+	  	<tr style="display:none;">
+		  	<th>모듈별<br/>라이선스</th>
+		  	<td colspan="5">
+			  	<span data-type="mField" data-element-type="chk_d" id="LicenseModules" data-node-name="LicenseModules" title="라이센스모듈">
+	        	</span>
+		  	</td>
+	  	</tr>
+	  	<tr>
+			<th>비고</th>
+	        <td colspan="5" style="min-height: 100px;">
+	            <textarea data-type="mField" id="TEXTAREA_NOTE" rows="5" style="width: 98%; overflow: auto;">{{ doc.BodyContext.TEXTAREA_NOTE }}</textarea>
+	        </td>
+	    </tr>
+	    
+	    <tr class="multi-row-control" data-mode="writeOnly">
+			<td colspan="6" >
+	    	    <span style="display:block;float:right">
+	        	    <input type="button" value="+추가" class="multi-row-add smButton"/>
+		            <input type="button" value="-삭제" class="multi-row-del-auto smButton"/>
+	        	</span>
+	    	</td>
+	  	</tr>
+		<tr>
+	    	<th>작업요청일</th>
+	      	<th>신청자</th>
+	      	<th>신청자 부서</th>
+	      	<th>신청 사유</th>
+	      	<th>저장미디어</th>
+	      	<th>파일 위치</th>
+	  	</tr>
+	  	<tr class="multi-row-template">
+			<td style="text-align: center;">
+	        	  <input title="작업요청일자" type="text" data-type="rField" name="REQDATE" data-pattern="date" style="width:99%; text-align: center;" readonly="readonly">
+	      	</td>
+	      	<td style="text-align: center;">
+	          	<input title="신청자" type="text" data-type="rField" name="REQUSERNAME" style="width:65%; text-align: center;" required="">
+	          	<span data-mode="writeOnly">
+	            	<a onclick="OpenWinEmployee('REQUSERNAME', this);">
+	                	<img alt="search" style="vertical-align: middle; cursor:pointer;" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/btn_org.gif" width="25" height="21">
+	                </a>
+	          	</span>
+	      	</td>
+	      	<td style="text-align: center;">
+	          	<input title="신청자 부서" type="text" data-type="rField" name="REQUSERDEPT" style="width:99%; text-align: center;" readonly="readonly" required=""/>
+	      	</td>
+	      	<td>
+	          	<input title="신청 사유" type="text" data-type="rField" name="REQREASON" style="width:99%;" required=""/>
+	      	</td>
+	      	<td style="text-align: center;">
+	       		<select title="저장미디어" data-type="rField" data-element-type="sel_d_v" name="REQEQUIP" style="width:99%;" required="">
+	            	<option value="">선택</option>
+	              	<option value="USB">USB</option>
+	              	<option value="DVD">DVD</option>
+	              	<option value="메일">메일</option>
+	              	<option value="원격공유">원격공유</option>
+	          	</select>
+	      	</td>
+	      	<td>
+	          	<input title="파일 위치" type="text" data-type="rField" name="REQFILELOC" style="width:99%;" required=""/>
+	      	</td>
+	  	</tr>
+	</tbody>
+</table>
+
+<table class="table_10 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+	<colgroup>
+		<col style="width: 12%;"/>
+      	<col style="width: 88%;"/>
+	</colgroup>
+	
+	<tr>
+		<th colspan="2" sylte="text-align: center;">소스반출 담당자 작성란</th>
+	</tr>
+	<tr>
+		<th>반출버전정보</th>
+        <td style="min-height: 100px;">
+            <textarea data-type="mField" id="VERSIONINFO" rows="5" style="width: 98%; overflow: auto;" disabled>{{ doc.BodyContext.VERSIONINFO }}</textarea>
+        </td>
+    </tr>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

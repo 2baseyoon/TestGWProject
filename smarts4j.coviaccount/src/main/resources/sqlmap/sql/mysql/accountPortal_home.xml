@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.portalHome">
+	<select	 id="getExecutiveCheck" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*) FROM 
+		(
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, UR.DisplayName AS CodeName
+					, UR.MailAddress
+					, GM.GroupMemberID AS MemberID
+			 FROM sys_object_group_member AS GM
+		LEFT JOIN sys_object_user AS UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = 'EAccounting_Executive' 
+			  AND GM.UserCode = #{UR_Code}
+			UNION 
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, GR.DisplayName AS CodeName
+					, GR.PrimaryMail
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup AS GM
+  	   LEFT JOIN sys_object_group AS GR ON GM.MemberGroupCode = GR.GroupCode
+		   WHERE GM.GroupCode = 'EAccounting_Executive' 
+			 AND GM.MemberGroupCode = #{DeptID}
+		) AS A
+		
+	</select>
+	<select id="getProofCodeCount" parameterType="cmap"  resultType="cmap">
+	SELECT ifnull(sum(a.CorpCardAmount),0)+ifnull(SUM(a.TaxBillAmount),0)+ ifnull(SUM(a.ReceiptAmount),0) TotalAmount  
+	        		, ifnull(sum(a.CorpCardAmount),0) CorpCardAmount, ifnull(SUM(a.CorpCardCnt),0) CorpCardCnt
+	        		, ifnull(SUM(a.TaxBillAmount),0) TaxBillAmount, ifnull(SUM(a.TaxBillCnt),0) TaxBillCnt
+	        		, ifnull(SUM(a.ReceiptAmount),0) ReceiptAmount, ifnull(SUM(a.ReceiptCnt),0) ReceiptCnt
+	 FROM (	        		
+			  SELECT sum(acr.AMOUNTWON) CorpCardAmount, COUNT(acr.ReceiptID) CorpCardCnt, 0 TaxBillAmount, 0 TaxBillCnt, 0 ReceiptAmount, 0 ReceiptCnt
+		 	    FROM covi_account4j_si.act_card_receipt acr
+	     	    JOIN covi_account4j_si.act_corp_card    acc ON	ACR.CARDNO	= ACC.CardNo 	
+	  	       WHERE acr.APPROVEDATE LIKE CONCAT(#{payDate},'%')
+	  	         AND ACC.OwnerUserCode	= #{UR_Code}
+ 	       UNION ALL   
+		      SELECT 0, 0,	  SUM(ati.TOTALAMOUNT) TaxBillAmount, COUNT(ati.TaxInvoiceID) TaxBillCnt, 0, 0
+		        FROM covi_account4j_si.act_taxinvoice  ati
+			   WHERE WRITEDATE LIKE CONCAT(#{payDate},'%')
+			     AND DataIndex	IN ('BUY','AP')
+			     AND (	InvoiceeEmail1 IN (
+												SELECT AM.TaxMailAddress
+												FROM covi_account4j_si.act_manager AM 
+												WHERE AM.ManagerUserCode = #{UR_Code}
+												UNION
+												SELECT sou.MailAddress
+												FROM covi_smart4j.sys_object_user SOU 
+												WHERE SOU.UserCode = #{UR_Code}
+											)
+						OR TossUserCode =#{UR_Code}	)
+		  UNION ALL
+			 SELECT 0,0,0,0, SUM(ar.TOTALAMOUNT) ReceiptAmount, COUNT(ar.ReceiptID) ReceiptCnt
+			   FROM covi_account4j_si.act_receipt      ar  
+			  WHERE ar.USEDATE  between STR_TO_DATE(CONCAT(#{payDate},'01'),'%Y%m%d') AND LAST_DAY(STR_TO_DATE(CONCAT(#{payDate},'01'),'%Y%m%d')) 				
+			    AND	ar.RegisterID	=	#{UR_Code}) A
+	</select>
+	
+	<select id="getAccountCodeCount" parameterType="cmap" resultType="cmap">
+			SELECT 
+				Code, Name, Cnt, Amount
+			FROM 
+				(SELECT IFNULL(Code,'Total') Code, Name,COUNT(*) Cnt, SUM(Amount) Amount
+						, case when A.Code IS null then 0 ELSE 1 END Ord
+				FROM (
+						SELECT 
+						<choose>
+			                <when test='IsUseStandardBrief == "Y" '>
+								AEAD.StandardBriefID Code, sb.StandardBriefName Name
+			                </when>
+			                <otherwise>
+								AEAD.AccountCode Code, c.AccountName Name
+			                </otherwise>
+			            </choose>
+							, 1
+							,	CASE 
+									WHEN (AEAL.ProofCode = 'TaxBill' AND AEAD.Amount != AEAL.TotalAmount) THEN AEAD.Amount + AEAL.TaxAmount 
+									ELSE AEAD.Amount 
+								END AS Amount	
+						FROM        covi_account4j_si.act_expence_application AEA
+						INNER JOIN  covi_account4j_si.act_expence_application_list AEAL				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+						INNER JOIN  covi_account4j_si.act_expence_application_div AEAD 			on AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+						INNER JOIN  covi_account4j_si.act_account c ON AEAD.AccountCode = c.AccountCode
+		                <if test='IsUseStandardBrief == "Y" '>
+							INNER JOIN  covi_account4j_si.act_standard_brief sb ON c.AccountID = sb.AccountID AND AEAD.StandardBriefID = sb.StandardBriefID
+		                </if>
+				        WHERE      ProofDate	LIKE CONCAT(#{payDate},'%')
+				        AND        AEA.RegisterID = #{UR_Code}
+						AND        AEA.ApplicationStatus in ('S','D','P','DC','E')
+						AND AEA.CompanyCode = #{companyCode}
+						AND c.CompanyCode= #{companyCode}
+						) A
+				GROUP BY    A.Code with ROLLUP) aa
+			ORDER BY Ord, Amount DESC
+	</select>
+	
+	<select id="getApprovalListCnt" parameterType="cmap"  resultType="java.lang.Long">
+			SELECT count(*)
+			FROM covi_approval4j.jwf_process AS A
+			INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+			INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+			INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+			WHERE C.UserCode = #{UR_Code}
+			AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+			AND C.State = 1
+			AND B.State = #{state}    #진행:288/완료:528
+			AND A.ProcessState = 288
+			AND A.DeleteDate IS NULL
+		
+	</select>
+
+	<select id="getApprovalList" parameterType="cmap"  resultType="cmap">
+		SELECT A.ProcessID
+				, B.WorkItemID
+				, C.PerformerID
+				, A.InitiatorID
+				, A.InitiatorName
+				, A.InitiatorUnitID
+				, A.InitiatorUnitName
+				, C.UserCode
+				, C.UserName
+				, C.SubKind
+				, C.SubKind AS FormSubKind
+				, B.Created
+				, B.TaskID
+				, FormSubject
+				, DATE_FORMAT(B.Created,'%m-%d %H:%i') Created
+				, B.TaskID
+				, U.PhotoPath
+		FROM covi_approval4j.jwf_process AS A
+		INNER JOIN covi_approval4j.jwf_workitem AS B ON A.ProcessID = B.ProcessID
+		INNER JOIN covi_approval4j.jwf_performer AS C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN covi_approval4j.jwf_processdescription AS D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		LEFT OUTER JOIN covi_smart4j.sys_object_user AS U ON U.UserCode = A.InitiatorID
+		WHERE    C.UserCode = #{UR_Code}
+		AND      C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND      C.State = 1
+		AND      B.State = #{state}    #진행:288/완료:528
+		AND      A.ProcessState = 288
+		AND      A.DeleteDate IS NULL
+		ORDER BY A.EndDate desc 
+		LIMIT 3
+	</select>
+	<select id="getProofCodeList" parameterType="cmap"  resultType="cmap">
+			SELECT AEA.ExpenceApplicationID 
+					, AEA.CompanyCode
+					, AEA.ApplicationTitle
+					, AEA.ApplicationType
+					, AEA.ApplicationStatus
+					, AEA.RegisterID
+					, USR.DisplayName RegisterName
+					, AEA.ProcessID
+					
+					, DATE_FORMAT( IFNULL(AEA.ApplicationDate, AEA.RegistDate), '%m-%d %H:%i') AS ApplicationDate
+					, AEA.RequestType
+					, AEA.RegistDate
+					, AEA.ChargeJob
+					
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ExpenceApplicationListID cdRownum
+					, DATE_FORMAT( AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+					, DATE_FORMAT( AEAL.PostingDate, '%Y.%m.%d') AS PostingDate
+					, AEAL.ProofCode
+					
+					, AEAL.CardUID
+					, AEAL.CashUID
+					, AEAL.TaxUID
+					, AEAL.TaxType
+					, AEAL.TaxCode
+					, AEAL.PayAdjustMethod
+					, AEAL.PayMethod
+					, AEAL.IsWithholdingTax
+					, AEAL.IncomeTax
+					, AEAL.LocalTax
+					, AEAL.PayDate
+					, AEAL.VendorNo
+					, AEAL.TotalAmount					
+					,	CASE WHEN (AEAL.ProofCode = 'TaxBill' AND AEAD.Amount != AEAL.TotalAmount) THEN AEAD.Amount + AEAL.TaxAmount 
+						ELSE AEAD.Amount	END AS Amount	
+					, AEAD.AccountCode
+					, c.AccountName	
+		FROM       covi_account4j_si.act_expence_application AEA
+		INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  covi_account4j_si.act_expence_application_div AEAD 	ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN covi_account4j_si.act_account c                 ON AEAD.AccountCode = c.AccountCode
+		LEFT OUTER JOIN covi_smart4j.sys_object_user USR				ON AEA.RegisterID = USR.UserCode
+        WHERE      AEA.RegisterID = #{UR_Code}
+		AND        AEA.Active = 'N'
+		AND        AEAL.ProofCode		= #{proofCode}		 
+		limit 4  
+	</select>
+	
+	<select id="getMobileReceiptListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT	count(AR.ReceiptID)
+		FROM	covi_account4j_si.act_receipt AR
+		WHERE	 AR.UseDate between STR_TO_DATE(CONCAT(#{prevPayDate},'01'),'%Y%m%d') AND LAST_DAY(STR_TO_DATE(CONCAT(#{prevPayDate},'01'),'%Y%m%d')) 
+		AND      AR.RegisterID  = #{UR_Code}
+		AND AR.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getMobileReceiptList" parameterType="cmap"  resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				AR.PhotoDate AS PhotoDate,
+				AR.PhotoDate AS PhotoDateStr,
+				AR.ReceiptType,
+				AR.ReceiptFileID,
+				AR.Active,
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active,'ALL') AS ActiveName,
+				AR.RegisterID,
+				DATE_FORMAT(AR.UseDate, '%Y.%m.%d %H:%i:%s') AS UseDate,
+				concat(REPLACE(ST.FilePath,'{0}',SF.CompanyCode), SF.FilePath , SF.SavedName) URLPath
+				<choose>
+	                <when test='IsUseStandardBrief == "Y" '>
+						,ar.StandardBriefID Code, sb.StandardBriefName Name
+	                </when>
+	                <otherwise>
+						,ar.AccountCode Code, c.AccountName Name
+	                </otherwise>
+	            </choose>
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN covi_smart4j.sys_file SF  ON ar.ReceiptFileID =  sf.fileid
+		LEFT OUTER JOIN covi_smart4j.sys_storage ST ON ST.StorageID = SF.StorageID
+		LEFT OUTER JOIN covi_account4j_si.act_account c                 ON AR.AccountCode = c.AccountCode AND c.CompanyCode = #{companyCode}
+             <if test='IsUseStandardBrief == "Y" '>
+		LEFT OUTER JOIN covi_account4j_si.act_standard_brief sb ON ar.StandardBriefID = sb.StandardBriefID
+             </if>
+		WHERE	 AR.UseDate between STR_TO_DATE(CONCAT(#{prevPayDate},'01'),'%Y%m%d') AND LAST_DAY(STR_TO_DATE(CONCAT(#{prevPayDate},'01'),'%Y%m%d')) 
+		AND      AR.RegisterID  = #{UR_Code}
+		AND AR.CompanyCode = #{companyCode}
+		ORDER BY AR.ReceiptID DESC   
+		limit 5 
+	</select>
+	
+	<select id="getCorpCardListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	     SELECT  count(ACR.ReceiptID)
+	       FROM   covi_account4j_si.act_card_receipt	ACR
+LEFT OUTER JOIN	covi_account4j_si.act_corp_card		ACC ON		ACR.CardNo	= ACC.CardNo
+		  WHERE	( (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code} )
+			OR (ACR.TossUserCode	= #{UR_Code} )
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code} )
+				)
+			OR ('' != '' AND	ACR.CardNo = '' AND '' != '' AND ACR.ApproveNo= '')
+		)				
+		AND ACR.InfoIndex = 'A'
+		AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND		ACR.Active = 'N'
+		AND ACC.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getCorpCardList" parameterType="cmap"  resultType="cmap">
+	  SELECT  acr.ApproveNo, ACR.ReceiptID,	CASE	WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND AmountWon > 0
+							THEN FORMAT((ACR.AmountWon*-1),0)
+							ELSE FORMAT(ACR.AmountWon,0)
+					END															AS AmountWon
+					,	ACR.StoreName
+					,	CASE	WHEN ACR.InfoIndex = 'A'
+						THEN CASE	WHEN IFNULL(NULLIF(ACR.ApproveDate,''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE DATE_FORMAT(ACR.ApproveDate,	'%Y.%m.%d')
+							 END
+						ELSE CASE	WHEN IFNULL(NULLIF(ACR.UseDate,''),'NODATA') = 'NODATA'
+									THEN ''
+									ELSE DATE_FORMAT(ACR.UseDate,	'%Y.%m.%d')
+							 END
+				END																AS ApproveDate
+			,	TIME_FORMAT(ACR.ApproveTime,	'%H:%i:%s') AS ApproveTime
+				<choose>
+	                <when test='IsUseStandardBrief == "Y" '>
+						,acr.StandardBriefID Code, sb.StandardBriefName Name
+	                </when>
+	                <otherwise>
+						,acr.AccountCode Code, c.AccountName Name
+	                </otherwise>
+	            </choose>
+		   FROM   covi_account4j_si.act_card_receipt	ACR
+LEFT OUTER JOIN				covi_account4j_si.act_corp_card		ACC ON		ACR.CardNo	= ACC.CardNo
+		LEFT OUTER JOIN 
+			covi_account4j_si.act_account c 
+		ON 
+			acr.AccountCode = c.AccountCode
+			AND c.CompanyCode = #{companyCode}
+             <if test='IsUseStandardBrief == "Y" '>
+		LEFT OUTER JOIN  covi_account4j_si.act_standard_brief sb ON acr.StandardBriefID = sb.StandardBriefID
+             </if>
+		  WHERE	( (IFNULL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code} )
+			OR (ACR.TossUserCode	= #{UR_Code} )
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	covi_account4j_si.act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code} )
+				)
+			OR ('' != '' AND	ACR.CardNo = '' AND '' != '' AND ACR.ApproveNo= '')
+		)				
+		AND ACR.InfoIndex = 'A'
+		AND		IFNULL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND		ACR.Active = 'N'
+		AND ACC.CompanyCode = #{companyCode}
+	ORDER BY ApproveDate desc 
+	LIMIT 3
+	</select>
+	
+	<select id="getTaxBillListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT	count(ACI.TaxInvoiceID)
+	    FROM	covi_account4j_si.act_taxinvoice	ACI
+	    LEFT OUTER JOIN
+			covi_account4j_si.act_taxinvoice_item	ATI_ITEM ON ACI.TaxInvoiceID = ATI_ITEM.TaxInvoiceID
+		WHERE	ACI.DataIndex	= 'BUY'
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= 'N'
+		AND ( ACI.InvoiceeEmail1 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)
+				OR
+				ACI.InvoiceEmail2 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)	
+				OR
+				ACI.TossUserCode = #{UR_Code}
+		)
+		AND		ACI.CompanyCode	= #{companyCode}
+	</select>
+		
+	<select id="getTaxBillList" parameterType="cmap"  resultType="cmap">
+		SELECT	ACI.TaxInvoiceID
+			,	DATE_FORMAT(ACI.WriteDate,'%Y.%m.%d') AS WriteDate
+			,	ACI.InvoicerCorpName
+			,	FORMAT(ACI.TotalAmount,0)		AS TotalAmount
+	    FROM	covi_account4j_si.act_taxinvoice	ACI
+	    LEFT OUTER JOIN
+			covi_account4j_si.act_taxinvoice_item	ATI_ITEM ON ACI.TaxInvoiceID = ATI_ITEM.TaxInvoiceID
+		WHERE	ACI.DataIndex	= 'BUY'
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= 'N'
+		AND ( ACI.InvoiceeEmail1 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)
+				OR
+				ACI.InvoiceEmail2 IN (
+					SELECT AM.TaxMailAddress
+					FROM covi_account4j_si.act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT SOU.MailAddress
+					FROM covi_smart4j.sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)		
+				OR
+				ACI.TossUserCode = #{UR_Code}
+		)
+	AND		ACI.CompanyCode	= #{companyCode}
+	ORDER BY WriteDate desc 
+	LIMIT 3
+	</select>
+	<select id="getDeadlineInfo" parameterType="cmap" resultType="cmap">
+		/* account.portalHome.getDeadlineInfo */
+		SELECT	
+    			DL.CompanyCode
+    		,	DL.DeadlineID
+    		,	DL.NoticeText
+			,	DATE_FORMAT(DL.DeadlineStartDate,'%Y.%m.%d')	AS DeadlineStartDate
+			,	DATE_FORMAT(DL.DeadlineFinishDate,'%Y.%m.%d')	AS DeadlineFinishDate
+			,   IFNULL(NoticeText,'') NoticeText
+			,   DL.StandardMonth
+			,	DL.IsUse AS IsUse
+			,	DL.Control AS Control
+    	FROM	covi_account4j_si.act_deadline DL
+    	WHERE		 	
+    	<choose>
+		    <when test='isSaaS == "Y"'>
+				DL.CompanyCode =	#{companyCode}
+			</when>
+			<otherwise>
+				DL.CompanyCode in ('ALL', 	#{companyCode})
+				ORDER BY IF( CompanyCode='ALL',9,0)
+			</otherwise>
+		</choose>
+		LIMIT 1
+	</select>
+		
+	<update id="updateHomeSectionSort" parameterType="cmap">
+		<foreach collection="SortList" item="map" index="index" open="" close="" separator=";">
+			INSERT INTO covi_account4j_si.act_user_dashboard_sort ( UserCode, `Type`, SectionKey, SortKey )
+			VALUES ( #{UserCode}, #{Type}, #{map.SectionKey}, #{map.SortKey} )
+			ON DUPLICATE KEY  
+			UPDATE SortKey = #{map.SortKey}
+		</foreach>
+	</update>
+	
+	<select id="selectHomeSectionSort" parameterType="cmap" resultType="cmap">
+		SELECT SectionKey, SortKey
+		FROM covi_account4j_si.act_user_dashboard_sort
+		WHERE UserCode = #{UserCode}
+		AND Type = #{Type}
+		ORDER BY SortKey
+	</select>
+</mapper>

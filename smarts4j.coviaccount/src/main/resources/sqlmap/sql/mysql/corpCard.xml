@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.corpcard">
+	<select id="getCorpCardList" parameterType="cmap" resultType="cmap">
+		SELECT	CPCD.CorpCardID
+			,	CPCD.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CPCD.CompanyCode, #{companyCode})				AS CompanyName
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardCompany', CPCD.CardCompany, #{companyCode})				AS CardCompanyName
+			,	CONCAT(	'**********',	SUBSTRING(CPCD.CardNo,11))									AS CardNo
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardStatus', CPCD.CardStatus, #{companyCode})					AS CardStatusName
+			,	DATE_FORMAT(CPCD.IssueDate,'%Y.%m.%d')												AS IssueDate
+			,	CPCD.PayDate																		AS PayDate
+			,	CONCAT(SUBSTRING(CPCD.ExpirationDate,1,4),'/',SUBSTRING(CPCD.ExpirationDate,5,6))	AS ExpirationDate
+			,	FORMAT(CPCD.LimitAmount,0)	AS LimitAmount
+			,	USR.DisplayName AS OwnerUserName
+			,	USR.EmpNo		AS OwnerUserNum
+			,	USRB.DeptName 	AS OwnerUserDept
+			,	CPCD.ReleaseYN
+			,	CPCD.CardClass
+		FROM	covi_account4j_si.act_corp_card CPCD
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		CPCD.OwnerUserCode	= USR.UserCode
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user_basegroup	USRB
+		ON		USR.UserCode = USRB.UserCode
+		AND		USRB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		CPCD.CompanyCode = #{companyCode}
+		</if>
+		<if test ="ownerUserCode != null and ownerUserCode !=''">
+		AND		CPCD.OwnerUserCode = #{ownerUserCode}
+		</if>
+		<if test ="cardStatus != null and cardStatus !=''">
+		AND		CPCD.CardStatus = #{cardStatus}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		CPCD.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		CPCD.CardClass = #{cardClass}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,CorpCardID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>CardCompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("CardStatusName")'>CardStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("IssueDate")'>IssueDate</when>
+					<when test='sortColumn.equalsIgnoreCase("PayDate")'>PayDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ExpirationDate")'>ExpirationDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LimitAmount")'>CAST(LimitAmount AS SIGNED)</when>
+					<when test='sortColumn.equalsIgnoreCase("OwnerUserNum")'>OwnerUserNum</when>
+					<when test='sortColumn.equalsIgnoreCase("OwnerUserName")'>OwnerUserName</when>
+					<when test='sortColumn.equalsIgnoreCase("OwnerUserDept")'>OwnerUserDept</when>
+					<when test='sortColumn.equalsIgnoreCase("ReleaseYN")'>ReleaseYN</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getCorpCardListCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_corp_card CPCD
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		CPCD.CompanyCode = #{companyCode}
+		</if>
+		<if test ="ownerUserCode != null and ownerUserCode !=''">
+		AND		CPCD.OwnerUserCode = #{ownerUserCode}
+		</if>
+		<if test ="cardStatus != null and cardStatus !=''">
+		AND		CPCD.CardStatus = #{cardStatus}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		CPCD.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		CPCD.CardClass = #{cardClass}
+		</if>
+	</select>
+	
+	<select id="getCardNoChk" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_corp_card CPCD
+		WHERE	1=1
+		<if test ="cardNo != null and cardNo !=''">
+		AND		CPCD.CardNo = #{cardNo}
+		</if>
+	</select>
+	
+	<select id="getMaxCorpCardID" resultType="java.lang.Long">
+	    SELECT	MAX(corpCardID)
+		FROM	covi_account4j_si.act_corp_card CPCD
+	</select>
+	
+	<insert id="insertCorpCardInfo" parameterType="cmap">
+	    INSERT INTO covi_account4j_si.act_corp_card (
+				CompanyCode
+			,	CardNo
+			,	CardCompany
+			,	CardClass
+			,	CardStatus
+			,	OwnerUserCode
+			,	VendorNo
+			,	IssueDate
+			,	PayDate
+			,	ExpirationDate
+			,	LimitAmountType
+			,	LimitAmount
+			,	Note
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{cardNo}
+			,	#{cardCompany}
+			,	#{cardClass}
+			,	#{cardStatus}
+			,	#{ownerUserCode}
+			,	#{vendorNo}
+			,	#{issueDate}
+			,	IF(#{payDate} = '', NULL, #{payDate})
+			,	#{expirationDate}
+			,	#{limitAmountType}
+			,	#{limitAmount}
+			,	#{note}
+			,	#{UR_Code}
+			,	NOW(3)
+			,	#{UR_Code}
+			,	NOW(3)
+	    )
+	    
+	    <selectKey keyProperty="corpCardID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	    
+ 	</insert>
+ 	
+	<update id="updateCorpCardInfo" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_corp_card
+ 			SET
+ 				CompanyCode		= #{companyCode}
+			,	CardCompany		= #{cardCompany}
+			,	CardClass		= #{cardClass}
+			,	CardStatus		= #{cardStatus}
+			,	OwnerUserCode	= #{ownerUserCode}
+			,	VendorNo		= #{vendorNo}
+			,	IssueDate		= #{issueDate}
+			,	PayDate			= IF(#{payDate} = '', NULL, #{payDate})
+			,	ExpirationDate	= #{expirationDate}
+			,	LimitAmountType	= #{limitAmountType}
+			,	LimitAmount		= #{limitAmount}
+			,	Note			= #{note}
+			,	ModifierID		= #{UR_Code}
+			,	ModifyDate		= NOW(3)
+ 		WHERE	CorpCardID		= #{corpCardID}
+ 	</update>
+ 	
+	<update id="updateCorpCardNo" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_corp_card
+ 			SET
+				CardNo			= #{cardNoChgVal}
+			,	ModifierID		= #{UR_Code}
+			,	ModifyDate		= NOW(3)
+ 		WHERE	CorpCardID		= #{corpCardID}
+ 	</update>
+ 	
+	<delete id="deleteCorpCardInfo">
+	    DELETE FROM covi_account4j_si.act_corp_card
+		WHERE	CorpCardID = #{corpCardID}	
+	</delete>
+	
+	<insert id="insertCorpCardUserInfo" parameterType="cmap">
+	    INSERT INTO covi_account4j_si.act_corp_card_search_user (
+				CorpCardID
+			,	OwnerUserCode
+			,	RegisterID
+			,	RegistDate
+	    ) VALUES (
+				#{corpCardID}
+			,	#{ownerUserCode}
+			,	#{UR_Code}
+			,	NOW(3)
+	    )
+ 	</insert>
+ 	
+	<update id="updateCorpCardUserInfo" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_corp_card_search_user
+ 			SET
+ 				OwnerUserCode	= #{ownerUserCode}
+ 		WHERE	CorpCardSearchUserID	= #{corpCardSearchUserID}
+ 	</update>
+	
+	<delete id="deleteCorpCardUserInfo">
+	    DELETE FROM covi_account4j_si.act_corp_card_search_user		
+		WHERE	CorpCardSearchUserID = #{corpCardSearchUserID}	
+	</delete>
+	
+	<delete id="deleteCorpCardUserInfoByCorpCardID">
+	    DELETE FROM covi_account4j_si.act_corp_card_search_user		
+		WHERE	CorpCardID = #{corpCardID}	
+	</delete>
+	
+	<select id="getCorpCardDetail" parameterType="cmap" resultType="cmap">
+		SELECT	ACC.CorpCardID
+			,	ACC.CompanyCode
+			,	CONCAT(	'**********',	SUBSTRING(ACC.CardNo,11))				AS CardNo
+			,	ACC.CardCompany
+			,	ACC.CardClass
+			,	ACC.CardStatus
+			,	ACC.OwnerUserCode
+			,	USR.DisplayName													AS OwnerUserName
+			,	covi_smart4j.Fn_BaseGetDictionary_S('EN', USR.MultiDisplayName)	AS OwnerUserNameEn
+			,	USR.EmpNo														AS OwnerUserNum
+			,	ACC.VendorNo
+			,	VD.VendorName
+			,	DATE_FORMAT(ACC.IssueDate,'%Y.%m.%d')							AS IssueDate
+			,	ACC.PayDate														AS PayDate
+			,	CONCAT(SUBSTRING(ACC.ExpirationDate,1,4),'/',SUBSTRING(ACC.ExpirationDate,5,6))	AS ExpirationDate
+			,	ACC.LimitAmountType
+			,	ACC.LimitAmount
+			,	ACC.Note
+			,	ACC.ReleaseYN
+			,	ACC.ReleaseUserCode
+	    FROM	covi_account4j_si.act_corp_card	ACC
+	    LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACC.OwnerUserCode	= USR.UserCode
+		LEFT OUTER JOIN
+				covi_account4j_si.act_vendor	VD
+		ON		REPLACE(ACC.VendorNo, '-', '') = REPLACE(VD.VendorNo, '-', '')
+	    WHERE	ACC.CorpCardID		= #{corpCardID}
+	</select>
+	
+	<select id="getCorpCardUserDetail" parameterType="cmap" resultType="cmap">
+		SELECT	CCSU.CorpCardSearchUserID
+			,	CCSU.OwnerUserCode
+			,	USR.DisplayName		AS OwnerUserName
+			,	USR.EmpNo			AS OwnerUserNum
+	    FROM	covi_account4j_si.act_corp_card_search_user	CCSU
+	    LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		CCSU.OwnerUserCode	= USR.UserCode
+	    WHERE	CCSU.CorpCardID	= #{corpCardID}
+	    <if test ="ownerUserCode != null and ownerUserCode !=''">
+		AND		CCSU.ownerUserCode = #{ownerUserCode}
+		</if>
+	    ORDER BY CCSU.CorpCardSearchUserID
+	</select>
+	
+	<select id="corpcardInterfaceInfo" parameterType="cmap" resultType="cmap">
+	    SELECT	ACC.CorpCardID
+		FROM	covi_account4j_si.act_corp_card	ACC
+		WHERE	ACC.CardNo = #{cardNo}
+	</select>
+	
+	<select id="getCorpCardReturnCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_corp_card_return RET
+		JOIN	covi_account4j_si.act_corp_card CARD
+		ON		RET.CorpCardID		=	CARD.CorpCardID
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_OWNER
+		ON		RET.OwnerUserCode	= 	USR_OWNER.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RELEASE_APP
+		ON		RET.ReleaseApprover	= 	USR_RELEASE_APP.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RETURN_APP
+		ON		RET.ReturnApprover	= 	USR_RETURN_APP.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RELEASE
+		ON		RET.ReleaseUserCode	= 	USR_RELEASE.UserCode
+		
+		WHERE	1=1	
+		
+		<if test ="companyCode != null and companyCode !=''">
+		AND		RET.CompanyCode = #{companyCode}
+		</if>
+		<if test ="releaseUserCode != null and releaseUserCode !=''">
+		AND		RET.ReleaseUserCode = #{releaseUserCode}
+		</if>
+		<if test ="cardStatus != null and cardStatus !=''">
+		AND		RET.CardStatus = #{cardStatus}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		RET.CardNo like concat('%', #{cardNo}, '%')
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		RET.CardClass = #{cardClass}
+		</if>
+		<if test ="releaseSt != null and releaseSt !=''">
+		AND		DATE_FORMAT(RET.ReleaseDate ,'%Y%m%d') <![CDATA[>=]]>  #{releaseSt}
+		</if>
+		<if test ="releaseEd != null and releaseEd !=''">
+		AND		CASE WHEN NULLIF(RET.ReleaseDate,'') IS NULL THEN '00000000' ELSE DATE_FORMAT(RET.ReleaseDate ,'%Y%m%d') END<![CDATA[<=]]>  #{releaseEd}
+		</if>
+		<if test ="UR_Code != null and UR_Code !=''">
+		AND	(	RET.ReleaseUserCode		=	#{UR_Code}
+			OR	RET.OwnerUserCode		=	#{UR_Code}
+			OR	RET.CorpCardID IN (SELECT SEARCH.CorpCardID FROM covi_account4j_si.act_corp_card_search_user SEARCH WHERE RET.CorpCardID = SEARCH.CorpCardID AND SEARCH.OwnerUserCode	=	#{UR_Code})
+			)
+	
+		</if>
+	</select>
+	
+	<select id="getCorpCardReturnList" parameterType="cmap" resultType="cmap">
+		SELECT	RET.CompanyCode	 
+			,	RET.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', RET.CompanyCode, #{companyCode})	AS CompanyName
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardCompany', RET.CardCompany, #{companyCode})	AS CardCompanyName
+			,	CONCAT(	'**********',	SUBSTRING(RET.CardNo,11))						AS CardNo
+			,	RET.CorpCardReturnID
+			,	RET.CorpCardID
+			,	CARD.OwnerUserCode
+			,	USR_OWNER.DisplayName AS OwnerUser_NM
+			,	CARD.ReleaseYN
+			,	RET.ReleaseReason
+			,	RET.DocLink
+			,	DATE_FORMAT(RET.ReleaseDate,'%Y.%m.%d %H:%i')  AS ReleaseDate
+			,	DATE_FORMAT(RET.ReturnDate,'%Y.%m.%d %H:%i') AS ReturnDate
+			,	USR_RELEASE_APP.DisplayName AS ReleaseApprover_NM
+			,	USR_RETURN_APP.DisplayName AS ReturnApprover_NM
+			,	USR_RELEASE.DisplayName AS ReleaseUser_NM
+
+		FROM	covi_account4j_si.act_corp_card_return RET
+		JOIN	covi_account4j_si.act_corp_card CARD
+		ON		RET.CorpCardID		=	CARD.CorpCardID
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_OWNER
+		ON		RET.OwnerUserCode	= 	USR_OWNER.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RELEASE_APP
+		ON		RET.ReleaseApprover	= 	USR_RELEASE_APP.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RETURN_APP
+		ON		RET.ReturnApprover	= 	USR_RETURN_APP.UserCode
+		LEFT 
+		JOIN	covi_smart4j.sys_object_user USR_RELEASE
+		ON		RET.ReleaseUserCode	= 	USR_RELEASE.UserCode
+		
+		WHERE	1=1	
+		
+		<if test ="companyCode != null and companyCode !=''">
+		AND		RET.CompanyCode = #{companyCode}
+		</if>
+		<if test ="releaseUserCode != null and releaseUserCode !=''">
+		AND		RET.ReleaseUserCode = #{releaseUserCode}
+		</if>
+		<if test ="cardStatus != null and cardStatus !=''">
+		AND		RET.CardStatus = #{cardStatus}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		RET.CardNo like concat('%', #{cardNo}, '%')
+		</if>
+		<if test ="cardClass != null and cardClass !=''">
+		AND		RET.CardClass = #{cardClass}
+		</if>
+		<if test ="releaseSt != null and releaseSt !=''">
+		AND		DATE_FORMAT(RET.ReleaseDate ,'%Y%m%d') <![CDATA[>=]]>  #{releaseSt}
+		</if>
+		<if test ="releaseEd != null and releaseEd !=''">
+		AND		CASE WHEN NULLIF(RET.ReleaseDate,'') IS NULL THEN '00000000' ELSE DATE_FORMAT(RET.ReleaseDate ,'%Y%m%d') END<![CDATA[<=]]>  #{releaseEd}
+		</if>
+		<if test ="UR_Code != null and UR_Code !=''">
+		AND	(	RET.ReleaseUserCode		=	#{UR_Code}
+			OR	RET.OwnerUserCode		=	#{UR_Code}
+			OR	RET.CorpCardID IN (SELECT SEARCH.CorpCardID FROM covi_account4j_si.act_corp_card_search_user SEARCH WHERE RET.CorpCardID = SEARCH.CorpCardID AND SEARCH.OwnerUserCode	=	#{UR_Code})
+			)
+		</if>
+		
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,RET.ReleaseDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>CardCompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("OwnerUser_NM")'>OwnerUser_NM</when>
+					<when test='sortColumn.equalsIgnoreCase("ReleaseDate")'>ReleaseDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ReturnDate")'>ReturnDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ReleaseReason")'>ReleaseReason</when>
+					<when test='sortColumn.equalsIgnoreCase("ReleaseApprover_NM")'>ReleaseApprover_NM</when>
+					<when test='sortColumn.equalsIgnoreCase("ReturnApprover_NM")'>ReturnApprover_NM</when>
+					<when test='sortColumn.equalsIgnoreCase("ReleaseUser_NM")'>ReleaseUser_NM</when>
+					<when test='sortColumn.equalsIgnoreCase("DocLink")'>DocLink</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<insert id="insertCorpCardReturnInfo" parameterType="cmap">
+		INSERT INTO covi_account4j_si.act_corp_card_return
+		(
+			CorpCardID
+		,	CompanyCode
+		,	CardNo
+		,	CardCompany
+		,	OwnerUserCode
+		,	ReleaseDate
+		,	ReturnDate
+		,	ReleaseUserCode
+		,	ReleaseApprover
+		,	ReturnApprover
+		,	ReleaseReason
+		,	DocLink
+		,	RegisterID
+		,	RegistDate
+		,	ModifierID
+		,	ModifyDate
+		)
+		SELECT	CorpCardID
+			,	CompanyCode
+			,	CardNo
+			,	CardCompany
+			,	OwnerUserCode
+			,	#{ReleaseDate}
+			,	NULL
+			,	#{ReleaseUserCode}
+			,	#{UR_Code}
+			,	NULL
+			,	#{ReleaseReason}
+			,	#{DocLink}
+			,	#{UR_Code}
+			,	now(3)
+			,	#{UR_Code}
+			,	now(3)
+		FROM	covi_account4j_si.act_corp_card
+		WHERE	CorpCardID	=	#{corpCardID}
+		
+	    <selectKey keyProperty="corpCardID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+ 	</insert>
+ 	
+	<update id="updateCorpCardReturnInfo" parameterType="cmap" >
+ 		UPDATE 	covi_account4j_si.act_corp_card_return
+		SET		ReturnDate		= 	#{ReturnDate}
+			,	ReturnApprover  =	#{UR_Code}
+			,	ModifierID      =	#{UR_Code}
+			,	ModifyDate      =	now(3)	
+		WHERE	CorpCardID		=	#{corpCardID}
+		AND		ReturnDate		IS 	NULL
+ 	</update>
+ 	
+	<update id="updateCorpCardReturnStatus" parameterType="cmap" >
+ 		UPDATE 	covi_account4j_si.act_corp_card
+ 		SET 	ReleaseYN		= #{ReleaseYN}
+			,	ReleaseUserCode	= CASE WHEN #{ReleaseYN} ='Y' THEN #{ReleaseUserCode} ELSE null END
+			,	ReleaseDate		= CASE WHEN #{ReleaseYN} ='Y' THEN #{ReleaseDate} ELSE null END
+			,	ReturnDate		= CASE WHEN #{ReleaseYN} ='N' THEN #{ReturnDate} ELSE null END
+ 		WHERE	CorpCardID		= #{corpCardID}
+ 	</update>
+ 	
+	<select id="getCorpCardReleaseUserInfo" parameterType="cmap" resultType="cmap">
+ 		SELECT    covi_smart4j.Fn_BaseGetDictionary_S('ko', MultiDisplayName) AS ReleaseUserName
+				, covi_smart4j.Fn_BaseGetDictionary_S('en', MultiDisplayName) AS ReleaseUserNameEn
+				, EmpNo AS ReleaseUserNum
+		FROM covi_smart4j.sys_object_user
+		WHERE UserCode = #{ReleaseUserCode}
+ 	</select>
+ 	
+	<select id="getCorpCardReturnDeleteInfo" parameterType="cmap" resultType="cmap">
+ 		SELECT    CorpCardID
+ 				, ReturnDate
+		FROM covi_account4j_si.act_corp_card_return
+		WHERE CorpCardReturnID = #{corpCardReturnID}
+ 	</select>
+ 	
+	<delete id="deleteCorpCardReturnYNInfo">
+	    DELETE FROM covi_account4j_si.act_corp_card_return
+		WHERE	CorpCardReturnID = #{corpCardReturnID}	
+	</delete>
+	
+	<select id="getUserCode" parameterType="java.lang.String" resultType="java.lang.String">
+		SELECT UserCode FROM covi_smart4j.sys_object_user
+		WHERE EmpNo = #{empNo}
+	</select>
+	
+	<delete id="deleteCorpCardReturnList">
+	    DELETE FROM covi_account4j_si.act_corp_card_return
+		WHERE	CorpCardID = #{corpCardID}	
+	</delete>
+</mapper>

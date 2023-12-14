@@ -1,0 +1,214 @@
+<!--2012.11.26 연동 추가-->
+<!--계약번호 시작-->
+<input type="hidden" data-type="mField" id="nYear">
+<input type="hidden" data-type="mField" id="nfiid">
+<!--계약번호 끝-->
+<!--고객명 시작-->
+<input type="hidden" data-type="mField" id="salesNm">
+<!--고객명 끝-->
+<!--연동 끝-->
+
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+	<tbody><tr>
+		<th style="width:12%;"><spring:message code="Cache.lbl_contractName"></spring:message></th>
+		<td align="left" style="width:54%;"><input type="text" data-type="mField" id="Con_Name" value="{{ doc.BodyContext.Con_Name }}" style="width:300px" onchange="PROJECTNAME()"></td>
+		<th style="width:12%;">계약번호</th>
+		<td style="width:22%;"><span id="con_no" data-type="smField">{{ doc.BodyData.MainTable.CON_NO }}</span></td>
+	</tr>
+	<tr>
+		<th>고객명</th>
+		<td align="left" colspan="3" class="Approval_labelTD">
+            <input type="hidden" id="name_id" data-type="mField">
+            <input type="text" data-type="mField" id="Client_NAME" value="{{ doc.BodyContext.Client_NAME }}" style="width:61%;">&nbsp;&nbsp;&nbsp;
+            <span data-mode="writeOnly">
+                <!--<a href="#" class="Btn02" onclick="OpenCusName();"><span>선택</span></a> -->
+                <input type="button" class="smButton" value="선택" onclick="OpenCusName();">
+            </span>
+		</td>
+					
+	</tr>
+	<tr>
+		<th>담당자</th>
+		<td colspan="3" style=" padding-left:3px;padding-right:3px;padding-top:2px;padding-bottom:2px; width:97%;">
+			<table class="table_3 tableStyle linePlus mt10" border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; width:100%; ">
+                <tbody><tr>
+					<td colspan="5">
+                        <table class="table_3 multi-row-table" id="MultiRowTable1" style="width: 100%; border-collapse: collapse;" border="0">
+                            <!-- multirow가 들어 올 부분 -->
+                            <tbody><tr class="multi-row-control">
+                                <td data-multi-row-colspan="4,3" style="text-align:right;" class="Approval_labelTD">
+                                    <input type="button" value="+추가" class="usa multi-row-add">
+                                    <input type="button" value="-삭제" class="usa multi-row-del">
+                                </td>
+                            </tr>
+                            <tr>
+                                <th style="width: 10%;" data-mode="writeOnly" >선택</th>
+                                <th style="width: 25%; border-left:1px solid #c3d7df;">이름</th>
+                                <th style="width: 30%;">연락처</th>
+                                <th style="width: 35%;">E-mail</th>
+                            </tr>
+                            <tr class="multi-row-template">
+                                <td align="center" class="Approval_labelTD"  data-mode="writeOnly" >
+                                    <input type="checkbox" class="multi-row-selector"  data-mode="writeOnly" > 
+                                    <span class="multi-row-seq" style="display: none;">1</span>
+                                </td>
+                                <td align="center" class="Approval_labelTD" style="border-left:1px solid #c3d7df;">
+                                    <input type="text" name="PUMBUN" data-type="rField" style="width: 90%; height: 18px;">
+                                </td>
+                                <td align="center" class="Approval_labelTD">
+                                    <input type="text" name="CNumber" data-type="rField" style="width: 90%; height: 18px;">
+                                </td>
+                                <td align="center" class="Approval_labelTD">
+                                    <input type="text" name="CEmail" data-type="rField" style="width: 94%; height: 18px;">
+                                </td>
+                            </tr>
+                        </tbody></table>
+					</td>
+				</tr>
+			</tbody></table>
+		</td>
+	</tr>
+</tbody></table>
+<table border="0" cellpadding="0" cellspacing="0" width="740"><tbody><tr><td height="7"></td></tr></tbody></table>
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+	<tbody><tr>
+        <th style="width: 12%">계약분기</th>
+        <td class="Approval_labelTD" colspan="4" >
+            <div data-type="mField" data-element-type="rdo_d" data-node-name="contract_quarter" title="계약분기">
+                <input type="radio" name="contract_quarter" value="Q1">Q1&nbsp;&nbsp;&nbsp;
+                <input type="radio" name="contract_quarter" value="Q2">Q2&nbsp;&nbsp;&nbsp;
+                <input type="radio" name="contract_quarter" value="Q3">Q3&nbsp;&nbsp;&nbsp;
+                <input type="radio" name="contract_quarter" value="Q4">Q4
+            </div>
+        </td>
+    </tr>
+    <tr>
+		<th style="width:12%">주계약자</th>
+		<td class="Approval_labelTD" width="220px;" colspan="4">
+            <input type="text" data-type="mField" id="MainClient" value="{{ doc.BodyContext.MainClient }}" style="width:98%; height:20px; ">
+        </td>
+	</tr>
+	<tr>
+		<th>계약기간</th>
+		<td width="180px;" class="Approval_labelTD" colspan="4">
+            <input type="text" data-type="mField" id="SDATE" value="{{ doc.BodyContext.SDATE }}" data-pattern="date" title="시작일" required="">
+			<b>&nbsp;~&nbsp;</b>
+            <input type="text" data-type="mField" id="EDATE" value="{{ doc.BodyContext.EDATE }}" data-pattern="date" title="종료일" required="" onchange="validateVacDate();">
+            &nbsp;
+            <input type="hidden" data-type="mField" id="NIGHTS">
+            <input type="hidden" data-type="mField" id="DAYS">
+		</td>
+	</tr>
+	<tr>
+		<th>계약범위</th>
+		<td class="Approval_labelTD" colspan="4" >
+            <div data-type="mField" data-element-type="chk_d" data-node-name="chkBox_1">
+                <input type="checkbox" id="chkBox_01" name="chkBox_1" value="Groupware">Groupware&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <input type="checkbox" id="chkBox_02" name="chkBox_1" value="MDM">MDM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <input type="checkbox" id="chkBox_03" name="chkBox_1" value="SSO">SSO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <input type="checkbox" id="chkBox_04" name="chkBox_1" value="Maintenance">Maintenance<br>
+                <input type="checkbox" id="chkBox_05" name="chkBox_1" value="Custom Develop">Custom Develop&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <input type="checkbox" id="chkBox_06" name="chkBox_1" value="Product">Product&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </div>
+		</td>
+	</tr>
+	<tr>
+		<th rowspan="5">계약금액</th>
+		<td class="Approval_labelTD" width="70px" style="padding-left:5px; border-right-style:none;"><b>전체</b></td>
+		<td colspan="3" class="Approval_labelTD" style="border-left-style:none;"> 
+			<input type="text" data-type="mField" id="Total_Count" value="{{ doc.BodyContext.Total_Count }}" data-pattern="currency" style="width:80%; height:20px; text-align:right; padding-right:3px;"> 
+            <span style="float: right;">(*부가세 별도)</span>
+        </td>
+	</tr>
+	<tr>
+		<td class="Approval_labelTD" style="padding-left:5px; border-right-style:none;">
+            <b>H/W</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;border-right-style:none;">
+			<input type="text" data-type="mField" id="HW_Count" value="{{ doc.BodyContext.HW_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px;" onblur="figure_total_count();">
+        </td>
+		<td width="105px" class="Approval_labelTD" style="padding-left:5px; border-left-style:none;border-right-style:none;">
+            <b>S/W(코비젼)</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;">
+			<input type="text" data-type="mField" id="SW_Count" value="{{ doc.BodyContext.SW_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px;" onblur="figure_ap_count(); figure_total_count();">
+        </td>
+	</tr>
+	<tr>
+		<td class="Approval_labelTD" style="padding-left:5px; border-right-style:none;">
+            <b>Service</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;border-right-style:none;">
+			<input type="text" data-type="mField" id="Service_Count" value="{{ doc.BodyContext.Service_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px; " onblur="figure_ap_count(); figure_total_count();">
+        </td>
+		<td class="Approval_labelTD" style="padding-left:5px; border-right-style:none;border-left-style:none;">
+            <b>S/W(기타)</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;">
+			<input type="text" data-type="mField" id="etc_Count" value="{{ doc.BodyContext.etc_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px;" onblur="figure_total_count();">
+        </td>
+	</tr>
+    <tr>
+		<td class="Approval_labelTD" style="padding-left:5px; border-right-style:none;">
+            <b>3rd Margin</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;border-right-style:none;">
+			<input type="text" data-type="mField" id="Third_Margin_Count" value="{{ doc.BodyContext.Third_Margin_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px; " onblur="figure_ap_count(); figure_total_count();">
+        </td>
+		<td class="Approval_labelTD" style="padding-left:5px; border-left-style:none;border-right-style:none; width: 120px;">
+            <b>기타 인정실적<br> 제외분</b>
+        </td>
+		<td class="Approval_labelTD" style="border-left-style:none;">
+			<input type="text" data-type="mField" id="etc_AP_Except_Count" value="{{ doc.BodyContext.etc_AP_Except_Count }}" data-pattern="currency" style="width:97%; height:20px;text-align:right; padding-right:3px; " onblur="figure_ap_count(); figure_total_count();">
+        </td>
+	</tr>
+    <tr>
+		<td class="Approval_labelTD" style="padding-left:5px; border-left-style:none; border-right-style:none;"><b>인정실적</b></td>
+        <td colspan="3" class="Approval_labelTD" style="border-left-style:none; ">
+			<input type="text" data-type="mField" id="Accept_Perform_Count" value="{{ doc.BodyContext.Accept_Perform_Count }}" readonly="readonly" data-pattern="currency" style="width:99%; height:20px;text-align:right; padding-right:3px; ">
+        </td>
+    </tr>
+	<tr>
+		<th>공수</th>
+		<td class="Approval_labelTD" colspan="4" style="padding-left:3px;">
+            <input type="text" data-type="mField" id="DAY" value="{{ doc.BodyContext.DAY }}" data-pattern="numeral" data-numeral-format="0,0.00" style="width:12%; height:20px;"> M/M
+        </td>
+	</tr>
+</tbody></table>
+<table border="0" cellpadding="0" cellspacing="0" width="740"><tbody><tr><td height="7"></td></tr></tbody></table>
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+	<tbody><tr>
+		<th style="width:12%;">지급조건</th>
+		<td class="Approval_labelTD" style="padding-top:2px;padding-bottom:2px;">
+            <textarea data-type="mField" id="Pay" style="width:99%;" rows="4">{{ doc.BodyContext.Pay }}</textarea>
+        </td>
+	</tr>
+	<tr>
+		<th>기타</th>
+		<td class="Approval_labelTD" style="padding-top:2px;padding-bottom:2px;">
+            <textarea data-type="mField" id="etc" style="width:99%;" rows="4">{{ doc.BodyContext.etc }}</textarea>
+        </td>
+	</tr>
+			
+</tbody></table>
+<table class="table_10 tableStyle linePlus mt10" id="tbl_linkProj">
+    <colgroup>
+        <col style="width: 12%;">
+        <col style="width: 28%;">
+        <col style="width: 60%;">
+    </colgroup>
+
+    <tbody>
+        <tr>
+            <th>연관<br>
+                프로젝트</th>
+            <td>
+                <input type="text" style="width: 98%;" id="PROJECT_CODE" data-type="mField" value="{{ doc.BodyContext.PROJECT_CODE }}" readonly="readonly">
+            </td>
+            <td>
+                <input type="text" style="width: 98%;" id="PROJECT_NAME" data-type="mField" value="{{ doc.BodyContext.PROJECT_NAME }}" readonly="readonly">
+            </td>
+        </tr>
+    </tbody>
+</table>

@@ -1,0 +1,152 @@
+<li id="combiCostApp@@{ProofCode}_listArea_@@{KeyNo}" name="listArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}">
+	<div class="total_acooungting_write_info">
+		<div class="write_info_chk">
+			<div class="chkStyle02" style="width:30px">
+			</div>
+		</div>
+		<div class="write_info">
+			<table class="total_acooungting_table2" style="margin-top: 5px;">
+				<colgroup>
+					<col style="width: 15%">
+					<col style="width: 20%">
+					<col style="width: 15%">
+					<col style="width: 20%">
+					<col style="width: 15%">
+					<col style="width: 20%">
+				</colgroup>
+				<tbody>
+					<tr>
+						<td class="th">
+							<!-- 작성일 -->
+							**{ACC_lbl_writeDate}
+							<span class="star"></span>
+						</td>
+						<td colspan="5">
+							<div class="dateSel type02" id='combiCostApp@@{RequestType}@@{ProofCode}_proofDate_@@{KeyNo}' 
+								name="DateArea" datafield="ProofDate" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"
+								onChange='CombineCostApplication@@{RequestType}.combiCostApp_changeDate(this,"@@{ProofCode}", "@@{KeyNo}", "ProofDate")'>
+							</div>
+						</td>
+						<td class="th" style="display: none;">
+							<!-- 전기일자 -->
+							**{ACC_lbl_postDate}
+							<span class="star"></span>
+						</td>
+						<td style="display: none;">
+							<div class="dateSel type02" id='combiCostApp@@{RequestType}@@{ProofCode}_postingDate_@@{KeyNo}' 
+								name="DateArea" datafield="PostingDate" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"
+								onChange='CombineCostApplication@@{RequestType}.combiCostApp_changeDate(this,"@@{ProofCode}", "@@{KeyNo}", "PostingDate")'>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td class="th">
+							<!-- 합계금액 -->
+							**{ACC_lbl_totalAmount}
+							<span class="star"></span>
+						</td>
+						<td>
+							<input type="text" id='combiCostApp@@{ProofCode}_totalAmt_@@{KeyNo}'   tag="Amount" style="text-align: right;"
+								name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TotalAmount" 
+								onblur = "removeCharMoney(this); CombineCostApplication@@{RequestType}.combiCostApp_InputValChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TotalAmount');"
+								value="@@{TotalAmount}" class="size155">
+						</td>
+						<td class="th">
+							<!-- 공급가액 -->
+							**{ACC_lbl_supplyValue}
+						</td>
+						<td>
+							<input type="text" id='combiCostApp@@{ProofCode}_repAmount_@@{KeyNo}' disabled="true" tag="Amount" style="text-align: right;"
+								name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="RepAmount"
+								value="@@{RepAmount}" class="size155">
+						</td>
+						<td class="th">
+							<!-- 부가세 -->
+							**{ACC_lbl_taxType}
+						</td>
+						<td>
+							<input type="text" id='combiCostApp@@{ProofCode}_taxAmount_@@{KeyNo}'  tag="Amount" style="text-align: right;"
+								name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="TaxAmount" 
+								onblur = "removeCharMoney(this); CombineCostApplication@@{RequestType}.combiCostApp_InputValChange(this, '@@{ProofCode}', '@@{KeyNo}', 'TaxAmount');"
+								value="@@{TaxAmount}" class="size155">
+						</td>
+					</tr>
+					<tr>
+						<td class="th">
+							<!-- 공급자 -->
+							**{ACC_lbl_provider}
+						</td>
+						<td>
+							<div class="searchBox02">
+								<span>
+									<input type="text" id='combiCostApp@@{ProofCode}_providerName_@@{KeyNo}' disabled="true"
+										name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="ProviderName"
+										value="@@{ProviderName}" class="HtmlCheckXSS ScriptCheckXSS">
+									<input type="hidden" id='combiCostApp@@{ProofCode}_providerNo_@@{KeyNo}'
+										name="CombiCostInputField" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="ProviderNo"
+										value="@@{ProviderNo}" class="HtmlCheckXSS ScriptCheckXSS">
+									
+									<button type="button" class="btnSearchType01" style="margin-left: 170px;" onClick="CombineCostApplication@@{RequestType}.combiCostApp_callVendorPopup('@@{ProofCode}','@@{KeyNo}', undefined, false, true)">**{ACC_btn_search}</button>
+								</span>
+							</div>
+						</td>
+						<td class="th">
+							<!-- 공급받는자 -->
+							**{ACC_lbl_invoiceUser}
+						</td>
+						<td>
+							<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_providee_@@{KeyNo}"	
+								name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="Providee" value="@@{Providee}"						
+								onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'Providee')">
+								@@{ProvideeOptions}
+							</select>
+						</td>
+						<td class="th">
+							<!-- 계산서유형 -->
+							**{ACC_lbl_paperBillType}
+						</td>
+						<td>
+							<select class="selectType02 size155" id="combiCostApp@@{ProofCode}_billType_@@{KeyNo}"	
+								name="ComboSelect" proofcode="@@{ProofCode}" keyno="@@{KeyNo}" field="BillType" value="@@{BillType}"						
+								onChange="CombineCostApplication@@{RequestType}.combiCostApp_ComboChange(this, '@@{ProofCode}', '@@{KeyNo}', 'BillType')">
+								@@{BillTypeOptions}
+							</select>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			
+			@@{VendorInputArea}
+		</div>
+	</div>
+	<div class="pad10"></div>
+	
+	<div class="total_acooungting_table_wrap">
+		<div class="total_acooungting_table_btn">
+			<a href="#" class="btn_copy" onclick="CombineCostApplication@@{RequestType}.combiCostApp_divAddSub('@@{ProofCode}', '@@{KeyNo}', 'TaxCodeSet')">**{ACC_btn_addTax}</a> <!--부가세추가-->
+			<a href="#" class="btn_add" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divAddOne('@@{ProofCode}', '@@{KeyNo}')"></a>
+			<a href="#" class="btn_del" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divDelete('@@{ProofCode}', '@@{KeyNo}')"></a>
+			<a href="#" class="btn_copy" onClick="CombineCostApplication@@{RequestType}.combiCostApp_divCopy('@@{ProofCode}', '@@{KeyNo}')"
+				title="**{ACC_msg_copyDivExpence}"><span>**{ACC_btn_copy}</span></a> <!-- 선택된 증빙분할이 복사되어 최하단에 추가됩니다. (단, 선택된 증빙분할이 없다면 첫 번째 증빙이 복사됩니다.) -->
+		</div>
+		<table class="total_acooungting_table">
+			<thead>
+				<tr>
+					<th width="30"></th>
+					<th>**{ACC_lbl_account}<span class="star"></span></th>		<!-- 계정 -->
+					<th name="noSBArea">**{ACC_standardBrief}<span class='star'></span></th>	<!-- 표준적요 -->
+					<th>**{ACC_lbl_ctrlCode}<span class="star"></span></th>	
+					<th>**{ACC_lbl_costCenter}<span class="star"></span></th>	<!-- CostCenter -->
+					<th name="noIOArea">**{ACC_lbl_projectName}</th> <!-- 프로젝트명 -->
+					<th>**{ACC_billReqAmt}<span class="star"></span></th>			<!-- 청구금액 -->
+					<th name="noBDArea">**{ACC_lbl_remainBudget}</th>	<!-- 잔여예산 -->
+					<th>**{ACC_useHistory}</th> <!-- 내역 -->
+				</tr>
+			</thead>
+		
+			<tbody id="combiCostApp@@{ProofCode}_TableBodyArea_@@{KeyNo}"
+					name="DivBodyArea" proofcode="@@{ProofCode}" keyno="@@{KeyNo}"></tbody>
+		</table>
+	</div>
+	@@{DocLinkInputArea}
+</li>

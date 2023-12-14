@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="admin.aggregation">
+	<!-- 결재양식 정보 -->
+	<select id="selectFormsUsingSubTable" parameterType="String" resultType="cmap">
+		<![CDATA[
+		SELECT FormName, FormPrefix, FormDesc 
+		FROM covi_approval4j.jwf_forms
+		WHERE SubTableInfo <> '{}'
+		]]> 
+		<if test='isSaaS == "Y"'>
+			and CompanyCode = #{entCode}
+		</if>
+	</select>
+	
+	<select id="selectSubTableInfoByFormPrefixAndEntCode" parameterType="cmap" resultType="String">
+		SELECT SubTableInfo
+		FROM covi_approval4j.jwf_forms
+		WHERE FormPrefix = #{formPrefix}
+		<if test='isSaaS == "Y"'>
+			and CompanyCode = #{entCode}
+		</if>
+	</select>
+	
+	<select id="selectSubTableInfoByAggFormId" parameterType="cmap" resultType="String">
+		SELECT SubTableInfo
+		FROM covi_approval4j.jwf_forms jf 
+		inner join covi_approval4j.jwf_aggregation_forms jaf on jf.FormPrefix = jaf.FormPrefix
+		<if test='isSaaS == "Y"'>
+			and jf.CompanyCode = jaf.EntCode 
+		</if>
+		where AggFormId = #{aggFormId}
+	</select>
+	
+	<!-- 양식 -->
+	<insert id="insertAggregationForm" parameterType="egovframework.covision.coviflow.admin.dto.AggregationForm">
+		INSERT INTO covi_approval4j.jwf_aggregation_forms
+		(EntCode, FormPrefix, DisplayYN, RegisterCode, RegistDate)
+		VALUES
+		(#{entCode}, #{formPrefix}, #{displayYN}, #{userCode}, now(3))
+		<selectKey keyProperty="aggFormId" resultType="Integer" order="AFTER">
+			    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<select id="selectAggregationFormsCntByEntCode" parameterType="cmap" resultType="long">
+		SELECT Count(1) as Cnt
+		FROM covi_approval4j.jwf_aggregation_forms jaf
+		INNER JOIN covi_approval4j.jwf_forms jf 
+		ON jaf.FormPrefix = jf.FormPrefix
+		<if test='isSaaS == "Y"'>
+			and jaf.EntCode = jf.CompanyCode
+		</if>
+		WHERE jaf.EntCode = #{entCode}
+	</select>
+	
+	<select id="selectAggregationFormsByEntCode" parameterType="cmap" resultType="cmap">
+		SELECT AggFormId as "aggFormId", jf.FormName as "formName", jaf.FormPrefix as "formPrefix", DisplayYN as "displayYN", jaf.entCode as "entCode"
+			, U.MultiDisplayName AS "RegisterName", D.MultiDisplayName AS "CompanyName"
+		FROM covi_approval4j.jwf_aggregation_forms jaf
+		INNER JOIN covi_approval4j.jwf_forms jf 
+		ON jaf.FormPrefix = jf.FormPrefix
+		LEFT OUTER JOIN covi_smart4j.sys_object_user U 
+		ON jaf.RegisterCode = U.UserCode 
+		LEFT OUTER JOIN covi_smart4j.sys_object_domain D 
+		ON jaf.entCode = D.DomainCode 
+		<if test='isSaaS == "Y"'>
+			and jaf.EntCode = jf.CompanyCode
+		</if>
+		WHERE jaf.EntCode = #{entCode}
+		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("formName")'>formName</when>
+					<when test='sortColumn.equalsIgnoreCase("formPrefix")'>formPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("displayYN")'>displayYN</when>
+					<when test='sortColumn.equalsIgnoreCase("entCode")'>entCode</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<otherwise>formName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				formName ASC
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>	
+	</select>
+	
+	<select id="selectAggregationFormByAggFormId" parameterType="cmap" resultType="egovframework.covision.coviflow.admin.dto.AggregationForm">
+		SELECT AggFormId as "aggFormId", jf.FormName as "formName", jaf.FormPrefix as "formPrefix", DisplayYN as "displayYN", jaf.entCode as "entCode"
+		FROM covi_approval4j.jwf_aggregation_forms jaf
+		INNER JOIN covi_approval4j.jwf_forms jf 
+		ON jaf.FormPrefix = jf.FormPrefix
+		<if test='isSaaS == "Y"'>
+			and jaf.EntCode = jf.CompanyCode
+		</if>
+		WHERE AggFormId = #{aggFormId}
+	</select>
+	
+	<select id="isExistAggregationForm" parameterType="egovframework.covision.coviflow.admin.dto.AggregationForm" resultType="boolean">
+	SELECT EXISTS (SELECT AggFormId FROM covi_approval4j.jwf_aggregation_forms jaf
+		WHERE jaf.FormPrefix = #{formPrefix} and jaf.EntCode = #{entCode})
+	</select>
+	
+	<update id="updateAggregationForm" parameterType="egovframework.covision.coviflow.admin.dto.AggregationForm">
+		UPDATE covi_approval4j.jwf_aggregation_forms
+		SET DisplayYN = #{displayYN}
+		<if test="entCode != null and entCode != '' ">
+			, EntCode = #{entCode}
+		</if>
+		<if test="formPrefix != null and formPrefix != '' ">
+			, FormPrefix = #{formPrefix}
+		</if>  
+		WHERE AggFormId = #{aggFormId}
+	</update>
+	
+	<delete id="deleteAggrgationFormByAggFormId" parameterType="String">
+		DELETE FROM covi_approval4j.jwf_aggregation_forms
+		WHERE AggFormId = #{aggFormId}
+	</delete>
+	
+	<!-- 권한 -->
+	<insert id="insertAggregationAuth" parameterType="egovframework.covision.coviflow.admin.dto.AggregationAuth">
+		INSERT INTO covi_approval4j.jwf_aggregation_auth
+		(AuthType, AuthTarget, AggFormId, EntCode)
+		VALUES
+		(#{authType}, #{authTarget}, #{aggFormId}, #{entCode});
+	</insert>
+	
+	<select id="selectAggregationAuthByAggFormId" parameterType="cmap" resultType="cmap">
+		SELECT AggAuthId as "aggAuthId", AuthType as "authType", AuthTarget as "authTarget",
+		(
+			case AuthType
+			when 'U'
+			then
+			(
+				select concat(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName),'(', covi_smart4j.Fn_BaseGetDictionary_S('ko',soub.MultiDeptName), ')')
+				from covi_smart4j.sys_object_user sou
+				inner join covi_smart4j.sys_object_user_basegroup soub on sou.UserCode = soub.UserCode and soub.JobType = 'Origin'
+				where sou.UserCode = AuthTarget
+			)
+			when 'D'
+			then
+			(
+				select covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, sog.MultiDisplayName)
+				from covi_smart4j.sys_object_group sog
+				where sog.GroupCode = AuthTarget and sog.GroupType = 'Dept'
+			)
+			when 'E'
+			then
+			(
+				select covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, sog.MultiDisplayName)
+				from covi_smart4j.sys_object_group sog
+				where sog.GroupCode = AuthTarget and sog.GroupType = 'Company'
+			)
+			else AuthTarget End
+		) as "displayTargetName"
+		, AggFormId as "aggFormId", EntCode as "entCode"
+		FROM covi_approval4j.jwf_aggregation_auth
+		WHERE AggFormId = #{aggFormId}
+	</select>
+	
+	<select id="isExistAggregationAuth" parameterType="egovframework.covision.coviflow.admin.dto.AggregationAuth" resultType="boolean">
+		SELECT EXISTS (SELECT AggAuthId FROM covi_approval4j.jwf_aggregation_auth jaa
+		WHERE AggFormId = #{aggFormId} AND AuthTarget = #{authTarget} AND EntCode = #{entCode})
+	</select>
+	
+	<delete id="deleteAggregationAuth" parameterType="String">
+		DELETE FROM covi_approval4j.jwf_aggregation_auth
+		WHERE AggAuthId = #{aggAuthId}
+	</delete>
+	
+	<delete id="deleteAggregationAuthByAggAuthIds">
+		DELETE FROM covi_approval4j.jwf_aggregation_auth
+		WHERE AggAuthId IN
+		<foreach collection="list" open="(" close=")" item="aggAuthId" separator=",">
+			#{aggAuthId}
+		</foreach>
+	</delete>
+	
+	<delete id="deleteAggrgationAuthsByAggFormId" parameterType="String">
+		DELETE FROM covi_approval4j.jwf_aggregation_auth
+		WHERE AggFormId = #{AggFormId}
+	</delete>
+	
+	<insert id="insertAggregationFieldByCommonFields" parameterType="cmap">
+		<selectKey keyProperty="aggSortKey" resultType="Integer" order="BEFORE">
+			    SELECT @RowNumber:=NVL(MAX(SortKey),0)
+			    FROM covi_approval4j.jwf_aggregation_fields
+			    WHERE aggformid = #{aggFormId};
+		</selectKey>
+		INSERT INTO covi_approval4j.jwf_aggregation_fields
+		(FieldName, FieldID, isCommon, DisplayYN, SortKey, AggFormId)
+		SELECT FieldName, FieldID, 'Y', 'Y', @RowNumber:=@RowNumber+1 AS SortKey, #{aggFormId}
+		FROM covi_approval4j.jwf_aggregation_commonfields jac
+		WHERE EntCode = #{entCode} and deletedDate is null
+		ORDER BY SortKey ASC
+	</insert>
+	
+	<insert id="insertAggregationFieldForCommonField" parameterType="cmap">
+		<selectKey keyProperty="aggSortKey" resultType="Integer" order="BEFORE">
+			    SELECT NVL(MAX(SortKey),0)
+			    FROM covi_approval4j.jwf_aggregation_fields
+			    WHERE aggformid = #{aggFormId};
+		</selectKey>
+		INSERT INTO covi_approval4j.jwf_aggregation_fields
+		(FieldName, FieldID, isCommon, DisplayYN, SortKey, AggFormId)
+		VALUES
+		<foreach item="field" index="index" collection="fields" separator=",">
+			(
+				  #{field.fieldName}
+				, #{field.fieldId}
+				, 'Y'
+				, 'Y'
+				, #{aggSortKey}+#{index}+1
+				, #{aggFormId}
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insertAggregationFieldBySubTableInfo" parameterType="cmap">
+		<selectKey keyProperty="aggSortKey" resultType="Integer" order="BEFORE">
+			    SELECT NVL(MAX(SortKey),0)
+			    FROM covi_approval4j.jwf_aggregation_fields
+			    WHERE aggformid = #{aggFormId};
+		</selectKey>
+		INSERT INTO covi_approval4j.jwf_aggregation_fields
+		(FieldName, FieldID, isCommon, DisplayYN, SortKey, AggFormId)
+		VALUES
+		<foreach item="field" index="index" collection="fields" separator=",">
+			(
+				  #{field.FieldLabel}
+				, #{field.FieldName}
+				, 'N'
+				, 'Y'
+				, #{aggSortKey}+#{index}+1
+				, #{aggFormId}
+			)
+		</foreach>
+	</insert>
+	
+	<select id="selectAggregationFieldsByAggFormId" parameterType="String" resultType="egovframework.covision.coviflow.admin.dto.AggregationField">
+		SELECT 
+		AggFieldId as "aggFieldId", 
+		FieldName as "fieldName", 
+		FieldID as "fieldId", 
+		isCommon as "isCommon", 
+		DisplayYN as "displayYN", 
+		SortKey as "sortKey", 
+		FieldWidth as "fieldWidth", 
+		FieldAlign as "fieldAlign", 
+		AggFormId as "aggFormId"
+		FROM covi_approval4j.jwf_aggregation_fields
+		WHERE AggFormId = #{aggFormId}
+		ORDER BY SortKey
+	</select>
+	
+	<select id="selectAggregationNotCommonFieldsByAggFormId" parameterType="String" resultType="egovframework.covision.coviflow.admin.dto.AggregationField">
+		SELECT AggFieldId, FieldName, FieldID, isCommon, DisplayYN, SortKey, AggFormId
+		FROM covi_approval4j.jwf_aggregation_fields
+		WHERE AggFormId = #{aggFormId} and isCommon = 'N'
+	</select>
+	
+	<delete id="deleteAggrgationFieldsByAggFormId" parameterType="String">
+		DELETE FROM covi_approval4j.jwf_aggregation_fields
+		WHERE AggFormId = #{AggFormId}
+	</delete>
+	
+	<!-- 공통 필드 -->
+	<insert id="insertAggregationCommonField" parameterType="egovframework.covision.coviflow.admin.dto.AggregationCommonField">
+		INSERT INTO covi_approval4j.jwf_aggregation_commonfields
+		(FieldName, FieldID, SortKey, DataFormat, EntCode)
+		VALUES
+		(#{fieldName}, #{fieldId}, #{sortKey}, #{dataFormat}, #{entCode});
+	</insert>
+	
+	<select id="isExistAggregationCommonField" parameterType="egovframework.covision.coviflow.admin.dto.AggregationCommonField" resultType="boolean">
+		SELECT EXISTS (SELECT AggFieldId FROM covi_approval4j.jwf_aggregation_commonfields jac
+			WHERE jac.FieldID = #{fieldId} and jac.EntCode = #{entCode} and jac.deletedDate is null)
+	</select>
+	
+	<select id="selectAggregationCommonFields" parameterType="cmap" resultType="egovframework.covision.coviflow.admin.dto.AggregationCommonField">
+		SELECT AggFieldId, FieldName, FieldID, SortKey, DataFormat, createdDate, deletedDate, EntCode
+		FROM covi_approval4j.jwf_aggregation_commonfields
+		WHERE EntCode = #{entCode} and deletedDate is null
+		<trim prefix="ORDER BY">
+			<choose>
+				<when test="sortColumn.equalsIgnoreCase('fieldName')">FieldName</when>
+				<when test="sortColumn.equalsIgnoreCase('fieldId')">FieldID</when>
+				<when test="sortColumn.equalsIgnoreCase('sortKey')">SortKey</when>
+				<otherwise>createdDate</otherwise>
+			</choose>
+			<choose>
+				<when test="sortDirection.equalsIgnoreCase('desc')"> desc</when>
+				<otherwise> asc</otherwise>
+			</choose>
+		</trim>
+	</select>
+	
+	<select id="selectAggregationNotUsingCommonFields" parameterType="cmap" resultType="cmap">
+		SELECT jac.AggFieldId as "aggFieldId", jac.FieldName as "fieldName", jac.FieldID as "fieldId", jac.SortKey as "sortKey", jac.DataFormat as "dataFormat"
+		FROM covi_approval4j.jwf_aggregation_commonfields jac 
+		LEFT OUTER JOIN covi_approval4j.jwf_aggregation_fields jaf on jaf.AggFormId = #{aggFormId} and jac.FieldID = jaf.FieldID
+		WHERE jac.EntCode = #{entCode} 
+		and jaf.AggFormId is null
+		and jac.deletedDate is null
+	</select>
+	
+	<select id="selectAggregationCommonField" parameterType="String" resultType="egovframework.covision.coviflow.admin.dto.AggregationCommonField">
+		SELECT 
+		AggFieldId as "aggFieldId", 
+		FieldName as "fieldName", 
+		FieldID as "fieldId", 
+		SortKey as "sortKey", 
+		DataFormat as "dataFormat", 
+		createdDate as "createdDate", 
+		deletedDate as "deletedDate", 
+		EntCode as "entCode"
+		FROM covi_approval4j.jwf_aggregation_commonfields
+		WHERE AggFieldId = #{aggFieldId}
+	</select>
+	
+	<update id="updateAggregationCommonField" parameterType="egovframework.covision.coviflow.admin.dto.AggregationCommonField">
+		UPDATE covi_approval4j.jwf_aggregation_commonfields
+		SET FieldName= #{fieldName}
+		, FieldID= #{fieldId}
+		, SortKey= #{sortKey}
+		, DataFormat= #{dataFormat}
+		, EntCode= #{entCode}
+		WHERE AggFieldId = #{aggFieldId}
+	</update>
+	
+	<update id="deleteAggregationCommonField" parameterType="egovframework.covision.coviflow.admin.dto.AggregationCommonField">
+		UPDATE covi_approval4j.jwf_aggregation_commonfields
+		SET deletedDate = now(3)
+		WHERE AggFieldId = #{aggFieldId}
+	</update>
+	
+	<!-- 필드 -->
+	<insert id="insertAggregationField" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_aggregation_fields
+		(FieldName, FieldID, isCommon, DisplayYN, SortKey, AggFormId, FieldWidth, FieldAlign)
+		VALUES
+		(#{fieldName}, #{fieldId}, #{isCommon}, #{displayYN}, #{sortKey}, #{aggFormId}, #{fieldWidth}, #{fieldAlign});
+	</insert>
+	
+	<update id="updateAggregationField" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_aggregation_fields
+		SET FieldName= #{fieldName}
+		, FieldID= #{fieldId}
+		, isCommon= #{isCommon}
+		, DisplayYN= #{displayYN}
+		, SortKey= #{sortKey}
+		, AggFormId= #{aggFormId}
+		, FieldWidth= #{fieldWidth}
+		, FieldAlign= #{fieldAlign}
+		WHERE AggFieldId = #{aggFieldId}
+	</update>
+	
+	<!-- mysql join delete에서 table alias 적용안되는 버그 있음 -->
+	<delete id="deleteAggregationField" parameterType="String">
+		DELETE covi_approval4j.jwf_aggregation_fields
+		FROM covi_approval4j.jwf_aggregation_fields
+			JOIN covi_approval4j.jwf_aggregation_forms
+				on covi_approval4j.jwf_aggregation_fields.AggFormId = covi_approval4j.jwf_aggregation_forms.AggFormId
+		WHERE covi_approval4j.jwf_aggregation_fields.FieldID = #{fieldId}
+			AND covi_approval4j.jwf_aggregation_forms.EntCode = #{entCode}
+	</delete>
+	
+	<delete id="deleteAggregationFieldUnique" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_aggregation_fields
+		WHERE AggFieldID = #{aggFieldId}
+	</delete>
+	
+	<delete id="deleteAggregationFieldByFormId" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_aggregation_fields
+		WHERE AggFormId = #{aggFormId}
+	</delete>
+	
+	
+	
+</mapper>

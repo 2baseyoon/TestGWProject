@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE tiles-definitions PUBLIC
+       "-//Apache Software Foundation//DTD Tiles Configuration 3.0//EN"
+       "http://tiles.apache.org/dtds/tiles-config_3_0.dtd">
+       
+<tiles-definitions>
+
+ <definition name="login" template="/WEB-INF/views/layout/default.jsp">    
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/commonjs.jsp"></put-attribute>  
+    <put-attribute name="title" value="covision Portal" />
+    <put-attribute name="content" value="/WEB-INF/views/admin/login/login.jsp" />
+  </definition>
+
+ <definition name="main" template="/WEB-INF/views/layout/user_default.jsp">
+	<put-attribute name="include" value="/WEB-INF/views/cmmn/UserInclude.jsp" /><!-- 소스 include 영역 -->
+    <put-attribute name="header" value="/layout/header.do" /> 					<!-- 메뉴상단 -->
+    <put-attribute name="dock" value="/layout/dock.do" />						<!-- 좌측-->
+	<put-attribute name="addtion" value="/WEB-INF/views/cmmn/user_addtion.jsp" />	<!-- 공통팝업(통합알림/가젯/간편작성) -->
+    <put-attribute name="left" value="/layout/left.do" />							<!--  서버  좌측 -->
+    <put-attribute name="portal_content" value="" />								<!-- 신포탈 -->
+    <put-attribute name="content" value="" />										<!-- 기존포탈(~스마트형) 및 서브 업무영역 -->
+    <put-attribute name="tab" value="/layout/tab.do" />         					<!-- 기존 탭 -->
+  </definition>
+
+  <!--  portal(기본) -->
+  <definition name="home"  extends="main">
+    <put-attribute name="left" value="" />
+    <put-attribute name="content" value="/WEB-INF/views/user/portal/home.jsp" />
+  </definition>
+
+  <!--  portal(스마트형) -->
+ <definition name="pn_portal"  extends="main">
+    <put-attribute name="left" value="" />
+    <put-attribute name="content" value="/WEB-INF/views/user/portal/pn_portal.jsp" />
+ </definition>
+ 
+ <!--  portal(ceo) -->
+ <definition name="ceo_portal"  extends="main">
+    <put-attribute name="left" value="" />
+    <put-attribute name="content" value="/WEB-INF/views/user/portal/ceo_portal.jsp" />
+ </definition>
+
+  <!--  portal(확장형) -->
+ <definition name="portal" extends="main">
+    <put-attribute name="left" value="" />
+    <put-attribute name="portal_content" value="/WEB-INF/views/user/portal/portal.jsp" />
+ </definition>
+
+  
+  <!-- user(new tab) -->
+  <definition name="*/*.user.content" extends="main">
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition>
+  
+  <definition name="*/*.manage.content" extends="main">
+    <put-attribute name="content" value="/WEB-INF/views/manage/{1}/{2}.jsp" />
+  </definition>
+  
+  <!-- account home  -->
+  <definition name="*.account" extends="main">
+    <put-attribute name="tab"		value="/layout/tab.do" />
+    <put-attribute name="content"	value="/layout/home.do" />
+  </definition>
+  <definition name="*/*.user.accountcontent" extends="main">
+  	<put-attribute name="tab"		value="/layout/tab.do" />
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition>
+  
+  <!-- webhard -->
+  <definition name="*/*.webhard.userContent" extends="main">
+    <put-attribute name="left" value="/layout/user/left.do" />
+  	<put-attribute name="content" value="/WEB-INF/views/webhard/{1}/{2}.jsp" />
+  </definition>
+ 
+  <!-- Biz Management -->
+  <definition name="*/*.bizmnt" extends="main">
+  	<put-attribute name="content" value="/WEB-INF/views/user/{2}.jsp" />
+  </definition>
+  
+  <definition name="*/*.govdocs" extends="main">
+  	<put-attribute name="content" value="/WEB-INF/views/user/{2}.jsp" />
+  </definition>
+  
+  <!-- 타임시트용 -->
+  <definition name="*/*.workreport" template="/WEB-INF/views/layout/workreport.jsp">
+    <put-attribute name="header" value="/{1}/{1}header.do" />
+    <put-attribute name="left" value="/{1}/{1}left.do" />
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/include.jsp"></put-attribute>
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition>
+  
+
+ <!-- community 관련 --> 
+  <definition name="*.*.communityMain" template="/WEB-INF/views/layout/community.jsp" >
+    <put-attribute name="header" value="/WEB-INF/views/layout/communityHeader.jsp" />
+    <put-attribute name="subHeader" value="/WEB-INF/views/layout/communitySubHeader.jsp" />
+    <put-attribute name="left" value="/layout/CommunitySiteLeft.do" />
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/CommunityUserInclude.jsp" />
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition>
+	
+  <definition name="*.*.communityWebPart" template="/WEB-INF/views/layout/communityWebPart.jsp" >
+    <put-attribute name="header" value="/WEB-INF/views/layout/communityHeader.jsp" />
+    <put-attribute name="subHeader" value="/WEB-INF/views/layout/communitySubHeader.jsp" />
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/UserInclude.jsp" />
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition> 
+  
+  <!-- core (관리자 사이트)-->
+  <definition name="core" template="/WEB-INF/views/layout/admin_default.jsp">
+	<put-attribute name="title" value="Core" />
+	<put-attribute name="include" value="/layout/include.do" />
+    <put-attribute name="header" value="/layout/header.do" />
+    <put-attribute name="left" value="/layout/left.do" />
+    <put-attribute name="content" value="/layout/home.do" />
+    <put-attribute name="footer" value="/layout/footer.do" />
+  </definition>
+  
+  <definition name="*/*.core.content" extends="core">
+    <put-attribute name="content" value="/WEB-INF/views/core/{1}/{2}.jsp" />
+  </definition>
+  
+   <!-- 업무별 Admin -->
+  <definition name="*/*.admin.content" extends="core">
+    <put-attribute name="content" value="/WEB-INF/views/admin/{1}/{2}.jsp" />
+  </definition>
+  
+  <!-- Webhard(Admin) -->
+  <definition name="*/*.webhard.adminContent" extends="core">
+    <put-attribute name="left" value="/layout/admin/left.do" />
+	<put-attribute name="content" value="/WEB-INF/views/webhard/{1}/{2}.jsp" />
+  </definition>
+  
+  <!-- Mobile -->
+  <definition name="mobile/*/*.mobile" template="/WEB-INF/views/layout/mobile_layout.jsp">
+    <put-attribute name="include" value="/WEB-INF/views/mobile/mobile_include.jsp" />
+    <put-attribute name="left" value="/mobile/layout/left.do" />
+    <!-- <put-attribute name="content" value="/WEB-INF/views/mobile/{1}/{2}.jsp" /> -->
+    <put-attribute name="content" value="/mobile/{1}/go{2}.do" />
+  </definition>    
+  
+  <!-- Feed -->
+  <definition name="*/*.user.feedcontent" extends="main">
+  	<put-attribute name="left" value="/layout/feedLeft.do" />
+    <put-attribute name="content" value="/WEB-INF/views/user/{1}/{2}.jsp" />
+  </definition>
+
+
+  <definition name="sso/*" template="/WEB-INF/views/sso/{1}.jsp">
+  </definition>
+  
+  <definition name="sync/*" template="/WEB-INF/views/sync/{1}.jsp">
+  </definition>
+
+  <definition name="passwordCompulsionChange" template="/WEB-INF/views/user/privacy/PasswordCompulsionChange.jsp">    
+  </definition>
+  
+  <!-- error page  -->
+  <definition name="error" template="/WEB-INF/views/cmmn/error/error_400.jsp">
+  </definition>
+  
+   <definition name="*oauthException" template="/WEB-INF/views/layout/oauth.jsp">
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/commonjs.jsp" />
+    <put-attribute name="title" value="covision Portal" />
+    <put-attribute name="content" value="/WEB-INF/views/cmmn/error/oauthException.jsp" />
+  </definition>    
+ 
+   <definition name="coviException" template="/WEB-INF/views/layout/oauth.jsp">
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/commonjs.jsp" />
+    <put-attribute name="title" value="covision Portal" />
+    <put-attribute name="content" value="/WEB-INF/views/cmmn/error/coviException.jsp" />
+  </definition> 
+ 
+
+  <definition name="oauthAuthority" template="/WEB-INF/views/layout/default.jsp">    
+    <put-attribute name="commonScripts" value="/WEB-INF/views/cmmn/commonjs.jsp" />
+    <put-attribute name="title" value="covision Portal" />
+    <put-attribute name="content" value="/WEB-INF/views/core/login/oauthAuthority.jsp" />
+  </definition>  
+  
+</tiles-definitions>

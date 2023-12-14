@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="common.control">
+    
+ 	<select id="selectMyLike" parameterType="cmap" resultType="Integer">
+		SELECT count(*) AS LikeCount
+		FROM covi_smart4j.sys_like
+		WHERE TargetServiceType = #{targetServiceType} AND TargetID = #{targetID}
+		<if test="registerCode != null">
+	    AND RegisterCode = #{registerCode}
+	    </if>
+	</select>
+	
+	<select id="selectLike" parameterType="cmap" resultType="Integer">
+		SELECT count(*) AS LikeCount
+		FROM covi_smart4j.sys_like
+		WHERE TargetServiceType = #{targetServiceType} AND TargetID = #{targetID}
+	</select>
+	
+ 	<delete id="deleteLike" parameterType="cmap">
+	    DELETE FROM covi_smart4j.sys_like
+	    WHERE TargetServiceType = #{targetServiceType} 
+	    	AND TargetID = #{targetID}
+	    	AND registerCode = #{registerCode}
+	</delete>
+ 	
+ 	<insert id="insertLike" parameterType="cmap" useGeneratedKeys="true" keyProperty="LikeID">
+		INSERT INTO covi_smart4j.sys_like (
+			TargetServiceType,
+			TargetID,
+			LikeType,
+			Emoticon,
+			Point,
+			RegisterCode, 
+			RegistDate,
+			Reserved1, 
+			Reserved2, 
+			Reserved3
+		)
+		VALUES (		
+			#{targetServiceType}, 
+			#{targetID}, 
+			#{likeType}, 
+			#{emoticon}, 
+			#{point},
+			#{registerCode}, 
+			#{registDate},
+			#{reserved1}, 
+			#{reserved2}, 
+			#{reserved3}
+		)
+	</insert>
+	
+ 	<select id="checkDuplicateSubscription" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) 
+ 	    FROM sys_subscription
+ 	    WHERE 1=1
+ 	    AND TargetServiceType = #{targetServiceType}
+ 	    AND TargetID = #{targetID}
+ 	    AND registerCode = #{userCode}
+ 	</select>
+ 	
+	<insert id="insertSubscription" parameterType="cmap">
+	    INSERT INTO covi_smart4j.sys_subscription(TargetServiceType, TargetID, RegisterCode)
+		VALUES
+		<foreach item="item" index="index" collection="targetIDs" separator=",">
+		    ( 
+			    #{targetServiceType},
+			    #{item},
+	            #{userCode} 
+            )
+	    </foreach>
+	</insert>
+	
+	<delete id="deleteSubscription" parameterType="cmap">
+	    DELETE FROM sys_subscription
+	    WHERE 1=1
+	    AND RegisterCode = #{userCode}
+	    AND
+	    <if test="subscriptionID != null and subscriptionID != ''" >
+	    	SubscriptionID = #{subscriptionID}
+	    </if>
+	    <if test="targetServiceType != null and targetServiceType != ''" >
+			TargetServiceType = #{targetServiceType}
+	    </if>
+	</delete>
+	
+	<delete id="deleteSubscriptionAll" parameterType="cmap">
+	    DELETE FROM sys_subscription
+	    WHERE 1=1
+	    AND RegisterCode = #{userCode}
+	    AND TargetServiceType = #{targetServiceType}
+	</delete>
+	
+	<select id="selectSubscriptionList" parameterType="cmap" resultType="cmap">
+	    SELECT * FROM (
+			SELECT 
+				 E.EventID AS PrimaryID					<!-- 상세보기 URL생성용 EventID -->
+				, ED.DateID	AS SecondaryID				<!-- 상세보기 URL생성용 DateID -->
+				, 'Schedule' AS TargetServiceType		<!-- 화면 처리용 ServiceType -->
+				, E.FolderID AS TargetID				<!-- FolderID -->
+				, Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName) AS FolderName
+				, E.Subject
+				, E.Description AS Description							<!-- 본문 표시 데이터: 요약정보로 표시 -->
+				, E.RegistDate AS RegistDate							<!-- 등록일시 -->
+				, E.RegistDate AS CreateDate	<!-- 화면표시용 등록일 -->
+				, E.RegisterCode										<!-- 등록자 -->
+				, (SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = E.RegisterCode) AS RegisterName
+				, (SELECT IFNULL(PhotoPath, '') FROM sys_object_user WHERE UserCode = E.RegisterCode) AS PhotoPath
+				, (SELECT COUNT(*) FROM sys_comment WHERE TargetServiceType='Schedule' AND TargetID = E.EventID  AND DeleteDate IS NULL)AS CommentCnt 
+				, (SELECT COUNT(*) FROM sys_like WHERE TargetServiceType='Schedule' AND TargetID = E.EventID) AS RecommendCnt
+				, '' AS FileID							<!-- 썸네일 표시용 FileID -->
+				, ED.StartDate							<!-- 일정관리 정보: 시작일 -->
+				, ED.EndDate							<!-- 일정관리 정보: 종료일 -->
+				, ED.IsRepeat							<!-- 일정관리 정보: 반복일정 -->
+				, ED.RepeatID							<!-- 일정관리 정보: 반복일정 ID -->
+				, E.Place								<!-- 일정관리 정보: 장소 -->
+				, '' AS MenuID							<!-- 상세보기에서 목록이동 처리용 MenuID -->
+			FROM `event` AS E
+			INNER JOIN	covi_smart4j.EVENT_DATE AS ED ON ( E.EventID = ED.EventID )
+			INNER JOIN sys_object_folder AS SOF ON ( SOF.FolderID = E.FolderID )
+			WHERE 1=1
+			AND DATEDIFF(DATE_FORMAT(NOW(),'%Y-%m-%d'), E.RegistDate) &lt; #{limitDay}
+			AND (E.IsPublic = 'Y' OR E.RegisterCode = #{userCode} )	
+			AND E.DeleteDate IS NULL 
+			AND E.IsDisplay = 'Y'
+			AND SOF.DeleteDate IS NULL  
+			AND SOF.IsUse = 'Y'
+			AND SOF.FolderID IN (SELECT TargetID FROM sys_subscription WHERE TargetServiceType = 'Schedule' AND RegisterCode = #{userCode})
+			UNION ALL
+			SELECT 
+				 BM.MessageID AS PrimaryID
+				, BM.Version	AS SecondaryID
+				, 'Board' AS TargetServiceType
+				, BM.FolderID As TargetID
+				, Fn_BaseGetDictionary_S(#{lang},SOF.MultiDisplayName) AS FolderName
+				, BM.Subject, BM.BodyText AS Description
+				, BM.RegistDate AS RegistDate
+				, BM.RegistDate AS CreateDate
+				, BM.CreatorCode AS RegisterCode
+				, Fn_BaseGetDictionary_S(#{lang}, BM.CreatorName) AS RegisterName
+				, (SELECT IFNULL(PhotoPath, '') FROM sys_object_user WHERE UserCode = BM.CreatorCode) AS PhotoPath
+				, (SELECT COUNT(*) FROM sys_comment WHERE TargetServiceType IN ('Board', 'Doc', 'Community') AND TargetID = CONCAT(BM.MessageID,'_',BM.Version) AND DeleteDate IS NULL ) AS CommentCnt 
+				, (SELECT COUNT(*) FROM sys_like WHERE TargetServiceType IN ('Board', 'Doc', 'Community') AND TargetID = CONCAT(BM.MessageID,'_',BM.Version)) AS RecommendCnt
+				, (SELECT MAX(FileID) FROM sys_file WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID
+				, '' AS StartDate
+				, '' AS EndDate
+				, '' AS IsRepeat
+				, '' AS RepeatID
+				, '' AS Place
+				, SOF.MenuID AS MenuID
+			FROM board_message AS BM
+			INNER JOIN sys_object_folder AS SOF ON ( SOF.FolderID = BM.FolderID )
+			LEFT OUTER JOIN sys_object_user AS SOU ON BM.CreatorCode = SOU.UserCode
+			LEFT OUTER JOIN board_config AS BC ON (BC.FolderID = SOF.FolderID)
+	 		LEFT OUTER JOIN board_config_default AS BCD ON (BCD.FolderType = SOF.FolderType)
+			WHERE 1=1
+			AND SOF.IsUse = 'Y' 
+			AND SOF.DeleteDate IS NULL 
+			AND BM.MsgState IN ('C', 'A') 
+			AND BM.MsgType != 'S' 
+			AND IFNULL(BC.UseSubscription, BCD.UseSubscription) = 'Y' 
+			AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND CreatorCode = #{userCode}))
+			AND (ReservationDate IS NULL OR ReservationDate &lt; DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i:%s'))
+			AND BM.DeleteDate IS NULL
+			AND IFNULL(BM.SecurityLevel,999) >= (SELECT SecurityLevel FROM sys_object_user WHERE UserCode = #{userCode})
+			AND DATEDIFF(DATE_FORMAT(NOW(),'%Y-%m-%d'), BM.RegistDate) &lt; #{limitDay}
+			AND IF(SOF.FolderType = 'OneToOne', (BM.OwnerCode = #{userCode} OR (SELECT OwnerCode FROM sys_object_folder WHERE FolderID = #{userCode}) LIKE CONCAT('%',#{userCode},'%')  ) , 1) = 1
+			AND SOF.FolderID IN (SELECT TargetID FROM sys_subscription WHERE TargetServiceType = 'Board' AND RegisterCode = #{userCode})
+		) AS RESULT
+		WHERE 1=1
+		ORDER BY RegistDate DESC 
+		LIMIT #{limitCount}
+	</select>
+	
+	<select id="selectSubscriptionFolderList" parameterType="cmap" resultType="cmap">
+	    SELECT SS.SubscriptionID, 
+		SS.TargetServiceType,
+		SOF.FolderID, 
+		Fn_FolderPathByLangGet_S(#{lang},CONCAT(SOF.FolderPath, SOF.FolderID)) AS FolderPath,
+		IFNULL(Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName), SOF.DisplayName ) AS FolderName
+		FROM sys_subscription AS SS
+		INNER JOIN sys_object_folder AS SOF ON (SS.TargetID = SOF.FolderID)
+		LEFT OUTER JOIN board_config AS BC ON (BC.FolderID = SOF.FolderID) AND SS.TargetServiceType = 'Board' 
+    	LEFT OUTER JOIN board_config_default AS BCD ON (BCD.FolderType = SOF.FolderType)
+		WHERE SS.RegisterCode = #{userCode}
+		<if test="targetServiceType != null and targetServiceType != ''">
+		    AND SS.TargetServiceType = #{targetServiceType}
+		</if>
+		AND (SS.TargetServiceType != 'Board' OR IFNULL(BC.UseSubscription, BCD.UseSubscription) = 'Y' )
+		AND SOF.DeleteDate IS NULL AND SOF.IsUse = 'Y'
+	</select>
+	
+	<!-- 즐겨찾기 메뉴 -->
+	<select id="selectFavoriteMenuList" parameterType="cmap" resultType="cmap">
+	    SELECT F.FavoriteID, F.TargetServiceType, F.TargetObjectType, F.TargetURL, Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName) AS DisplayName
+	    FROM sys_favorite AS F 
+	    LEFT OUTER JOIN sys_object_folder AS SOF ON (F.TargetID = SOF.FolderID)	    
+	    <if test='aclDataArr != null and aclDataArr.length != 0'>
+		INNER JOIN sys_object_user_acl AS ACL ON SOF.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ObjectType = #{objectType} AND ACL.ServiceType IN ('Board', 'Community')
+		</if>	    
+	    LEFT OUTER JOIN board_config AS BC ON (BC.FolderID = SOF.FolderID)
+	 	LEFT OUTER JOIN board_config_default AS BCD ON (BCD.FolderType = SOF.FolderType)
+	    WHERE F.UserCode = #{userCode}
+	    AND SOF.DeleteDate IS NULL
+	    AND SOF.IsUse = 'Y'
+		AND IFNULL(BC.UseFavorite, BCD.UseFavorite) = 'Y'
+	</select>
+	
+	<select id="checkDuplicateFavoriteMenu" parameterType="cmap" resultType="java.lang.Long">
+ 	    SELECT COUNT(*) 
+ 	    FROM sys_favorite
+ 	    WHERE 1=1
+ 	    AND TargetObjectType = #{targetObjectType}
+ 	    AND TargetServiceType = #{targetServiceType}
+ 	    AND TargetID = #{targetID}
+ 	    AND TargetURL = #{targetURL}
+ 	    AND UserCode = #{userCode}
+ 	</select>
+ 	
+	<insert id="insertFavoriteMenu" parameterType="cmap">
+	    INSERT INTO sys_favorite(TargetObjectType, TargetServiceType, TargetID, TargetURL, UserCode)
+		VALUES
+		<foreach item="item" index="index" collection="targetIDs" separator=",">
+		    ( 
+		    	#{targetObjectType},
+			    #{targetServiceType},
+			    #{item},
+			    #{targetURL},
+	            #{userCode} 
+            )
+	    </foreach>
+	</insert>
+	
+	<delete id="deleteFavoriteMenu" parameterType="cmap">
+	    DELETE FROM sys_favorite
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	    AND FavoriteID = #{favoriteID}
+	</delete>
+	
+	<delete id="deleteFavoriteMenuAll" parameterType="cmap">
+	    DELETE FROM sys_favorite
+	    WHERE 1=1
+	    AND USerCode = #{userCode}
+	    AND TargetServiceType = #{targetServiceType}
+	</delete>
+	
+	<!-- 연락처 -->
+	<insert id="insertContact" parameterType="cmap">
+	    INSERT INTO covi_smart4j.sys_sensing_org(UserCode, SelectedType, SelectedCode, SubSystem)
+		VALUES(#{userCode}, 'UR', #{selectedCode}, '') 
+	</insert>
+	
+	<delete id="deleteContact" parameterType="cmap">
+	    DELETE FROM covi_smart4j.sys_sensing_org 
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	    AND SelectedCode = #{selectedCode}
+	    AND SelectedType = #{selectedType}
+	</delete>
+	
+	<select id="checkDuplicateContact" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(0)
+	    FROM covi_smart4j.sys_sensing_org
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	    AND SelectedCode = #{selectedCode}
+	</select>
+	
+	<select id="selectContactNumberList" parameterType="cmap" resultType="cmap">
+		SELECT A.UserCode, A.SelectedCode, A.SelectedType,
+			   B.DisplayName, B.PhotoPath, B.MailAddress, B.Mobile, 
+			   B.intPhoneNumber, B.intMobile, B.JobPositionName,
+			   B.infoText, B.MultiJobPositionName, B.MultiJobLevelName, B.MultiJobTitleName
+		 FROM covi_smart4j.sys_sensing_org A
+		 JOIN (SELECT A.UserCode, Fn_BaseGetDictionary_S(#{lang}, A.MultiDisplayName) AS DisplayName, A.PhotoPath, A.MailAddress,
+					  A.Mobile,
+					  (CASE WHEN (A.PhoneNumber IS NULL OR A.PhoneNumber = '') THEN '' 
+					  		ELSE CONCAT('+82-', SUBSTR(A.PhoneNumber, 2, 12)) 
+					  		 END) AS intPhoneNumber,
+					  (CASE WHEN (A.Mobile IS NULL OR A.Mobile = '') THEN '' 
+					  		ELSE CONCAT('+82-', SUBSTR(A.Mobile, 2, 12)) 
+					  		 END) AS intMobile,
+				   	  B.JobPositionName, CONCAT(Fn_BaseGetDictionary_S(#{lang}, B.MultiJobTitleName), ' (', Fn_BaseGetDictionary_S(#{lang}, B.MultiDeptName), ')') AS infoText,
+				   	  Fn_BaseGetDictionary_S(#{lang}, B.MultiJobPositionName) AS MultiJobPositionName,
+					  Fn_BaseGetDictionary_S(#{lang}, B.MultiJobLevelName) AS MultiJobLevelName, 
+					  Fn_BaseGetDictionary_S(#{lang}, B.MultiJobTitleName) AS MultiJobTitleName
+			    FROM covi_smart4j.sys_object_user A
+			    LEFT JOIN covi_smart4j.sys_object_user_basegroup B
+			      ON A.UserCode = B.UserCode
+			   WHERE B.JobType = 'Origin'
+			   ) B
+		   ON A.SelectedCode = B.UserCode
+		WHERE A.UserCode = #{userCode}
+		  AND SelectedType = 'UR'
+		ORDER BY ModifyDate DESC
+	</select>
+	
+	<select id="selectTodoList" parameterType="cmap" resultType="cmap">
+		SELECT TodoID, Title, URL, Description, 
+			   IsComplete, ModifyDate, MessageType,
+			   DATE_FORMAT(ModifyDate,'%Y.%m.%d') AS modifyDateText
+		  FROM covi_smart4j.sys_todo
+		 WHERE UserCode = #{userCode}
+		  <if test='todoId != null and todoId !=""'>
+			AND TodoID = #{todoId}
+		  </if>		 
+		 ORDER BY ModifyDate DESC
+	</select>
+	
+	<insert id="insertTodo" parameterType="cmap">	
+		INSERT 
+		  INTO covi_smart4j.sys_todo (UserCode, MessageType, Title, URL,
+		  							  Description, IsComplete
+		  						     )
+	    VALUES (#{userCode}, #{messageType}, #{title}, #{url},
+	    		#{description}, #{isComplete}
+	    	   )
+	</insert>
+	
+	<update id="updateTodo" parameterType="cmap">
+		UPDATE covi_smart4j.sys_todo
+		   SET IsComplete = #{isComplete},
+			   <if test='title != null and title !=""'>
+				Title = #{title},
+			   </if>
+			   <if test='description != null and description !=""'>
+				Description = #{description},
+			   </if>
+		   	   ModifyDate = now(3)
+		 WHERE TodoID IN
+			<foreach collection="todoIdArr" item="todoId" open="(" close=")" separator=",">
+				#{todoId}
+			</foreach>
+	</update>
+	
+	<!-- Todo삭제 -->
+	<update id="deleteTodo" parameterType="cmap" >
+	  delete from covi_smart4j.sys_todo
+	   where UserCode = #{userID}
+		<if test='todoId == 0'>
+		and IsComplete = "Y"
+		</if>
+		<if test='todoId != 0'>		
+		and TodoID = #{todoId}
+		</if>
+	</update>
+	
+	<select id="selectUserQuickMenuConf" parameterType="cmap" resultType="java.lang.String">
+	    SELECT QuickMenuConf FROM covi_smart4j.sys_object_user_info
+		WHERE UserCode = #{userID}
+	</select>
+	
+	<update  id="updateUserQuickMenuConf" parameterType="cmap">
+	    UPDATE covi_smart4j.sys_object_user_info 
+		SET QuickMenuConf  = #{quickMenuConf}
+		WHERE UserCode = #{userID}
+	</update>
+	
+	<!-- 통합 알림 목록 조회 -->
+	<select id="selectIntegratedList" parameterType="cmap" resultType="cmap">
+	    SELECT a.AlarmID
+				, a.Category
+				, a.Title
+				, a.URL
+				, a.PusherCode
+				, a.MsgType
+				, Fn_BaseGetDictionary_S(#{lang}, b.MultiDisplayName) AS PusherName
+			    , Fn_BaseGetDictionary_S(#{lang}, c.MultiJobLevelName) AS PusherJobLevel
+				, DATE_FORMAT(ADDTIME(a.ReceivedDate ,IFNULL(base.Reserved1,'00:00:00')),'%Y-%m-%d %H:%i:%s') AS ReceivedDate
+			    , a.IsRead
+			    <![CDATA[
+			    ,CASE WHEN INSTR( a.URL,'processID=' ) > 0
+					THEN (
+							SELECT jd.FormPrefix
+							FROM	covi_approval4j.jwf_process jp
+							INNER JOIN covi_approval4j.jwf_processdescription jd ON jp.ProcessDescriptionID = jd.ProcessDescriptionID
+							WHERE jp.ProcessID = SUBSTR( a.URL,INSTR( a.URL,'processID=')+10, INSTR( SUBSTR( a.URL,INSTR( a.URL,'processID=')+10),'&' )-1 )
+						 )
+					ELSE NULL END	 AS FormPrefix
+				]]>	
+				, a.Message
+				, a.ReservedStr2
+		FROM covi_smart4j.sys_alarm_list AS a
+		LEFT JOIN covi_smart4j.sys_object_user AS b ON a.PusherCode = b.UserCode
+		LEFT JOIN covi_smart4j.sys_object_user AS u ON a.UserCode = u.UserCode
+		LEFT JOIN (SELECT *
+					from sys_base_code
+					where CodeGroup = 'TimeZone'  and IsUse='Y') base ON u.TimeZoneCode = base.Code
+		LEFT JOIN covi_smart4j.sys_object_user_basegroup AS c ON b.UserCode = c.UserCode AND c.JobType = 'Origin'
+		WHERE a.UserCode = #{userID}
+		<!-- AND a.IsRead = 'N' -->
+		AND a.DeleteDate IS NULL
+		AND a.ReceivedDate > DATE_ADD(now(), INTERVAL -14 DAY)
+		<if test="alarmType == 'Integrated'">
+			AND ReservedInt1 is null
+		</if>
+		<if test="alarmType == 'Mention'">
+			AND ReservedInt1  = -1
+		</if>
+		ORDER BY AlarmID DESC
+		LIMIT #{limitCount}
+	</select>
+	
+	<!-- 알림 읽음 처리 -->
+	<update id="updateAlarmIsRead" parameterType="cmap" >
+	    UPDATE covi_smart4j.sys_alarm_list
+		SET IsRead = 'Y'
+		WHERE AlarmID = #{alarmID} AND UserCode = #{userID}
+	</update>
+
+	<update id="updateIntegratedIsNew" parameterType="cmap">
+		UPDATE covi_smart4j.sys_alarm_list
+		SET IsNew = 'N'
+		WHERE UserCode = #{userID} AND IsNew IS NULL 
+		<if test="alarmType == 'Integrated'">
+			AND ReservedInt1 is null
+		</if>
+		<if test="alarmType == 'Mention'">
+			AND ReservedInt1  = -1
+		</if>
+	</update>
+
+	<!-- 알림 모두 비우기 -->
+	<update id="deleteAllAlarm" parameterType="cmap" >
+	    UPDATE covi_smart4j.sys_alarm_list
+		SET DeleteDate = now(3)
+		WHERE DeleteDate IS NULL
+		 AND UserCode = #{userID}
+		<if test="alarmType == 'Integrated'">
+			AND ReservedInt1 is null
+		</if>
+		<if test="alarmType == 'Mention'">
+			AND ReservedInt1  = -1
+		</if>
+	</update>
+		
+	<!-- 알림 선택 비우기 -->
+	<update id="deleteEachAlarm" parameterType="cmap" >
+	    UPDATE covi_smart4j.sys_alarm_list
+		SET DeleteDate = now(3)
+		WHERE UserCode = #{userID} AND AlarmID = #{deleteID}
+	</update>	
+	
+	<select id="checkUserCnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM sys_object_user WHERE DisplayName = #{name} AND LogonID = #{id}
+	</select>
+	
+	<update id="changePassword" parameterType="cmap">
+	    UPDATE sys_object_user 
+	    				       SET LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{loginPassword},512)))
+	   							 , TEMPORARY_PASSWORD_ISUSE = 'Y'
+	      		 				 , PASSWORD_CHANGE_DATE = NOW(3)
+	      		 				 , ACCOUT_LOCK = 'N'
+	    WHERE DisplayName = #{name} AND UserCode = #{id}
+	</update>
+	
+	<select id="externalMailCnt" parameterType="cmap" resultType="java.lang.Long">
+       SELECT COUNT(*) 
+       FROM sys_object_user
+       WHERE LogonID  = #{id}
+       AND DISPLAYNAME = #{name}
+       AND ISUSE = 'Y'
+       AND EXTERNALMAILADDRESS = #{emailAddress}
+    </select>
+    
+    <select id="recentOTP" parameterType="cmap" resultType="cmap">
+       SELECT UNIX_TIMESTAMP(EventDate) AS EventDate, UNIX_TIMESTAMP(now()) AS CurrentDate
+       FROM sys_base_two_factor_ip_log
+       WHERE LogType  = #{LogType}
+       AND LogonID = #{id}
+       ORDER BY EventDate DESC
+       LIMIT 1
+    </select>
+    
+    <select id="mobileCnt" parameterType="cmap" resultType="java.lang.Long">
+       SELECT COUNT(*) 
+       FROM sys_object_user
+       WHERE LogonID  = #{id}
+       AND DISPLAYNAME = #{name}
+       AND ISUSE = 'Y'
+       AND Mobile = #{mobile}
+    </select>
+    
+	<insert id="createTwoFactor"  parameterType="cmap" > 
+	    INSERT INTO sys_base_two_factor_ip_log (						
+	    											LOGTYPE
+	    										 ,  MACHINENAME
+	    										 ,  LOGONID
+	    										 ,  OTPNUMBER
+	    										 ,  IPADDRESS
+	    										 ,  DOMAINURL
+	    										 ,  PAGEEVENTTYPE
+	    										 ,  EVENTDATE
+	    															)VALUES(
+	    											#{LogType}
+	    										 ,  ' '
+	    										 ,  #{LogonID}
+	    										 ,  #{OTPNumber}
+	    										 ,  #{IPAddress}
+	    										 ,  #{DOMAINURL}
+	    										 ,  #{PageEventType}					
+	    										 ,  NOW(3)
+	    										 )
+	    
+	</insert>
+	
+	<select id="selectLikeMessage" parameterType="cmap" resultType="cmap">
+		SELECT SOF.MenuID AS MenuID
+			, SOF.FolderID AS FolderID
+			, Subject, Version
+			, MessageID 
+			, BM.CreatorCode AS CreatorCode
+		FROM covi_smart4j.board_message AS BM
+		INNER JOIN covi_smart4j.sys_object_folder AS SOF ON (SOF.FolderID = BM.FolderID)
+		WHERE 1=1
+		AND MessageID = SUBSTRING_INDEX(SUBSTRING_INDEX(#{targetID}, '_', 1), '_', -1)
+		AND `Version` = SUBSTRING_INDEX(SUBSTRING_INDEX(#{targetID}, '_', 2), '_', -1)
+	</select>
+	
+	<select id="selectObjectOne_UR" parameterType="cmap" resultType="cmap">
+		SELECT A.UserCode, CompanyCode, DeptCode, EmpNo, DisplayName, MultiDisplayName, MultiDeptName, ENTERDATE, Mobile
+		FROM covi_smart4j.sys_object_user a
+		INNER JOIN covi_smart4j.sys_object_user_basegroup b
+			ON a.usercode = b.usercode
+		WHERE a.usercode = #{objId}
+		AND jobtype = 'Origin';
+	</select>
+	
+	<select id="selectObjectOne_GR" parameterType="cmap" resultType="cmap">
+		SELECT GroupCode, CompanyCode, GroupType, DisplayName, MultiDisplayName, ShortName, MultiShortName, PrimaryMail
+		FROM covi_smart4j.sys_object_group
+		WHERE groupcode = #{objId};
+	</select>
+	
+	<select id="selectObjectOne_DN" parameterType="cmap" resultType="cmap">
+		SELECT DomainID, DomainCode, DomainURL, DisplayName, MultiDisplayName, ShortName, MultiShortName
+		FROM covi_smart4j.sys_object_domain
+		WHERE DomainCode = #{objId};
+	</select>
+</mapper>

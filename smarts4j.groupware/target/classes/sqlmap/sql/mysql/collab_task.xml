@@ -1,0 +1,849 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.task">
+
+	<update id="saveProjectWorkLoad" parameterType="cmap">
+	/* collab.task.saveProjectWorkLoad */
+	 	{CALL covi_smart4j.sp_collab_saveWorkLoad(#{CompanyCode}, #{taskSeq}, #{saturDay}, #{sunDay}, #{holiDay}, #{USERID})}
+	</update>
+	
+	<insert id="addTask"   parameterType="cmap">
+	/* collab.task.addTask */
+		INSERT INTO covi_smart4j.collab_task
+					( taskName , Label, ImpLevel, ParentKey, TopParentKey, Workorder, StartDate,EndDate, CloseDate, TaskStatus, ProgRate, Remark, RemarkText, ObjectType, ObjectID, IsMile, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+		VALUES		( #{taskName}, #{label}, #{impLevel}, #{parentKey}, #{topParentKey}, #{workOrder}, #{startDate}, #{endDate}, case when  #{taskStatus} = 'C' then date_format(NOW(),'%Y%m%d') else #{endDate} end, #{taskStatus}, #{progRate}, #{remark}, #{remarkText}, #{objectType}, #{objectID}, #{isMile}, #{USERID}, now(), #{USERID}, now())
+	   <selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="addTaskBySchedule"   parameterType="cmap">
+	/* collab.task.addTaskBySchedule */
+		INSERT INTO covi_smart4j.collab_task
+					( taskName , Label, ParentKey, TopParentKey, Workorder, StartDate,EndDate, CloseDate, TaskStatus, ProgRate, Remark, RemarkText, ObjectType, ObjectID, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+			(SELECT  #{taskName}, #{label}, #{parentKey}, #{topParentKey}, #{workOrder}, replace(StartDate,'-',''), replace(EndDate,'-',''), replace(EndDate,'-',''), #{taskStatus}, #{progRate}, #{remark}, #{remarkText}, #{objectType}, #{objectID},#{USERID}, now(), #{USERID}, now()
+			   FROM covi_smart4j.event_date
+			  WHERE eventid= #{objectID}
+			   )
+	   <selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="addTaskBySurvey"   parameterType="cmap">
+	/* collab.task.addTaskBySurvey */
+		INSERT INTO covi_smart4j.collab_task (taskName, Label, ParentKey, TopParentKey, Workorder, StartDate, EndDate, CloseDate, TaskStatus, ProgRate, Remark, RemarkText, ObjectType, ObjectID, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+		(
+			SELECT  #{taskName}, #{label}, #{parentKey}, #{topParentKey}, #{workOrder}, #{startDate}, #{endDate}, #{endDate}, #{taskStatus}, #{progRate}, #{remark}, #{remarkText}, #{objectType}, #{objectID}, #{USERID}, now(), #{USERID}, now()
+			FROM covi_smart4j.survey
+			WHERE SurveyID = #{objectID}
+		)
+		<selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="addTaskMap"   parameterType="cmap">
+	/* collab.task.addTaskMap */
+		INSERT INTO covi_smart4j.collab_task_map
+					(prjSeq, prjType, taskSeq	,sectionSeq	,RegisterCode,RegisteDate)
+		VALUES		(#{prjSeq}, #{prjType}, #{taskSeq},#{sectionSeq},#{USERID},now())
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     
+	</insert>
+
+	<insert id="addTaskMapBySchedule"   parameterType="cmap">
+	/* collab.task.addTaskMapBySchedule */
+		INSERT INTO covi_smart4j.collab_task_map
+					(prjSeq, prjType, taskSeq	,sectionSeq	,RegisterCode,RegisteDate)
+		    (SELECT #{prjSeq}, #{prjType}, taskSeq,#{sectionSeq},#{USERID},now()
+		       FROM covi_smart4j.collab_task
+		      WHERE ObjectType = #{objectType}
+		        AND ObjectID = #{objectID})
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     
+	</insert>
+
+	<insert id="addTaskMapBySurvey"   parameterType="cmap">
+	/* collab.task.addTaskMapBySurvey */
+		INSERT INTO covi_smart4j.collab_task_map (prjSeq, prjType, taskSeq	,sectionSeq	,RegisterCode,RegisteDate)
+		(
+			SELECT #{prjSeq}, #{prjType}, taskSeq, #{sectionSeq}, #{USERID}, now()
+			FROM covi_smart4j.collab_task
+			INNER JOIN covi_smart4j.collab_project
+			WHERE ObjectType = #{objectType}
+			AND ObjectID = #{objectID}
+		)
+		ON DUPLICATE KEY UPDATE
+			  RegisterCode	= #{USERID}
+			, RegisteDate	= NOW()
+	</insert>
+	
+	<delete id="deleteTaskMap"   parameterType="cmap">
+	/* collab.task.deleteTaskMap */
+		DELETE FROM covi_smart4j.collab_task_map
+		WHERE taskSeq = #{taskSeq}
+		 <if test='prjSeq != null and prjSeq !=""'>
+		 	AND prjSeq = #{prjSeq}
+		 	AND prjType = #{prjType}
+		 </if>
+	</delete>
+	
+	<update id="changeProjectTaskSection"   parameterType="cmap"  >
+	/* collab.task.changeProjectTaskSection */
+		UPDATE covi_smart4j.collab_task_map 
+		   SET sectionSeq = #{sectionSeq}
+		 WHERE prjSeq =  #{prjSeq}
+		   AND prjType = #{prjType}
+		   AND taskSeq =  #{taskSeq}		
+	</update>
+
+	<update id="changeProjectTaskOrder"   parameterType="cmap"  >
+	/* collab.task.changeProjectTaskOrder */
+		<foreach collection="taskList" item="lst" open="" close="" separator=";">
+			UPDATE covi_smart4j.collab_task_map 
+			   SET Workorder= #{lst.workOrder}
+			 WHERE taskSeq =  #{lst.taskSeq}
+			   AND prjType=  #{prjType}
+			   AND prjSeq=  #{prjSeq}
+		</foreach>	   
+	</update>
+
+	<update id="changeProjectTaskTodoOrder"   parameterType="cmap"  >
+	/* collab.task.changeProjectTaskTodoOrder */
+		<foreach collection="taskList" item="lst" open="" close="" separator=";">
+			UPDATE covi_smart4j.collab_task_member 
+			   SET Todoorder= #{lst.todoOrder}
+			 WHERE taskSeq =  #{lst.taskSeq}
+			   AND userCode=  #{userCode}
+		</foreach>	   
+	</update>
+
+	<update id="changeProjectTaskStatus"   parameterType="cmap"  >
+	/* collab.task.changeProjectTaskStatus */
+		UPDATE covi_smart4j.collab_task
+		   SET TaskStatus = #{taskStatus}
+		   		<if test='taskStatus == "C"'>
+		   		,ProgRate= 100
+		   		,closeDate = date_format(NOW() ,'%Y%m%d') 
+		   		,StartDate = case when StartDate is null then date_format(NOW() ,'%Y%m%d') else StartDate end
+		   		,EndDate   = case when EndDate is null  then date_format(NOW() ,'%Y%m%d') else EndDate end
+		   		</if>
+		   		,ModifyDate = now()
+		   		,ModifierCode = #{USERID}
+		 WHERE taskSeq =  #{taskSeq}		
+	</update>
+	
+	<update id="changeProjectTaskDate"   parameterType="cmap"  >
+	/* collab.task.changeProjectTaskDate */
+		UPDATE covi_smart4j.collab_task
+		   SET StartDate = #{startDate}
+		   		,EndDate   = #{endDate}
+		   		<if test="taskStatus != null and taskStatus != ''">
+			   		,TaskStatus = #{taskStatus} 
+		   		</if>
+		   		,ModifyDate = now()
+		   		,ModifierCode = #{USERID}
+		 WHERE taskSeq =  #{taskSeq}		
+	</update>
+	
+	<insert id="saveTask"   parameterType="cmap">
+	/* collab.task.saveTask */
+		UPDATE covi_smart4j.collab_task
+		   SET taskName =  #{taskName}
+		       ,StartDate=  #{startDate}
+               ,EndDate=  #{endDate}
+               ,TaskStatus=  #{taskStatus}
+               ,progRate = #{progRate}
+               ,Remark=  #{remark}
+               ,RemarkText=  #{remarkText}
+               ,Label=  #{label}
+               <choose>
+               		<when test="impLevel != null and impLevel != ''">
+               ,ImpLevel = #{impLevel}
+               		</when>
+               </choose>
+               ,ModifierCode=  #{USERID}
+               ,ModifyDate=  now()
+		 WHERE taskSeq =  #{taskSeq}
+	</insert>
+
+	<update id="updateTaskStatus" parameterType="cmap">
+	/* collab.task.updateTaskStatus */
+		UPDATE covi_smart4j.collab_task
+		SET TaskStatus = #{taskStatus}
+			,progRate = #{progRate}
+			,ModifierCode=  #{USERID}
+			,ModifyDate=  now()
+		WHERE taskSeq =  #{taskSeq}
+	</update>
+	
+	<select id="getTask" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+	/* collab.task.getTask */
+		SELECT t.*
+			, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName('0', 'CollabStatus', t.TaskStatus)) TaskStatusName
+			, IFNULL((SELECT COUNT(*) FROM covi_smart4j.collab_task_favorite f WHERE t.taskseq = f.taskSeq AND UserCode = #{USERID}),0) IsFav
+			, IFNULL((SELECT SectionSeq FROM covi_smart4j.collab_task_map m WHERE t.taskseq = m.taskSeq AND prjSeq = #{prjSeq} AND prjType = #{prjType}),0) SectionSeq
+			, case when (t.EndDate is null OR STR_TO_DATE(t.EndDate,'%Y%m%d') <  NOW()) AND t.TaskStatus NOT IN ('C','H')  then 'Y' end AS IsDelay
+			, par.TaskSeq ParTaskSeq
+			, par.TaskName ParTaskName
+			, par.TaskStatus ParTaskStatus
+			, CASE WHEN t.RegisterCode = #{USERID} THEN 'Y'
+				   WHEN (SELECT COUNT(*) FROM SYS_OBJECT_GROUP WHERE GROUPID = #{prjSeq} AND MANAGERCODE = #{USERID}) != 0 THEN 'Y'
+				   WHEN (SELECT COUNT(*) FROM COLLAB_PROJECT_MANAGER WHERE PRJSEQ = #{prjSeq} AND USERCODE = #{USERID}) != 0 THEN 'Y'
+			  ELSE 'N' END AS "authSave"
+		FROM covi_smart4j.collab_task t
+ 	 	LEFT JOIN covi_smart4j.collab_task par on par.taskseq= t.parentKey 
+		WHERE t.taskSeq = #{taskSeq}
+		 ]]>
+	</select>
+	
+	<select id="getSubTask"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getSubTask */
+		SELECT t.*
+				,(SELECT IFNULL(COUNT(*),0) FROM collab_task WHERE ParentKey = t.TaskSeq AND ParentKey > 0) AS PCnt
+				,(SELECT GROUP_CONCAT(CONCAT(ctm.UserCode,'^',covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'^',sou.PhotoPath,'^',bg.DeptName)  SEPARATOR '|') 
+					FROM covi_smart4j.collab_task_member ctm 
+				   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+			       JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = sou.UserCode AND bg.JobType = 'Origin'
+					WHERE ctm.taskSeq = t.TaskSeq) tmUser
+		  FROM covi_smart4j.collab_task t
+		 WHERE parentKey = #{taskSeq}
+	</select>
+
+	<delete id="deleteTask"  parameterType="cmap">
+	/* collab.task.deleteTask */
+		DELETE FROM collab_task WHERE taskSeq =  #{taskSeq}
+	</delete>
+	
+	<delete id="deleteSubTask"  parameterType="cmap">
+	/* collab.task.deleteSubTask */
+		DELETE FROM  collab_task 
+		 WHERE taskseq IN (
+				with recursive cte (taskSeq, taskName, parentKey) as
+				(
+				 select     taskSeq, taskName, parentKey
+				 from       collab_task
+				 where      parentKey = #{taskSeq}
+				 union all
+				 select     r.taskSeq, r.taskName, r.parentKey
+				 from       collab_task r
+				 inner join cte
+				         on r.parentKey = cte.taskSeq
+				)
+			SELECT taskSeq from cte)
+	</delete>
+	
+	<select id="getTaskUserForm"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskUserForm */
+		SELECT OptionTitle, OptionType, OptionVal
+		  FROM covi_smart4j.collab_task_userform 
+		 WHERE taskSeq =  #{taskSeq}
+	</select>
+	
+	<select id="getTaskUserFormCnt"   parameterType="cmap" resultType="int">
+	/* collab.task.getTaskUserForm */
+		SELECT count(*)
+		  FROM covi_smart4j.collab_task_userform 
+		 WHERE taskSeq =  #{taskSeq}
+	</select>
+	
+	<select id="getTaskMap"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskMap */
+		SELECT case when tm.PrjType = 'P' then cp.PrjName ELSE Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) END PrjName, cs.SectionSeq , cs.SectionName, tm.PrjSeq, tm.PrjType, cp.PrjColor
+		  FROM covi_smart4j.collab_task_map  tm
+	 LEFT JOIN covi_smart4j.collab_project cp ON  tm.PrjType = 'P' AND cp.PrjSeq = tm.PrjSeq 
+	 LEFT JOIN covi_smart4j.sys_object_group sb ON  tm.PrjType != 'P' AND tm.PrjSeq = sb.GroupID
+	 LEFT JOIN covi_smart4j.collab_section cs ON  tm.PrjSeq = cs.PrjSeq and tm.PrjType = cs.PrjType AND  tm.SectionSeq = cs.SectionSeq
+		 WHERE tm.taskSeq =  #{taskSeq}
+	</select>
+	
+	<select id="getTaskMapCnt"   parameterType="cmap" resultType="int">
+	/* collab.task.getTaskMapCnt */
+		SELECT count(*)
+		  FROM covi_smart4j.collab_task_map 
+		 WHERE taskSeq =  #{taskSeq}
+	</select>
+
+	<select id="getTaskLink"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskLink */
+		SELECT 'AF' LinkType, af.LinkTaskSeq, t.TaskName, t.TaskStatus
+				, Fn_GetBaseCodeName('0', 'CollabStatus', t.TaskStatus) TaskStatusName
+				, (SELECT TaskName FROM covi_smart4j.collab_task WHERE TaskSeq = af.LinkTaskSeq) AS LinkTaskName
+		  FROM covi_smart4j.collab_task_link aF
+		  JOIN covi_smart4j.collab_task t ON af.LinkTaskSeq = t.TaskSeq
+		 WHERE af.taskSeq =  #{taskSeq}
+		 UNION  
+		SELECT 'BF' LinkType, bf.TaskSeq, t.TaskName, t.TaskStatus
+				, Fn_GetBaseCodeName('0', 'CollabStatus', t.TaskStatus) TaskStatusName
+				, (SELECT TaskName FROM covi_smart4j.collab_task WHERE TaskSeq = bf.TaskSeq) AS LinkTaskName
+		  FROM covi_smart4j.collab_task_link bf
+		  JOIN covi_smart4j.collab_task t ON bf.taskSeq = t.TaskSeq
+		 WHERE bf.linktaskseq =  #{taskSeq}
+	</select>
+	
+	<insert id="addTaskUserForm"   parameterType="cmap">
+	/* collab.task.addTaskUserForm */
+		<foreach collection="userFormList" item="user" open="" close=";" separator=";">
+		INSERT INTO covi_smart4j.collab_task_userform
+					(TaskSeq, optionTitle, optionType, optionVal, RegisterCode, RegisteDate, ModifierCode, ModifyDate )
+			 VALUES (#{taskSeq}, #{user.optionTitle}, #{user.optionType} ,  #{user.optionVal}, #{USERID}, now(), #{USERID}, now())
+		</foreach>  
+	</insert>
+
+	<delete id="deleteTaskUserForm"   parameterType="cmap">
+	/* collab.task.deleteTaskUserForm */
+		DELETE FROM covi_smart4j.collab_task_userform WHERE taskSeq =  #{taskSeq}
+	</delete>
+	
+	<select id="getTaskMember"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskMember */
+		SELECT cpm.UserCode
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) DeptName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiJobPositionName) JobPositionName
+				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) DisplayName
+				,sou.PhotoPath
+		  FROM covi_smart4j.collab_task_member cpm 
+		  JOIN covi_smart4j.sys_object_user sou on cpm.userCode = sou.userCode
+		  JOIN covi_smart4j.sys_object_user_basegroup soub		ON sou.UserCode = soub.UserCode  AND soub.JobType ='Origin'
+		 WHERE cpm.taskSeq =  #{taskSeq}
+	</select>
+	
+	<select id="getTaskMemberCnt"   parameterType="cmap"  resultType="java.lang.Long">
+	/* collab.task.getTaskMemberCnt */
+		SELECT count(*)
+		  FROM covi_smart4j.collab_task_member cpm 
+		  JOIN covi_smart4j.sys_object_user sou on cpm.userCode = sou.userCode
+		  JOIN covi_smart4j.sys_object_user_basegroup soub		ON sou.UserCode = soub.UserCode  AND soub.JobType ='Origin'
+		 WHERE cpm.taskSeq =  #{taskSeq}
+	</select>
+	
+	<insert id="addTaskMember"   parameterType="cmap">
+	/* collab.task.addTaskMember */
+		<foreach collection="memberList" item="user" open="" close=";" separator=";">
+		INSERT INTO covi_smart4j.collab_task_member
+					(taskSeq	,userCode	,RegisterCode,RegisteDate)
+		VALUES		( #{taskSeq},#{user.userCode},#{USERID},now())
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     
+		</foreach>     
+	</insert>
+
+	<insert id="addTaskMemberBySchedule"   parameterType="cmap">
+	/* collab.task.addTaskMemberBySchedule */
+		INSERT INTO covi_smart4j.collab_task_member
+					(taskSeq	,userCode	,RegisterCode,RegisteDate)
+			 (SELECT t.taskSeq,a.AttenderCode,#{USERID},now()
+		       FROM covi_smart4j.collab_task t 
+		       join covi_smart4j.event_attendant a on t.objectid = a.eventid 
+		      WHERE ObjectType = #{objectType}
+		        AND ObjectID = #{objectID})
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     ;
+		    
+		INSERT INTO covi_smart4j.collab_task_member
+					(taskSeq	,userCode	,RegisterCode,RegisteDate)
+			 (SELECT t.taskSeq,#{USERID},#{USERID},now()
+		       FROM covi_smart4j.collab_task t 
+		      WHERE ObjectType = #{objectType}
+		        AND ObjectID = #{objectID})
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     ;
+	</insert>
+
+	<insert id="addTaskMemberBySurvey"   parameterType="cmap">
+	/* collab.task.addTaskMemberBySurvey */
+		INSERT INTO covi_smart4j.collab_task_member (taskSeq, userCode, RegisterCode, RegisteDate)
+		(
+			SELECT t.taskSeq, a.TargetCode, #{USERID}, now()
+			FROM covi_smart4j.collab_task t
+			JOIN covi_smart4j.survey_target_respondent a ON t.ObjectID = a.SurveyID
+			WHERE 1=1
+			AND t.ObjectType = #{objectType}
+			AND t.ObjectID = #{objectID}
+			AND a.TargetType = 'UR'
+		)
+		ON DUPLICATE KEY UPDATE
+			  RegisterCode	= #{USERID}
+			, RegisteDate	= NOW();
+		
+		INSERT INTO covi_smart4j.collab_task_member (taskSeq, userCode, RegisterCode, RegisteDate)
+		(
+			SELECT t.taskSeq, a.TargetCode, #{USERID}, now()
+			FROM covi_smart4j.collab_task t
+			JOIN covi_smart4j.survey_target_resultview a ON t.ObjectID = a.SurveyID
+			WHERE 1=1
+			AND t.ObjectType = #{objectType}
+			AND t.ObjectID = #{objectID}
+			AND a.TargetType = 'UR'
+		)
+		ON DUPLICATE KEY UPDATE
+			  RegisterCode	= #{USERID}
+			, RegisteDate	= NOW();
+	</insert>
+
+	<delete id="deleteTaskMember"   parameterType="cmap">
+	/* collab.task.deleteTaskMember */
+		DELETE FROM covi_smart4j.collab_task_member WHERE taskSeq =  #{taskSeq}
+		<if test='userCode != null and userCode !=""'>
+		 	AND userCode = #{userCode}
+		</if>
+	</delete>
+	
+	<select id="getNoAllocProject"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getNoAllocProject */
+		with recursive cte (PrjSeq, PrjName, PrjType, SectionSeq, SectionName) as
+			  (SELECT a.PrjSeq, a.PrjName,a.PrjType, a.SectionSeq, a.SectionName
+				 FROM (
+						SELECT a.prjSeq, a.PrjName,s.PrjType, s.SectionSeq, s.SectionName
+						  FROM collab_project a
+						  JOIN collab_section s           ON a.PrjSeq = s.PrJSeq AND s.PrjType='P'
+				 	LEFT  JOIN collab_project_member cpm  ON a.PrjSeq = cpm.PrjSeq AND cpm.UserCode = #{USERID}
+					LEFT  JOIN collab_project_manager cpn ON a.PrjSeq = cpn.PrjSeq AND cpn.UserCode = #{USERID}
+					LEFT  JOIN collab_project cpr         ON A.PrjSeq = cpr.PrjSeq AND cpr.RegisterCode = #{USERID}
+						 WHERE a.PrjStatus = 'P' AND  a.IsClose='N'
+			   			 <if test='isSaaS == "Y"'>
+						 	 AND a.CompanyCode = #{CompanyCode}
+						 </if>
+						   AND (cpm.PrjSeq IS NOT NULL OR  cpn.PrjSeq IS NOT NULL OR   cpr.PrjSeq IS NOT NULL )
+						UNION all
+						SELECT b.GroupID, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDISPLAYNAME),s.PrjType, s.SectionSeq, s.SectionName
+					      FROM sys_object_user_basegroup a
+					      JOIN sys_object_group b ON a.DeptCode = b.GroupCode
+                		  JOIN COVI_SMART4J.COLLAB_TEAM_EXEC c on b.groupid = c.groupid AND c.isClose='N'
+						  JOIN COVI_SMART4J.COLLAB_SECTION s ON b.GroupId = s.PrJSeq AND s.PrjType = concat('T',c.execyear)
+						 WHERE UserCode = #{USERID}
+						   AND B.GroupType='Dept') a
+		LEFT OUTER JOIN collab_task_map 	b ON b.TaskSeq =#{taskSeq} and a.PrjType = b.PrjType AND a.PrjSeq = b.PrjSeq 
+				  <if test='callbackFunc != "saveTaskAllocPopup"'>
+				  WHERE b.prjSeq IS null
+				  </if>
+				  )
+		  SELECT PrjSeq, PrjName, PrjType, 0 SectionSeq, SectionName, 0 nodeValue, 0 pno, PrjSeq no, PrjName nodeName, 'N' rdo
+		    FROM cte
+		GROUP BY PrjSeq, PrjType
+	   UNION ALL
+		  SELECT PrjSeq, PrjName, PrjType, SectionSeq, SectionName,SectionSeq, prjSeq pno, concat(PrjSeq,'_',SectionSeq) no, SectionName, 'Y' rdo
+		    FROM cte
+		ORDER BY PrjType DESC, PrjSeq, SectionSeq
+	</select>
+	
+	<select id="getTaskFavorite"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskFavorite */
+		SELECT cpm.UserCode
+		  FROM covi_smart4j.collab_task_favorite cpm 
+		 WHERE cpm.taskSeq =  #{taskSeq}
+	 	   AND userCode = #{userCode}
+	</select>
+	
+	<insert id="addTaskFavorite"   parameterType="cmap">
+	/* collab.task.addTaskFavorite */
+		INSERT INTO covi_smart4j.collab_task_favorite
+					(taskSeq	,UserCode	,RegisterCode,RegisteDate)
+		VALUES		( #{taskSeq},#{userCode},#{USERID},now())
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     
+	</insert>
+
+	<delete id="deleteTaskFavorite"   parameterType="cmap">
+	/* collab.task.deleteTaskFavorite */
+		DELETE FROM covi_smart4j.collab_task_favorite WHERE taskSeq =  #{taskSeq}
+		<if test='userCode != null and userCode !=""'>
+		 	AND userCode = #{userCode}
+		</if>
+	</delete>
+	
+	<select id="getTaskTag"   parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskTag */
+		SELECT TagID, TagName, RegisterCode
+		  FROM   covi_smart4j.collab_task_tag
+		 WHERE taskSeq =  #{taskSeq}
+	</select>
+
+	<insert id="addTaskTag"   parameterType="cmap">
+	/* collab.task.addTaskTag */
+		<foreach collection="taskTagList" item="tag" open="" close=";" separator=";">
+		INSERT INTO covi_smart4j.collab_task_tag
+					( taskSeq, tagName, RegisterCode, RegisteDate)
+		VALUES		( #{taskSeq}, #{tag},  #{USERID}, now())
+		</foreach>
+	</insert>
+	
+	<delete id="deleteTaskTag"   parameterType="cmap">
+	/* collab.task.deleteTaskTag */
+		DELETE FROM covi_smart4j.collab_task_tag WHERE taskSeq =  #{taskSeq}
+		<if test='tagID != null and tagID !=""'>
+		 	AND TagId = #{tagID}
+		</if>
+	</delete>
+	
+	<insert id="copyTask"   parameterType="cmap">
+	/* collab.task.copyTask */
+		INSERT INTO covi_smart4j.collab_task 
+					( taskName , StartDate, EndDate, Label, ImpLevel, ParentKey, TopParentKey, TaskStatus, ProgRate, CloseDate, ObjectType, ObjectID, Remark, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+			(SELECT #{taskName}, StartDate, EndDate, Label, ImpLevel, ParentKey, TopParentKey, TaskStatus, ProgRate, CloseDate, ObjectType, ObjectID, Remark, #{USERID}, now(), #{USERID}, now()
+			   FROM covi_smart4j.collab_task
+			  WHERE taskSeq =  #{orgTaskSeq})
+			    
+	   <selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="copyTaskMember"   parameterType="cmap">
+	/* collab.task.copyTaskMember */
+		INSERT INTO covi_smart4j.collab_task_member
+					(taskSeq	,userCode	,RegisterCode,RegisteDate)
+			(SELECT #{taskSeq},userCode,#{USERID},now()
+			   FROM covi_smart4j.collab_task_member
+			  WHERE taskSeq =  #{orgTaskSeq})
+	</insert>
+	
+	<insert id="copyTaskMap"   parameterType="cmap">
+	/* collab.task.copyTaskMap */
+		INSERT INTO covi_smart4j.collab_task_map
+					(taskSeq  , prjType, prjSeq, sectionSeq, workOrder	,RegisterCode,RegisteDate)
+			(SELECT #{taskSeq}, prjType, prjSeq, sectionSeq, workOrder,#{USERID},now()
+			   FROM covi_smart4j.collab_task_map
+			  WHERE taskSeq =  #{orgTaskSeq})
+	</insert>
+	
+	<insert id="copyTaskTag"   parameterType="cmap">
+	/* collab.task.copyTaskTag */
+		INSERT INTO covi_smart4j.collab_task_tag
+					(taskSeq  , tagName, RegisterCode,RegisteDate)
+			(SELECT #{taskSeq}, tagName,#{USERID},now()
+			   FROM covi_smart4j.collab_task_tag
+			  WHERE taskSeq =  #{orgTaskSeq})
+	</insert>
+	
+	<insert id="addTaskLink"   parameterType="cmap">
+	/* collab.task.addTaskLink */
+		INSERT INTO covi_smart4j.collab_task_link
+					(taskSeq	,linkTaskSeq	,RegisterCode,RegisteDate)
+		VALUES		(#{taskSeq},#{linkTaskSeq},#{USERID},now())
+		ON DUPLICATE KEY UPDATE    
+		    RegisterCode   = #{USERID}    
+		    ,RegisteDate     = NOW()     
+	</insert>
+
+	<delete id="deleteTaskLink"   parameterType="cmap">
+	/* collab.task.deleteTaskLink */
+		DELETE FROM covi_smart4j.collab_task_link
+		WHERE taskSeq = #{taskSeq}
+		
+	</delete>
+	
+	<update id="updateTaskDate" parameterType="cmap">
+	/* collab.task.updateTaskDate */
+		UPDATE covi_smart4j.collab_task
+		SET	  StartDate = #{startDate}
+			  <choose>
+				<when test='objectType != null and objectType == "EVENT"'>
+					, EndDate = REPLACE(DATE_ADD(#{startDate}, INTERVAL #{diffDate} DAY), '-', '')
+				</when>
+				<otherwise>
+					, EndDate = #{endDate}
+				</otherwise>
+			  </choose>
+			  <if test='flag != null and flag ="collabSurveyUpdate"'>
+			  	, TaskName = #{taskName}
+			  </if>
+			, ModifyDate = NOW()
+			, ModifierCode = #{USERID}
+		WHERE taskSeq = #{taskSeq}
+	</update>
+	
+	<select id="selectTaskSeqList" parameterType="cmap" resultType="cmap">
+	/* collab.task.selectTaskSeqList */
+		SELECT taskSeq
+		FROM covi_smart4j.collab_task
+		WHERE 1=1
+		AND ObjectID = #{objectID}
+		AND ObjectType = #{objectType}
+	</select>
+	
+	<select id="selectTaskSeqByObjectID" parameterType="cmap" resultType="cmap">
+	/* collab.task.selectTaskSeqByObjectID */
+		SELECT taskSeq
+		FROM covi_smart4j.collab_task a
+		WHERE 1=1
+		AND ObjectID = #{objectID}
+		AND ObjectType = #{objectType}
+		AND EXISTS (
+			select 'x' from covi_smart4j.collab_task_map s
+			where s.TaskSeq = a.TaskSeq 
+			AND s.PrjSeq = #{prjSeq}
+			AND s.PrjType = #{prjType}
+		)
+	</select>
+	
+	<select id="selectTaskMemberList" parameterType="cmap" resultType="cmap">
+	/* collab.task.selectTaskMemberList */
+		WITH PROJECT_SEQ AS(
+			SELECT PrjSeq 
+			FROM covi_smart4j.collab_task_map
+			WHERE TaskSeq = #{taskSeq}
+		)
+		,TEAM_MEMBER AS(
+			SELECT 	soub.UserCode
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) DeptName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiJobPositionName) JobPositionName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) DisplayName
+					,sou.PhotoPath
+		  	FROM covi_smart4j.sys_object_group sb 
+		  	JOIN covi_smart4j.sys_object_user_basegroup soub ON sb.GroupCode = soub.DeptCode 
+		  	JOIN covi_smart4j.sys_object_user sou on sou.UserCode = soub.UserCode  #AND soub.JobType ='Origin'
+			WHERE sb.GroupId IN ( SELECT PrjSeq FROM PROJECT_SEQ ) 
+		)
+		,PROJECT_MEMBER AS(
+			SELECT 	cpm.UserCode
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiDeptName) DeptName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},soub.MultiJobPositionName) JobPositionName
+					,covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName) DisplayName
+					,sou.PhotoPath
+			FROM covi_smart4j.collab_project_member cpm 
+			JOIN covi_smart4j.sys_object_user sou on cpm.userCode = sou.userCode
+			JOIN covi_smart4j.sys_object_user_basegroup soub		ON sou.UserCode = soub.UserCode  AND soub.JobType ='Origin'
+			WHERE cpm.prjSeq IN ( SELECT PrjSeq FROM PROJECT_SEQ )
+		)
+		SELECT  DAT.UserCode
+				,DAT.DeptName
+				,DAT.JobPositionName
+				,DAT.DisplayName
+				,DAT.PhotoPath
+		FROM (
+			SELECT *
+			FROM TEAM_MEMBER UNION ALL 
+			SELECT * FROM PROJECT_MEMBER
+		) DAT
+		GROUP BY DAT.UserCode,DAT.DeptName,DAT.JobPositionName,DAT.DisplayName,DAT.PhotoPath
+	</select>
+	
+	<delete id="deleteTaskBySchedule" parameterType="cmap">
+	/* collab.task.deleteTaskBySchedule */
+		DELETE A
+		FROM covi_smart4j.event_date A
+		INNER JOIN covi_smart4j.collab_task B ON B.TaskSeq = #{taskSeq} AND A.EventID = B.ObjectID
+		WHERE 1=1
+		AND A.EventID = #{EventID}
+		AND REPLACE(A.StartDate, '-', '') = B.StartDate
+		AND REPLACE(A.EndDate, '-', '') = B.EndDate
+	</delete>
+	
+	<select id="getTaskMapUser" parameterType="cmap" resultType="cmap">
+		SELECT 'MEM', pm.UserCode
+		  FROM collab_task_map  tm
+		  JOIN collab_project_manager pm ON  pm.PrjSeq = tm.PrjSeq 
+		 WHERE tm.taskSeq = #{taskSeq}
+		   AND tm.PrjType = 'P' 
+	  union    
+		SELECT 'MAN', pm.UserCode
+		  FROM collab_task_map  tm
+		  JOIN collab_project_member  pm ON  pm.PrjSeq = tm.PrjSeq 
+		 WHERE tm.taskSeq = #{taskSeq}
+		   AND tm.PrjType = 'P' 
+		 union    
+		SELECT 'VIE', pm.UserCode
+		  FROM collab_task_map  tm
+		  JOIN collab_project_viewer  pm ON  pm.PrjSeq = tm.PrjSeq 
+		 WHERE tm.taskSeq = #{taskSeq}
+		   AND tm.PrjType = 'P' 
+		 union    
+		SELECT 'TEAM', soub.UserCode
+		  FROM collab_task_map  tm
+		  JOIN sys_object_group o  ON  o.GroupId = tm.PrjSeq 
+		  JOIN sys_object_user_basegroup soub ON o.GroupCode = soub.DeptCode 
+		 WHERE tm.taskSeq = #{taskSeq}
+		   AND tm.PrjType != 'P' 
+		 union    
+  		SELECT 'SUM',  t.UserCode
+  		  FROM COLLAB_TASK_MEMBER T
+  		 WHERE taskSeq = #{taskSeq}   
+	</select>
+	
+	<update id="saveTaskMile" parameterType="cmap">
+	/* collab.task.saveTaskMile */
+		UPDATE covi_smart4j.collab_task
+		SET	  IsMile = #{isMile}
+			, ModifyDate = NOW()
+			, ModifierCode = #{USERID}
+		WHERE taskSeq = #{taskSeq}
+	</update>
+	
+	<select id="selectPrjTask" parameterType="cmap" resultType="cmap">
+		/* collab.task.selectPrjTask */
+		SELECT	T1.TaskSeq, T1.TaskName, T3.SectionSeq, T3.SectionName
+		FROM 	covi_smart4j.collab_task T1
+		INNER JOIN covi_smart4j.collab_task_map T2 ON T2.TaskSeq = T1.TaskSeq
+    	LEFT JOIN covi_smart4j.collab_section T3 on T3.SectionSeq = T2.SectionSeq
+    	LEFT JOIN covi_smart4j.collab_task_member T4 on T4.TaskSeq = T1.TaskSeq
+		where  	1=1
+		AND 	T2.PrjSeq = #{prjSeq}
+		AND  	T2.PrjType = #{prjType}
+		AND 	T4.UserCode = #{userCode}
+	</select>
+
+	<select id="selectTaskLinkCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* collab.task.selectTaskLinkCnt */
+		SELECT  COUNT(1)
+		FROM 	covi_smart4j.collab_task_map T1
+		INNER JOIN covi_smart4j.collab_task T2 ON T2.TaskSeq = T1.TaskSeq
+		WHERE 	1=1
+		<if test='excludeTaskSeq != null and excludeTaskSeq != ""'>
+		AND 	T2.TaskSeq != #{excludeTaskSeq}
+		</if>
+		AND 	T1.PrjSeq = #{prjSeq}
+		AND 	T1.PrjType = #{prjType}
+		AND 	T1.SectionSeq = #{sectionSeq}
+		<if test="searchText != null and searchText != ''">
+		AND		UPPER(T2.TaskName) LIKE CONCAT('%',UPPER(#{searchText}),'%')
+		</if>
+		AND T2.ParentKey = 0
+	</select>
+	
+	<select id="selectTaskLink" parameterType="cmap" resultType="cmap">
+		/* collab.task.selectTaskLink */
+		SELECT  T2.TaskSeq AS "TaskSeq", T2.TaskName AS "TaskName"
+		FROM 	covi_smart4j.collab_task_map T1
+		INNER JOIN covi_smart4j.collab_task T2 ON T2.TaskSeq = T1.TaskSeq
+		WHERE 	1=1
+		<if test='excludeTaskSeq != null and excludeTaskSeq != ""'>
+		AND 	T2.TaskSeq != #{excludeTaskSeq}
+		</if>
+		AND 	T1.PrjSeq = #{prjSeq}
+		AND 	T1.PrjType = #{prjType}
+		AND 	T1.SectionSeq = #{sectionSeq}
+		<if test="searchText != null and searchText != ''">
+		AND		UPPER(T2.TaskName) LIKE CONCAT('%',UPPER(#{searchText}),'%')
+		</if>
+		AND T2.ParentKey = 0
+		ORDER BY TaskSeq
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+		LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectMyTaskLinkCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* collab.task.selectMyTaskLinkCnt */
+		SELECT 	COUNT(1)
+		FROM 	covi_smart4j.collab_task_member A
+ 		INNER JOIN covi_smart4j.collab_task B 
+ 		ON B.TaskSeq = A.TaskSeq AND A.usercode = #{userCode}
+ 		WHERE 1=1
+        <if test='excludeTaskSeq != null and excludeTaskSeq != ""'>
+        AND B.TaskSeq != #{excludeTaskSeq}
+        </if>		
+ 		AND B.TaskStatus = #{taskStatus}
+ 		<if test="searchText != null and searchText != ''">
+		AND	UPPER(B.TaskName) LIKE CONCAT('%',UPPER(#{searchText}),'%')
+		</if>
+		AND B.ParentKey = 0
+	</select>
+
+	<select id="selectMyTaskLink" parameterType="cmap" resultType="cmap">
+		/* collab.task.selectMyTaskLink */
+		SELECT 	
+		B.TaskSeq AS "TaskSeq", 
+		B.TaskName AS "TaskName"
+		FROM covi_smart4j.collab_task_member A
+ 		INNER JOIN covi_smart4j.collab_task B 
+ 		ON B.TaskSeq = A.TaskSeq AND A.usercode = #{userCode}
+ 		WHERE 1=1
+ 		<if test='excludeTaskSeq != null and excludeTaskSeq != ""'>
+ 		AND B.TaskSeq != #{excludeTaskSeq}
+ 		</if>
+ 		AND B.TaskStatus = #{taskStatus}
+ 		<if test="searchText != null and searchText != ''">
+		AND	UPPER(B.TaskName) LIKE CONCAT('%',UPPER(#{searchText}),'%')
+		</if>
+		AND B.ParentKey = 0
+		ORDER BY A.TodoOrder ASC
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+		   LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getTaskFile" parameterType="cmap" resultType="cmap">
+	/* queryID : collab.task.getTaskFile */
+	SELECT * FROM covi_smart4j.sys_file
+	WHERE 
+	ServiceType = 'Collab'
+	AND ObjectID = #{orgTaskSeq}
+	</select>
+	
+	<update id="updateCopyFileName"   parameterType="cmap"  >
+	/* collab.task."updateCopyFileName" */
+		UPDATE covi_smart4j.sys_file
+		SET FileName = #{copyFileName}
+		WHERE
+		ServiceType = 'Collab'
+		AND SavedName = #{SavedName}
+		AND ObjectID = #{ObjectID}
+	</update>
+	
+	<select id="selectOtherTaskDeleted" parameterType="cmap" resultType="cmap">
+		/* queryID : collab.task.selectOtherTaskDeleted */
+		SELECT 		T3.TaskSeq
+		FROM 		covi_smart4j.collab_task_map T1
+		INNER JOIN	covi_smart4j.collab_task T2 ON T1.TaskSeq = T2.TaskSeq AND T2.TaskSeq = #{taskSeq}
+		LEFT JOIN 	covi_smart4j.collab_task_map T3 ON T3.PrjSeq = T1.PrjSeq AND T3.TaskSeq != #{taskSeq}
+		LIMIT 1
+	</select>
+	
+	<update id="updateSurveyProgRate" parameterType="cmap">
+	/* collab.task.updateSurveyProgRate */
+		UPDATE covi_smart4j.collab_task
+		SET	  ProgRate = #{JoinRate}
+		WHERE ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+	</update>
+	
+	<select id="getPrjInfoFromObjectTypeObjectID" parameterType="cmap" resultType="cmap">
+	/* collab.task.getPrjInfoFromObjectTypeObjectID*/
+	SELECT 
+	ctm.PrjType,
+	(
+	CASE
+	WHEN ctm.PrjType != 'P'
+	THEN (SELECT IFNULL(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), DisplayName) FROM covi_smart4j.sys_object_group sog WHERE ctm.PrjSeq = sog.GroupID)
+	ELSE (SELECT PrjName FROM covi_smart4j.collab_project cp WHERE ctm.PrjSeq = cp.PrjSeq)
+	END
+	) AS PrjName,
+	(SELECT SectionName FROM covi_smart4j.collab_section cs WHERE cs.SectionSeq = ctm.SectionSeq) AS SectionName,
+	ctm.TaskSeq
+	FROM covi_smart4j.collab_task_map ctm
+	WHERE ctm.TaskSeq IN(
+		SELECT TaskSeq 
+		FROM covi_smart4j.collab_task
+		WHERE ObjectType = #{objectType}
+		AND ObjectID = #{objectID}
+	)
+	</select>
+	
+	<select id="getTaskInfoFromTaskSeq" parameterType="cmap" resultType="cmap">
+	/* collab.task.getTaskInfoFromTaskSeq*/
+	SELECT 
+	ct.TaskSeq, ct.TaskName,
+	IFNULL(
+	(
+		CASE
+		WHEN ctm.PrjType != 'P'
+		THEN (SELECT DisplayName FROM covi_smart4j.sys_object_group sog WHERE ctm.PrjSeq = sog.GroupID)
+		ELSE (SELECT PrjName FROM covi_smart4j.collab_project cp WHERE ctm.PrjSeq = cp.PrjSeq)
+		END
+	), 'My') AS PrjName
+	FROM covi_smart4j.collab_task ct
+	LEFT JOIN covi_smart4j.collab_task_map ctm ON ctm.TaskSeq = ct.TaskSeq
+	WHERE ct.TaskSeq = #{taskSeq} LIMIT 1
+	</select>
+</mapper>
+

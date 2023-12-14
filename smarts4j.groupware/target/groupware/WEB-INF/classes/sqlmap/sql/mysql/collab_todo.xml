@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.todo">
+
+	<!---  순서전체 건수
+	진행중 건수 (P,S?)
+	긴급업무
+	오늘 마감 업무-->
+	<select id="myTaskCnt" parameterType="cmap" resultType="cmap">
+	/* collab.todo.myTaskCnt */
+		<![CDATA[
+		SELECT COUNT(*) TotCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus = 'W' then 1 ELSE 0 END),0) WaitCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus = 'P' then 1 ELSE 0 END),0) ProcCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus = 'H' then 1 ELSE 0 END),0) HoldCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus = 'C' then 1 ELSE 0 END),0) CompCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND b.Label = 'E' then 1 ELSE 0 END),0) EmgCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND b.ImpLevel = 'H' then 1 ELSE 0 END),0) LvlHCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND b.ImpLevel = 'M' then 1 ELSE 0 END),0) LvlMCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus != 'C' AND b.ImpLevel = 'L' then 1 ELSE 0 END),0) LvlLCnt
+			, IFNULL(SUM(case when (b.EndDate is null or b.EndDate =  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus != 'C' then 1 ELSE 0 END),0) NowForCnt
+			, IFNULL(SUM(CASE WHEN b.TaskStatus NOT IN('C', 'H') AND (b.EndDate is null or b.EndDate <  DATE_FORMAT(NOW(),'%Y%m%d'))  then 1 ELSE 0 END),0) DelayCnt
+			, IFNULL(SUM(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus != 'C' then 1 ELSE 0 END),0) NowNoCnt
+			, IFNULL(SUM(case when (b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d'))  and b.TaskStatus = 'C' then 1 ELSE 0 END),0) NowCompCnt
+			, IFNULL(SUM(case when b.EndDate is null or b.EndDate <=  DATE_FORMAT(NOW(),'%Y%m%d') then 1 ELSE 0 END),0) NowTotCnt
+			, IFNULL(SUM(case when b.ObjectType ='EVENT' AND b.EndDate =  DATE_FORMAT(NOW(),'%Y%m%d') then 1 ELSE 0 END ),0) SchCnt
+			, IFNULL(SUM(case when b.ObjectType ='APROVAL' AND b.EndDate =  DATE_FORMAT(NOW(),'%Y%m%d') then 1 ELSE 0 END ),0) AprCnt
+		 FROM collab_task_member a 
+		 JOIN collab_task b ON a.taskSeq = b.TaskSeq
+		WHERE A.UserCode = #{USERID} 
+			AND b.parentkey=0 ]]>
+		<if test="date1 != null and date1 !='' and date2 != null and date2 !=''">
+			<![CDATA[
+			AND ((#{date1} <=  B.EndDate AND #{date2}  >= B.StartDate) OR (#{date1}  <= B.EndDate AND #{date2} >= B.EndDate) OR (B.StartDate <= #{date2} AND B.EndDate >= #{date2}))
+			]]>
+		</if>
+	</select>
+	
+	<select id="getMyFavorite"   parameterType="cmap" resultType="cmap">
+	/* collab.todo.getMyFavorite */
+		SELECT tf.UserCode, t.TaskSeq, t.TaskName
+		  FROM covi_smart4j.collab_task_favorite tf  
+		  JOIN covi_smart4j.collab_task   t on tf.taskSeq = t.taskSeq
+		 WHERE tf.userCode =  #{USERID}
+	  ORDER BY tf.RegisteDate DESC
+		 LIMIT 8
+	</select>
+	
+	<select id="tag" parameterType="cmap" resultType="cmap">
+	/* collab.todo.tag */
+		SELECT TagSeq, TagType, TagData
+		FROM collab_tag
+		WHERE IsDisplay = 'Y'
+	</select>
+
+	<select id="getTagList" parameterType="string" resultType="cmap">
+	/* collab.todo.getTagList */
+		SELECT tagData
+		 FROM collab_tag
+		WHERE tagSeq = #{tagSeq}
+	</select>
+</mapper>
+

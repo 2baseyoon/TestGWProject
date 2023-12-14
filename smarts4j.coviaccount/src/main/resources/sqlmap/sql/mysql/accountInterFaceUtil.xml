@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountInterFace.util">
+	  <insert id="saveAccountInterFaceLog" parameterType="cmap" >
+        /*
+		    accountInterFace.Account.saveAccountInterFaceLog
+	    */
+		INSERT INTO covi_account4j_si.act_if_status_log(
+				CompanyCode
+			,	IfTargetType
+			,	IfMethodName
+			,	IfRecvType
+			,	IfType
+			,	IfCnt
+			,	IfStatus
+			,	ErrorLog
+			,	InterfaceDate
+		) VALUES (
+				#{CompanyCode}
+			,	#{ifTargetType}
+			,	#{ifMethodName}
+			,	#{ifRecvType}
+			,	#{ifType}
+			,	#{ifCnt}
+			,	#{ifStatus}
+			,	#{errorLog}
+			,	NOW(3)
+		)
+	</insert>
+</mapper>

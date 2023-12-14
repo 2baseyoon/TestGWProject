@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="devhelper.acl">
+	<select id="selectdomain" parameterType="cmap" resultType="cmap">
+		SELECT DomainID, DisplayName FROM sys_object_domain WHERE IsUse = 'Y' ORDER BY SortKey
+	</select>
+	
+	<select id="selectdomainbycode" parameterType="cmap" resultType="java.lang.String">
+		SELECT DomainID FROM sys_object_domain WHERE DomainCode = #{DomainCode}
+	</select>
+	
+	<update id="updateModuleIsUse" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsUse */
+		UPDATE covi_smart4j.sys_object_module
+		SET
+		<choose>
+			<when test="IsUse.equalsIgnoreCase('Y')">
+				isuse = 'N'
+			</when>
+			<otherwise>
+				isuse = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = NOW()
+		WHERE moduleid = #{ModuleID}
+	</update>
+	
+	<update id="updateModuleIsAdmin" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsAdmin */
+		UPDATE covi_smart4j.sys_object_module
+		SET
+		<choose>
+			<when test="IsAdmin.equalsIgnoreCase('Y')">
+				isAdmin = 'N'
+			</when>
+			<otherwise>
+				isAdmin = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = NOW()
+		WHERE moduleid = #{ModuleID}
+	</update>
+	
+	<update id="updateModuleIsAudit" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsAudit */
+		UPDATE covi_smart4j.sys_object_module
+		SET
+		<choose>
+			<when test="IsAudit.equalsIgnoreCase('Y')">
+				isAudit = 'N'
+			</when>
+			<otherwise>
+				isAudit = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = NOW()
+		WHERE moduleid = #{ModuleID}
+	</update>
+	
+	<select id="selectModuleDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectModuleDataCnt */
+		SELECT	COUNT(1)
+		FROM 	covi_smart4j.sys_object_module
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'URL'">
+		AND UPPER(URL) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND UPPER(MODULEID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleName'">
+		AND UPPER(ModuleName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'AuditMethod'">
+		AND UPPER(AuditMethod) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'AuditClass'">
+		AND UPPER(AuditClass) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'BizSection'">
+		AND UPPER(bizSection) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+					<if test="moduleId != null and moduleId != ''">
+		AND UPPER(MODULEID) = UPPER(#{moduleId})
+					</if>
+				</if>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectModuleDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectModuleDataList */
+		SELECT
+				ModuleID AS "ModuleID"
+				, ModuleName AS "ModuleName"
+				, AuditMethod AS "AuditMethod"
+				, AuditClass AS "AuditClass"
+				, URL AS "URL"
+				, BizSection AS "BizSection"
+				, IsUse AS "IsUse"
+				, IsAdmin AS "IsAdmin"
+				, IsAudit AS "IsAudit"
+				, Description AS "Description"
+				, RegisterCode AS "RegisterCode"
+				, DATE_FORMAT(RegistDate, '%Y-%m-%d') AS "RegistDate"
+				, ModifierCode AS "ModifierCode"
+				, DATE_FORMAT(ModifyDate, '%Y-%m-%d') AS "ModifyDate"
+				, (	SELECT group_concat( (SELECT DisplayName FROM covi_smart4j.sys_object_menu WHERE MenuID = d.MenuID) , ',') 
+					FROM covi_smart4j.sys_object_program_map b 	
+					JOIN covi_smart4j.sys_object_program c on b.PRGMID = c.PRGMID
+					JOIN covi_smart4j.sys_object_program_menu d on d.PRGMID = c.PRGMID
+					WHERE 	a.moduleid = b.moduleid) AS "AuditMenuNm"
+		FROM 	covi_smart4j.sys_object_module a
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'URL'">
+		AND UPPER(URL) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND UPPER(MODULEID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleName'">
+		AND UPPER(ModuleName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'AuditMethod'">
+		AND UPPER(AuditMethod) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'AuditClass'">
+		AND UPPER(AuditClass) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'BizSection'">
+		AND UPPER(bizSection) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'detail'">
+					<if test="moduleId != null and moduleId != ''">
+		AND UPPER(MODULEID) = UPPER(#{moduleId})
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY URL ASC
+		<if test="searchType != 'detail'">
+			<if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+   			</if>
+   		</if>
+	</select>
+	
+	<select id="selectPrgmDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmDataCnt */
+		SELECT	COUNT(1)
+		FROM 	covi_smart4j.sys_object_program
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmId) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'PrgmName'">
+		AND 	UPPER(prgmName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+		AND 	UPPER(PRGMID) = UPPER(#{prgmId})
+				</if>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectPrgmDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmDataList */
+		SELECT	PRGMID AS "PrgmID"
+				, PRGMNAME AS "PrgmName"
+				, RegisterCode AS "RegisterCode"
+				, DATE_FORMAT(RegistDate, '%Y-%m-%d') AS "RegistDate"
+				, ModifierCode AS "ModifierCode"
+				, DATE_FORMAT(ModifyDate, '%Y-%m-%d') AS "ModifyDate"
+		FROM 	covi_smart4j.sys_object_program
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+				<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmid) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'PrgmName'">
+		AND 	UPPER(prgmName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'detail'">
+					<if test="prgmId != null and prgmId != ''">
+		AND UPPER(PRGMID) = UPPER(#{prgmId})
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY prgmId ASC
+		<if test="searchType != 'detail'">
+			<if test="pageSize != null and pageOffset != null">
+		LIMIT #{pageSize} OFFSET #{pageOffset}
+		   	</if>
+		</if>
+	</select>
+	
+	<insert id="insertModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertModuleData */
+		INSERT INTO covi_smart4j.sys_object_module	
+			(MODULEID, URL, MODULENAME, BIZSECTION, AUDITCLASS
+			, AUDITMETHOD, ISUSE, ISADMIN, ISAUDIT, ISBLOCK
+			, DESCRIPTION, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE )
+		values 
+			( #{moduleId}, #{url}, #{moduleName}, #{bizSection}, #{auditClass}
+			, #{auditMethod}, #{isUse}, #{isAdmin}, #{isAudit}, #{isBlock}
+			, #{description}, #{regCode}, now(), #{regCode}, now() )
+	</insert>
+	
+	<insert id="insertPrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmData */
+		INSERT INTO covi_smart4j.sys_object_program
+			(PRGMID, PRGMNAME, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) 
+		VALUES
+			( #{prgmId}, #{prgmName}, #{regCode}, now(), #{regCode}, now())
+	</insert>
+
+	<select id="selectPrgmMapDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmMapDataCnt */
+		SELECT	COUNT(1)
+		FROM 	covi_smart4j.sys_object_program_map
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+				<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmId) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND 	UPPER(moduleId) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+		AND 	( UPPER(PRGMID) = UPPER(#{prgmId}) AND UPPER(MODULEID) = UPPER(#{moduleId}) )
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectPrgmMapDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmMapDataList */
+		SELECT	PRGMID AS "PrgmID"
+				, MODULEID AS "ModuleID"
+				, RegisterCode AS "RegisterCode"
+				, DATE_FORMAT(RegistDate, '%Y-%m-%d') AS "RegistDate"
+				, ModifierCode AS "ModifierCode"
+				, DATE_FORMAT(ModifyDate, '%Y-%m-%d') AS "ModifyDate"
+		FROM 	covi_smart4j.sys_object_program_map
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+				<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmid) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND 	UPPER(moduleId) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+		ORDER BY prgmid, moduleId ASC
+		<if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<select id="selectPrgmMenuDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmMenuDataCnt */
+		SELECT 	COUNT(1)
+		FROM 	(
+				SELECT	(SELECT DISPLAYNAME FROM covi_smart4j.sys_object_menu WHERE MENUID = T1.MENUID) AS MENUNAME
+				FROM 	covi_smart4j.sys_object_program_menu T1
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="searchText != null and searchText != ''">
+						<if test="searchType != null and searchType != ''">
+							<choose>
+								<when test="searchType == 'PrgmID'">
+				AND 	UPPER(T1.PRGMID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+								</when>
+								<when test="searchType == 'MenuID'">
+				AND 	UPPER(T1.MENUID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+								</when>
+							</choose>
+						</if>
+					</if>
+					<if test="searchType != null and searchType != ''">
+						<if test="searchType == 'pkChk'">
+				AND   	UPPER(T1.MENUID) = UPPER(#{menuId})
+            	AND   	UPPER(T1.PRGMID) = UPPER(#{prgmId})
+						</if>
+					</if>
+				</trim>
+				) T2
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<if test="searchType == 'MenuName'">
+		AND 	UPPER(MenuName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+					</if>
+				</if>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectPrgmMenuDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmMenuDataList */
+		SELECT 	T2.MENUNAME AS "MenuName"
+				, T2.MENUID AS "MenuID"
+				, T2.PRGMID AS "PrgmID"
+				, T2.REGISTERCODE AS "RegisterCode"
+				, DATE_FORMAT(T2.REGISTDATE, '%Y-%m-%d') AS "RegistDate"
+				, T2.MODIFIERCODE AS "ModifierCode"
+				, DATE_FORMAT(T2.MODIFYDATE, '%Y-%m-%d') AS "ModifyDate"
+		FROM 	(
+				SELECT	(SELECT DISPLAYNAME FROM covi_smart4j.sys_object_menu WHERE MENUID = T1.MENUID) AS MENUNAME
+						, MENUID, PRGMID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE
+				FROM 	covi_smart4j.sys_object_program_menu T1
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="searchText != null and searchText != ''">
+						<if test="searchType != null and searchType != ''">
+							<choose>
+								<when test="searchType == 'PrgmID'">
+				AND 	UPPER(prgmid) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+								</when>
+								<when test="searchType == 'MenuID'">
+				AND 	UPPER(menuid) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+								</when>
+							</choose>
+						</if>
+					</if>
+					<if test="searchType != null and searchType != ''">
+						 <if test="searchType == 'detail'">
+						 	<if test="menuId != null and menuId != ''">
+				AND UPPER(MENUID) = UPPER(#{menuId})
+						 	</if>
+						 </if>
+					</if>
+				</trim>
+				) T2
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<if test="searchType == 'MenuName'">
+		AND 	UPPER(MenuName) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY PrgmID, MenuID ASC
+		<if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+	<insert id="insertPrgmMapData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmMapData */
+		INSERT INTO covi_smart4j.sys_object_program_map
+			(PRGMID, MODULEID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) VALUES
+			(#{prgmId}, #{moduleId}, #{regCode}, now(), #{regCode}, now())
+	</insert>
+
+	<select id="selectMenuDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectMenuDataCnt */
+		SELECT	COUNT(1)
+		FROM 	covi_smart4j.sys_object_menu
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'MenuID'">
+		AND 	UPPER(MENUID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'MenuName'">
+		AND 	UPPER(DISPLAYNAME) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+	</select>
+		
+	<select id="selectMenuDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectMenuDataList */
+		SELECT	DISPLAYNAME AS "MenuName"
+				, MENUID AS "MenuID"
+				, BIZSECTION AS "BizSection"
+				, URL AS "URL"
+		FROM 	covi_smart4j.sys_object_menu
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'MenuID'">
+		AND 	UPPER(MENUID) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+						<when test="searchType == 'MenuName'">
+		AND 	UPPER(DISPLAYNAME) LIKE CONCAT('%', UPPER(#{searchText}), '%')
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+		ORDER BY MENUID ASC
+		<if test="pageSize != null and pageOffset != null">
+	   	LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<insert id="insertPrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmMenuData */
+		INSERT INTO covi_smart4j.sys_object_program_menu
+			(MENUID, PRGMID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) VALUES
+			(#{menuId}, #{prgmId}, #{regCode}, now(), #{regCode}, now() )
+	</insert>
+	
+	
+	<delete id="deleteModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.deleteModuleData */
+		DELETE FROM covi_smart4j.sys_object_module
+		WHERE MODULEID = #{ModuleID}
+	</delete>
+	
+	<delete id="deletePrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmData */
+		DELETE FROM covi_smart4j.sys_object_program 
+		WHERE PRGMID = #{PrgmID}
+	</delete>
+	
+	<delete id="deletePrgmMapData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmMapData */
+		DELETE FROM covi_smart4j.sys_object_program_map
+		WHERE 	1=1
+		<if test="delType == 'Module'">
+		AND 	MODULEID = #{ModuleID}
+		</if>
+		<if test="delType == 'Prgm'">
+		AND 	PRGMID = #{PrgmID}
+		</if>
+		<if test="delType == 'Map'">
+		AND PRGMID = #{PrgmID}
+		AND MODULEID = #{ModuleID}
+		</if>
+	</delete>
+	
+	<delete id="deletePrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmMenuData */
+		DELETE FROM covi_smart4j.sys_object_program_menu
+		WHERE MENUID = #{MenuID} AND PRGMID = #{PrgmID} 
+	</delete>
+	
+	<update id="updateModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.updateModuleData */
+		UPDATE  covi_smart4j.sys_object_module
+		SET 	URL = #{url}
+				, MODULENAME = #{moduleName}
+		        , BIZSECTION = #{bizSection}
+		        , AUDITCLASS = #{auditClass}
+		        , AUDITMETHOD = #{auditMethod}
+		        , ISUSE = #{isUse}
+		        , ISADMIN = #{isAdmin}
+		        , ISAUDIT = #{isAudit}
+		        , DESCRIPTION = #{description}
+		        , MODIFIERCODE = #{modifiercode}
+		        , MODIFYDATE = NOW()
+		WHERE 	1=1
+		AND 	MODULEID = #{moduleId}
+	</update>
+	
+	<update id="updatePrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.updatePrgmData */
+		UPDATE 	covi_smart4j.sys_object_program
+		SET 	PRGMNAME = #{prgmName}
+				, MODIFIERCODE = #{modifiercode}
+				, MODIFYDATE = NOW()
+		WHERE	1=1
+		AND 	PRGMID = #{prgmId}
+	</update>
+	
+	<update id="updatePrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.updatePrgmMenuData */
+		UPDATE 	covi_smart4j.sys_object_program_menu
+		SET 	PRGMID = #{prgmId}
+				, MODIFIERCODE = #{modifiercode}
+				, MODIFYDATE = NOW()
+		WHERE 	1=1
+		AND 	MENUID = #{menuId}
+	</update>
+	
+	<select id="selectModulePrgmMapList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectModulePrgmMapList */
+		SELECT 		T1.PRGMID AS "PrgmID"
+					, T2.PRGMNAME AS "PrgmName"
+		FROM 		covi_smart4j.sys_object_program_map T1
+			INNER JOIN covi_smart4j.sys_object_program T2 ON T2.PRGMID = T1.PRGMID
+		WHERE 		1=1
+		AND 		T1.MODULEID = #{moduleId} 
+	</select>
+	<select id="selectDeptListSelect" parameterType="cmap" resultType="cmap">
+		SELECT DomainID as Value, DisplayName AS Text  
+		FROM sys_object_domain WHERE IsUse = 'Y' ORDER BY SortKey
+	</select>	
+</mapper>

@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="comtable.admin">
+
+	<select id="selectComTableManageListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT 
+			COUNT(*)
+		FROM (
+			SELECT	A.ComTableID
+			FROM covi_smart4j.common_table_manage A
+			LEFT JOIN covi_smart4j.sys_object_domain D ON D.DomainCode = A.CompanyCode
+			LEFT JOIN covi_smart4j.sys_object_user U ON A.RegisterCode = U.UserCode 
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+				<if test="IsUse != null and IsUse != ''">
+					AND A.IsUse = #{IsUse}
+				</if>	  		
+				<if test="CompanyCode != null and CompanyCode != '' and CompanyCode.length() gt 0">
+					AND D.DomainCode = #{CompanyCode}
+				</if>				
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("ComTableName")'>A.ComTableName</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			like CONCAT('%',#{SearchText},'%')
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.ComTableName LIKE CONCAT('%',#{icoSearch},'%')	OR 
+						A.Description LIKE CONCAT('%',#{icoSearch},'%')
+					)
+				</if>
+			</trim>	
+		) A
+	</select>
+	
+    <select id="selectComTableManageList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.*
+		FROM (
+			SELECT	A.ComTableID
+					,A.ComTableName
+					,A.CompanyCode
+					,D.MultiDisplayName AS CompanyName
+					,A.QueryText
+					,A.QueryNamespace
+					,A.QueryId
+					,A.QueryIdCnt
+					,A.IsUse
+					,A.SortKey
+					,A.Description
+					,A.RegisterCode
+					,U.MultiDisplayName AS RegisterName
+					,A.RegistDate
+					,A.ModifierCode
+					,A.ModifyDate
+					,(SELECT COUNT(*) FROM covi_smart4j.common_table_field F WHERE F.ComTableID = A.ComTableID) AS ComFieldCnt
+			FROM covi_smart4j.common_table_manage A
+			LEFT JOIN covi_smart4j.sys_object_domain D ON D.DomainCode = A.CompanyCode
+			LEFT JOIN covi_smart4j.sys_object_user U ON A.RegisterCode = U.UserCode 
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="IsUse != null and IsUse != ''">
+					AND A.IsUse = #{IsUse}
+				</if>	  		
+				<if test="CompanyCode != null and CompanyCode != '' and CompanyCode.length() gt 0">
+					AND D.DomainCode = #{CompanyCode}
+				</if>				
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("ComTableName")'>A.ComTableName</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			like CONCAT('%',#{SearchText},'%')
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.ComTableName LIKE CONCAT('%',#{icoSearch},'%')	OR 
+						A.Description LIKE CONCAT('%',#{icoSearch},'%')
+					)
+				</if>
+			</trim>	
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+	    			<when test='sortColumn.equalsIgnoreCase("ComTableID")'>ComTableID</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("ComTableName")'>ComTableName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				SortKey ASC
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+   		</if>
+	</select>
+	
+	<select id="selectComTableManageData" resultType="cmap">
+		<![CDATA[
+		SELECT	ComTableID
+				,ComTableName
+				,CompanyCode
+				,QueryText
+				,QueryNamespace
+				,QueryId
+				,QueryIdCnt
+				,IsUse
+				,SortKey
+				,Description
+				,RegisterCode
+				,RegistDate
+				,ModifierCode
+				,ModifyDate
+		FROM covi_smart4j.common_table_manage
+		WHERE ComTableID = 	#{ComTableID}		
+		]]>	
+	</select>
+	
+	<insert id="insertComTableManageData" parameterType="cmap" >         
+		INSERT INTO covi_smart4j.common_table_manage (
+			ComTableName
+			,CompanyCode
+			,IsUse
+			,SortKey
+			,Description
+			,RegisterCode
+			,RegistDate
+			,ModifierCode
+			,ModifyDate
+		)
+		SELECT 
+			#{ComTableName}
+			,#{CompanyCode}
+			,#{IsUse}
+			,#{SortKey}
+			,#{Description}
+			,#{UserCode}
+			,now(3)
+			,#{UserCode}
+			,now(3)
+		FROM dual
+	</insert>
+	
+  	<update id="updateComTableManageData" parameterType="cmap">
+  	    UPDATE covi_smart4j.common_table_manage
+		SET
+			ComTableName=#{ComTableName}
+			,IsUse=#{IsUse}
+			,SortKey=#{SortKey}
+			,Description=#{Description}
+			,ModifierCode=#{UserCode}
+			,ModifyDate=now(3)
+		WHERE ComTableID=#{ComTableID}
+  	</update>
+  	
+  	<delete id="deleteComTableManageData" parameterType="cmap" >
+      	DELETE 
+    	FROM covi_smart4j.common_table_manage
+  		WHERE ComTableID = #{ComTableID}		
+	</delete>
+	
+  	<update id="updateComTableQuery" parameterType="cmap">
+  	    UPDATE covi_smart4j.common_table_manage
+		SET
+			QueryText=#{originXml}
+			,QueryNamespace=#{QueryNamespace}
+			,QueryId=#{QueryId}
+			,QueryIdCnt=#{QueryIdCnt}
+			,ModifierCode=#{UserCode}
+			,ModifyDate=now(3)
+		WHERE ComTableID=#{ComTableID}
+  	</update>
+	
+	<select id="selectComTableFieldData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT ComTableFieldID
+			,ComTableID
+			,SortKey
+			,FieldID
+			,FieldName
+			,FieldDisplayType
+			,FieldWidth
+			,FieldAlign
+			,IsDisplay
+			,IsSearch
+			,IsSort
+			,IsPopup
+			,DecodeB64
+			,RegisterCode
+			,RegistDate
+			,ModifierCode
+			,ModifyDate
+		FROM covi_smart4j.common_table_field
+		WHERE ComTableID = 	#{ComTableID}
+		ORDER BY SortKey
+		]]>	
+	</select>
+	
+	<insert id="insertComTableField" parameterType="cmap" >         
+		INSERT INTO covi_smart4j.common_table_field (
+			ComTableID
+			,SortKey
+			,FieldID
+			,FieldName
+			,FieldDisplayType
+			,FieldWidth
+			,FieldAlign
+			,IsDisplay
+			,IsSearch
+			,IsSort
+			,IsPopup
+			,DecodeB64
+			,RegisterCode
+			,RegistDate
+			,ModifierCode
+			,ModifyDate
+		)
+		SELECT 
+			#{ComTableID}
+			,#{SortKey}
+			,#{FieldID}
+			,#{FieldName}
+			,#{FieldDisplayType}
+			,#{FieldWidth}
+			,#{FieldAlign}
+			,#{IsDisplay}
+			,#{IsSearch}
+			,#{IsSort}
+			,#{IsPopup}
+			,#{DecodeB64}
+			,#{UserCode}
+			,now(3)
+			,#{UserCode}
+			,now(3)
+		FROM dual
+	</insert>
+	
+	<update id="updateComTableField" parameterType="cmap">
+  	    UPDATE covi_smart4j.common_table_field
+		SET
+			ComTableID = #{ComTableID}
+			,SortKey = #{SortKey}
+			,FieldID = #{FieldID}
+			,FieldName = #{FieldName}
+			,FieldDisplayType = #{FieldDisplayType}
+			,FieldWidth = #{FieldWidth}
+			,FieldAlign = #{FieldAlign}
+			,IsDisplay = #{IsDisplay}
+			,IsSearch = #{IsSearch}
+			,IsSort = #{IsSort}
+			,IsPopup = #{IsPopup}
+			,DecodeB64 = #{DecodeB64}
+			,ModifierCode = #{UserCode}
+			,ModifyDate = now(3)
+		WHERE ComTableFieldID=#{ComTableFieldID}
+  	</update>
+	
+	<delete id="deleteComTableField" parameterType="cmap" >        		
+  		DELETE 
+    	FROM covi_smart4j.common_table_field
+  		<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+			<if test="ComTableID != null and ComTableID != ''">
+				AND ComTableID = #{ComTableID} 
+			</if>
+			<if test="ComTableFieldID != null and ComTableFieldID != ''">
+				AND ComTableFieldID = #{ComTableFieldID} 
+			</if>		
+		</trim>	
+		
+	</delete>
+	
+	<select id="selectComTableList" parameterType="cmap" resultType="cmap">
+		SELECT	A.ComTableID
+				,A.ComTableName
+				,A.CompanyCode
+				,A.QueryNamespace
+				,A.QueryId
+				,A.QueryIdCnt
+				,A.IsUse
+				,A.SortKey
+				,A.Description
+		FROM covi_smart4j.common_table_manage A
+		LEFT JOIN covi_smart4j.sys_object_domain D ON D.DomainCode = A.CompanyCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			AND D.DomainCode in ('ORGROOT', #{CompanyCode}) 
+			AND A.IsUse = 'Y' 
+			AND IFNULL(A.QueryId,'') &lt;&gt; ''
+			AND EXISTS(SELECT 1 FROM covi_smart4j.common_table_field F WHERE F.ComTableID = A.ComTableID)
+			<if test="ComTableID != null and ComTableID != ''">
+				AND A.ComTableID = #{ComTableID} 
+			</if>	
+		</trim>	
+		ORDER BY A.SortKey ASC 
+	</select>
+	
+	
+	
+	
+	
+<!-- 샘플 쿼리 -->
+<select id="selectExampleList" parameterType="cmap" resultType="cmap">
+	SELECT 
+		A.*
+	FROM (
+		SELECT	C.CodeID
+			,C.CodeGroup
+			,C.Code
+			,C.MultiCodeName
+			,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, C.MultiCodeName) AS DisplayCodeName
+			,C.Description
+			,C.RegistDate
+			,C.SortKey
+			,D.DomainCode
+		FROM covi_smart4j.sys_base_code C
+		LEFT JOIN covi_smart4j.sys_object_domain D ON D.DomainID = C.DomainID 
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+			<if test="CompanyCode != null and CompanyCode != '' and CompanyCode.length() gt 0">
+				AND D.DomainCode = #{CompanyCode}
+			</if>				
+			<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+           		AND 
+           		<choose>
+					<when test='SearchType.equalsIgnoreCase("srch_CodeGroup")'>C.CodeGroup</when>
+					<when test="SearchType.equalsIgnoreCase(&quot;srch_Code&quot;)">C.Code</when>
+					<when test="SearchType.equalsIgnoreCase('srch_MultiCodeName')">C.MultiCodeName</when>
+					<when test="SearchType.equalsIgnoreCase('srch_Description')">C.Description</when>
+           		</choose>
+          			like CONCAT('%',#{SearchText},'%')
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					C.CodeGroup LIKE CONCAT('%',#{icoSearch},'%') OR 
+					C.Code LIKE CONCAT('%',#{icoSearch},'%') OR
+					C.MultiCodeName LIKE CONCAT('%',#{icoSearch},'%') OR
+					C.Description LIKE CONCAT('%',#{icoSearch},'%')
+				)
+			</if>
+		</trim>	
+	) A
+	<!-- Order by 절 -->
+	<trim prefix="ORDER BY">
+	  	<if test="sortColumn != null and sortDirection != null">
+    		<choose>
+				<when test="sortColumn.equalsIgnoreCase('sort_CodeGroup')">CodeGroup</when>
+				<when test="sortColumn.equalsIgnoreCase('sort_Code')">Code</when>
+				<when test="sortColumn.equalsIgnoreCase('sort_MultiCodeName')">MultiCodeName</when>
+				<when test="sortColumn.equalsIgnoreCase('sort_RegistDate')">RegistDate</when>
+				<otherwise>SortKey</otherwise>
+			</choose>
+			<choose>
+				<when test="sortDirection.equalsIgnoreCase('ASC')"> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if> 
+		<if test="sortColumn == null or sortDirection == null">
+			SortKey ASC
+		</if>
+	</trim>
+</select>
+	
+</mapper>
+

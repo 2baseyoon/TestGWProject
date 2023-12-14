@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd" id="WebApp_ID" version="2.5">
+  <display-name>smarts4j.covision</display-name>
+    
+    <filter>
+		<filter-name>encodingFilter</filter-name>
+		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+		<init-param>
+			<param-name>encoding</param-name>
+			<param-value>utf-8</param-value>
+		</init-param>
+	</filter>
+	<filter-mapping>
+		<filter-name>encodingFilter</filter-name>
+		<url-pattern>*.do</url-pattern>
+	</filter-mapping>
+    
+	<!-- <filter>
+		<filter-name>xssEscapeServletFilter</filter-name>
+		<filter-class>com.navercorp.lucy.security.xss.servletfilter.XssEscapeServletFilter</filter-class>
+	</filter>
+	<filter-mapping>
+	    <filter-name>xssEscapeServletFilter</filter-name>
+	    <url-pattern>/*</url-pattern>
+	</filter-mapping> -->
+
+	<filter>
+		<filter-name>SqlInjectionAndXSSFilter</filter-name>
+		<filter-class>egovframework.baseframework.filter.SqlInjectionAndXSSFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>SqlInjectionAndXSSFilter</filter-name>
+		<url-pattern>*.do</url-pattern>
+	</filter-mapping>
+
+	<filter>
+		<filter-name>HTMLTagFilter</filter-name>
+		<filter-class>egovframework.coviframework.filter.HTMLTagFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>HTMLTagFilter</filter-name>
+		<url-pattern>*.do</url-pattern>
+	</filter-mapping>
+    
+	<!-- IE 호환성 보기 필터 -->
+	<filter>
+		<filter-name>ieFilter</filter-name>
+		<filter-class>egovframework.baseframework.filter.IEFilter</filter-class>
+    </filter>
+    <filter-mapping>
+		<filter-name>ieFilter</filter-name>
+		<url-pattern>*.do</url-pattern>
+    </filter-mapping>
+
+	<!-- xss, sql injection 필터 -->
+ 	<!-- <filter>
+		<filter-name>SqlInjectionAndXSSFilter</filter-name>
+		<filter-class>egovframework.coviframework.base.SqlInjectionAndXSSFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>SqlInjectionAndXSSFilter</filter-name>
+		<url-pattern>*.do</url-pattern>
+		<dispatcher>REQUEST</dispatcher>
+	</filter-mapping> -->
+          
+	<!-- CORs filter -->
+	<!-- <filter>
+	    <filter-name>CORsFilter</filter-name> 
+	    <filter-class>egovframework.coviframework.base.CORsFilter</filter-class> 
+	</filter>
+	<filter-mapping>
+	    <filter-name>CORsFilter</filter-name>
+	    <url-pattern>/*</url-pattern>
+	</filter-mapping> -->
+	
+	<!--  WAS에서 제공하는 세션 정보를 redis를 통해서 전달하게 처리하는 Filter 설정 -->
+	<!-- 
+	<filter>
+	 	<filter-name>springSessionRepositoryFilter</filter-name>
+	 	<filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+	 </filter>
+	<filter-mapping>
+	 	<filter-name>springSessionRepositoryFilter</filter-name>
+	 	<url-pattern>/*</url-pattern>
+	</filter-mapping>
+	-->
+	
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>
+		    classpath*:spring/context-*.xml
+		</param-value>
+	</context-param>
+    
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+    
+	<servlet>
+		<servlet-name>action</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>/WEB-INF/config/egovframework/springmvc/dispatcher-servlet.xml</param-value>
+		</init-param>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+    
+	<servlet-mapping>
+		<servlet-name>action</servlet-name>
+		<url-pattern>*.do</url-pattern>
+	</servlet-mapping>
+	
+	<login-config>
+		<auth-method>BASIC</auth-method>
+	</login-config>
+    
+	<error-page>
+		<exception-type>java.lang.Exception</exception-type>
+		<location>/WEB-INF/views/cmmn/error/egovError.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>401</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_401.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>403</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_403.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>404</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_400.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>405</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_400.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>500</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_500.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>501</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_500.jsp</location>
+	</error-page>
+	<error-page>
+		<error-code>502</error-code>
+		<location>/WEB-INF/views/cmmn/error/error_500.jsp</location>
+	</error-page>
+  
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+</web-app>

@@ -1,0 +1,631 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.costcenter">
+
+	<select id="getCostCenterlist" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	COST.CostCenterID AS "CostCenterID"
+			,	COST.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',COST.CompanyCode,#{companyCode})	AS "CompanyName"
+			,	COST.CostCenterType AS "CostCenterType"
+			,	FN_GETACTBASECODENAME('CostCenterGubun',COST.CostCenterType,#{companyCode})	AS "CostCenterTypeName"
+			,	COST.CostCenterCode AS "CostCenterCode"
+			,	COST.CostCenterName AS "CostCenterName"
+			,	(	CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodStart),''),'NODATA') = 'NODATA'
+								THEN ''
+								ELSE TO_CHAR(TO_DATE(COST.UsePeriodStart),'YYYY.MM.DD')
+						END||
+						' ~ '||
+						CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodFinish),''),'NODATA') = 'NODATA'
+								THEN ''
+								ELSE TO_CHAR(TO_DATE(COST.UsePeriodFinish),'YYYY.MM.DD')
+						END)	AS "UsePeriod"
+			,	COST.IsUse AS "IsUse"
+			,	COST.RegisterID AS "RegisterID"
+			,	USR.DisplayName AS "RegisterName"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(COST.RegistDate),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(COST.RegistDate),'YYYY.MM.DD')
+				END AS "RegistDate"
+		FROM	act_cost_center	COST
+		LEFT OUTER JOIN
+				sys_object_user	USR
+		ON		COST.RegisterID	= USR.UserCode
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		COST.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'	OR 
+					COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'CCN'.toString()">
+		AND		COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'CCC'.toString()">
+		AND		COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,CostCenterCode DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterTypeName")'>"CostCenterTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterCode")'>"CostCenterCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>"CostCenterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("NameCode")'>"NameCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("UsePeriod")'>"UsePeriod"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>"Description"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsPermanent")'>"IsPermanent"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>"RegisterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCostCenterExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	FN_GETACTBASECODENAME('CompanyCode',COST.CompanyCode,#{companyCode})	AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CostCenterGubun',COST.CostCenterType,#{companyCode})	AS "CostCenterTypeName"
+			,	COST.CostCenterCode AS "CostCenterCode"
+			,	COST.CostCenterName AS "CostCenterName"
+			,	(CASE WHEN COST.CostCenterType != 'PROJECT' THEN NULL ELSE COST.NameCode END ) AS "NameCode" 
+			,	(	CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodStart),''),'NODATA') = 'NODATA'
+								THEN ''
+								ELSE TO_CHAR(TO_DATE(COST.UsePeriodStart),'YYYY.MM.DD')
+						END||
+						' ~ '||
+						CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodFinish),''),'NODATA') = 'NODATA'
+								THEN ''
+								ELSE TO_CHAR(TO_DATE(COST.UsePeriodFinish),'YYYY.MM.DD')
+						END)	AS "UsePeriod"
+			,	COST.IsUse AS "IsUse"
+			,	COST.Description AS "Description"
+			,	COST.IsPermanent AS "IsPermanent"
+			,	COST.RegisterID AS "RegisterID"
+			,	COST.RegistDate AS "RegistDate"
+		FROM	act_cost_center	COST
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		COST.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'	OR
+					COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'CCN'.toString()">
+		AND		COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'CCC'.toString()">
+		AND		COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		ORDER BY CostCenterCode DESC
+	</select>
+	
+	<select id="getCostCenterlistCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	act_cost_center COST
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		COST.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'	OR
+					COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'CCN'.toString()">
+		AND		COST.CostCenterName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'CCC'.toString()">
+		AND		COST.CostCenterCode	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+	</select>
+
+	<insert id="insertCostCenterInfo" parameterType="cmap" >
+	    INSERT INTO act_cost_center (
+				CompanyCode
+			,	CostCenterType
+			,	CostCenterCode
+			,	CostCenterName
+			,	NameCode
+			,	UsePeriodStart
+			,	UsePeriodFinish
+			,	IsPermanent
+			,	IsUse
+			,	Description
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{costCenterType}			
+			<choose>
+			    <when test="saveProperty == 'Y'.toString() and costCenterCode == ''">
+			        ,	(	SELECT ('C'||	CASE	WHEN COUNT(B.CostCenterID) > 0
+												THEN LPAD(MAX(B.CostCenterID)	+ 1,6,0)
+												ELSE LPAD(COUNT(B.CostCenterID)	+ 1,6,0)
+										END) AS CostCenterCode
+					FROM act_cost_center B)
+			    </when>
+			    <otherwise>
+			        , #{costCenterCode}
+			    </otherwise>
+			</choose>
+			,	#{costCenterName}
+			,	#{nameCode}
+			,	#{usePeriodStart}
+			,	#{usePeriodFinish}
+			,	#{isPermanent}
+			,	#{isUse}
+			,	#{description}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+	    )
+ 	</insert>
+ 	
+	<update id="updateCostCenterInfo" parameterType="cmap" >
+ 		UPDATE act_cost_center
+ 			SET	IsUse			= #{isUse}
+			<if test = "listPage == 'N'.toString()">
+ 			,	Description		= #{description}
+			</if>
+ 		WHERE	CostCenterCode	= #{costCenterCode}
+ 	</update>
+	
+	<select id="getCostCenterDetailDefault" parameterType="cmap" resultType="cmap">
+	    SELECT	NULL AS "CostCenterID"
+			,	NULL AS "CostCenterType"
+			,	('C'||	CASE	WHEN COUNT(CostCenterID) > 0
+									THEN LPAD(MAX(CostCenterID)		+ 1,6,0)
+									ELSE LPAD(COUNT(CostCenterID)	+ 1,6,0)
+							END) AS "CostCenterCode"
+			,	NULL AS "CostCenterName"
+			,	NULL AS "NameCode"
+			,	NULL AS "IsUse"
+			,	NULL AS "UsePeriodStart"
+			,	NULL AS "UsePeriodFinish"
+			,	NULL AS "IsPermanent"
+			,	NULL AS "Description"
+			,	NULL AS "CompanyCode"
+			,	NULL AS "companyCodeTxt"
+			,	NULL AS "costCenterTypeTxt"
+		FROM  act_cost_center
+	</select>
+	
+	<select id="getCostCenterDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	COST.CostCenterID AS "CostCenterID"
+	    	,	COST.CompanyCode AS "CompanyCode"
+	    	,	COST.CostCenterType AS "CostCenterType"
+			,	COST.CostCenterCode AS "CostCenterCode"
+			,	COST.CostCenterName AS "CostCenterName"
+			,	COST.NameCode AS "NameCode"
+			,	COST.IsUse AS "IsUse"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodStart),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(COST.UsePeriodStart),'YYYY.MM.DD')
+				END		AS "UsePeriodStart"
+			,	CASE	WHEN NVL(NULLIF(TO_CHAR(COST.UsePeriodFinish),''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(COST.UsePeriodFinish),'YYYY.MM.DD')
+				END		AS "UsePeriodFinish"
+			,	COST.IsPermanent AS "IsPermanent"
+			,	COST.Description AS "Description"
+			,	COST.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',		COST.CompanyCode, #{companyCode})		AS "companyCodeTxt"
+			,	FN_GETACTBASECODENAME('CostCenterGubun',	COST.CostCenterType, #{companyCode})	AS "costCenterTypeTxt"
+		FROM	act_cost_center	COST
+		WHERE	CostCenterID = #{costCenterID}
+	</select>
+	
+	<delete id="deleteCostCenterInfo">
+	    DELETE FROM act_cost_center		
+		WHERE	costCenterID = #{costCenterID}	
+	</delete>
+	
+	<select id="getCostCenterUserMappingDeptList" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+	    SELECT	'group'				AS "itemType"
+			,	gr.CompanyCode		AS "CompanyCode"
+			,	gr.GroupCode		AS "GroupCode"
+			,	gr.GroupType		AS "GroupType"
+			,	gr.MultiDisplayName	AS "GroupName"
+			,	cn.MultiDisplayName	AS "CompanyName"
+			,	gr.PrimaryMail		AS "PrimaryMail"
+			,	gr.MemberOf			AS "MemberOf"
+			,	gr.GroupCode		AS "AN"
+			,	gr.MultiDisplayName	AS "DN"
+			,	gr.PrimaryMail		AS "EM"
+			,	cn.CompanyCode		AS "ETID"
+			,	cn.MultiDisplayName	AS "ETNM"
+			,	gr.MemberOf			AS "SGAN"
+			,	gr.MemberOf			AS "SGDN"
+			,	gr.Receivable		AS "RCV"
+			,	gr.SortPath			AS "SortPath"
+			,	gr.GroupPath		AS "GroupPath"
+			,	gr.GroupID			AS "GroupID"
+			,	(	SELECT	COUNT(0)
+					FROM	sys_object_group self
+					WHERE	self.MemberOf	= gr.GroupCode
+					AND		self.IsUse		= 'Y')	AS "hasChild"
+			,	REPLACE(sys_getFullPath(gr.GroupCode,#{lang}),'@','>')	AS "GroupFullPath"
+		]]>
+        FROM	sys_object_group	gr
+			LEFT JOIN
+				sys_object_group	cn
+				ON
+					gr.CompanyCode	= cn.GroupCode
+				AND	cn.GroupType	= 'Company'
+		WHERE	gr.IsUse		=	'Y'	
+		AND		gr.IsDisplay	=	'Y'
+		<if test="companyCode != null and companyCode != ''">
+		AND		gr.CompanyCode	= #{companyCode}
+		</if>
+		AND		(gr.MemberOf	!=	'NOUSE'		OR gr.MemberOf IS NULL)
+		AND		(gr.MemberOf	!=	'NOUNIT'	OR gr.MemberOf IS NULL)
+		AND		gr.GroupType IN ('Dept','Company')
+		ORDER BY gr.SortPath ASC
+	</select>
+	
+	<select id="getCostCenterUserMappingUserList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    SELECT	'user'													AS "itemType"
+			,	'so'													AS "so"
+			,	ur.UserID												AS "UserID"
+			,	ur.UserCode												AS "AN"
+			,	ur.MultiDisplayName										AS "DN"
+			,	(bg.JobLevelCode||		'&'||bg.MultiJobLevelName)	AS "LV"
+			,	(bg.JobTitleCode||		'&'||bg.MultiJobTitleName)	AS "TL"
+			,	(bg.JobPositionCode||	'&'||bg.MultiJobPositionName) AS "PO"
+			,	ur.Mobile												AS "MT"
+			,	ur.Mobile												AS "Mobile"
+			,	ur.MailAddress											AS "EM"
+			,	ur.PhoneNumber											AS "OT"
+			,	ur.FAX													AS "FAX"
+			,	ur.EmpNo												AS "USEC"	
+			,	bg.DeptCode												AS "RG"
+			,	bg.DeptCode												AS "SG"
+			,	bg.MultiDeptName										AS "RGNM"
+			,	bg.MultiDeptName										AS "SGNM"
+			,	bg.CompanyCode											AS "ETID"
+			,	bg.MultiCompanyName										AS "ETNM"
+			,	NVL(bg.JobType,'Origin')								AS "JobType"
+			,	ur.UserCode												AS "UserCode"
+			,	bg.MultiDeptName										AS "ExGroupName"
+			,	ur.PhoneNumberInter										AS "PhoneNumberInter"
+			,	ur.ChargeBusiness										AS "ChargeBusiness"
+			,	ur.PhotoPath											AS "PhotoPath"
+			,	NVL(info.AbsenseUseYN,'N')								AS	"AbsenseUseYN"
+			,	ccinfo.UserCostCenterID									AS "UserCostCenterID"
+			,	ccinfo.CostCenterCode									AS "CostCenterCode"
+			,	ccinfo.CostCenterName									AS "CostCenterName"
+			]]>
+		FROM	sys_object_user_basegroup	bg
+		LEFT OUTER JOIN
+				(SELECT	cc.CostCenterCode
+					,	cc.CostCenterName
+					,	ucc.UserCostCenterID
+					,	ucc.UserCode
+					,	ucc.CompanyCode
+				FROM	act_user_cost_center ucc
+ 				LEFT OUTER JOIN
+ 						act_cost_center		cc
+ 				ON		cc.CostCenterCode = ucc.CostCenterCode) ccinfo
+		ON		ccinfo.UserCode	= bg.UserCode
+		LEFT JOIN
+			sys_object_user		ur
+		ON	ur.UserCode	= bg.UserCode
+		LEFT JOIN
+			sys_object_user_info	info
+		ON	bg.UserCode	= info.UserCode
+		WHERE	ur.IsUse		= 'Y'	
+		AND		ur.IsDisplay	= 'Y'
+		AND		bg.DeptCode		= #{deptCode}
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			DisplayName ASC
+				  		</if>
+				  	</foreach>
+				  	, ur.SortKey ASC, ur.EnterDate ASC
+			  	</when>
+				<otherwise>
+				  	<![CDATA[ (ur.SortKey+0) ASC, bg.JobTitleSortKey ASC, bg.JobLevelSortKey ASC, ur.EnterDate ASC, DN ASC ]]>
+				</otherwise>
+			</choose>
+		</trim>
+	</select>
+
+	<insert id="insertCenterUserMappingInfo" parameterType="cmap" >
+	    INSERT INTO act_user_cost_center (
+				CompanyCode
+			,	UserCode
+			,	CostCenterCode
+			,	RegisterID
+			,	RegistDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{userCode}
+			,	#{costCenterCode}
+			,	#{UR_Code}
+			,	SYSDATE
+	    )
+	</insert>
+	
+	<update id="updateCenterUserMappingInfo" parameterType="cmap" >
+	    UPDATE act_user_cost_center
+ 			SET
+ 				CompanyCode			= #{companyCode}
+ 			,	CostCenterCode		= NVL(#{costCenterCode}, ' ')
+ 		WHERE	UserCostCenterID	= #{userCostCenterID}
+	</update>
+	
+	<select id="getCostCenterUserMappingExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	ucc.CostCenterCode AS "CostCenterCode"
+				,	sou.UserCode AS "UserCode"
+				,	Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName) AS "UserName"
+				,	sog.DisplayName AS "CompanyName"
+		FROM	sys_object_user sou
+		LEFT OUTER JOIN act_user_cost_center ucc
+		ON		sou.UserCode = ucc.UserCode
+		LEFT OUTER JOIN sys_object_group sog
+		ON		ucc.CompanyCode = sog.GroupCode
+		WHERE 1=1
+		<if test ="companyCode != null and companyCode !=''">
+			AND ucc.CompanyCode = CASE WHEN #{companyCode} = 'ALL' THEN ucc.CompanyCode ELSE #{companyCode} END
+		</if>
+    	<if test="assignedDomain.size() > 0" >
+            AND ucc.CompanyCode IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+	</select>
+	
+	<select id="getCostCenterUserMappingExcelListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT	COUNT(sou.UserCode)
+		FROM	sys_object_user sou
+		LEFT OUTER JOIN act_user_cost_center ucc
+		ON		sou.UserCode = ucc.UserCode
+		LEFT OUTER JOIN sys_object_group sog
+		ON		ucc.CompanyCode = sog.GroupCode
+		WHERE 1=1
+		<if test ="companyCode != null and companyCode !=''">
+			AND ucc.CompanyCode = CASE WHEN #{companyCode} = 'ALL' THEN ucc.CompanyCode ELSE #{companyCode} END
+		</if>
+    	<if test="assignedDomain.size() > 0" >
+            AND ucc.CompanyCode IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+	</select>
+	
+	<select id="getCenterUserMappingUserCostCenterID" parameterType="cmap" resultType="cmap">
+	    SELECT	cc.CostCenterCode AS "CostCenterCode"
+			,	cc.CostCenterName AS "CostCenterName"
+			,	ucc.UserCostCenterID AS "UserCostCenterID"
+		FROM	act_cost_center		cc
+			JOIN	act_user_cost_center ucc
+			ON		cc.CostCenterCode = ucc.CostCenterCode
+		WHERE ROWNUM &lt;= 1
+		ORDER BY ucc.UserCostCenterID DESC			
+	</select>
+	
+	<update id="updateCostCenterInfoExcel" parameterType="cmap" >
+ 		UPDATE act_cost_center
+ 		SET	
+ 				CostCenterType	= #{costCenterType}
+ 			,	CostCenterName	= #{costCenterName}
+ 			,	NameCode		= #{nameCode}
+ 			,	UsePeriodStart	= #{usePeriodStart}
+ 			,	UsePeriodFinish	= #{usePeriodFinish}
+ 			,	IsPermanent		= #{isPermanent}
+ 			,	IsUse			= #{isUse}
+ 			,	Description		= #{description}
+ 			,	ModifierID		= #{UR_Code}
+ 			,	ModifyDate		= SYSDATE
+ 		WHERE	CostCenterID	= #{costCenterID}
+ 	</update>
+	
+	<select id="getCostCenterCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_cost_center
+	    WHERE	CostCenterCode	= #{costCenterCode}
+	</select>
+	
+	<insert id="insertCostCenterInfoExcel" parameterType="cmap" >
+	    INSERT INTO act_cost_center (
+				CompanyCode
+			,	CostCenterType
+			,	CostCenterCode
+			,	CostCenterName
+			,	NameCode
+			,	UsePeriodStart
+			,	UsePeriodFinish
+			,	IsPermanent
+			,	IsUse
+			,	Description
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{costCenterType}
+			,	#{costCenterCode}
+			,	#{costCenterName}
+			<choose>
+			    <when test="costCenterType == 'PROJECT'.toString()">
+			        ,	#{nameCode}
+			    </when>
+			    <otherwise>
+			        , ''
+			    </otherwise>
+			</choose>
+			,	#{usePeriodStart}
+			,	#{usePeriodFinish}
+			,	#{isPermanent}
+			,	#{isUse}
+			,	#{description}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+	    )
+ 	</insert>
+ 	
+	<select id="getCostCenterDetailDefaultExcel" parameterType="cmap" resultType="cmap">
+			SELECT	('C'||	CASE	WHEN COUNT(CostCenterID) > 0
+									THEN LPAD(MAX(CostCenterID)		+ 1,6,0)
+									ELSE LPAD(COUNT(CostCenterID)	+ 1,6,0)
+							END) AS "CostCenterCode"
+			FROM  act_cost_center
+	</select>
+	
+	<select id="getCostCenterCodeCostCenterID" parameterType="cmap" resultType="cmap">
+	    SELECT	COST.CostCenterID AS "CostCenterID"
+	    FROM	act_cost_center COST
+	    WHERE	COST.CostCenterCode = #{costCenterCode}
+	</select>
+	
+	<select id="getUserCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	sys_object_user
+	    WHERE	UserCode = #{userCode}
+	</select>
+	
+	<select id="getCostCenterUserCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_user_cost_center
+	    WHERE	UserCode = #{userCode}
+	</select>
+ 	
+	<insert id="insertCostCenterUserMappingInfoExcel" parameterType="cmap" >
+	    INSERT INTO act_user_cost_center (
+				CompanyCode
+				, Usercode
+				, CostCenterCode
+				, RegisterID
+				, RegistDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{userCode}
+			,	#{costCenterCode}
+			,	#{SessionUser}
+			,	SYSDATE
+	    )
+ 	</insert>
+	
+	<update id="updateCostCenterUserMappingInfoExcel" parameterType="cmap" >
+ 		UPDATE act_user_cost_center
+ 			SET	CompanyCode		= #{companyCode}
+ 			,	CostCenterCode	= #{costCenterCode}
+ 		WHERE	Usercode		= #{userCode}
+ 	</update>
+	
+	<select id="getCostCenterInterfaceSaveCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_cost_center
+	    WHERE	CostCenterCode	= #{costCenterCode}
+	</select>
+	
+	<insert id="costCenterInterfaceInsert" parameterType="cmap" >
+	    /*
+	    	account.costcenter.costCenterInterfaceInsert
+	    */
+	    INSERT INTO act_cost_center (
+				CompanyCode
+			,	CostCenterType
+			,	CostCenterCode
+			,	CostCenterName
+			,	NameCode
+			,	UsePeriodStart
+			,	UsePeriodFinish
+			,	IsPermanent
+			,	IsUse
+			,	Description
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+		) VALUES (
+				#{companyCode}
+			,	#{costCenterType}
+			,	#{costCenterCode}
+			,	#{costCenterName}
+			,	#{nameCode}
+			,	#{usePeriodStart}
+			,	#{usePeriodFinish}
+			,	#{isPermanent}
+			,	#{isUse}
+			,	#{description}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+		)
+	</insert>
+	
+	<update id="costCenterInterfaceUpdate" parameterType="cmap" >
+		/*
+			account.costcenter.costCenterInterfaceUpdate
+		*/
+		UPDATE act_cost_center
+			SET
+				CostCenterType	= #{costCenterType}
+			,	CostCenterName	= #{costCenterName}
+			,	UsePeriodStart	= #{usePeriodStart}
+			,	UsePeriodFinish	= #{usePeriodFinish}
+			,	IsPermanent		= #{isPermanent}
+			,	IsUse			= #{isUse}
+			,	Description		= #{description}
+		WHERE	CostCenterCode	= #{costCenterCode}
+	</update>
+	
+</mapper>

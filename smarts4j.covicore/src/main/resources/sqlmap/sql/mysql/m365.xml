@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="m365">
+    <select id="getOAuthTokenInfo"  parameterType="cmap" resultType="cmap">
+		SELECT	
+			Scope
+			,DN_ID
+			,DN_Code
+			,AppId
+			,TenantId
+			,ClientSecret
+			,IFNULL(AccessToken, '') AS AccessToken
+			,IFNULL(DATE_FORMAT(ExpireDateTime, '%Y-%m-%d %T.%f'), '') AS ExpireDateTime
+		FROM m365_oauth
+		WHERE IsUse = 'Y'	
+			AND Scope = #{scope}
+			AND	(DN_ID = 0 OR DN_ID = #{dn_id})
+		ORDER BY DN_ID DESC
+    </select>
+    
+    <select id="getOAuthTargetList"  parameterType="cmap" resultType="cmap">
+		SELECT	
+			Scope
+			,DN_ID
+			,DN_Code
+			,AppId
+			,TenantId
+			,ClientSecret
+		FROM m365_oauth
+		WHERE IsUse = 'Y'	
+			AND IFNULL(ClientSecret, '') <![CDATA[<>]]> ''
+    </select>
+    
+    <update id="updateOAuthToken" parameterType="cmap" >
+        	UPDATE m365_oauth
+			SET AccessToken = #{accessToken}
+				, ExpireDateTime = #{expireDateTime}
+				, RequestDateTime = now(3)
+			WHERE Scope = #{scope}
+				AND DN_ID = #{dn_id}
+    </update>
+        
+    <select id="getUserInfo"  parameterType="cmap" resultType="cmap">
+		SELECT
+			T1.UserCode
+			,T2.LogonID
+			,T1.UPN
+			,T1.AadObjectId
+			,T3.CompanyCode AS DN_Code
+			,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = T3.CompanyCode) AS DN_ID
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T2.MultiDisplayName), '') AS DisplayName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiCompanyName), '') AS CompanyName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiDeptName), '') AS DeptName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiRegionName), '') AS RegionName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobPositionName), '') AS JobPositionName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobTitleName), '') AS JobTitleName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobLevelName), '') AS JobLevelName
+		FROM m365_user_info AS T1
+		INNER JOIN sys_object_user AS T2 ON T1.UserCode = T2.UserCode
+		INNER JOIN sys_object_user_basegroup AS T3 ON T2.UserCode = T3.UserCode AND T3.JobType = 'Origin'
+		WHERE
+			<if test='userCode != null and userCode != ""'>
+			T1.UserCode = #{userCode}
+			</if>
+			<if test='userPrincipalName != null and userPrincipalName != ""'>
+			T1.UPN = #{userPrincipalName}
+			</if>
+			<if test='aadObjectId != null and aadObjectId != ""'>
+			T1.AadObjectId IS NOT NULL
+			AND T1.AadObjectId <![CDATA[<>]]> ''
+			AND T1.AadObjectId = #{aadObjectId}
+			</if> 
+    </select>
+    
+    <select id="getMultiUserInfo"  parameterType="cmap" resultType="cmap">
+		SELECT
+			T1.UserCode
+			,T2.LogonID
+			,T1.UPN
+			,T1.AadObjectId
+			,T3.CompanyCode AS DN_Code
+			,(SELECT DomainID FROM sys_object_domain WHERE DomainCode = T3.CompanyCode) AS DN_ID
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T2.MultiDisplayName), '') AS DisplayName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiCompanyName), '') AS CompanyName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiDeptName), '') AS DeptName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiRegionName), '') AS RegionName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobPositionName), '') AS JobPositionName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobTitleName), '') AS JobTitleName
+			,IFNULL(Fn_BaseGetDictionary_S(#{lang}, T3.MultiJobLevelName), '') AS JobLevelName
+		FROM m365_user_info AS T1
+		INNER JOIN sys_object_user AS T2 ON T1.UserCode = T2.UserCode
+		INNER JOIN sys_object_user_basegroup AS T3 ON T2.UserCode = T3.UserCode AND T3.JobType = 'Origin'
+		WHERE
+			<if test='arrUserCode != null'>
+			T1.UserCode IN
+			<foreach collection="arrUserCode" item="item" separator="," open="(" close=")">
+		  		#{item}
+		  	</foreach>
+			</if>
+			<if test='arrAadObjectId != null'>
+			T1.AadObjectId IN
+			<foreach collection="arrAadObjectId" item="item" separator="," open="(" close=")">
+		  		#{item}
+		  	</foreach>
+			</if>
+    </select>
+    
+    <select id="getAppInfo"  parameterType="cmap" resultType="cmap">
+		SELECT	
+			Scope
+			,DN_ID
+			,DN_Code
+			,AppId
+			,TenantId
+			,ClientSecret
+		FROM m365_oauth
+		WHERE IsUse = 'Y'	
+			AND Scope = #{scope}
+			AND	(DN_ID = 0 OR DN_ID = #{dn_id})
+		ORDER BY DN_ID DESC
+    </select>
+</mapper>

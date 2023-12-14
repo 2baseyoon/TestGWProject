@@ -1,0 +1,91 @@
+
+<!--실 결재양식 내용 부분 시작 -->
+<div class="appforms_wrap">
+	<div class="appforms_cont">
+		<table class="appforms_table multi-row-table RowSumTable" id="TBLINFO">
+			<colgroup>
+		        <col style="width:41px;" />
+		        <col style="width:70px;" />
+		        <col style="width:*;" />
+			</colgroup>
+			<tr>
+				<td colspan="3" class="multi-row-control">
+					<div class="appforms_tit" data-mode="writeOnly">
+						<span>
+							<a href="#" class="multi-row-add btn_add_n ui-link">추가</a>
+							<a href="#" class="multi-row-del btn_del_n ui-link">삭제</a>
+						</span>
+					</div>
+				</td>
+			</tr>
+			<tr>	
+		        <th class="appforms_table_th" style="text-align: left;">
+		        	<label for="TBLINFO_select_all"></label>
+		            <input type="checkbox" id="TBLINFO_select_all" class="multi-row-select-all" onchange="mobile_approval_multiRowSelectAll(this);">
+		        </th>
+		        <th data-mode="readOnly" class="appforms_table_th">
+		        	순번
+		        </th>
+				<th colspan="2" class="appforms_table_th">
+					사무용품
+				</th>
+			</tr>
+			<tr class="multi-row-template">
+		        <th rowspan="5" class="appforms_table_th" class="multi-row-selector-wrap">
+		        	<label for=""></label>
+		            <input type="checkbox" id="" class="multi-row-selector">
+		        </th>
+		        <td rowspan="5" data-mode="readOnly" class="appforms_table_td" style="text-align: center; border-left:1px solid #c3d7df;">
+		            <span class="multi-row-seq" data-type="rField">1</span>
+		        </td>
+				<th class="appforms_table_th">
+					상품명
+				</th>
+				<td class="appforms_table_td">
+					<input type="text" class="appforms_table_input" name="REQ_ITMENAME" data-type="rField" style="width: 100%;" />
+				</td>
+			</tr>
+			<tr class="multi-row-template">
+				<th class="appforms_table_th">
+					단가
+				</th>
+				<td class="appforms_table_td" style="text-align: right;">
+					<input type="text" class="appforms_table_input" name="REQ_PRICE" data-type="rField" data-pattern="currency" style="width: 100%;" />
+				</td>
+			</tr>
+			<tr class="multi-row-template">
+				<th class="appforms_table_th">
+					수량
+				</th>
+				<td class="appforms_table_td" style="text-align: right;">
+					<input type="text" class="appforms_table_input" name="REQ_EA" data-type="rField" data-pattern="currency" onkeyup="fn_sum(this);" style="width: 100%;" />
+				</td>
+			</tr>
+			<tr class="multi-row-template">
+				<th class="appforms_table_th">
+					금액
+				</th>
+				<td class="appforms_table_td" style="text-align: right;">
+					<input type="text" class="appforms_table_input" name="REQ_TOTAL" data-type="rField" data-pattern="currency" onkeyup="fn_sum(this);" style="width: 100%;" readonly="readonly" />
+				</td>
+			</tr>
+			<tr class="multi-row-template">
+				<th class="appforms_table_th">
+					비고
+				</th>
+				<td class="appforms_table_td">
+					<input type="text" class="appforms_table_input" name="REQ_ETC" data-type="rField" style="width: 100%;" />
+				</td>
+			</tr>
+			<tr>
+				<th colspan="2" class="appforms_table_th">
+					총 금액
+				</th>
+				<td class="appforms_table_td" style="text-align: right;">
+					<input type="text" class="appforms_table_input" id="REQ_TOTALPRICE" data-type="mField" data-pattern="currency" class="sum-table-total" value="{{ doc.BodyContext.REQ_TOTALPRICE }}" style="width: 100%;" />
+				</td>
+			</tr>
+		</table>
+	</div>	
+</div>
+<!--실 결재양식 내용 부분 끝 -->

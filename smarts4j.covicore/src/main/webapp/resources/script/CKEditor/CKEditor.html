@@ -1,0 +1,156 @@
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<script type="text/javascript" src="/covicore/resources/script/jquery.min.js"></script>
+	<script src="ckeditor.js"></script>
+	<script src="config.js"></script>
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+
+
+<body align="center">	
+	<div id="ckeditor" class="ckContainer"></div>		
+	
+	<div id="resizeContainer" style="display:none;">
+        <table style="width: 100%; background: #F6F6F6; margin-top: 0px; border: 2px solid #ffffff; border-top: 0.5px; border-bottom: 0.5px">
+            <tr>
+                <td style="height: 15px; text-align: center;">
+                    <table class="editor_size" cellpadding="0" cellspacing="0" align="center">
+                        <tr>
+                            <td style="height: 11px; text-align: center; vertical-align: middle">
+                            	<a href="javascript:;" onclick="resizeHeight('minus');">
+                                	<img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/editor_minus.gif" alt="minus" title="minus" />
+                                </a>
+                            </td>
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            <td style="height: 11px; text-align: center; vertical-align: middle">
+                            	<a href="javascript:;" onclick="resizeHeight('plus');">
+                                	<img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/editor_plus.gif" alt="plus" title="plus" />
+                                </a>
+                        	</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+	<script type="text/javascript">
+		var containerID = window.name; 
+		var resizeBarHeight = 30;
+		
+		function isWysiwygareaAvailable() {
+			// If in development mode, then the wysiwygarea must be available.
+			// Split REV into two strings so builder does not replace it :D.
+			if ( CKEDITOR.revision == ( '%RE' + 'V%' ) ) {
+				return true;
+			}
+	
+			return !!CKEDITOR.plugins.get( 'wysiwygarea' );
+		}
+		
+		//에디터 창 높이 조절 함수
+        function resizeHeight(pMode) {
+        	var editorHeight = parent.document.all[containerID + 'Frame'].height - resizeBarHeight;
+            if (pMode == "plus") {
+                if ((editorHeight + 200) < 1000) {
+                	editorHeight += 200;
+                }
+            }
+
+            if (pMode == "minus") {
+                if ((editorHeight - 200) > 100) {
+                	editorHeight -= 200;
+                }
+            }
+
+            // CKEditor 높이 조절
+        	cke.resize("100%", editorHeight, false);
+
+        	// CKEditor 감싸는 iFrame 높이 조절
+            parent.document.all[containerID + 'Frame'].height = (editorHeight + resizeBarHeight);
+        }
+        
+		function initLoad(){
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].focusObjID != undefined ){
+				var focusObjId = window.parent.coviEditor.editorVariables[containerID].focusObjID; 
+				//window.parent.document.getElementById(focusObjId).attr("tabindex", -1).focus();	
+				if(focusObjId != ''){
+					$('#' + focusObjId, window.parent.document).focus();	
+				}
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].useResize != undefined ){
+				var useResize = window.parent.coviEditor.editorVariables[containerID].useResize; 
+				if(useResize == 'N'){
+					$('#resizeContainer').hide();	
+					resizeBarHeight = 0;
+				}
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].frameHeight != undefined ){
+				var frameHeight = window.parent.coviEditor.editorVariables[containerID].frameHeight; 
+				
+				// CKEditor 높이 조절
+				cke.resize("100%", frameHeight, false);
+				
+	        	// CKEditor 감싸는 iFrame 높이 조절
+    	        parent.document.all[containerID + 'Frame'].height = (parseInt(frameHeight) + resizeBarHeight);
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].onLoad != undefined &&
+					window.parent.coviEditor.editorVariables[containerID].onLoad != '' ){
+				
+				if(typeof window.parent.coviEditor.editorVariables[containerID].onLoad == "string" &&
+						window.parent[window.parent.coviEditor.editorVariables[containerID].onLoad] != undefined){
+					window.parent[window.parent.coviEditor.editorVariables[containerID].onLoad]();
+					
+				}else if(typeof window.parent.coviEditor.editorVariables[containerID].onLoad == "function"){
+					window.parent.coviEditor.editorVariables[containerID].onLoad();
+				}
+				
+			}
+			
+			$("#resizeContainer").show();
+		}
+	</script>
+	
+	<script type="text/javascript">
+		/* var sizeBarHeight = 8;
+		var containerID = window.name; 
+		var initLoad = function(object) {
+			
+		}; */
+		
+		var cke; 
+		var editorElement = CKEDITOR.document.getById( 'ckeditor' );
+		var wysiwygareaAvailable = isWysiwygareaAvailable();
+		
+		CKEDITOR.config.width = 'auto';
+		
+		if ( CKEDITOR.env.ie && CKEDITOR.env.version < 9 ){
+			CKEDITOR.tools.enableHtml5Elements( document );
+		}
+	
+		// Depending on the wysiwygarea plugin availability initialize classic or inline editor.
+		if ( wysiwygareaAvailable ) {
+			cke = CKEDITOR.replace( 'ckeditor' );
+		} else {
+			editorElement.setAttribute( 'contenteditable', 'true' );
+			cke = CKEDITOR.inline( 'ckeditor' );
+			// TODO we can consider displaying some info box that
+			// without wysiwygarea the classic editor may not work.
+		}
+		
+		CKEDITOR.addCss( 'body { padding: 10px !important; }' );
+		cke.on("instanceReady", initLoad);
+	</script>
+	
+	
+</body>
+</html>

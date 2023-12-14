@@ -1,0 +1,1 @@
+gXMLBuffer="<?xml version=\"1.0\" encoding=\"UTF-8\"?><cki><ck fm=\"곡선\" to=\"문단 띠\" num=\"56\"/><ck fm=\"필드 입력\" to=\"눈금자\" num=\"54\"/><ck fm=\"도구 상자\" to=\"region.h.txt\" num=\"42\"/></cki>";

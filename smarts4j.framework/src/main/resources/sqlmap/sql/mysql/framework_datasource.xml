@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.datasource">
+    <select id="selectDatasource" parameterType="cmap" resultType="cmap">
+		SELECT
+			DatasourceSeq
+			,ConnectionPoolName
+			,DriverClassName
+			,Url
+			,UserName
+			,Password
+			,InitialSize
+			,MaxTotal
+			,MaxIdle
+			,MinIdle
+			,MaxWaitMillis
+			,ValidationQuery
+			,TestOnBorrow
+			,TestOnReturn
+			,TestWhileIdle
+			,Description
+			,ModifyDate
+			,SortSeq
+			,BindTarget
+			,TimeBetweenEvictionRunsMillis
+			,RemoveAbandonedOnMaintenance
+			,RemoveAbandonedTimeout
+		FROM covi_smart4j.sys_datasource
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="datasourceSeq != null and datasourceSeq != ''">
+	    		DatasourceSeq = #{datasourceSeq}
+	    	</if>
+		</trim>
+		order by sortseq
+	</select>
+	
+	<!-- Web Control -->
+    <select id="selectDatasourceList" parameterType="cmap" resultType="cmap">
+		SELECT
+			DatasourceSeq
+			,ConnectionPoolName
+			,DriverClassName
+			,Url
+			,UserName
+			,Password
+			,InitialSize
+			,MaxTotal
+			,MaxIdle
+			,MinIdle
+			,MaxWaitMillis
+			,ValidationQuery
+			,TestOnBorrow
+			,TestOnReturn
+			,TestWhileIdle
+			,Description
+			,ModifyDate
+			,SortSeq
+			,TimeBetweenEvictionRunsMillis
+			,RemoveAbandonedOnMaintenance
+			,RemoveAbandonedTimeout
+		FROM covi_smart4j.sys_datasource
+	 	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+	    	<if test="datasourceSeq != null and datasourceSeq != ''">
+	    		DatasourceSeq = #{datasourceSeq}
+	    	</if>
+		</trim>
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+		</trim>
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+    <select id="selectDatasourceCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			Count(*)
+		FROM covi_smart4j.sys_datasource
+	</select>
+	<insert id="insertDatasource" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_datasource (ConnectionPoolName,DriverClassName,Url,UserName
+			,Password,InitialSize,MaxTotal,MaxIdle,MinIdle,MaxWaitMillis,ValidationQuery,TestOnBorrow,TestOnReturn,TestWhileIdle,Description,ModifyDate,SortSeq,BindTarget,TimeBetweenEvictionRunsMillis,RemoveAbandonedOnMaintenance,RemoveAbandonedTimeout)
+		VALUES (#{ConnectionPoolName},#{DriverClassName},#{Url},#{UserName}
+			,#{newPwd},#{InitialSize},#{MaxTotal},#{MaxIdle},#{MinIdle},#{MaxWaitMillis},#{ValidationQuery},#{TestOnBorrow},#{TestOnReturn},#{TestWhileIdle},#{Description},now(3),#{SortSeq},#{BindTarget},#{TimeBetweenEvictionRunsMillis},#{RemoveAbandonedOnMaintenance},#{RemoveAbandonedTimeout})
+	    <selectKey keyProperty="DatasourceSeq" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	<update id="updateDatasource" parameterType="cmap">
+		UPDATE  covi_smart4j.sys_datasource
+		SET ConnectionPoolName = #{ConnectionPoolName}
+			,DriverClassName = #{DriverClassName}
+			,Url = #{Url}
+			,UserName = #{UserName}
+			<if test="chgPwd != null and chgPwd == 'Y'.toString()">
+			,Password = #{newPwd}
+			</if>
+			,InitialSize = #{InitialSize}
+			,MaxTotal = #{MaxTotal}
+			,MaxIdle = #{MaxIdle}
+			,MinIdle = #{MinIdle}
+			,MaxWaitMillis = #{MaxWaitMillis}
+			,ValidationQuery = #{ValidationQuery}
+			,TestOnBorrow = #{TestOnBorrow}
+			,TestOnReturn = #{TestOnReturn}
+			,TestWhileIdle = #{TestWhileIdle}
+			,Description = #{Description}
+			,ModifyDate = now(3)
+			,SortSeq = #{SortSeq}
+			,BindTarget = #{BindTarget}
+			,TimeBetweenEvictionRunsMillis = #{TimeBetweenEvictionRunsMillis}
+			,RemoveAbandonedOnMaintenance = #{RemoveAbandonedOnMaintenance}
+			,RemoveAbandonedTimeout = #{RemoveAbandonedTimeout}
+		WHERE DatasourceSeq = #{DatasourceSeq}
+	</update>
+	
+	<delete id="deleteDatasource" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_datasource
+		WHERE DatasourceSeq IN
+	    <foreach item="DatasourceSeq" index="index" collection="arrDatasourceSeq" open="(" close=");" separator=",">
+          #{DatasourceSeq}
+      	</foreach>
+	</delete>
+	
+	<select id="selectDatasourceSelectData" parameterType="cmap" resultType="cmap">
+		SELECT a.DatasourceSeq AS optionValue
+			, a.ConnectionPoolName AS optionText
+		FROM covi_smart4j.sys_datasource a
+	</select> 
+</mapper>

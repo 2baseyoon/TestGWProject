@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="twofactor">
+    
+    <select id="selectgrid" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT  SBTF.SEQ AS "SEQ"
+		     ,  SBTF.DESCRIPTION AS "DESCRIPTION"
+		     ,  TO_CHAR(SBTF.REGISTDATE, 'YYYY-MM-DD HH24:MI:SS') AS "REGISTDATE"
+		     ,  (SELECT DISPLAYNAME FROM SYS_OBJECT_USER WHERE LOGONID = SBTF.REGISTERCODE) AS "REGISTERCODE"
+		     ,  TO_CHAR(SBTF.MODIFYDATE, 'YYYY-MM-DD HH24:MI:SS') AS "MODIFYDATE"
+		     ,  SBTF.MODIFIERCODE AS "MODIFIERCODE"
+		     ,  SBTF.STARTIP AS "STARTIP"
+		     ,  SBTF.ENDIP AS "ENDIP"
+		     ,  SBTF.ISLOGIN AS "ISLOGIN"
+		     ,  SBTF.ISADMIN AS "ISADMIN"
+		     ,  SBTF.TWOFACTOR AS "TWOFACTOR"
+		     ,  FN_BASEGETDICTIONARY_S(#{lang}, SOD.MULTIDISPLAYNAME) AS COMPANYNAME
+		FROM SYS_BASE_TWO_FACTOR SBTF
+		LEFT JOIN SYS_OBJECT_DOMAIN SOD ON SBTF.DOMAINID = SOD.DOMAINID
+		WHERE SBTF.TWOFACTOR = 'Y'
+		<if test='selectsearch == "description" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+			AND SBTF.DESCRIPTION LIKE '%'||#{searchtext}||'%'
+		</if>
+		<if test='selectsearch == "eip" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+			AND SBTF.ENDIP LIKE '%'||#{searchtext}||'%'
+		</if>
+		<if test='selectsearch == "sip" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+			AND SBTF.STARTIP LIKE '%'||#{searchtext}||'%'
+		</if>
+		<if test='companyCode != null and companyCode != "" and companyCode.length() gt 0'>
+			AND SOD.DOMAINCODE = #{companyCode}
+		</if>
+		<if test="domainList != null and domainList.size() gt 0">
+		 	AND SBTF.DOMAINID IN 
+			<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+			    #{domainID}
+			</foreach>
+		</if>
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("STARTIP")'>STARTIP</when>
+					<when test='sortColumn.equalsIgnoreCase("ENDIP")'>ENDIP</when>
+					<when test='sortColumn.equalsIgnoreCase("ISLOGIN")'>ISLOGIN</when>
+					<when test='sortColumn.equalsIgnoreCase("ISADMIN")'>ISADMIN</when>
+					<when test='sortColumn.equalsIgnoreCase("DESCRIPTION")'>DESCRIPTION</when>
+					<when test='sortColumn.equalsIgnoreCase("REGISTERCODE")'>REGISTERCODE</when>
+					<when test='sortColumn.equalsIgnoreCase("MODIFYDATE")'>MODIFYDATE</when>
+					<when test='sortColumn.equalsIgnoreCase("COMPANYNAME")'>COMPANYNAME</when>
+					<otherwise>SEQ</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+    <select id="selectgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM ( 
+			SELECT  SBTF.SEQ AS "SEQ"
+			     ,  SBTF.DESCRIPTION AS "DESCRIPTION"
+			     ,  TO_CHAR(SBTF.REGISTDATE, 'YYYY-MM-DD HH24:MI:SS') AS "REGISTDATE"
+			     ,  (SELECT DISPLAYNAME FROM SYS_OBJECT_USER WHERE LOGONID = SBTF.REGISTERCODE) AS "REGISTERCODE"
+			     ,  TO_CHAR(SBTF.MODIFYDATE, 'YYYY-MM-DD HH24:MI:SS') AS "MODIFYDATE"
+			     ,  SBTF.MODIFIERCODE AS "MODIFIERCODE"
+			     ,  SBTF.STARTIP AS "STARTIP"
+			     ,  SBTF.ENDIP AS "ENDIP"
+			     ,  SBTF.ISLOGIN AS "ISLOGIN"
+			     ,  SBTF.ISADMIN AS "ISADMIN"
+			     ,  SBTF.TWOFACTOR AS "TWOFACTOR" 
+			FROM SYS_BASE_TWO_FACTOR SBTF
+			LEFT JOIN SYS_OBJECT_DOMAIN SOD ON SBTF.DOMAINID = SOD.DOMAINID
+			WHERE SBTF.TWOFACTOR = 'Y'
+			<if test='selectsearch == "description" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+				AND SBTF.DESCRIPTION LIKE '%'||#{searchtext}||'%'
+			</if>
+			<if test='selectsearch == "eip" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+				AND SBTF.ENDIP LIKE '%'||#{searchtext}||'%'
+			</if>
+			<if test='selectsearch == "sip" and searchtext != null and searchtext != "" and searchtext.length() gt 0'>
+				AND SBTF.STARTIP LIKE '%'||#{searchtext}||'%'
+			</if>
+			<if test='companyCode != null and companyCode != "" and companyCode.length() gt 0'>
+				AND SOD.DOMAINCODE = #{companyCode}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+			 	AND SBTF.DOMAINID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+				    #{domainID}
+				</foreach>
+			</if>
+		)T
+	</select>
+    
+	<update id="twoFactorUserIsCheck" parameterType="cmap">
+	    UPDATE SYS_BASE_TWO_FACTOR 
+	    SET  ISLOGIN = #{value}
+	       , MODIFIERCODE = #{userID}
+	       , MODIFYDATE = SYSDATE
+	    WHERE SEQ = #{seq}
+	</update>
+	
+	<update id="twoFactorAdminIsCheck"  parameterType="cmap">
+	    UPDATE SYS_BASE_TWO_FACTOR 
+	    SET  ISADMIN = #{value}
+	       , MODIFIERCODE = #{userID}
+	       , MODIFYDATE = SYSDATE
+	    WHERE SEQ = #{seq}
+	</update>
+	
+	<update id="deleteTwoFactorList"  parameterType="cmap">
+	    UPDATE SYS_BASE_TWO_FACTOR 
+	    SET	 TWOFACTOR = 'N'
+	       , MODIFIERCODE = #{userID}
+	       , MODIFYDATE = SYSDATE
+	    WHERE SEQ = #{seq}
+	</update>
+	
+	<select id="selectTwoFactorInfo" parameterType="cmap" resultType="cmap">
+	    SELECT  	SEQ AS "SEQ"
+			     ,  DESCRIPTION AS "DESCRIPTION"
+			     ,  MODIFIERCODE AS "MODIFIERCODE"
+			     ,  STARTIP AS "STARTIP"
+			     ,  ENDIP AS "ENDIP"
+			     ,  ISLOGIN AS "ISLOGIN"
+			     ,  ISADMIN AS "ISADMIN"
+			     ,  TWOFACTOR AS "TWOFACTOR"
+		FROM SYS_BASE_TWO_FACTOR  
+		WHERE TWOFACTOR = 'Y' 
+	    AND SEQ = #{seq}
+	</select>
+	
+	<update id="twoFactorEdit" parameterType="cmap">
+	    UPDATE SYS_BASE_TWO_FACTOR 
+	    SET STARTIP = #{startIP}
+	      , ENDIP = #{endIP}
+	      , DESCRIPTION = #{Description}
+	      , ISLOGIN = #{isLogin}
+	      , ISADMIN = #{isAdmin}
+	      , MODIFIERCODE = #{userID}
+	      , MODIFYDATE = SYSDATE
+	    WHERE 1=1 
+	    AND SEQ = #{seq}
+	</update>
+	
+	<insert id="TwoFactorAdd" parameterType="cmap">
+	    INSERT INTO SYS_BASE_TWO_FACTOR (
+	    									STARTIP
+	    								 ,  ENDIP
+	    								 ,  DOMAINID
+	    								 ,  DESCRIPTION
+	    								 ,  ISLOGIN
+	    								 ,  ISADMIN
+	    								 ,  REGISTERCODE
+	    								 ,  REGISTDATE
+	    								 ,  TWOFACTOR
+	    												) VALUES(
+	    									#{startIP}
+	    								 ,  #{endIP}
+	    								 ,  (SELECT DOMAINID FROM SYS_OBJECT_DOMAIN WHERE DOMAINCODE = #{companyCode})
+	    								 ,  #{Description}
+	    								 ,  #{isLogin}
+	    								 ,  #{isAdmin}
+	    								 ,  #{userID}		
+	    								 ,  SYSDATE
+	    								 ,  'Y'		
+	    								 )
+	</insert>
+</mapper>

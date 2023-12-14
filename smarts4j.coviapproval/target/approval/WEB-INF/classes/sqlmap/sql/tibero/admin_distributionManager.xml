@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.distributionManager">
+   <select id="selectDistributionList" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/>
+			 SELECT GroupCode AS "GroupCode"
+						  , GroupID AS "GroupID"
+						  , GroupName AS "GroupName"
+						  , Description AS "Description"
+						  , SortKey AS "SortKey"
+						  , IsUse AS "IsUse"
+						  , InsertDate AS "InsertDate"
+						  , EntCode  AS "EntCode"
+			 FROM jwf_group
+			 WHERE EntCode = #{EntCode}
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("GroupCode")'>GroupCode</when>
+					<when test='sel_Search.equalsIgnoreCase("Description")'>Description</when>
+					<otherwise>GroupName</otherwise>
+				</choose> 
+				LIKE '%'||#{search}||'%'
+			</if>					
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+						<when test='sortColumn.equalsIgnoreCase("GroupName")'>GroupName</when>
+						<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+						<when test='sortColumn.equalsIgnoreCase("InsertDate")'>InsertDate</when>
+						<otherwise>SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					SortKey ASC
+			   </if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>	
+	</select>
+	
+    
+    <select id="selectDistributionListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM jwf_group
+		WHERE EntCode = #{EntCode}
+		<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			AND 
+			<choose>
+				<when test='sel_Search.equalsIgnoreCase("GroupCode")'>GroupCode</when>
+				<when test='sel_Search.equalsIgnoreCase("Description")'>Description</when>
+				<otherwise>GroupName</otherwise>
+			</choose> 
+			LIKE '%'||#{search}||'%'
+		</if>					
+	</select>
+
+	<insert id="insertDistributionList" parameterType="cmap" >         
+		INSERT INTO	jwf_group 
+		(	
+			GroupCode,
+			GroupName,
+			Description,
+			SortKey,
+			IsUse ,
+			InsertDate,
+			EntCode 
+		)
+		VALUES ( 
+		#{GroupCode} ,
+		#{GroupName} ,
+		#{Description} ,
+		#{SortKey} ,
+		#{IsUse} ,
+		SYSDATE ,
+		#{EntCode}
+		)	
+	</insert>
+	
+  	<update id="updateDistribution" parameterType="cmap" >         
+		UPDATE jwf_group
+		SET GroupCode = #{GroupCode}				
+			, GroupName  = #{GroupName}
+			, Description = #{Description}
+			, SortKey = #{SortKey}
+			, IsUse = #{IsUse}			
+		WHERE GroupID = #{GroupID}
+	</update>
+	
+	<delete  id="deleteDistribution" parameterType="cmap" >
+		DELETE FROM jwf_group				  
+		WHERE GroupID = #{GroupID}		
+	</delete>
+	
+    <delete  id="deleteDistributionAfter" parameterType="cmap" >
+		DELETE FROM jwf_groupmember				  
+		WHERE	GroupID = #{GroupID}		
+	</delete>
+    
+    <select id="selectDistirbutionData" parameterType="cmap" resultType="cmap">
+		SELECT GroupCode AS "GroupCode"
+				  , GroupID AS "GroupID"
+				  , GroupName AS "GroupName"
+				  , Description AS "Description"
+				  , SortKey AS "SortKey"
+				  , IsUse AS "IsUse"
+				  , TO_CHAR(InsertDate, 'YYYY-MM-DD HH24:MI') AS  "InsertDate"
+				  , EntCode 
+		FROM jwf_group
+		WHERE 1=1
+		<if test="GroupID != null and GroupID != ''">
+			AND GroupID = #{GroupID}		
+		</if>
+		<if test="GroupCode != null and GroupCode != ''">
+			AND GroupCode = #{GroupCode}		
+		</if>		
+	</select>
+	
+    <select id="selectDistributionMemberList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+			  SELECT * FROM(	SELECT 
+											M.GroupMemberID AS "GroupMemberID"
+									       , M.GroupID AS "GroupID"
+									       , M.UserCode AS "UserCode"
+									       , M.SortKey AS "SortKey"
+									       , M.Weight  AS "Weight"
+									       , P.DisplayName AS "UR_Name"
+									       , BG.DeptName AS "DEPT_Name"
+									FROM jwf_groupmember M
+									INNER JOIN sys_object_user P ON M.UserCode = P.UserCode
+									INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode AND BG.JobType ='Origin'
+									WHERE M.GroupID = #{GroupID}
+									
+									UNION
+									
+									SELECT
+											M.GroupMemberID AS "GroupMemberID"
+									       , M.GroupID AS "GroupID"
+									       , M.UserCode AS "UserCode"
+									       , M.SortKey AS "SortKey"
+									       , M.Weight AS "Weight"
+									       , D.DisplayName AS "UR_Name"
+									       , D.DisplayName AS "DEPT_Name"
+									FROM jwf_groupmember M
+									INNER JOIN sys_object_group D ON M.UserCode = D.GroupCode
+									WHERE M.GroupID = #{GroupID}
+			) A	
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("UserCode")'>"UserCode"</when>
+						<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>"DEPT_Name"</when>
+						<otherwise>"UR_Name"</otherwise>
+					</choose> 
+					LIKE '%'||#{search}||'%' 
+				</if>					
+			</trim>
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("UR_Name")'>"UR_Name"</when>
+						<when test='sortColumn.equalsIgnoreCase("UserCode")'>"UserCode"</when>
+						<when test='sortColumn.equalsIgnoreCase("DEPT_NAME")'>"DEPT_NAME"</when>
+						<otherwise>"SortKey"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					"SortKey" ASC
+			   </if>
+			</trim>
+		 <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    
+    <select id="selectDistributionMemberListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+		  (SELECT M.GroupMemberID AS "GroupMemberID"
+			       , M.GroupID AS "GroupID"
+			       , M.UserCode AS "UserCode"
+			       , M.SortKey AS "SortKey"
+			       , M.Weight  AS "Weight"
+			       , P.DisplayName AS "UR_Name"
+			       , BG.DeptName AS "DEPT_Name"
+			FROM jwf_groupmember M
+			INNER JOIN sys_object_user P ON M.UserCode = P.UserCode
+			INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode  AND BG.JobType ='Origin'
+			WHERE M.GroupID = #{GroupID}
+			
+			UNION
+			
+			SELECT M.GroupMemberID AS "GroupMemberID"
+			       , M.GroupID AS "GroupID"
+			       , M.UserCode AS "UserCode"
+			       , M.SortKey AS "SortKey"
+			       , M.Weight AS "Weight"
+			       , D.DisplayName AS "UR_Name"
+			       , D.DisplayName AS "DEPT_Name"
+			FROM jwf_groupmember M
+			INNER JOIN sys_object_group D ON M.UserCode = D.GroupCode 
+			WHERE M.GroupID = #{GroupID}
+		) A	
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("UserCode")'>"UserCode"</when>
+					<when test='sel_Search.equalsIgnoreCase("DEPT_Name")'>"DEPT_Name"</when>
+					<otherwise>"UR_Name"</otherwise>
+				</choose> 
+				LIKE '%'||#{search}||'%' 
+			</if>					
+		</trim>
+	</select>
+	
+    
+    <insert id="insertDistributionMember" parameterType="cmap" >         
+		INSERT INTO jwf_groupmember( GroupID, SortKey, UserCode )
+		VALUES	(#{GroupID}, #{SortKey}, #{UserCode} )	 			
+	</insert>
+	
+  	<update id="updateDistributionMember" parameterType="cmap" >         
+		UPDATE jwf_groupmember
+		SET SortKey = #{SortKey}						
+		WHERE	GroupMemberID = #{GroupMemberID}
+	</update>
+	
+	<delete  id="deleteDistributionMember" parameterType="cmap" >
+		DELETE FROM jwf_groupmember				  
+		WHERE	GroupMemberID = #{GroupMemberID}		
+	</delete>
+    
+	 <select id="selectDistributionMemberData" parameterType="cmap" resultType="cmap">
+    	SELECT M.GroupMemberID AS "GroupMemberID"
+		       , M.GroupID AS "GroupID"
+		       , M.UserCode AS "UserCode"
+		       , M.SortKey AS "SortKey"
+		       , M.Weight AS "Weight"
+		       , P.DisplayName AS "UR_Name"
+		       , BG.DeptName AS "DEPT_Name"
+		FROM jwf_groupmember M
+		INNER JOIN sys_object_user P ON M.UserCode = P.UserCode
+		INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode AND BG.JobType ='Origin'
+		WHERE M.GroupMemberID = #{GroupMemberID}
+		UNION
+		SELECT
+				M.GroupMemberID AS "GroupMemberID"
+		       , M.GroupID AS "GroupID"
+		       , M.UserCode AS "UserCode"
+		       , M.SortKey AS "SortKey"
+		       , M.Weight AS "Weight"
+		       , D.DisplayName AS  "UR_Name"
+		       , D.DisplayName AS "DEPT_Name"
+		FROM jwf_groupmember M
+		INNER JOIN sys_object_group D ON M.UserCode = D.GroupCode
+		WHERE M.GroupMemberID = #{GroupMemberID}
+	</select>
+	
+    
+</mapper>
+

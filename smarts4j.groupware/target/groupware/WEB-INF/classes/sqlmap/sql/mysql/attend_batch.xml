@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.adminBatch">
+	
+	<!-- 외부 시스템 I/F 활성화 여부 -->
+	<select id="getDomainId" resultType="cmap">
+		SELECT  
+			CompanyCode
+		FROM covi_smart4j.sys_object_domain d
+		JOIN covi_smart4j.attendance_mng_mst m 
+		ON d.DomainCode = m.CompanyCode
+		WHERE 1=1
+		<if test="OthYn != null and OthYn != ''">
+			AND OthYn = #{OthYn}
+		</if>
+	</select>
+
+	<!-- 결근 BATCH 처리 -->
+	<update id="setAbsentData" statementType="CALLABLE" parameterType= "cmap"  >
+		{CALL covi_smart4j.sp_attend_setCommuteAbsentUpdate(#{CompanyCode , mode=IN, jdbcType=VARCHAR},#{RetCount, mode=OUT, jdbcType=INTEGER})}
+	</update>
+	
+	<!-- 근무일정 자동생성 -->
+	<update id="autoCreateScheduleJob" statementType="CALLABLE" parameterType= "cmap" >
+	 	{CALL covi_smart4j.sp_attend_autoCreateScheduleJob(#{Month}, #{HolidayFlag}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<!-- 외부 출퇴근 시스템 I/F리스트 -->
+	<select id="getCommuteDataByOtherSystem" statementType="CALLABLE" parameterType= "cmap"  resultType="cmap" >
+		{CALL covi_smart4j.sp_attend_getCommuteByOtherSys(#{CompanyCode , mode=IN, jdbcType=VARCHAR})}
+	</select>
+
+	<select id="getCommuteByOtherSystemType" parameterType= "cmap"  resultType="string">
+		SELECT SettingValue
+		FROM covi_smart4j.sys_base_config a
+		JOIN covi_smart4j.sys_object_domain b ON a.DomainID = B.DomainId AND b.DomainCode = #{CompanyCode}
+		WHERE SETTINGKEY = 'AttBatchDeviceName'
+	</select>
+
+	<select id="getCommuteByOtherSystemBatchDate" parameterType= "cmap"  resultType="string">
+		SELECT SettingValue
+		FROM covi_smart4j.sys_base_config a
+		JOIN covi_smart4j.sys_object_domain b ON a.DomainID = B.DomainId  AND b.DomainCode IN ('ORGROOT', #{CompanyCode}) AND a.SETTINGKEY = 'AttendanceBatchDay'
+		ORDER BY CASE WHEN b.DomainCode = #{CompanyCode} THEN 0 ELSE 1 END LIMIT 1
+	</select>
+
+	<select id="getCommuteByOtherSystmeSecom" parameterType= "cmap"  resultType="cmap">
+		<![CDATA[
+		SELECT
+			DATE_FORMAT(workdate,'%Y-%m-%d') workdate
+			,usercode
+			,CASE WHEN wstime != '' THEN DATE_FORMAT(wstime,'%Y-%m-%d %H:%i:%s') END wstime
+			,CASE WHEN wctime != '' THEN DATE_FORMAT(wctime,'%Y-%m-%d %H:%i:%s') END wctime
+			,startbatch
+			,endbatch
+			,commuSeq
+			,AttConfirmYn
+		FROM
+		(
+			SELECT
+				workdate
+				,targetdate
+				,u.usercode
+				,wstime
+				,starttime
+				,wctime
+				,endtime
+				,IF(wstime = '' or wstime>=starttime OR StartChangeYn = 'Y' ,NULL,'Y') startbatch
+				,IF(wctime = '' or wctime <=  endtime OR EndChangeYn = 'Y',NULL,'Y') endbatch
+				,commuSeq
+				,AttConfirmYn
+			FROM (
+				SELECT distinct
+					WorkDate
+					, WSTime
+					,WCTime
+					,Sabun
+					,bWS
+					,bWC
+				FROM legacy_secom.${CompanyCode}_t_secom_workhistory
+				WHERE ( bWS = 1 OR bWC= 1 )
+					AND Sabun != ''
+					AND WorkDate >= DATE_FORMAT(DATE_SUB(NOW(),INTERVAL #{batchDate} DAY),'%Y%m%d')
+			) secom
+			JOIN covi_smart4j.sys_object_user u ON secom.sabun = u.EmpNo
+			JOIN covi_smart4j.sys_object_user_basegroup soub	ON U.UserCode = soub.UserCode AND soub.JobType ='Origin' AND soub.CompanyCode =#{CompanyCode}
+			LEFT JOIN (
+				SELECT
+					acm.UserCode
+					,acm.AttConfirmYn
+					,acm.StartChangeYn
+					,acm.EndChangeYn
+					,acm.AttStartTime StartTime
+					,acm.AttEndTime EndTime
+					,acm.TargetDate
+					,acm.CommuSeq
+				FROM  covi_smart4j.attendance_commuting_mst acm
+				WHERE acm.TargetDate >=  DATE_FORMAT(DATE_SUB(NOW(),INTERVAL #{batchDate} DAY),'%Y%m%d')
+			) att ON u.UserCode = att.UserCode AND secom.workdate = att.TargetDate
+		) A WHERE (startbatch IS NOT NULL OR endbatch IS NOT NULL)
+		ORDER BY workdate ASC]]>
+	</select>
+
+	<select id="getCommuteByOtherSystmeAdt" parameterType= "cmap"  resultType="cmap">
+			<![CDATA[
+	SELECT
+		DATE_FORMAT(workdate,'%Y-%m-%d') workdate
+		,usercode
+		,CASE WHEN wstime != '' THEN DATE_FORMAT(wstime,'%Y-%m-%d %H:%i:%s') END wstime
+		,CASE WHEN wctime != '' THEN DATE_FORMAT(wctime,'%Y-%m-%d %H:%i:%s') END wctime
+		,startbatch
+		,endbatch
+		,commuSeq
+		,AttConfirmYn
+	FROM
+	(
+		SELECT
+			workdate
+			,targetdate
+			,u.usercode
+			,wstime
+			,starttime
+			,wctime
+			,endtime
+			,IF(wstime = '' or wstime is null or wstime>=starttime OR StartChangeYn = 'Y' ,NULL,'Y') startbatch
+			,IF(wctime = '' OR wctime IS null or wctime <=  endtime OR EndChangeYn = 'Y',NULL,'Y') endbatch
+			,commuSeq
+			,AttConfirmYn
+		FROM (
+			SELECT
+				WorkDate
+				,MAX(WSTime) WSTime
+				,MAX(WCTime) WCTime
+				,Sabun
+				,MAX(bWS) bWS
+				,MAX(bWC) bWC
+			FROM
+			(
+			SELECT 
+			    ifnull(wrap.WorkDate, wrap.e_date) WorkDate
+			    , wrap.WSTime
+			    , wrap.WCTime
+			    , wrap.Sabun
+			    , wrap.bWS
+			    , wrap.bWC
+			FROM(
+				SELECT
+					case when e_mode = 1 THEN e_date
+					ELSE (
+						SELECT   b.e_date
+						FROM legacy_secom.${CompanyCode}_adt_data b
+						WHERE b.e_idno=a.e_idno
+							AND b.e_date BETWEEN DATE_FORMAT(DATE_SUB(a.e_date,INTERVAL 1 DAY),'%Y%m%d')  and a.e_date
+							AND b.e_mode=1 
+							AND CONCAT(b.e_date, b.e_time)  < CONCAT(a.e_date, a.e_time)
+						ORDER by b.e_date  desc LIMIT 1
+					) END WorkDate
+					,CASE WHEN e_mode = 1 THEN MIN(CONCAT(a.e_date, a.e_time)) END WSTime
+					,CASE WHEN e_mode = 2 THEN MAX(CONCAT(a.e_date, a.e_time)) END WCTime
+					,e_idno Sabun
+					,CASE WHEN e_mode = 1 THEN 1 ELSE 0 END bWS
+					,CASE WHEN e_mode = 2 THEN 1 ELSE 0 END bWC
+					 ,a.e_date
+				FROM legacy_secom.${CompanyCode}_adt_data a
+				WHERE e_mode IN (1,2) AND e_date >= DATE_FORMAT(DATE_SUB(NOW(),INTERVAL #{batchDate} DAY),'%Y%m%d')
+				GROUP BY e_date,e_name,e_mode
+				) wrap 
+			) r
+			WHERE WorkDate IS NOT null
+			GROUP BY WorkDate,Sabun
+		) secom
+		JOIN covi_smart4j.sys_object_user u ON secom.sabun = u.EmpNo
+		JOIN covi_smart4j.sys_object_user_basegroup soub	ON U.UserCode = soub.UserCode AND soub.JobType ='Origin' AND soub.CompanyCode =#{CompanyCode}
+		LEFT JOIN (
+			SELECT
+				acm.UserCode
+				,acm.AttConfirmYn
+				,acm.StartChangeYn
+				,acm.EndChangeYn
+				,acm.AttStartTime StartTime
+				,acm.AttEndTime EndTime
+				,acm.TargetDate
+				,acm.CommuSeq
+			FROM
+				covi_smart4j.attendance_commuting_mst acm
+			WHERE acm.TargetDate >=  DATE_FORMAT(DATE_SUB(NOW(),INTERVAL #{batchDate} DAY),'%Y%m%d')
+		) att ON u.UserCode = att.UserCode AND secom.workdate = att.TargetDate
+	) A WHERE (startbatch IS NOT NULL OR endbatch IS NOT NULL)
+	ORDER BY workdate ASC]]> 
+	</select>
+
+
+	<select id="getAttAlarmTimeCheck" parameterType= "cmap"  resultType="cmap">
+		SELECT dayList,
+			UserCode,
+			DeptFullPath,
+			DisplayName,
+			DeptName,
+			JobPositionName,
+			JobTitleName,
+			weekd,
+			SchName,
+			WorkingSystemType,
+			WorkSts,
+			AttDayStartTime,
+			AttDayEndTime,
+			AttAlarmStartTime,
+			AttAlarmEndTime,
+			AttAlarmLateTime,
+			AttAlarmOverTime,
+			AttStartTime,
+			AttEndTime,
+			DATE_FORMAT(AttDayStartTime,'%Y-%m-%d %H:%i') as AttDayStartTime_F,
+			DATE_FORMAT(AttDayEndTime,'%Y-%m-%d %H:%i') as AttDayEndTime_F,
+			DATE_FORMAT(AttAlarmStartTime,'%Y-%m-%d %H:%i') as AttAlarmStartTime_F,
+			DATE_FORMAT(AttAlarmEndTime,'%Y-%m-%d %H:%i') as AttAlarmEndTime_F,
+			DATE_FORMAT(AttAlarmLateTime,'%Y-%m-%d %H:%i') as AttAlarmLateTime_F,
+			DATE_FORMAT(AttAlarmOverTime,'%Y-%m-%d %H:%i') as AttAlarmOverTime_F,
+			IFNULL(DATE_FORMAT(AttStartTime,'%Y-%m-%d %H:%i:%s'),'NONETAG') as AttStartTime_F,
+			IFNULL(DATE_FORMAT(AttEndTime,'%Y-%m-%d %H:%i:%s'),'NONETAG') as AttEndTime_F,
+			StartSts,
+			EndSts,
+			DomainID,
+			CFG_AlarmAttStartNoticeYn,
+			CFG_AlarmAttStartNoticeMin,
+			CFG_AlarmAttEndNoticeYn,
+			CFG_AlarmAttEndNoticeMin,
+			CFG_AlarmAttLateYn,
+			CFG_AlarmAttOvertimeYn,
+			CFG_AttStartTimeTermMin,
+			CFG_AttEndTimeTermMin,
+			SET_AlarmAttStartMedia,
+			SET_AlarmAttEndMedia,
+			SET_AttLateMedia,
+			SET_AttOvertimeMedia,
+			UR_TimeZone
+		FROM (SELECT dl.dayList,
+				weekd,
+				TargetUserCode UserCode,
+				m.AttStartTime,
+				m.AttEndTime,
+				m.StartSts,
+				m.EndSts,
+				j.WorkSts,
+				IF(j.AttDayStartTime = '0000-00-00 00:00:00', '', j.AttDayStartTime) AttDayStartTime,
+				IF(j.AttDayEndTime = '0000-00-00 00:00:00', '', j.AttDayEndTime) AttDayEndTime,
+				@num_st:=CAST(CFG_AlarmAttStartNoticeMin AS UNSIGNED),
+				DATE_ADD(j.AttDayStartTime, INTERVAL -@num_st MINUTE ) as AttAlarmStartTime,
+				@num_et:=CAST(CFG_AlarmAttEndNoticeMin AS UNSIGNED),
+				DATE_ADD(j.AttDayEndTime, INTERVAL -@num_et MINUTE ) as AttAlarmEndTime,
+				@num_sterm:=CAST(CFG_AttStartTimeTermMin AS UNSIGNED),
+				DATE_ADD(j.AttDayStartTime, INTERVAL @num_sterm MINUTE ) as AttAlarmLateTime,
+				@num_eterm:=CAST(CFG_AttEndTimeTermMin AS UNSIGNED),
+				DATE_ADD(j.AttDayEndTime, INTERVAL @num_eterm MINUTE ) as AttAlarmOverTime,
+				IFNULL(s.SchName, '') SchName,
+				IFNULL(s.WorkingSystemType, 0) as WorkingSystemType,
+				DeptFullPath,
+				DisplayName,
+				DeptName,
+				JobPositionName,
+				JobTitleName,
+				EnterDate,
+				JobPositionSortKey,
+				SortKey,
+				JobLevelSortKey,
+				JobTitlecode,
+				DomainID,
+				CFG_AlarmAttStartNoticeYn,
+				CFG_AlarmAttStartNoticeMin,
+				CFG_AlarmAttEndNoticeYn,
+				CFG_AlarmAttEndNoticeMin,
+				CFG_AlarmAttLateYn,
+				CFG_AlarmAttOvertimeYn,
+				CFG_AttStartTimeTermMin,
+				CFG_AttEndTimeTermMin,
+				SET_AlarmAttStartMedia,
+				SET_AlarmAttEndMedia,
+				SET_AttLateMedia,
+				SET_AttOvertimeMedia,
+				UR_TimeZone
+			FROM (
+				SELECT daylist,
+					weekd,
+					UserCode TargetUserCode,
+					DeptFullPath,
+					DisplayName,
+					DeptName,
+					JobPositionName,
+					JobTitleName,
+					EnterDate,
+					PhotoPath,
+					DeptCode,
+					JobPositionSortKey,
+					DeptSortKey,
+					SortKey,
+					JobLevelSortKey,
+					JobTitlecode,
+					DomainID,
+					CFG_AlarmAttStartNoticeYn,
+					CFG_AlarmAttStartNoticeMin,
+					CFG_AlarmAttEndNoticeYn,
+					CFG_AlarmAttEndNoticeMin,
+					CFG_AlarmAttLateYn,
+					CFG_AlarmAttOvertimeYn,
+					CFG_AttStartTimeTermMin,
+					CFG_AttEndTimeTermMin,
+					IF(CFG_AlarmAttStartNoticeYn='N',';',SET_AlarmAttStartMedia) as SET_AlarmAttStartMedia,
+					IF(CFG_AlarmAttEndNoticeYn='N',';',SET_AlarmAttEndMedia) as SET_AlarmAttEndMedia,
+					IF(CFG_AlarmAttLateYn='N',';',SET_AttLateMedia) as SET_AttLateMedia,
+					IF(CFG_AlarmAttOvertimeYn='N',';',SET_AttOvertimeMedia) as SET_AttOvertimeMedia,
+					UR_TimeZone
+				FROM (SELECT daylist, weekd FROM covi_smart4j.attendance_daylist WHERE dayList = #{TodayDate}) dl,
+					(SELECT u.UserCode,
+						IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName)) > 0,
+						covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, u.MultiDisplayName), u.DisplayName) DisplayName,
+						covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, b.MultiDeptName) DeptName,
+						covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, b.MultiJobPositionName) JobPositionName,
+						covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, b.MultiJobTitleName) JobTitleName,
+						u.EnterDate,
+						b.JobPositionSortKey,
+						b.JobLevelSortKey,
+						b.JobTitlecode,
+						b.DeptSortKey,
+						b.SortKey,
+						u.PhotoPath,
+						b.DeptCode,
+						(SELECT DisplayName
+						FROM covi_smart4j.sys_object_group r
+						WHERE GroupCode = sog.MemberOf) as DeptFullPath,
+						sog.CompanyCode,
+						sog.GroupCode,
+						sbc_as.DomainID,
+						IF(bn_as.USE_AttWorkStartNotify='N','N',IFNULL(sbc_as.AlarmAttStartNoticeToUserYn,'N')) as CFG_AlarmAttStartNoticeYn,
+						IFNULL(sbc_as.AlarmAttStartNoticeMin,'0') as CFG_AlarmAttStartNoticeMin,
+						IF(bn_ae.USE_AttWorkEndNotify='N','N',IFNULL(sbc_ae.AlarmAttEndNoticeToUserYn,'N')) as CFG_AlarmAttEndNoticeYn,
+						IFNULL(sbc_ae.AlarmAttEndNoticeMin,'0') as CFG_AlarmAttEndNoticeMin,
+						IF(bn_late.USE_AttLateNotify='N','N',IFNULL(sbc_late.AlarmAttLateToAdminUserYn,'N')) as CFG_AlarmAttLateYn,
+						IF(bn_ot.USE_AttOvertimeNotify='N','N',IFNULL(sbc_ot.AlarmAttOvertimeToAdminUserYn,'N')) as CFG_AlarmAttOvertimeYn,
+						IFNULL(IF(sbc_st.AttStartTimeTermMin='','0',sbc_st.AttStartTimeTermMin), '0') as CFG_AttStartTimeTermMin,
+						IFNULL(IF(sbc_et.AttEndTimeTermMin='','0',sbc_et.AttEndTimeTermMin), '0') as CFG_AttEndTimeTermMin,
+						IFNULL(sms_as.MediaType, bn_as.DEF_AttWorkStartNotify) as SET_AlarmAttStartMedia,
+						IFNULL(sms_ae.MediaType, bn_ae.DEF_AttWorkEndNotify) as SET_AlarmAttEndMedia,
+						IFNULL(sms_late.MediaType, bn_late.DEF_AttLateNotify) as SET_AttLateMedia,
+						IFNULL(sms_ot.MediaType, bn_ot.DEF_AttOvertimeNotify) as SET_AttOvertimeMedia,
+						IFNULL( (SELECT Reserved1 from sys_base_code where CodeGroup = 'TimeZone' AND Code = u.TimeZoneCode and IsUse='Y'), '09:00:00')  AS UR_TimeZone
+					FROM (select * from covi_smart4j.sys_object_user_basegroup
+					<if test='DN_Code != null and DN_Code != ""'>
+						 where CompanyCode = #{DN_Code}
+					</if>
+					) b
+					JOIN covi_smart4j.sys_object_user u ON b.UserCode = u.UserCode
+						AND u.IsUse = 'Y' AND u.IsDisplay = 'Y' AND u.ACCOUT_LOCK = 'N'
+					LEFT JOIN covi_smart4j.sys_object_group sog ON b.DeptCode = sog.GroupCode
+					LEFT JOIN covi_smart4j.sys_object_domain sod ON sog.CompanyCode = sod.DomainCode
+					LEFT JOIN (
+						SELECT a.SettingValue as AlarmAttStartNoticeToUserYn
+							, b.SettingValue as AlarmAttStartNoticeMin
+							, a.DomainID
+							FROM (SELECT BizSection,
+							DomainID,
+							SettingKey,
+							SettingValue
+						FROM covi_smart4j.sys_base_config
+						WHERE IsUse = 'Y'
+							AND SettingKey = 'AlarmAttStartNoticeToUserYn') a,
+						(SELECT BizSection,
+							DomainID,
+							SettingKey,
+							SettingValue
+						FROM covi_smart4j.sys_base_config
+						WHERE IsUse = 'Y'
+							AND SettingKey = 'AlarmAttStartNoticeMin') b
+							WHERE a.BizSection = b.BizSection
+							AND a.DomainID = b.DomainID
+							AND a.BizSection = 'Attend'
+						) sbc_as ON sbc_as.DomainID = sod.DomainID
+						LEFT JOIN (
+						SELECT a.SettingValue as AlarmAttEndNoticeToUserYn
+							, b.SettingValue as AlarmAttEndNoticeMin
+							, a.DomainID
+						FROM (SELECT BizSection,
+								DomainID,
+								SettingKey,
+								SettingValue
+							  FROM covi_smart4j.sys_base_config
+								WHERE IsUse = 'Y'
+								AND SettingKey = 'AlarmAttEndNoticeToUserYn') a,
+							  (SELECT BizSection,
+									DomainID,
+									SettingKey,
+									SettingValue
+								FROM covi_smart4j.sys_base_config
+								WHERE IsUse = 'Y'
+								AND SettingKey = 'AlarmAttEndNoticeMin') b
+							WHERE a.BizSection = b.BizSection
+							AND a.DomainID = b.DomainID
+							AND a.BizSection = 'Attend'
+						) sbc_ae ON sbc_ae.DomainID = sod.DomainID
+						LEFT JOIN (
+							SELECT BizSection,
+								DomainID,
+								SettingKey,
+								SettingValue as AlarmAttLateToAdminUserYn
+							FROM covi_smart4j.sys_base_config
+								WHERE IsUse = 'Y'
+								AND BizSection = 'Attend'
+								AND SettingKey = 'AlarmAttLateToAdminUserYn'
+						) sbc_late ON sbc_late.DomainID = sod.DomainID
+						LEFT JOIN (
+							SELECT BizSection,
+								DomainID,
+								SettingKey,
+								SettingValue as AlarmAttOvertimeToAdminUserYn
+							FROM covi_smart4j.sys_base_config
+							WHERE IsUse = 'Y'
+								AND BizSection = 'Attend'
+								AND SettingKey = 'AlarmAttOvertimeToAdminUserYn'
+						) sbc_ot ON sbc_ot.DomainID = sod.DomainID
+						JOIN (
+							SELECT Code,
+								Reserved3 AS DEF_AttWorkStartNotify,
+								IsUse AS USE_AttWorkStartNotify
+							FROM covi_smart4j.sys_base_code A
+							WHERE codeGroup = 'TodoMsgType'
+								AND ReservedInt = 1
+								AND Code = 'AttWorkStartNotify'
+								AND BizSection = 'Attend'
+								AND DomainID = (SELECT DomainID
+												FROM covi_smart4j.sys_base_code
+												WHERE Code = A.Code
+													AND CodeGroup = 'TodoMsgType'
+													LIMIT 1)
+						) as bn_as
+						LEFT JOIN covi_smart4j.sys_messaging_setting sms_as
+						ON b.UserCode = sms_as.UserCode AND bn_as.Code = sms_as.ServiceType
+						JOIN (
+							SELECT Code,
+								Reserved3 AS DEF_AttWorkEndNotify,
+								IsUse AS USE_AttWorkEndNotify
+							FROM covi_smart4j.sys_base_code A
+							WHERE codeGroup = 'TodoMsgType'
+								AND ReservedInt = 1
+								AND Code = 'AttWorkEndNotify'
+								AND BizSection = 'Attend'
+								AND DomainID = (SELECT DomainID
+												FROM covi_smart4j.sys_base_code
+												WHERE Code = A.Code
+													AND CodeGroup = 'TodoMsgType'
+													LIMIT 1)
+						) as bn_ae
+						LEFT JOIN covi_smart4j.sys_messaging_setting sms_ae
+						ON b.UserCode = sms_ae.UserCode AND bn_ae.Code = sms_ae.ServiceType
+						JOIN (
+							SELECT Code,
+								Reserved3 AS DEF_AttLateNotify,
+								IsUse AS USE_AttLateNotify
+							FROM covi_smart4j.sys_base_code A
+							WHERE codeGroup = 'TodoMsgType'
+								AND ReservedInt = 1
+								AND Code = 'AttLateNotify'
+								AND BizSection = 'Attend'
+								AND DomainID = (SELECT DomainID
+												FROM covi_smart4j.sys_base_code
+												WHERE Code = A.Code
+													AND CodeGroup = 'TodoMsgType'
+												LIMIT 1)
+						) as bn_late
+						LEFT JOIN covi_smart4j.sys_messaging_setting sms_late
+						ON b.UserCode = sms_late.UserCode AND bn_late.Code = sms_late.ServiceType
+						JOIN (
+							SELECT Code,
+								Reserved3 AS DEF_AttOvertimeNotify,
+								IsUse AS USE_AttOvertimeNotify
+							FROM covi_smart4j.sys_base_code A
+							WHERE codeGroup = 'TodoMsgType'
+								AND ReservedInt = 1
+								AND Code = 'AttOvertimeNotify'
+								AND BizSection = 'Attend'
+								AND DomainID = (SELECT DomainID
+												FROM covi_smart4j.sys_base_code
+												WHERE Code = A.Code
+													AND CodeGroup = 'TodoMsgType'
+												LIMIT 1)
+						) as bn_ot
+						LEFT JOIN covi_smart4j.sys_messaging_setting sms_ot
+							ON b.UserCode = sms_ot.UserCode AND bn_ot.Code = sms_ot.ServiceType
+						LEFT JOIN (
+							SELECT BizSection,
+								DomainID,
+								SettingKey,
+								SettingValue as AttStartTimeTermMin
+							FROM covi_smart4j.sys_base_config
+							WHERE IsUse = 'Y'
+								AND BizSection = 'Attend'
+								AND SettingKey = 'AttStartTimeTermMin'
+						) sbc_st ON sbc_st.DomainID = sod.DomainID
+						LEFT JOIN (
+							SELECT BizSection,
+								DomainID,
+								SettingKey,
+								SettingValue as AttEndTimeTermMin
+							FROM covi_smart4j.sys_base_config
+							WHERE IsUse = 'Y'
+								AND BizSection = 'Attend'
+								AND SettingKey = 'AttEndTimeTermMin'
+						) sbc_et ON sbc_et.DomainID = sod.DomainID
+					) u
+				) dl
+				LEFT JOIN covi_smart4j.attendance_commuting_mst m
+				ON dl.dayList = m.TargetDate AND dl.TargetUserCode = m.UserCode
+				LEFT JOIN covi_smart4j.attendance_mng_job j
+				ON dl.dayList = j.JobDate AND dl.TargetUserCode = j.UserCode
+				LEFT JOIN covi_smart4j.attendance_mng_schedule s
+				ON j.SchSeq = s.SchSeq
+
+				WHERE s.SchName <![CDATA[<>]]> ''
+				GROUP BY TargetUserCode
+		) tbl
+	</select>
+
+
+	<select id="selectBadgeCount" parameterType= "cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM sys_alarm_list AS a
+		WHERE a.DeleteDate IS NULL
+		AND a.UserCode = #{userID}
+		AND a.IsNew IS NULL
+		AND a.ReceivedDate > DATE_ADD(now(), INTERVAL -14 DAY)
+	</select>
+	
+	<select id="selectHoliRealData"  parameterType="cmap"  resultType="cmap" >
+		SELECT UserCode As UserCode, SUM(HoliAC) AS HoliAC
+		FROM covi_smart4j.attendance_commuting_mst
+		WHERE DATE_FORMAT(HoliStart, '%Y-%m-%d') <![CDATA[>=]]> #{sDate} AND  DATE_FORMAT(HoliStart, '%Y-%m-%d') <![CDATA[<=]]> #{eDate}
+		AND CompanyCode = #{CompanyCode}
+		GROUP BY UserCode
+	</select>
+</mapper>
+

@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.rightApprovalConfig">
+    <select id="selectUserSetting" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT
+			u.UserCode AS "UserCode"
+			, u.MultiDisplayName AS "MultiDisplayName"
+			, a.DeputyCode AS "DeputyCode"
+			, a.UseDeputy AS "UseDeputy"
+			, a.DeputyName AS "DeputyName"
+			, CASE WHEN a.DeputyFromDate = '0000-00-00 00:00' THEN NULL ELSE a.DeputyFromDate END AS "DeputyFromDate"
+			, CASE WHEN a.DeputyToDate = '0000-00-00 00:00' THEN NULL ELSE a.DeputyToDate END AS "DeputyToDate"
+			, a.DeputyReason AS "DeputyReason"
+			, a.AlertConfig AS "Alarm"
+			, a.ApprovalPassword AS "ApprovalPassword"
+			, a.DeputyOption AS "DeputyOption"
+			, u.LanguageCode AS "LanguageCode"
+			, Fn_ComTimeZoneGet_S(#{UR_CODE}) AS "TimeZoneDiff"
+			, a.UseApprovalPassWord AS "UseApprovalPassWord"
+		 FROM SYS_OBJECT_USER u
+		 LEFT JOIN SYS_OBJECT_USER_APPROVAL a ON u.UserCode = a.UserCode
+		 WHERE u.UserCode = #{UR_CODE}
+		 AND ROWNUM = 1
+	    ]]>
+	</select>
+
+    <select id="selectJobFunctionMember" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+       	SELECT 
+       		jfm.JobFunctionMemberID AS "JobFunctionMemberID"
+       		, jfm.JobFunctionID AS "JobFunctionID"
+       		, jfm.UserCode AS "UserCode"
+       		, u.DisplayName AS "UR_Name"
+		FROM jwf_jobfunctionmember jfm
+		LEFT JOIN sys_object_user u on jfm.UserCode = u.UserCode
+		WHERE jfm.JobFunctionID= #{JobFunctionID}
+        ]]>
+    </select>
+	
+    <select id="selectJFMemberID" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+       	SELECT jfm.UserCode AS "UserCode"
+		FROM jwf_jobfunctionmember jfm
+		LEFT JOIN sys_object_user u on jfm.UserCode = u.UserCode
+		WHERE jfm.JobFunctionID = (
+			SELECT JobFunctionID FROM jwf_jobfunction jb 
+			INNER JOIN sys_object_domain SOD ON SOD.DomainCode = jb.EntCode
+			WHERE JobFunctionCode = #{JobFunctionCode} AND SOD.domainID = #{DomainID}
+		)
+		and u.isuse = 'Y'
+        ]]>
+    </select>
+    
+    <select id="selectGRMemberID" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+        SELECT UserCode AS "UserCode"
+       	FROM sys_object_user_basegroup 
+       	WHERE DeptCode = (SELECT GroupCode FROM sys_object_group WHERE GroupCode = #{GroupID})
+        ]]>
+    </select>    
+    
+    <update id="updateUserSettingDeputy" parameterType="cmap">
+		UPDATE sys_object_user_approval
+		SET DeputyCode = #{DeputyCode},
+			DeputyName = #{DeputyName},
+			DeputyFromDate = #{DeputyFromDate},
+			DeputyToDate = #{DeputyToDate},
+			UseDeputy = #{DeputyYN},
+			DeputyReason = #{DeputyReason},
+			DeputyOption = #{DeputyOption}
+		WHERE UserCode = #{UR_Code}
+    </update>
+
+    <update id="updateUserSettingApproval" parameterType="cmap">
+       	UPDATE sys_object_user_approval
+		SET
+		<choose>
+			<when test='passwordChangeYN == "Y"'>
+				ApprovalPassword = CRYPTO.ENC_AES128(#{Password}, #{aeskey}), UseApprovalPassWord = #{ApprovalPWUse},
+			</when>
+			<otherwise>
+				<if test='ApprovalPWUse == "N"'>
+					ApprovalPassword = '',
+				</if> 
+				UseApprovalPassWord = #{ApprovalPWUse},
+			</otherwise>
+		</choose>
+		AlertConfig = #{Alarm}
+		WHERE UserCode = #{UR_Code}
+    </update>
+
+    <select id="checkUserData" parameterType="cmap" resultType="cmap">
+         SELECT * 
+         FROM sys_object_user
+        WHERE IsUse ='Y'
+        AND UserCode = #{UR_Code}
+    </select>
+
+    <insert id="insertApprovalRow" parameterType="cmap" useGeneratedKeys="true" keyProperty="ApprovalID"  keyColumn="ApprovalID">
+       	INSERT INTO sys_object_user_approval (
+			UserCode
+			, UseDeputy
+			, DeputyCode
+			, DeputyName
+			, DeputyReason
+			, DeputyFromDate
+			, DeputyToDate
+			, DeputyOption
+			, AlertConfig
+			, ApprovalUnitCode
+			, ReceiptUnitCode
+			, ApprovalCode
+			, ApprovalFullCode
+			, ApprovalFullName
+			, ApprovalPassword
+			, UseApprovalTempListView
+			, UseApprovalMessageBoxView
+			, UseMobile
+			, UseApprovalPassword
+			, RegistDate
+			, ModifyDate
+			, Reserved1
+			, Reserved2
+		) 
+		SELECT U.UserCode
+			, 'N'
+			, ''
+			, ''
+			, NULL
+			, ''
+			, ''
+			, ''
+			,'{"mailconfig": {"APPROVAL": "N;", "COMPLETE": "N;", "REJECT": "N;", "CCINFO": "N;", "CIRCULATION": "N;", "HOLD": "N;", "WITHDRAW": "N;", "ABORT": "N;", "APPROVECANCEL": "N;", "REDRAFT": "N;", "CHARGEJOB": "N;", "CONSULTATION": "N;", "CONSULTATIONCOMPLETE": "N;", "CONSULTATIONCANCEL": "N;"}}'
+			, BG.DeptCode
+			, BG.DeptCode
+			, U.UserCode
+			, U.UserCode
+			, DisplayName
+			, NULL
+			, NULL
+			, 'Y'
+			, 'N'
+			, 'N'
+			, SYSDATE
+			, SYSDATE
+			, NULL
+			, NULL
+		FROM sys_object_user U
+		LEFT JOIN sys_object_user_basegroup BG ON U.UserCode = BG.UserCode
+		WHERE U.UserCode = #{UR_Code}
+		<selectKey keyProperty="ApprovalID" resultType="long" order="AFTER">
+		    SELECT SYS_OBJECT_USER_APPROVAL_SEQ.CURRVAL FROM dual
+        </selectKey>
+    </insert>
+    
+    <select id="getDomainPolicy" parameterType="cmap" resultType="cmap">
+	     SELECT   DOMAINID AS "DomainID"
+	              , ISUSECOMPLEXITY AS "IsUseComplexity"
+	              , MAXCHANGEDATE AS "MaxChangeDate"
+	              , MINIMUMLENGTH AS "MinimumLength"
+	              , CHANGENOTICEDATE AS "ChangeNoticeDate"
+        FROM SYS_OBJECT_PW_POLICY
+        WHERE DOMAINID IN (0, #{domainID})
+        AND ROWNUM = 1
+        ORDER BY DOMAINID DESC
+	</select>
+</mapper>
+

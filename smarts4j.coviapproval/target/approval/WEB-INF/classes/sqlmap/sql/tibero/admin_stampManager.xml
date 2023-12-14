@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.stampManage">
+    <select id="selectStempList" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/> 
+			SELECT StampID AS "StampID"
+					 , EntCode AS "EntCode"
+					 , EntName AS "EntName"
+					 , StampName AS "StampName"
+					 , FileInfo AS "FileInfo"
+					 , FileID AS "FileID"
+					 , OrderNo AS "OrderNo"
+					 , UseYn AS "UseYn"
+					 , DelYn AS "DelYn"
+					 , TO_CHAR(RegDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegDate"
+					 , RegID AS "RegID"
+					 , TO_CHAR(ModDate, 'YYYY-MM-DD HH24:MI:SS') AS "ModDate"
+					 , ModID AS "ModID"
+			FROM jwf_stamp
+			WHERE DelYn = 'N'
+			<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			   	AND EntCode=#{EntCode}
+			</if>		    		
+			<if test="search != null and search != '' and search.length() gt 0">
+				AND StampName LIKE '%'||#{search}||'%'
+			</if>						
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("UseYn")'>UseYn</when>
+						<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+						<when test='sortColumn.equalsIgnoreCase("StampName")'>StampName</when>
+						<when test='sortColumn.equalsIgnoreCase("FileInfo")'>FileInfo</when>
+						<when test='sortColumn.equalsIgnoreCase("OrderNo")'>OrderNo</when>
+						<otherwise>RegDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+				<if test="sortColumn == null or sortDirection == null">
+					ORDER BY OrderNo ASC, RegDate DESC					
+				</if>
+			</trim>
+       <include refid="oracle.include.pagingFooter"/>	
+	</select>
+    
+    <select id="selectStempListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM jwf_stamp
+		WHERE DelYn = 'N'
+		<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+		   	AND EntCode=#{EntCode}
+		</if>		    		
+		<if test="search != null and search != '' and search.length() gt 0">
+			AND StampName LIKE '%'||#{search}||'%'
+		</if>						
+	</select>
+	
+    <select id="selectStempData" parameterType="cmap" resultType="cmap">
+		SELECT StampID AS "StampID"
+				,EntCode AS "EntCode"
+				,EntName AS "EntName"
+				,StampName AS "StampName"
+				,FileInfo AS "FileInfo"
+				,FileID AS "FileID"
+				,OrderNo AS "OrderNo"
+				,UseYn AS "UseYn"
+				,DelYn AS "DelYn"
+				,TO_CHAR(RegDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegDate"
+				,RegID AS "RegID"
+				,TO_CHAR(ModDate, 'YYYY-MM-DD HH24:MI:SS') AS "ModDate"
+				,ModID AS "ModID"
+		FROM  jwf_stamp
+		WHERE 	StampID = #{StampID}
+	</select>
+	
+    <update id="PreprocessingStempData" parameterType="cmap">
+        UPDATE jwf_stamp 
+		SET UseYn = 'N'
+		WHERE EntCode = #{EntCode}
+    </update>
+
+	<insert id="insertStempData" parameterType="cmap">	    
+	<![CDATA[
+		INSERT INTO jwf_stamp 
+		(
+			EntCode
+			,EntName
+			,StampName
+			,FileInfo
+			,OrderNo
+			,UseYn
+			,DelYn
+			,RegDate
+			,RegID
+			,ModDate
+			,ModID
+			,FileID
+		)
+		VALUES 
+		(
+			#{EntCode}
+			,#{EntName}
+			,#{StampName}
+			,#{FileInfo}
+			,#{OrderNo}
+			,#{UseYn}
+			,'N'
+			,SYSDATE
+			,#{RegID}
+			,SYSDATE
+			,#{ModID}
+			,#{FileID}		
+		)
+	]]>
+	</insert>
+	
+	<update id="deleteStempData" parameterType="cmap">
+        UPDATE jwf_stamp
+        SET DelYn = 'Y'
+         	 ,ModDate = SYSDATE
+         	 ,ModID = #{ModID}    	
+  		WHERE StampID = #{StampID}
+	</update>
+	
+	<update id="updateStampData" parameterType="cmap">
+	    UPDATE jwf_stamp
+	    SET
+			<if test="FileID != null and FileID != ''">
+				FileID = #{FileID},
+			</if>
+			EntCode = #{EntCode},
+			EntName = #{EntName},
+			StampName = #{StampName},
+			OrderNo = #{OrderNo},
+			UseYn = #{UseYn},
+			ModDate = SYSDATE,
+			ModID = #{ModID}
+		WHERE 
+			StampID = #{StampID}
+	</update>
+	
+	<update id="setUseStampUse" parameterType="cmap">
+	    BEGIN
+		    UPDATE jwf_stamp
+			SET UseYn = 'N'
+			WHERE EntCode = #{EntCode}
+			AND StampID != #{StampID}
+			AND #{UseYn} = 'Y';
+			
+			UPDATE jwf_stamp
+			SET UseYn = (CASE WHEN #{UseYn} = 'Y'  THEN 'Y' 	 ELSE 'N'   END)
+			WHERE EntCode = #{EntCode}
+			AND StampID = #{StampID};
+	    END;
+	</update>
+	
+</mapper>
+

@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.FileUtil">
+    
+    <insert id="insert" parameterType="cmap">
+       <![CDATA[
+		INSERT INTO covi_smart4j.sys_file(			
+			StorageID
+			,ServiceType
+			,ObjectID
+			,ObjectType
+			,MessageID
+			,Version
+			,SaveType
+			,LastSeq
+			,Seq
+			,FilePath
+			,FileName
+			,SavedName
+			,Extention
+			,Size
+			,ThumWidth
+			,ThumHeight
+			,Description
+			,RegistDate	
+			,RegisterCode
+			,CompanyCode
+		)
+		VALUE
+		(
+			#{StorageID}
+			,#{ServiceType}
+			,#{ObjectID}
+			,#{ObjectType}
+			,#{MessageID}
+			,#{Version}
+			,#{SaveType}
+			,#{LastSeq}
+			,#{Seq}
+			,#{FilePath}
+			,#{FileName}
+			,#{SavedName}
+			,#{Extention}
+			,#{Size}
+			,#{ThumWidth}
+			,#{ThumHeight}
+			,#{Description}			
+			,now(3)		
+			,#{RegisterCode}
+			,#{CompanyCode}
+		)
+		]]>
+		<selectKey keyProperty="FileID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+	<select id="selectOne" parameterType="cmap" resultType="cmap">
+		SELECT f.*
+				,s.LastSeq as "StorageLastSeq"
+				,s.FilePath as "StorageFilePath"
+				,s.InlinePath
+				,s.IsActive
+		FROM covi_smart4j.sys_file f
+		JOIN covi_smart4j.sys_storage s on s.StorageID = f.StorageID
+		WHERE FileID = #{FileID};
+	</select>
+
+	<delete id="deleteAll" parameterType="cmap">
+       <![CDATA[
+		DELETE FROM covi_smart4j.sys_file
+		WHERE ServiceType = #{ServiceType} AND ObjectID = #{ObjectID} AND MessageID = #{MessageID}
+		]]>
+		<if test="ObjectType != null and ObjectType != ''">
+			AND ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND Version = #{Version}
+		</if>
+	</delete>
+	<update id="deleteFlagAll" parameterType="cmap">
+		UPDATE covi_smart4j.sys_file
+		SET IsDeleted = 'Y'
+		WHERE ServiceType = #{ServiceType} AND ObjectID = #{ObjectID} AND MessageID = #{MessageID}
+		<if test="ObjectType != null and ObjectType != ''">
+			AND ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND Version = #{Version}
+		</if>
+	</update>
+	<select id="selectAttachAll" parameterType="cmap" resultType="cmap">
+		SELECT  f.FileID
+		      , f.StorageID
+		      , f.ServiceType
+		      , f.ObjectID
+		      , f.ObjectType
+		      , f.MessageID
+		      , f.Version
+		      , f.SaveType
+		      , f.LastSeq
+		      , f.Seq
+		      , f.FilePath
+		      , f.FileName
+		      , f.SavedName
+		      , f.Extention
+		      , f.Size
+		      , f.ThumWidth
+		      , f.ThumHeight
+		      , f.Description
+		      , f.RegisterCode
+		      , f.RegistDate AS RegistDate
+		      , f.CompanyCode
+		      , s.LastSeq as "StorageLastSeq"
+			  , s.FilePath as "StorageFilePath"
+			  , s.InlinePath
+			  , s.IsActive
+		FROM covi_smart4j.sys_file f
+		JOIN covi_smart4j.sys_storage s on s.StorageID = f.StorageID
+		WHERE f.ServiceType = #{ServiceType} AND f.ObjectID = #{ObjectID} AND f.MessageID = #{MessageID} 
+		AND f.SaveType != 'INLINE'
+		<choose>
+			<when test="IsDeleted != null and IsDeleted eq 'Y'.toString()">
+				AND IFNULL(f.IsDeleted, 'N') = 'Y'
+			</when>
+			<otherwise>
+				AND IFNULL(f.IsDeleted, 'N') = 'N'
+			</otherwise>
+		</choose>
+		<if test="ObjectType != null and ObjectType != ''">
+		AND f.ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND f.Version = #{Version}
+		</if>
+	</select>
+	
+	
+	<select id="selectStorageInfo" parameterType="cmap" resultType="cmap">
+               SELECT s.StorageID
+               	,s.DomainID
+               	,s.ServiceType
+               	,s.LastSeq
+               	,s.FilePath
+               	,s.InlinePath
+               	,s.IsActive
+               	,s.Description
+               	,s.RegistDate
+               	,s.Reserved1
+               	,s.Reserved2
+               	,s.Reserved3
+               	,s.Reserved4
+               	,s.Reserved5
+               	,d.DomainCode
+			FROM covi_smart4j.sys_storage s
+			join covi_smart4j.sys_object_domain d on s.domainid = d.domainid
+			<!-- WHERE s.IsActive = 'Y'  -->
+			ORDER BY s.DomainID DESC
+    </select>
+    
+	<select id="selectStorageInfoById" parameterType="Integer" resultType="cmap">
+		SELECT s.StorageID
+          	,s.DomainID
+          	,s.ServiceType
+          	,s.LastSeq
+          	,s.FilePath
+          	,s.InlinePath
+          	,s.IsActive
+          	,s.Description
+          	,s.RegistDate
+          	,s.Reserved1
+          	,s.Reserved2
+          	,s.Reserved3
+          	,s.Reserved4
+          	,s.Reserved5
+          	,d.DomainCode
+		FROM covi_smart4j.sys_storage s
+		join covi_smart4j.sys_object_domain d on s.domainid = d.domainid
+		WHERE s.StorageID = #{storageId}
+    </select>
+        
+    <insert id="insertStorageInfo" parameterType="egovframework.coviframework.vo.StorageInfo">
+       <![CDATA[
+		INSERT INTO covi_smart4j.sys_storage (
+			DomainID
+			, ServiceType
+			, LastSeq
+			, FilePath
+			, InlinePath
+			, IsActive
+			, Description
+			, RegistDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+		)
+		VALUE
+		(
+			#{domainID}
+			,#{serviceType}
+			,#{lastSeq}
+			,#{filePath}
+			,#{inlinePath}
+			,#{isActive}
+			,#{description}		
+			,now(3)
+			,#{reserved1}
+			,#{reserved2}
+			,#{reserved3}
+			,#{reserved4}
+			,#{reserved5}
+		)
+		]]>
+		<selectKey keyProperty="storageID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+    </insert>
+    
+    <update id="updateStorageInfo" parameterType="egovframework.coviframework.vo.StorageInfo">
+    	update covi_smart4j.sys_storage 
+   		set   
+    		DomainID = #{domainID}
+			, ServiceType = #{serviceType}
+			, LastSeq = #{lastSeq}
+			, FilePath = #{filePath}
+			, InlinePath = #{inlinePath}
+			, IsActive = #{isActive}
+			, Description = #{description}
+			, Reserved1 = #{reserved1}
+			, Reserved2 = #{reserved2}
+			, Reserved3 = #{reserved3}
+			, Reserved4 = #{reserved4}
+			, Reserved5 = #{reserved5}
+		where
+			StorageID = #{storageID}
+    </update>
+    
+    
+    <update id="toggleStorageActiveById" parameterType="int">
+    	update covi_smart4j.sys_storage 
+   		set IsActive = CASE WHEN IsActive = 'Y' THEN 'N' ELSE 'Y' END
+		where StorageID = #{storageID}
+    </update>   
+	    
+	<delete id="deleteStorageInfoByIds" parameterType="int[]">
+		DELETE FROM covi_smart4j.sys_storage 
+		where StorageID in
+		<foreach collection="array" item="storageID" open="(" close=")" separator=",">
+			#{storageID}
+		</foreach>
+	</delete>
+    
+    <select id="selectStorageId" parameterType="egovframework.coviframework.vo.StorageInfo" resultType="Integer">
+		select IFNULL(max(StorageID), 0) AS StorageID
+		from covi_smart4j.sys_storage sst 
+		where sst.ServiceType = #{serviceType} and sst.DomainID = #{domainID}
+    </select>
+    
+	<select id="selectStorageInfoList" parameterType="cmap" resultType="cmap">
+		SELECT s.StorageID
+			,s.DomainID
+			,s.ServiceType
+			,s.LastSeq
+			,s.FilePath
+			,s.InlinePath
+			,s.IsActive
+			,s.Description
+			,s.RegistDate
+			,s.Reserved1
+			,s.Reserved2
+			,s.Reserved3
+			,s.Reserved4
+			,s.Reserved5
+			,d.DomainCode
+			,d.MultiDisplayName
+		FROM covi_smart4j.sys_storage s
+		join covi_smart4j.sys_object_domain d on s.domainid = d.domainid
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">			
+			<if test="domain != null">
+				AND s.DomainID = #{domain}
+			</if>	
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("DomainID")'>s.DomainID</when>
+					<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+					<when test='sortColumn.equalsIgnoreCase("LastSeq")'>LastSeq</when>
+					<when test='sortColumn.equalsIgnoreCase("FilePath")'>FilePath</when>
+					<when test='sortColumn.equalsIgnoreCase("InlinePath")'>InlinePath</when>
+					<when test='sortColumn.equalsIgnoreCase("IsActive")'>s.IsActive</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				s.IsActive DESC, s.RegistDate DESC
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+	
+	<select id="selectStorageInfoListCnt" parameterType="cmap" resultType="Long">
+		SELECT COUNT(s.StorageID)
+		FROM covi_smart4j.sys_storage s
+		join covi_smart4j.sys_object_domain d on s.domainid = d.domainid
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">			
+			<if test="domain != null">
+				AND s.DomainID = #{domain}
+			</if>	
+		</trim>
+    </select>
+	
+	<select id="selectFileStorageInfo" parameterType="cmap" resultType="cmap">
+                SELECT s.StorageID
+					,s.DomainID
+					,s.ServiceType as "StorageServiceType"
+					,s.LastSeq as "StorageLastSeq"
+					,s.FilePath as "StorageFilePath"
+					,s.InlinePath
+					,s.IsActive
+					,s.Description
+					,f.FileID 
+					,f.ServiceType as "FileServiceType"
+					,f.ObjectID 
+					,f.ObjectType 
+					,f.MessageID 
+					,f.Version 
+					,f.SaveType 
+					,f.LastSeq as "FileLastSeq"
+					,f.Seq 
+					,f.FilePath as "FileFilePath"
+					,f.FileName 
+					,f.SavedName 
+					,f.Extention 
+					,f.Size
+					,f.RegisterCode 
+					,f.CompanyCode 
+				FROM covi_smart4j.sys_storage s
+				join covi_smart4j.sys_file f on s.StorageID = f.StorageID
+				WHERE 
+				<choose>
+					<when test="fileIDs != null">
+						<foreach collection="fileIDs" item="item" index="index" separator="," open="f.FileID IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+					<otherwise>
+						1=2
+					</otherwise>
+				</choose>
+    </select>
+    
+	<!-- 아래는 개발 완료후 대체 삭제할 부분 => 전자결재에서 사용하고 있는 쿼리이므로 삭제하면 안됨 --> 
+   <delete id="deleteFileDb" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_file
+		WHERE ServiceType = #{ServiceType}
+		AND ObjectType = #{ObjectType}
+		AND SavedName = #{SavedName}
+		<choose>
+			<when test='MessageID != null '> AND MessageID = #{MessageID} </when>
+			<when test='FileID != null '> AND FileID = #{FileID} </when>
+			<otherwise> 1=2 </otherwise>
+		</choose>
+   </delete>
+   <delete id="deleteFileDbAll" parameterType="cmap">
+       <![CDATA[
+		DELETE FROM covi_smart4j.sys_file
+		WHERE MessageID = #{MessageID}
+		AND ServiceType = #{ServiceType}
+		]]>
+		<if test="ObjectID != null and ObjectID != '' ">
+			AND ObjectID = #{ObjectID}
+		</if>
+   </delete>
+   <update id="updateMessageID">
+       <![CDATA[
+       	UPDATE covi_smart4j.sys_file SET
+       	MessageID = #{MessageID}
+       	WHERE ServiceType = #{ServiceType}
+		AND ObjectType = #{ObjectType}
+		AND SavedName = #{SavedName}
+		AND RegisterCode = #{RegisterCode};
+		]]>
+   </update>
+   <update id="updateFileSeq" parameterType="cmap">
+       <![CDATA[
+       	UPDATE covi_smart4j.sys_file 
+       	SET Seq = #{Seq}
+       	WHERE FileID = #{FileID};
+		]]>
+   </update>
+   
+   <!-- 비사용
+   <update id="updateTempSaveMessageID">
+       <![CDATA[
+       	UPDATE covi_smart4j.sys_file SET
+       	MessageID = #{NewMessageID}
+       	WHERE MessageID = #{OldMessageID}
+		]]>
+   </update> -->
+   
+   <!-- 비사용
+   <select id="selectFileDbSeq" parameterType="cmap" resultType="int">
+       SELECT IFNULL((
+	       SELECT Seq
+	       FROM covi_smart4j.sys_file
+	       WHERE MessageID = #{MessageID}
+	       ORDER BY Seq DESC
+	       LIMIT 1
+		LIMIT 1), -1) AS Seq
+   </select> -->
+   
+   <!-- 인라인 이미지 첨부 조회  -->
+   <select id="selectAttachFileAll" parameterType="cmap" resultType="cmap">
+		SELECT F.*
+			,S.LastSeq as "StorageLastSeq"
+			,S.FilePath as "StorageFilePath"
+			,S.InlinePath
+			,S.IsActive
+		FROM covi_smart4j.sys_file F
+		INNER JOIN covi_smart4j.sys_storage S ON S.StorageID = F.StorageID
+		WHERE F.SaveType != 'INLINE'
+		AND NVL(F.IsDeleted, 'N') = 'N'
+		<if test="MessageID != null and MessageID != '' ">
+			AND F.MessageID = #{MessageID}
+		</if>
+		<if test="ObjectID != null and ObjectID != '' ">
+			AND F.ObjectID = #{ObjectID}
+		</if>
+		<if test="ObjectType != null and ObjectType != '' ">
+			AND F.ObjectType = #{ObjectType}
+		</if>
+		<if test="ServiceType != null and ServiceType != '' ">
+			AND F.ServiceType = #{ServiceType}
+		</if>
+	</select>
+	
+	<delete id="deleteFileDbByFileId" parameterType="cmap">
+		DELETE FROM covi_smart4j.sys_file
+		WHERE FileID IN
+		<foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=", ">
+			#{fileId}
+		</foreach>
+	</delete>
+	
+	<select id="selectByFileId" parameterType="cmap" resultType="cmap">
+		SELECT f.*
+				,s.LastSeq as "StorageLastSeq"
+				,s.FilePath as "StorageFilePath"
+				,s.InlinePath
+				,s.IsActive
+		FROM covi_smart4j.sys_file f
+		JOIN covi_smart4j.sys_storage s on s.StorageID = f.StorageID
+		WHERE f.FileID IN
+		<foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=", ">
+			#{fileId}
+		</foreach>
+	</select>
+	
+	<update id="updateObjectID" parameterType="cmap">
+		UPDATE covi_smart4j.sys_file
+		SET ObjectID = #{objectId}
+		WHERE FileID IN
+		<foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=",">
+			#{fileId}
+		</foreach>
+	</update>
+	
+	<insert id="insertEncryption" parameterType="cmap">
+		INSERT INTO covi_smart4j.sys_file_encryption ( FileID, FileName, Status, RegisterCode, RegistDate)
+		VALUES ( #{FileID}, #{FileName}, 'READY', #{RegisterCode}, now(3))
+		<selectKey keyProperty="EncID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	<update id="updateEncryptionStatus" parameterType="cmap">
+		UPDATE covi_smart4j.sys_file_encryption
+		SET Status = #{Status}
+			,ElapsedTime = #{ElapsedTime}
+			,Message = #{Message}
+		WHERE FileID = #{FileID}
+	</update>
+	<update id="updateSysFileEncrypted" parameterType="cmap">
+		UPDATE covi_smart4j.sys_file
+		SET Encrypted = 'Y'
+		WHERE FileID = #{FileID}
+	</update>
+	
+</mapper>

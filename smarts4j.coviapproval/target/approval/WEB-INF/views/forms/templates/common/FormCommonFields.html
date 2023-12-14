@@ -1,0 +1,51 @@
+<!-- Form.aspx 상단 부분 옮긴 것 formmenu -->
+<div id='dvTmp'></div>
+<textarea data-type="field" id="APVLIST" data-binding="pre" style="display:none">{{ doc.ApprovalLine }}</textarea>
+<input type="hidden" data-type="field" id="PASSWORD" value="" />
+<input type="hidden" data-type="field" id="ACTIONINDEX" value="" />
+<input type="hidden" data-type="field" id="ACTIONCOMMENT" value="" />
+<input type="hidden" data-type="field" id="ACTIONCOMMENT_ATTACH" value="" />
+<input type="hidden" data-type="field" id="SIGNIMAGETYPE" value="" />
+<textarea style="display:none" id="RecDeptList" cols="0" rows="0"></textarea>
+<input type="hidden" data-type="field" id="bLASTAPPROVER" value="false" />
+<input type="hidden" data-type="field" id="CHARGEID" value="false" /><!--담당자 지정관련-->
+<input type="hidden" data-type="field" id="CHARGENAME" value="false" /><!--담당자 지정관련-->
+<input type="hidden" data-type="field" id="CHARGEOUID" value="false" /><!--담당자 지정관련-->
+<input type="hidden" data-type="field" id="CHANGEREVIEWXML" value="false" /><!--담당자 지정관련-->
+<textarea id="BodyString" style="display:none;" cols="0" rows="0"></textarea>
+<div id="dellink"></div>
+
+<!-- COMMON FIELDS -->
+<input type="hidden" data-type="dField" id="InitiatorName" data-model="AppInfo.usnm_multi" data-binding="post" />
+<input type="hidden" data-type="dField" id="InitiatorID" data-model="AppInfo.usid" data-binding="post" />
+<input type="hidden" data-type="dField" id="InitiatorUnitName" data-model="AppInfo.dpdn_apv" data-binding="post" />
+<input type="hidden" data-type="dField" id="InitiatorUnitID" data-model="AppInfo.dpid_apv" data-binding="post" />
+<input type="hidden" data-type="cField" id="LastModifierID" data-binding="post" />
+<input type="hidden" data-type="dField" id="AttachFileInfo" value="" data-model="FormInstanceInfo.AttachFileInfo" data-binding="post" />
+<input type="hidden" data-type="dField" id="AppliedDate" data-model="FormInstanceInfo.AppliedDate" data-binding="post" />
+<input type="hidden" data-type="dField" id="IsPublic" data-model="FormInstanceInfo.IsPublic" data-binding="post" />
+<input type="hidden" data-type="dField" id="AppliedTerm" data-model="FormInstanceInfo.AppliedTerm" data-binding="post" />
+<input type="hidden" data-type="dField" id="ReceiveNo" data-model="FormInstanceInfo.ReceiveNo" data-binding="post" />
+<input type="hidden" data-type="dField" id="ReceiveNames" data-model="FormInstanceInfo.ReceiveNames" data-binding="post" />
+<input type="hidden" data-type="dField" id="ReceiptList" data-model="FormInstanceInfo.ReceiptList" data-binding="post" />
+<input type="hidden" data-type="dField" id="DocClassID" data-model="FormInstanceInfo.DocClassID" data-binding="post" />
+<input type="hidden" data-type="dField" id="EntCode" data-model="AppInfo.etid" data-binding="post" />
+<input type="hidden" data-type="dField" id="EntName" data-model="AppInfo.etnm" data-binding="post" />
+<input type="hidden" data-type="dField" id="RuleItemInfo" data-model="FormInstanceInfo.RuleItemInfo" data-binding="post" />
+<input type="hidden" data-type="mField" id="InitiatorCodeDisplay" value="{{ doc.BodyContext.InitiatorCodeDisplay }}" data-binding="pre" />
+<input type="hidden" data-type="mField" id="InitiatedDate" value="{{ doc.BodyContext.InitiatedDate }}" data-binding="pre" />
+<textarea data-type="dField" id="DocSummary" data-model="FormInstanceInfo.DocSummary" data-binding="post" style="display:none"></textarea>
+<textarea id="dhtml_body" style="display:none"></textarea>
+<textarea data-type="cField" id="xsl" data-binding="post" style="display:none"></textarea>
+
+<!-- 문서link 2006.01 -->
+<textarea data-type="dField" id="DocLinks" data-binding="post" style="display:none" data-model="FormInstanceInfo.DocLinks"></textarea>
+<!-- EDMS 문서 link -->
+<textarea data-type="dField" id="EDMSDocLinks" data-binding="post" style="display:none" data-model="FormInstanceInfo.EDMSDocLinks"></textarea>
+<!-- 임시저장용 데이터(기밀문서, 긴급결재, 예약기안, 예약배포) -->
+<input type="hidden" data-type="mField" id="TempUseScrecy" value="{{ doc.BodyContext.TempUseScrecy }}" data-binding="pre" />
+<input type="hidden" data-type="mField" id="TempUseUrgent" value="{{ doc.BodyContext.TempUseUrgent }}" data-binding="pre" />
+<input type="hidden" data-type="mField" id="TempUseReserveDraft" value="{{ doc.BodyContext.TempUseReserveDraft }}" data-binding="pre" />
+<input type="hidden" data-type="mField" id="TempUseReserveDist" value="{{ doc.BodyContext.TempUseReserveDist }}" data-binding="pre" />
+<!-- 전결규정에서 변경한 담당업무 정보 -->
+<input type="hidden" data-type="mField" id="RuleChargeJob" value="{{ doc.BodyContext.RuleChargeJob }}" data-binding="pre" />

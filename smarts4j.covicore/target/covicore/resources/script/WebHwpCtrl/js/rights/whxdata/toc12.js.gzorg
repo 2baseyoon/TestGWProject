@@ -1,0 +1,1 @@
+gXMLBuffer ="<?xml version=\"1.0\" encoding=\"utf-8\" ?><data  src=\"toc11.js\"  name=\"글머리표 및 문단 번호: 문단 번호\" url=\"format/numberbullet/numberbullet(paragraph_number).htm\"><item name=\"시작 번호 방식\" url=\"format/numberbullet/numberbullet(new_number).htm\" /></data>";

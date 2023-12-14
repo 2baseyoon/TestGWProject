@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="slip">
+	<select id="selectSlipCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			count(*)
+		FROM 
+			act_expence_application
+		WHERE 
+			ApplicationStatus = 'E'
+			AND SlipNo IS NULL
+		<if test="expenceApplicationID != '' ">
+			AND ExpenceApplicationID = #{expenceApplicationID}
+		</if>
+	</select>
+	
+	<select id="selectSlip" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			*
+		FROM 
+			act_expence_application
+		WHERE 
+			ApplicationStatus = 'E'
+			AND SlipNo IS NULL
+		<if test="expenceApplicationID != '' ">
+			AND ExpenceApplicationID = #{expenceApplicationID}
+		</if>
+		ORDER BY
+			ExpenceApplicationID ASC
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="selectSlipList" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_expence_application_list
+		WHERE
+			ExpenceApplicationID = #{ExpenceApplicationID}
+		ORDER BY
+			ExpenceApplicationListID ASC
+	</select>
+	
+	<select id="selectSlipDiv" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_expence_application_div
+		WHERE
+			ExpenceApplicationListID = #{ExpenceApplicationListID}
+		ORDER BY
+			ExpenceApplicationDivID ASC
+	</select>
+	
+	<update id="slipComplete" parameterType="cmap">
+		UPDATE
+			act_expence_application
+		SET 
+			SlipNo = #{slipNo}
+		WHERE
+			ExpenceApplicationID = #{expenceApplicationId}
+	</update>
+	
+	<update id="slipCancel" parameterType="cmap">
+		UPDATE
+			act_expence_application
+		SET
+			UnSlipNo = #{unSlipNo},
+			ApplicationStatus = 'C'
+		WHERE
+			SlipNo = #{slipNo}
+	</update>
+	
+	<select id="selectVendorInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_vendor
+		WHERE
+			VendorNo = #{VendorNo}
+	</select>
+	
+	<select id="selectCorpCardInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_card_receipt
+		WHERE
+			ReceiptID = #{CardUID}
+	</select>
+	
+	<select id="selectTaxInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_taxinvoice
+		WHERE
+			TaxInvoiceID = #{TaxUID}
+	</select>
+	
+	<select id="selectReceiptInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			*
+		FROM
+			act_receipt
+		WHERE
+			ReceiptID = #{ReceiptID}
+	</select>
+</mapper>

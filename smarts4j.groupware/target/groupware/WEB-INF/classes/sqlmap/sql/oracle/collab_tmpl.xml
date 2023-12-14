@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.tmpl">
+
+	<select id="getTmplRequestListCnt" parameterType="cmap" resultType="java.lang.Long">
+	/* collab.tmpl.getTmplRequestListCnt */
+		SELECT COUNT(*)
+		FROM COLLAB_TMPL_REQUEST a 
+   		LEFT  JOIN SYS_OBJECT_USER ur
+   		ON a.RequesterCode = ur.UserCode
+		WHERE A.CompanyCode = #{CompanyCode}
+		<if test='reqStatus != null and reqStatus == "Y"'>
+			AND RequestStatus = 'ApprovalRequest'
+		</if>
+	</select>
+	
+	<select id="getTmplRequestList"   parameterType="cmap" resultType="cmap">
+	/* collab.tmpl.getTmplRequestList */
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT a.RequestSeq as "RequestSeq"
+				, a.TmplKind as "TmplKind"
+				, a.RequesterCode as "RequesterCode"
+				, PrjSeq as "PrjSeq"
+				, Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS "URName"
+				, RequestTitle as "RequestTitle"
+				, RequestRemark as "RequestRemark"
+				, RequestStatus as "RequestStatus"
+				, TO_CHAR(a.RegisteDate, 'YYYY-MM-DD HH24:MI') AS "RegisteDate"
+			    , Fn_GetBaseCodeName(#{domainID}, 'COLLAB_KIND', a.TmplKind) as "TmplKindName"
+			    , Fn_GetBaseCodeName(#{domainID}, 'AttendState', a.RequestStatus) as "StatusName"
+			    , b.TmplSeq as "TmplSeq"
+		FROM COLLAB_TMPL_REQUEST a 
+   		LEFT  JOIN SYS_OBJECT_USER ur           ON a.RequesterCode = ur.UserCode
+		LEFT join collab_tmpl_project b ON a.RequestSeq = b.RequestSeq
+		WHERE A.CompanyCode = #{CompanyCode}
+		<if test='reqStatus != null and reqStatus == "Y"'>
+			AND RequestStatus = 'ApprovalRequest'
+		</if>
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+		 
+	</select>
+	
+	
+	<!-- 요청 테이블 -->
+	<update id="saveTmplRequest" parameterType="cmap">	
+	/* collab.tmpl.saveTmplRequest */
+		UPDATE COLLAB_TMPL_REQUEST 
+		   SET RequestStatus = #{reqStatus}
+		   		, ApprovalCode = #{approvalCode}
+		   		, ApprovalDate = SYSDATE 
+		   		, ApprovalRemark = #{approvalRemark}
+		 WHERE RequestSeq = #{requestSeq}
+	</update>  
+	
+	<insert id="addTmplProject"   parameterType="cmap">
+	/* collab.tmpl.addTmplProject */
+		INSERT INTO COLLAB_TMPL_PROJECT 
+					( TMPLSEQ, tmplName , CompanyCode, TmplKind , StartDate, EndDate,  PrjColor, Remark, RegisterCode, RegisteDate, ModifierCode, ModifyDate, RequestSeq)
+			(SELECT COLLAB_TMPL_PROJECT_SEQ.NEXTVAL, a.requestTitle,#{CompanyCode}, a.TmplKind, b.StartDate, b.EndDate, b.PrjColor, b.Remark, #{USERID}, SYSDATE, #{USERID}, SYSDATE, a.RequestSeq
+			   FROM COLLAB_TMPL_REQUEST  A
+			   JOIN COLLAB_PROJECT B on a.PrjSeq = B.PrjSeq
+			  WHERE a.RequestSeq =  #{requestSeq})
+			    
+	   <selectKey keyProperty="TmplSeq" resultType="Integer" order="AFTER">
+		    SELECT COLLAB_TMPL_PROJECT_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<insert id="addTmplProjectUserform"   parameterType="cmap">
+	/* collab.tmpl.addTmplProjectUserform */
+		INSERT INTO COLLAB_TMPL_PROJECT_USERFORM
+				(PRJUSERFORMSEQ, tmplSeq, optionTitle, optionType, optionVal, sortKey, RegisterCode, RegisteDate, ModifierCode, ModifyDate )
+		(SELECT COLLAB_TMPL_USERFORM_SEQ.NEXTVAL, #{tmplSeq}, optionTitle, optionType, optionVal, sortKey, #{USERID}, SYSDATE, #{USERID}, SYSDATE
+		   FROM COLLAB_PROJECT_USERFORM
+		  WHERE prjSeq =  #{prjSeq})
+	</insert>
+	
+	<insert id="addTmplProjectSection"   parameterType="cmap">
+	/* collab.tmpl.addTmplProjectSection */
+		INSERT INTO COLLAB_TMPL_SECTION 
+					( SECTIONSEQ, tmplSeq, SectionName, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+			(SELECT COLLAB_TMPL_SECTION_SEQ.NEXTVAL, #{tmplSeq}, SectionName, #{USERID}, SYSDATE, #{USERID}, SYSDATE
+			   FROM COLLAB_SECTION
+			  WHERE prjSeq =  #{prjSeq})  
+	</insert>
+	
+	<insert id="addTmplProjectTask"   parameterType="cmap">
+	/* collab.tmpl.addTmplProjectTask */
+		INSERT INTO COLLAB_TMPL_TASK 
+					( TASKSEQ, tmplSeq, taskName , sectionSeq,     StartDate, EndDate, Label, ParentKey, TopParentKey, TaskStatus, ProgRate, CloseDate, ObjectType, ObjectID, Remark, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+			(SELECT COLLAB_TMPL_TASK_SEQ.NEXTVAL, #{tmplSeq}, b.taskName, d.sectionSeq, StartDate, EndDate, Label, ParentKey, TopParentKey, TaskStatus, ProgRate, CloseDate, ObjectType, ObjectID, Remark, #{USERID}, SYSDATE, #{USERID}, SYSDATE
+			   FROM COLLAB_TASK_MAP a
+			   JOIN COLLAB_TASK b ON A.taskSeq = b.taskSeq 
+			   JOIN COLLAB_SECTION c ON a.prjSeq = c.prjSeq AND a.prjType = c.prjType AND a.SectionSeq = c.SectionSeq
+  			   JOIN COLLAB_TMPL_SECTION d ON d.tmplSeq = #{tmplSeq} AND d.SectionName = c.SectionName
+			  WHERE a.prjSeq = #{prjSeq}
+			    AND a.prjType = 'P'
+			    AND b.ParentKey = 0)
+	</insert>
+	
+	<select id="getTmplList"   parameterType="cmap" resultType="cmap">
+	/* collab.tmpl.getTmplList */
+		SELECT TmplSeq as "TmplSeq"
+				, TmplKind as "TmplKind"
+				, TmplName as "TmplName"
+				, NVL(REMARK,' ') as "Remark"
+				, TO_CHAR(RegisteDate, 'YYYY.MM.DD HH24:MI') AS "RegisteDate"
+			    , (SELECT Fn_BaseGetDictionary_S(#{lang}, c.MultiCodeName) FROM sys_base_code c WHERE c.CodeGroup ='COLLAB_KIND' AND c.Code = a.TmplKind) as "TmplKindName"
+			    , (SELECT COUNT(*) FROM sys_like b WHERE b.TargetServiceType = 'CollabTmpl' AND a.tmplSeq = b.TargetID) as "LikeCnt"
+			    , (SELECT COUNT(*) FROM sys_like b WHERE b.TargetServiceType = 'CollabTmpl' AND a.tmplSeq = b.TargetID AND b.RegisterCode  =  #{USERID}) as "MyLikeCnt"
+		 FROM COLLAB_TMPL_PROJECT a 
+		WHERE companyCode = #{CompanyCode}
+		<if test='tmplKind != null and tmplKind != ""'>
+		  AND TmplKind = #{tmplKind} 
+		</if>
+	 order by RegisteDate DESC
+	 
+	 <!-- AND c.DomainID=0 -->
+	</select>
+	
+	<!-- 템플릿 삭제 -->
+	<delete id="deleteTmplProject"   parameterType="cmap" >
+	/* collab.tmpl.deleteTmplProject */
+			DELETE FROM COLLAB_TMPL_PROJECT
+			WHERE tmplSeq =  #{tmplSeq}
+	</delete>
+
+	<select id="getTmplSection"   parameterType="cmap"  resultType="cmap">
+	/* collab.tmpl.getTmplSection */
+		SELECT cs.SectionSeq as "SectionSeq"
+			, SectionName as "SectionName"
+		  FROM COLLAB_TMPL_SECTION cs
+		 WHERE cs.TmplSeq = #{tmplSeq}
+	 -- GROUP BY cs.SectionSeq
+	</select>
+	
+	<select id="getTmplTaskList" parameterType="cmap" resultType="cmap">
+	/* collab.tmpl.getTmplTaskList */
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT b.TaskSeq as "TaskSeq"
+			, B.TaskName as "TaskName"
+			, B.Remark as "Remark"
+			, B.Label as "Label"
+			, B.ParentKey as "ParentKey"
+			, '' as "StartDate"
+			, '' as "EndDate"
+			, B.TaskStatus as "TaskStatus"
+			, B.CloseDate as "CloseDate"
+			, B.ModifierCode as "ModifierCode"
+			, B.ModifyDate as "ModifyDate"
+			, B.SectionSeq as "SectionSeq"
+			, 0 as "Comment"
+			, 0 as "ProgRate"
+			,'P' as "PrjType"
+			,#{authSave} as "authSave"
+		FROM COLLAB_TMPL_TASK B	
+	   WHERE b.TmplSeq = #{tmplSeq} 
+		 AND B.ParentKey = 0
+		<if test="sectionSeq != null and  sectionSeq !=''">
+			AND SectionSeq = #{sectionSeq}
+		</if>
+	ORDER BY B.workOrder ASC
+				, B.EndDate
+		
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+	</select>
+	
+	<select id="getTmplTaskListCnt" parameterType="cmap" resultType="java.lang.Long">
+	/* collab.tmpl.getTmplTaskListCnt */
+		SELECT COUNT(0)
+		FROM COLLAB_TMPL_TASK B
+	   WHERE b.TmplSeq = #{tmplSeq} 
+		 AND B.ParentKey = 0
+		<if test="sectionSeq != null and  sectionSeq !=''">
+			AND SectionSeq = #{sectionSeq}
+		</if>
+	</select>
+	
+		
+	<update id="changeTmplTaskSection"   parameterType="cmap"  >
+	/* collab.tmpl.changeTmplTaskSection */
+		UPDATE COLLAB_TMPL_TASK 
+		   SET sectionSeq = #{sectionSeq}
+		 WHERE tmplSeq =  #{tmplSeq}
+		   AND taskSeq =  #{taskSeq}		
+	</update>
+
+	<update id="changeTmplTaskOrder"   parameterType="cmap"  >
+	/* collab.tmpl.changeTmplTaskOrder */
+	BEGIN
+		<foreach collection="taskList" item="lst" open="" close=";" separator=";">
+			UPDATE COLLAB_TMPL_TASK 
+			   SET Workorder= #{lst.workOrder}
+			 WHERE tmplSeq =  #{lst.taskSeq}
+		</foreach>	   
+	END;
+	</update>
+	
+	
+	<insert id="saveTmpl"   parameterType="cmap">
+	/* collab.tmpl.saveTmpl */
+		UPDATE COLLAB_TMPL
+		   SET tmplName =  #{tmplName}
+   		       ,StartDate=  #{startDate}
+               ,PrjColor=  #{prjColor}
+               ,Remark=  #{remark}
+               ,ModifierCode=  #{USERID}
+               ,ModifyDate=  SYSDATE
+		 WHERE prjSeq =  #{prjSeq}
+	</insert>
+
+	<delete id="deleteTmpl"   parameterType="cmap">
+	/* collab.tmpl.deleteTmpl */
+		DELETE FROM COLLAB_TMPL WHERE tmplSeq =  #{tmplSeq}
+	</delete>
+
+	<delete id="deleteTmplTask"   parameterType="cmap">
+	/* collab.tmpl.deleteTmplTask */
+		DELETE FROM COLLAB_TMPL_TASK  
+		 WHERE 
+		 <if test='tmplSeq != null and tmplSeq != ""'>
+		 	tmplSeq =  #{tmplSeq}
+		 </if>
+		 <if test='taskSeq != null and sectionSeq != ""'>
+		 	taskSeq =  #{taskSeq}
+		 </if>
+	</delete>
+
+
+	<select id="getExistsTmplSection"   parameterType="cmap" resultType= "java.lang.Long" >
+	/* collab.tmpl.getExistsTmplSection */
+		SELECT COUNT(*)
+		  FROM COLLAB_TMPL_SECTION
+		 WHERE tmplSeq  = #{tmplSeq}
+		   AND SectionName = #{sectionName}
+	</select>
+	
+
+	<insert id="addTmplSection"   parameterType="cmap">
+	/* collab.tmpl.addTmplSection */
+		INSERT INTO COLLAB_TMPL_SECTION 
+					( SECTIONSEQ, tmplSeq , SectionName, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+		VALUES		( COLLAB_TMPL_SECTION_SEQ.NEXTVAL, #{tmplSeq}, #{sectionName}, #{USERID}, SYSDATE, #{USERID}, SYSDATE)
+	   <selectKey keyProperty="SectionSeq" resultType="Integer" order="AFTER">
+		    SELECT COLLAB_TMPL_SECTION_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<insert id="saveTmplSection"   parameterType="cmap">
+	/* collab.tmpl.saveTmplSection */
+		UPDATE COLLAB_TMPL_SECTION
+		   SET sectionName =#{sectionName}
+		   		,ModifierCode= #{USERID}
+		   		,ModifyDate = SYSDATE
+		 WHERE 	sectionSeq = 	#{sectionSeq}
+	</insert>
+	
+
+	<delete id="deleteTmplSection"   parameterType="cmap">
+	/* collab.tmpl.deleteTmplSection */
+		DELETE FROM COLLAB_TMPL_SECTION 
+		 WHERE 
+		 <if test='tmplSeq != null and tmplSeq != ""'>
+		 	tmplSeq =  #{tmplSeq}
+		 </if>
+		 <if test='sectionSeq != null and sectionSeq != ""'>
+		 	sectionSeq =  #{sectionSeq}
+		 </if>
+	</delete>
+
+	<insert id="addTmplTask"   parameterType="cmap" useGeneratedKeys="true">
+	/* collab.tmpl.addTmplTask */
+		INSERT INTO COLLAB_TMPL_TASK
+					(TaskSeq, tmplSeq,  taskName , Label, ParentKey, TopParentKey, Workorder, SectionSeq,Remark, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+		VALUES		(COLLAB_TMPL_TASK_SEQ.NEXTVAL, #{tmplSeq},  #{taskName}, #{label}, #{parentKey}, #{topParentKey}, #{workOrder}, #{sectionSeq}, #{remark}, #{USERID}, SYSDATE, #{USERID}, SYSDATE)
+	   <selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+		    SELECT COLLAB_TMPL_TASK_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+
+	<insert id="saveTmplTask"   parameterType="cmap">
+	/* collab.tmpl.saveTmplTask */
+		UPDATE COLLAB_TMPL_TASK
+		   SET taskName =  #{taskName}
+               ,Remark=  #{remark}
+               ,Label=  #{label}
+               ,ModifierCode=  #{USERID}
+               ,ModifyDate=  SYSDATE
+		 WHERE taskSeq =  #{taskSeq}
+	</insert>
+	
+	<insert id="copyTmplTask"   parameterType="cmap" useGeneratedKeys="true">
+	/* collab.tmpl.copyTmplTask */
+		INSERT INTO COLLAB_TMPL_TASK 
+					( TaskSeq, tmplSeq, taskName , StartDate, EndDate, Label, ParentKey, TopParentKey, SectionSeq, Remark, RegisterCode, RegisteDate, ModifierCode, ModifyDate)
+			(SELECT COLLAB_TMPL_TASK_SEQ.NEXTVAL TaskSeq, tmplSeq, #{taskName}, StartDate, EndDate, Label, ParentKey, TopParentKey, SectionSeq, Remark, #{USERID}, SYSDATE, #{USERID}, SYSDATE
+			   FROM COLLAB_TMPL_TASK
+			  WHERE taskSeq =  #{orgTaskSeq})
+			    
+	   <selectKey keyProperty="TaskSeq" resultType="Integer" order="AFTER">
+		    SELECT COLLAB_TMPL_TASK_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<select id="getTmplTask"   parameterType="cmap" resultType="cmap">
+	/* collab.tmpl.getTmplTask */
+		SELECT TaskSeq AS "TaskSeq"
+			, TaskName AS "TaskName"
+			, Label AS "Label"
+			, Remark AS "Remark"
+		FROM COLLAB_TMPL_TASK t
+			WHERE taskSeq = #{taskSeq}
+	</select>
+</mapper>
+

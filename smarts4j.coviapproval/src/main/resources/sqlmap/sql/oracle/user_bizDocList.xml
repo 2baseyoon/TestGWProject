@@ -1,0 +1,995 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.bizDocList">
+
+    <!-- 특정 사용자의 담당업무 개수 조회  -->
+    <select id="selectBizDocCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) AS CNT
+		FROM JWF_BIZDOC A
+		INNER JOIN JWF_BIZDOCFORM B ON B.BizDocID = A.BizDocID
+		INNER JOIN JWF_BIZDOCMEMBER C ON C.BizDocID = A.BizDocID
+		WHERE C.UserCode = #{userCode}
+		AND A.IsUse = 'Y'
+		AND   A.BizDocType = #{bizDocType}
+		<choose>
+            <when test='isSaaS == "Y"'>
+                AND A.EntCode = #{entCode}
+            </when>
+            <otherwise>
+				AND A.EntCode IN ('ORGROOT', #{entCode})
+            </otherwise>
+        </choose>
+		ORDER BY A.SortKey ASC
+	</select>
+
+     <!-- 특정 사용자의 담당업무 목록 조회  -->
+    <select id="selectBizDocList" parameterType="cmap" resultType="cmap">
+        SELECT
+			 A.BizDocID AS "BizDocID"
+			,A.BizDocCode AS "BizDocCode"
+			,A.BizDocName AS "BizDocName"
+			,C.UserCode AS "UserCode"
+		FROM JWF_BIZDOC A
+		INNER JOIN JWF_BIZDOCMEMBER  C ON C.BizDocID = A.BizDocID
+		WHERE C.UserCode = #{userCode}
+		AND A.IsUse = 'Y'
+		AND   A.BizDocType = #{bizDocType}
+		<choose>
+            <when test='isSaaS == "Y"'>
+                AND A.EntCode = #{entCode}
+            </when>
+            <otherwise>
+				AND A.EntCode IN ('ORGROOT', #{entCode})
+            </otherwise>
+        </choose>
+		ORDER BY A.SortKey ASC
+    </select>
+
+    <!--업무문서함 - 진행함 목록 조회  -->
+	<select id="selectBizDocProcessListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT
+				ProcessID AS "ProcessID"
+				, InitiatorID AS "InitiatorID"
+				, InitiatorName AS "InitiatorName"
+				, InitiatorUnitID AS "InitiatorUnitID"
+				, InitiatorUnitName AS "InitiatorUnitName"
+				, StartDate AS "StartDate"
+				, EndDate AS "EndDate"
+				, DeleteDate AS "DeleteDate"
+				, ProcessState AS "ProcessState"
+				, InitiatorSIPAddress AS "InitiatorSIPAddress"
+				, DocSubject AS "DocSubject"
+				, Subject AS "Subject"
+				, BizDocFormID AS "BizDocFormID"
+				, BizDocID AS "BizDocID"
+				, SubKind AS "SubKind"
+				, ProcessDescriptionID AS "ProcessDescriptionID"
+				, FormInstID AS "FormInstID"
+				, FormID AS "FormID"
+				, FormPrefix AS "FormPrefix"
+				, FormName AS "FormName"
+				, FormSubject AS "FormSubject"
+				, IsSecureDoc AS "IsSecureDoc"
+				, IsFile AS "IsFile"
+				, FileExt AS "FileExt"
+				, IsComment AS "IsComment"
+				, ApproverCode AS "ApproverCode"
+				, ApproverName AS "ApproverName"
+				, ApprovalStep AS "ApprovalStep"
+				, ApproverSIPAddress AS "ApproverSIPAddress"
+				, IsReserved AS "IsReserved"
+				, ReservedGubun AS "ReservedGubun"
+				, ReservedTime AS "ReservedTime"
+				, Priority AS "Priority"
+				, IsModify AS "IsModify"
+				, Reserved1 AS "Reserved1"
+				, Reserved2 AS "Reserved2"
+				, BusinessData1 AS "BusinessData1"
+				, BusinessData2 AS "BusinessData2"
+				, BusinessData3 AS "BusinessData3"
+				, BusinessData4 AS "BusinessData4"
+				, BusinessData5 AS "BusinessData5"
+				, BusinessData6 AS "BusinessData6"
+				, BusinessData7 AS "BusinessData7"
+				, BusinessData8 AS "BusinessData8"
+				, BusinessData9 AS "BusinessData9"
+				, BusinessData10 AS "BusinessData10"
+			FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						, A.startDate AS startDate
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,D.BizDocFormID
+						,E.BizDocID
+						,'T006' as SubKind
+						,C.*
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_PROCESSDESCRIPTION C ON A.ProcessDescriptionID = C.ProcessDescriptionID
+				INNER JOIN JWF_BIZDOCFORM D ON D.FormPrefix = C.FormPrefix
+				INNER JOIN JWF_BIZDOC E ON D.BizDocID = E.BizDocID
+				WHERE A.ProcessState = 288
+				AND E.BizDocCode = #{bizDocCode}
+				AND A.DeleteDate IS NULL
+				AND A.ParentProcessID = 0
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocProcessList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    startDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose>
+				 LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND startDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	                </when>
+	                <otherwise>
+	                    AND
+		                <choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+		          		</choose>
+		          		 = #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, Priority DESC 
+		    </if>
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , startDate Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	,
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+					<otherwise>StartDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectBizDocListCnt" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM (
+			SELECT BizDocProcessList.* FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						, A.startDate AS startDate
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,D.BizDocFormID
+						,E.BizDocID
+						,'T006' as SubKind
+						,C.*
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_PROCESSDESCRIPTION C ON A.ProcessDescriptionID = C.ProcessDescriptionID
+				INNER JOIN JWF_BIZDOCFORM D ON D.FormPrefix = C.FormPrefix
+				INNER JOIN JWF_BIZDOC E ON D.BizDocID = E.BizDocID
+				WHERE A.ProcessState = 288
+				AND E.BizDocCode = #{bizDocCode}
+				AND A.DeleteDate IS NULL
+				AND A.ParentProcessID = 0
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocProcessList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    startDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose> 
+				 LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND startDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	                </when>
+	                <otherwise>
+	                    AND 
+		                <choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+		          		</choose>
+						 = #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+		 ) A
+	</select>
+
+	<select id="selectBizDocProcessGroupList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			<if test="searchGroupType.equalsIgnoreCase('Date')">
+				BizDocProcessList."Date" AS "fieldID"
+				, COUNT(BizDocProcessList."Date") AS "fieldCnt"
+		        , BizDocProcessList."Date" as "fieldName"
+		    </if>
+		    <if test="searchGroupType.equalsIgnoreCase('FormPrefix')">
+				BizDocProcessList.FormPrefix AS "fieldID"
+				, COUNT(BizDocProcessList.FormPrefix) AS "fieldCnt"
+		     	, BizDocProcessList.FormName as "fieldName"
+		    </if>
+		     <if test="searchGroupType.equalsIgnoreCase('InitiatorID')">
+				BizDocProcessList.InitiatorID AS "fieldID"
+				, COUNT(BizDocProcessList.InitiatorID) AS "fieldCnt"
+		        , BizDocProcessList.InitiatorName as "fieldName"
+		    </if>
+		     <if test="searchGroupType.equalsIgnoreCase('InitiatorUnitID')">
+				BizDocProcessList.InitiatorUnitID AS "fieldID"
+				, COUNT(BizDocProcessList.InitiatorUnitID) AS "fieldCnt"
+		        , BizDocProcessList.InitiatorUnitName as "fieldName"
+		    </if>
+			FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						<choose>
+							<when test="searchGroupType == 'Date'">
+								, DECODE(A.startDate, NULL, '', Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, A.startDate,'YYYY-MM-DD')) AS "Date"							
+							</when>
+							<otherwise>
+								,TO_CHAR(A.startDate,'YYYY-MM-DD') AS "Date"
+							</otherwise>
+						</choose>						
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,D.BizDocFormID
+						,E.BizDocID
+						,'T006' as SubKind
+						,C.*
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_PROCESSDESCRIPTION C ON A.ProcessDescriptionID = C.ProcessDescriptionID
+				INNER JOIN JWF_BIZDOCFORM D ON D.FormPrefix = C.FormPrefix
+				INNER JOIN JWF_BIZDOC E ON D.BizDocID = E.BizDocID
+				WHERE A.ProcessState = 288
+				AND E.BizDocCode = #{bizDocCode}
+				AND A.DeleteDate IS NULL
+				AND A.ParentProcessID = 0
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocProcessList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	"Date" BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose> 
+				 LIKE '%' || #{searchWord} || '%'
+			</if>
+		</trim>
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+		  	    <if test="searchGroupType == 'Date'">
+			 		BizDocProcessList."Date"
+			 	</if>
+			 	<if test="searchGroupType != 'Date'">
+	               	<choose>
+						<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>BizDocProcessList.InitiatorID</when>
+						<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>BizDocProcessList.InitiatorUnitID</when>
+						<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>BizDocProcessList.FormPrefix</when>
+	         		</choose>
+			 		<if test="searchGroupType == 'FormPrefix'">
+				         ,BizDocProcessList.FormName
+				    </if>
+				     <if test="searchGroupType == 'InitiatorID'">
+				        , BizDocProcessList.InitiatorName
+				    </if>
+				     <if test="searchGroupType == 'InitiatorUnitID'">
+				        , BizDocProcessList.InitiatorUnitName
+				    </if>
+			 	</if>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	"fieldName" ASC
+			</if>
+		</trim>
+	</select>
+
+	<!-- 업무문서함 - 완료함 목록 조회  -->
+	<select id="selectBizDocCompleteListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT
+				ProcessID AS "ProcessID"
+				, InitiatorID AS "InitiatorID"
+				, InitiatorName AS "InitiatorName"
+				, InitiatorUnitID AS "InitiatorUnitID"
+				, InitiatorUnitName AS "InitiatorUnitName"
+				, StartDate AS "StartDate"
+				, EndDate AS "EndDate"
+				, DeleteDate AS "DeleteDate"
+				, ProcessState AS "ProcessState"
+				, InitiatorSIPAddress AS "InitiatorSIPAddress"
+				, DocSubject AS "DocSubject"
+				, Subject AS "Subject"
+				, SubKind AS "SubKind"
+				, BizDocFormID AS "BizDocFormID"
+				, BizDocID AS "BizDocID"
+				, ProcessDescriptionID AS "ProcessDescriptionArchiveID"
+				, FormInstID AS "FormInstID"
+				, FormID AS "FormID"
+				, FormName AS "FormName"
+				, FormSubject AS "FormSubject"
+				, IsSecureDoc AS "IsSecureDoc"
+				, IsFile AS "IsFile"
+				, FileExt AS "FileExt"
+				, IsComment AS "IsComment"
+				, DocNo AS "DocNo"
+				, ApproverCode AS "ApproverCode"
+				, ApproverName AS "ApproverName"
+				, ApprovalStep AS "ApprovalStep"
+				, ApproverSIPAddress AS "ApproverSIPAddress"
+				, IsReserved AS "IsReserved"
+				, ReservedGubun AS "ReservedGubun"
+				, ReservedTime AS "ReservedTime"
+				, Priority AS "Priority"
+				, IsModify AS "IsModify"
+				, Reserved1 AS "Reserved1"
+				, Reserved2 AS "Reserved2"
+				, BusinessData1 AS "BusinessData1"
+				, BusinessData2 AS "BusinessData2"
+				, BusinessData3 AS "BusinessData3"
+				, BusinessData4 AS "BusinessData4"
+				, BusinessData5 AS "BusinessData5"
+				, BusinessData6 AS "BusinessData6"
+				, BusinessData7 AS "BusinessData7"
+				, BusinessData8 AS "BusinessData8"
+				, BusinessData9 AS "BusinessData9"
+				, BusinessData10 AS "BusinessData10"
+			FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						, A.startDate AS startDate
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,'T006' as SubKind
+						,C.BizDocFormID
+						,D.BizDocID
+						,E.*
+						,E.ProcessDescriptionID as ProcessDescriptionArchiveID
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_BIZDOCFORM C ON C.FormPrefix = A.FormPrefix
+				INNER JOIN JWF_BIZDOC D ON D.BizDocID = C.BizDocID
+				INNER JOIN JWF_PROCESSDESCRIPTION E ON A.ProcessDescriptionID = E.ProcessDescriptionID
+				WHERE A.DeleteDate IS NULL
+				AND D.BizDocCode = #{bizDocCode}
+				AND A.BusinessState like '02_01%'
+				AND A.ParentProcessID = 0
+				AND A.ProcessState = 528
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>				
+			) BizDocCompleteList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    endDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose> 
+				 LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND endDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	                </when>
+	                <otherwise>
+	                    AND
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+		       			</choose> 
+						 = #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+		  	<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , endDate Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	,
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+					<otherwise>EndDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectBizDocCompleteListCnt" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM (
+			SELECT ProcessID FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						, A.startDate AS startDate
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,'T006' as SubKind
+						,C.BizDocFormID
+						,D.BizDocID
+						,E.*
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_BIZDOCFORM C ON C.FormPrefix = A.FormPrefix
+				INNER JOIN JWF_BIZDOC D ON D.BizDocID = C.BizDocID
+				INNER JOIN JWF_PROCESSDESCRIPTION E ON A.ProcessDescriptionID = E.ProcessDescriptionID
+				WHERE A.DeleteDate IS NULL
+				AND D.BizDocCode = #{bizDocCode}
+				AND A.BusinessState like '02_01%'
+				AND A.ParentProcessID = 0
+				AND A.ProcessState = 528
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocCompleteList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    endDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose> 
+				LIKE '%' || #{searchWord} || '%'
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND endDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+		       			</choose>
+		       			= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+		) A
+	</select>
+
+	<select id="selectBizDocCompleteGroupList" parameterType="cmap" resultType="cmap">
+		SELECT
+		<if test="searchGroupType.equalsIgnoreCase('Date')">
+		    BizDocCompleteList."Date" AS "fieldID"
+			, COUNT(BizDocCompleteList."Date") AS "fieldCnt"
+	        , BizDocCompleteList."Date" as "fieldName"
+	    </if>
+	    <if test="searchGroupType.equalsIgnoreCase('FormPrefix')">
+	   	    BizDocCompleteList.FormPrefix AS "fieldID"
+			, COUNT(BizDocCompleteList.FormPrefix) AS "fieldCnt"
+	     	, BizDocCompleteList.FormName as "fieldName"
+	    </if>
+	     <if test="searchGroupType.equalsIgnoreCase('InitiatorID')">
+	   	    BizDocCompleteList.InitiatorID AS "fieldID"
+			, COUNT(BizDocCompleteList.InitiatorID) AS "fieldCnt"
+	        , BizDocCompleteList.InitiatorName as "fieldName"
+	    </if>
+	     <if test="searchGroupType.equalsIgnoreCase('InitiatorUnitID')">
+	   	    BizDocCompleteList.InitiatorUnitID AS "fieldID"
+			, COUNT(BizDocCompleteList.InitiatorUnitID) AS "fieldCnt"
+	        , BizDocCompleteList.InitiatorUnitName as "fieldName"
+	    </if>
+			FROM (
+				SELECT
+						 A.ProcessID
+						,A.InitiatorID
+						,A.InitiatorName
+						,A.InitiatorUnitID
+						,A.InitiatorUnitName
+						<choose>
+							<when test="searchGroupType == 'Date'">
+								, DECODE(A.endDate, NULL, '', Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, A.endDate,'YYYY-MM-DD')) AS "Date"							
+							</when>
+							<otherwise>
+								,TO_CHAR(A.endDate,'YYYY-MM-DD') AS "Date"
+							</otherwise>
+						</choose>
+						, A.endDate AS endDate
+						, A.DeleteDate AS DeleteDate
+						,A.ProcessState
+						,A.InitiatorSIPAddress
+						,A.DocSubject
+						,B.Subject
+						,'T006' as SubKind
+						,C.BizDocFormID
+						,D.BizDocID
+						,E.*
+				FROM JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B ON  B.FormInstID = A.FormInstID
+				INNER JOIN JWF_BIZDOCFORM C ON C.FormPrefix = A.FormPrefix
+				INNER JOIN JWF_BIZDOC D ON D.BizDocID = C.BizDocID
+				INNER JOIN JWF_PROCESSDESCRIPTION E ON A.ProcessDescriptionID = E.ProcessDescriptionID
+				WHERE A.DeleteDate IS NULL
+				AND D.BizDocCode = #{bizDocCode}
+				AND A.BusinessState like '02_01%'
+				AND A.ParentProcessID = 0
+				AND A.ProcessState = 528
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocCompleteList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND|OR">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+			  	"Date" BETWEEN TO_CHAR(TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND TO_CHAR(TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+					<otherwise>FormSubject </otherwise>
+				</choose> 
+				 LIKE '%' || #{searchWord} || '%'
+			</if>
+		</trim>
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+		  	    <if test="searchGroupType == 'Date'">
+			 		BizDocCompleteList."Date"
+			 	</if>
+			 	<if test="searchGroupType != 'Date'">
+					<choose>
+						<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>BizDocCompleteList.InitiatorID</when>
+						<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>BizDocCompleteList.InitiatorUnitID</when>
+						<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>BizDocCompleteList.FormPrefix</when>
+	       			</choose>
+			 		<if test="searchGroupType.equalsIgnoreCase('FormPrefix')">
+				         ,BizDocCompleteList.FormName
+				    </if>
+				     <if test="searchGroupType.equalsIgnoreCase('InitiatorID')">
+				        , BizDocCompleteList.InitiatorName
+				    </if>
+				     <if test="searchGroupType.equalsIgnoreCase('InitiatorUnitID')">
+				        , BizDocCompleteList.InitiatorUnitName
+				    </if>
+			 	</if>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	"fieldName" ASC
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectBizDocProcessListExcel" parameterType="cmap" resultType="cmap">
+			SELECT ProcessID AS "ProcessID"
+				,SubKind AS "SubKind"
+				,ApprovalStep AS "ApprovalStep"
+				,FormSubject AS "FormSubject"
+				,InitiatorID AS "InitiatorID"
+				,InitiatorName AS "InitiatorName"
+				,InitiatorUnitID AS "InitiatorUnitID"
+				,InitiatorUnitName AS "InitiatorUnitName"
+				,TO_CHAR(StartDate, 'YYYY-MM-DD HH24:MI:SS') AS "StartDate"
+				,TO_CHAR(EndDate, 'YYYY-MM-DD HH24:MI:SS') AS "EndDate"
+				,DeleteDate AS "DeleteDate"
+				,IsFile AS "IsFile"
+				,FormName AS "FormName"
+				,IsComment AS "IsComment"
+				,IsModify AS "IsModify"
+				,FormID AS "FormID"
+				,Priority AS "Priority"
+				,ProcessState AS "ProcessState"
+				,InitiatorSIPAddress AS "InitiatorSIPAddress"
+				,DocSubject AS "DocSubject"
+				,Subject AS "Subject"
+				,BizDocFormID AS "BizDocFormID"
+				,BizDocID AS "BizDocID"
+			FROM (
+				SELECT
+					 A.ProcessID
+					,A.InitiatorID
+					,A.InitiatorName
+					,A.InitiatorUnitID
+					,A.InitiatorUnitName
+					,A.StartDate
+					,A.EndDate
+					,A.DeleteDate
+					,A.ProcessState
+					,A.InitiatorSIPAddress
+					,A.DocSubject
+					,B.Subject
+					,D.BizDocFormID
+					,E.BizDocID
+					,'T006' as SubKind
+					,C.*
+				FROM
+				JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B
+				ON  B.FormInstID = A.FormInstID                                                
+				INNER JOIN JWF_ProcessDescription C
+				ON A.ProcessDescriptionID = C.ProcessDescriptionID
+				INNER JOIN jwf_bizdocform D
+				ON D.FormPrefix = C.FormPrefix
+				INNER JOIN jwf_bizdoc E
+				ON D.BizDocID = E.BizDocID
+				WHERE
+				A.ProcessState = 288
+				AND
+				E.BizDocCode = #{bizDocCode}
+				AND
+				A.DeleteDate IS NULL
+				AND
+				A.ParentProcessID = 0
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocProcessList
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND|OR">
+	        	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    	startDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	        	</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND
+					<choose>
+						<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+						<otherwise>FormSubject </otherwise>
+					</choose> 
+					LIKE '%' || #{searchWord} || '%'
+				</if>
+				<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+		  	    		AND startDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	                </when>
+	                <otherwise>
+	                    AND
+	                    <choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+	            		</choose> 
+						 = #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			, Priority DESC 
+			    </if>
+			    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			        , startDate Desc
+			    </if>
+			          <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			         , 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+						<when test='sortColumn.equalsIgnoreCase("IsFile")'>IsFile</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+						<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+						<otherwise>StartDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+			</if>
+		</trim>
+	</select>
+	 
+	<select id="selectBizDocCompleteListExcel" parameterType="cmap" resultType="cmap">
+					SELECT
+						ProcessID AS "ProcessID"
+						, InitiatorID AS "InitiatorID"
+						, InitiatorName AS "InitiatorName"
+						, InitiatorUnitID AS "InitiatorUnitID"
+						, InitiatorUnitName AS "InitiatorUnitName"
+						, TO_CHAR(StartDate, 'YYYY-MM-DD HH24:MI:SS') AS "StartDate"
+						, TO_CHAR(EndDate, 'YYYY-MM-DD HH24:MI:SS') AS "EndDate"
+						, DeleteDate AS "DeleteDate"
+						, ProcessState AS "ProcessState"
+						, InitiatorSIPAddress AS "InitiatorSIPAddress"
+						, DocSubject AS "DocSubject"
+						, Subject AS "Subject"
+						, SubKind AS "SubKind"
+						, BizDocFormID AS "BizDocFormID"
+						, BizDocID AS "BizDocID"
+						, ProcessDescriptionID AS "ProcessDescriptionArchiveID"
+						, FormInstID AS "FormInstID"
+						, FormID AS "FormID"
+						, FormName AS "FormName"
+						, FormSubject AS "FormSubject"
+						, IsSecureDoc AS "IsSecureDoc"
+						, IsFile AS "IsFile"
+						, FileExt AS "FileExt"
+						, IsComment AS "IsComment"
+						, DocNo AS "DocNo"
+						, ApproverCode AS "ApproverCode"
+						, ApproverName AS "ApproverName"
+						, ApprovalStep AS "ApprovalStep"
+						, ApproverSIPAddress AS "ApproverSIPAddress"
+						, IsReserved AS "IsReserved"
+						, ReservedGubun AS "ReservedGubun"
+						, ReservedTime AS "ReservedTime"
+						, Priority AS "Priority"
+						, IsModify AS "IsModify"
+						, Reserved1 AS "Reserved1"
+						, Reserved2 AS "Reserved2"
+				FROM (
+				SELECT
+					 A.ProcessID
+					,A.InitiatorID
+					,A.InitiatorName
+					,A.InitiatorUnitID
+					,A.InitiatorUnitName
+					,A.StartDate
+					,A.EndDate
+					,A.DeleteDate
+					,A.ProcessState
+					,A.InitiatorSIPAddress
+					,A.DocSubject
+					,B.Subject
+					,'T006' as SubKind
+					,C.BizDocFormID
+					,D.BizDocID
+					,E.*
+				FROM
+				JWF_PROCESS A
+				INNER JOIN JWF_FORMINSTANCE B
+				ON  B.FormInstID = A.FormInstID
+				INNER JOIN jwf_bizdocform C
+				ON C.FormPrefix = A.FormPrefix
+				INNER JOIN jwf_bizdoc D
+				ON D.BizDocID = C.BizDocID
+				INNER JOIN JWF_ProcessDescription E
+				ON A.ProcessDescriptionID = E.ProcessDescriptionID
+				WHERE
+				A.DeleteDate IS NULL
+				AND
+				D.BizDocCode = #{bizDocCode}
+				AND
+				A.BusinessState like '02_01%'
+				AND
+				A.ParentProcessID = 0
+				AND
+						A.ProcessState = 528
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND B.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND B.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) BizDocCompleteList
+		    <!-- 검색 데이터 Where 절 -->
+		    <trim prefix="WHERE" prefixOverrides="AND|OR">
+	        	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  			endDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS') + 1
+	        	</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+					AND
+					<choose>
+						<when test='searchType.equalsIgnoreCase("FormSubject")'>FormSubject </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName </when>
+						<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName </when>
+						<when test='searchType.equalsIgnoreCase("FormName")'>FormName </when>
+						<otherwise>FormSubject </otherwise>
+					</choose> 
+					 LIKE '%' || #{searchWord} || '%'
+				</if>
+				<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+					<choose>
+		                <when test="searchGroupType == 'Date' ">
+		  					AND endDate BETWEEN TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{searchGroupWord}, 'YYYY-MM-DD HH24:MI:SS') + 1
+		                </when>
+		                <otherwise>
+		                    AND
+		                    <choose>
+								<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+								<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+								<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+		            		</choose> 
+							= #{searchGroupWord}
+		                </otherwise>
+		            </choose>
+				</if>
+			</trim>
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY" prefixOverrides =",">
+			    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			        , endDate Desc
+			    </if>
+			    <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				    , 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormSubject")'>FormSubject</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+						<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+						<when test='sortColumn.equalsIgnoreCase("IsFile")'>IsFile</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("DocNo")'>DocNo</when>
+						<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+						<otherwise>StartDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+	</select>
+</mapper>
+

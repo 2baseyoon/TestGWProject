@@ -1,0 +1,1844 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="baseInfo">
+	
+	<select id="selectVendorList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorList
+ 			거래처 목록 조회
+ 		*/
+	<include refid="oracle.include.pagingHeader" />
+	<![CDATA[		
+		SELECT 		
+			VD.VendorID AS "VendorID"
+			, VD.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', VD.CompanyCode, #{searchCompanyCode}) AS "CompanyName"
+			, VD.VendorType AS "VendorType"
+			, FN_GETACTBASECODENAME('VendorType', VD.VendorType, #{searchCompanyCode}) AS "VendorTypeName"
+			, VD.VendorNo AS "VendorNo"
+			, VD.CorporateNo AS "CorporateNo"
+			, VD.VendorName AS "VendorName"
+			, VD.CEOName AS "CEOName"
+			, VD.Industry AS "Industry"
+			, VD.Sector AS "Sector"
+			, VD.Address AS "Address"
+			, VD.PaymentCondition AS "PaymentCondition"
+			, VD.PaymentMethod AS "PaymentMethod"
+			, VD.VendorStatus AS "VendorStatus"
+			, FN_GETACTBASECODENAME('vendorStatus', VD.VendorStatus, #{searchCompanyCode}) AS "VendorStatusName"
+			, VD.ModifyDate AS "ModifyDate"
+			, VD.RegistDate AS "RegistDate"
+			, VD.BUSINESSNUMBER AS "BusinessNumber"
+		FROM act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER('%' || #{searchSector} || '%') 
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BUSINESSNUMBER, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', '')) 
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER('%' || #{searchIndustry} || '%') 
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%') 
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,VD.VendorName 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorTypeName")'>"VendorTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("BusinessNumber")'>"BusinessNumber"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorName")'>"VendorName"</when>
+					<when test='sortColumn.equalsIgnoreCase("Sector")'>"Sector"</when>
+					<when test='sortColumn.equalsIgnoreCase("Industry")'>"Industry"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorStatusName")'>"VendorStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	<select id="selectVendorListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorListCnt
+ 			거래처 목록 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			COUNT(*)
+		FROM act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER('%' || #{searchSector} || '%')
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BUSINESSNUMBER, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', ''))
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER('%' || #{searchIndustry} || '%')
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%')
+		</if>
+		
+		
+	</select>
+	<select id="selectVendorListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorListExcel
+ 			거래처 목록 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			VD.CompanyCode AS "CompanyCode"
+			, NVL(FN_GETACTBASECODENAME('CompanyCode', VD.CompanyCode, #{searchCompanyCode}),'') AS "CompanyName"
+			, VD.VendorType AS "VendorType"
+			, NVL(FN_GETACTBASECODENAME('VendorType', VD.VendorType, #{searchCompanyCode}),'') AS "VendorTypeName"
+			, VD.VendorNo AS "VendorNo"
+			, VD.CorporateNo AS "CorporateNo"
+			, VD.VendorName AS "VendorName"
+			, VD.CEOName AS "CEOName"
+			, VD.Industry AS "Industry"
+			, VD.Sector AS "Sector"
+			, VD.Address AS "Address"
+			, ( SELECT LISTAGG(VDB.BankCode, ',') within group (order by VDB.BankAccountNo) FROM act_vendor_bank VDB WHERE VendorID = VD.VendorID ) AS "BankCode"
+			, ( SELECT LISTAGG(VDB.BankName, ',') within group (order by VDB.BankAccountNo) FROM act_vendor_bank VDB WHERE VendorID = VD.VendorID ) AS "BankName"
+			, ( SELECT LISTAGG(VDB.BankAccountNo, ',') within group (order by VDB.BankAccountNo) FROM act_vendor_bank VDB WHERE VendorID = VD.VendorID ) AS "BankAccountNo"
+      		, ( SELECT LISTAGG(VDB.BankAccountName, ',') within group (order by VDB.BankAccountNo) FROM act_vendor_bank VDB WHERE VendorID = VD.VendorID ) AS "BankAccountName" 
+			, VD.PaymentCondition AS "PaymentCondition"
+			, NVL(FN_GETACTBASECODENAME('PayType', VD.PaymentCondition, #{searchCompanyCode}),'') AS "PaymentTypeName"
+			, VD.PaymentMethod AS "PaymentMethod"
+			, NVL(FN_GETACTBASECODENAME('PayMethod', VD.PayMentMethod, #{searchCompanyCode}),'') AS "PaymentMethodName"
+			, VD.VendorStatus AS "VendorStatus"
+			, NVL(FN_GETACTBASECODENAME('vendorStatus', VD.VendorStatus, #{searchCompanyCode}),'') AS "VendorStatusName"
+			, VD.IncomTax AS "IncomTax"
+			, NVL(FN_GETACTBASECODENAME('WHTax', VD.IncomTax, #{searchCompanyCode}),'') AS "IncomTaxName"
+			, VD.LocalTax AS "LocalTax"
+			, NVL(FN_GETACTBASECODENAME('WHTax', VD.LocalTax, #{searchCompanyCode}),'') AS "LocalTaxName"
+			, TO_CHAR(VD.ModifyDate, 'YYYY/MM/DD') AS "ModifyDate"
+			, VD.RegistDate AS "RegistDate"
+			, VD.BUSINESSNUMBER AS "BusinessNumber"
+		FROM act_vendor VD
+		WHERE 1=1
+		]]>
+		
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND VD.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchSector != null and searchSector != ''">
+		 	AND UPPER(VD.Sector) LIKE  UPPER('%' || #{searchSector} || '%')
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VD.BUSINESSNUMBER, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', ''))
+		</if>
+	  	<if test="searchIndustry != null and searchIndustry != ''">
+		 	AND UPPER(VD.Industry) LIKE  UPPER('%' || #{searchIndustry} || '%')
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VD.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%')
+		</if>		
+	</select>
+	
+	
+
+	<delete id="deleteVendorList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteVendorList
+ 			거래처 목록삭제
+ 		*/
+		DELETE FROM act_vendor
+		WHERE 
+			<choose>
+				<when test="vdList != null">
+					<foreach collection="vdList" item="item" index="index" separator="," open="VendorID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose> 
+	</delete>	
+	
+	
+	 <select id="selectVendorDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorDetail
+ 			거래처 상세 조회
+ 		*/
+	<![CDATA[
+		SELECT 		
+			VD.VendorID AS "VendorID"
+			, VD.CompanyCode AS "CompanyCode"
+			, VD.VendorNo AS "VendorNo"
+			, VD.CorporateNo AS "CorporateNo"
+			, VD.VendorName AS "VendorName"
+			, VD.CEOName AS "CEOName"
+			, VD.Industry AS "Industry"
+			, VD.Sector AS "Sector"
+			, VD.Address AS "Address"
+			, VD.PaymentCondition AS "PaymentCondition"
+			, VD.PaymentMethod AS "PaymentMethod"
+			, VD.VendorStatus AS "VendorStatus"
+			, VD.ModifyDate AS "ModifyDate"
+			, VD.RegistDate AS "RegistDate"			
+			, VD.VendorType AS "VendorType"
+			, FN_GETACTBASECODENAME('VendorType', VD.VendorType, #{companyCode}) AS "VendorTypeName"
+			, VD.IncomTax AS "IncomTax"
+			, VD.LocalTax AS "LocalTax"
+			, VD.BUSINESSNUMBER AS "BusinessNumber"
+		FROM act_vendor VD
+		WHERE 1=1
+		]]>
+		
+		 AND VD.VendorID = #{VendorID}
+	</select>
+	
+	 
+	 <select id="checkVendorDuplicate" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.checkVendorDuplicate
+ 			거래처 중복체크
+ 		*/
+		<![CDATA[
+			SELECT 	
+				COUNT(*) CNT
+				, MIN(VendorID) AS "VendorID"
+			FROM act_vendor VD
+			WHERE 1=1
+			AND REPLACE(VD.VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+			AND VD.VendorType = #{VendorType}
+			AND VD.CompanyCode = #{CompanyCode}
+		]]>
+		
+	</select>
+	 
+	<insert id="insertVendor" parameterType="cmap">
+		<![CDATA[
+	 		/*
+	 			baseInfo.insertVendor
+	 			거래처 등록 
+	 		*/
+			INSERT INTO act_vendor
+			(
+				CompanyCode
+				, VendorType
+				, VendorNo
+				, BusinessNumber
+				, CorporateNo
+				, VendorName
+				, CEOName
+				, Industry
+				, Sector
+				, Address
+				, PaymentCondition
+				, PaymentMethod
+				, VendorStatus
+				, IncomTax
+				, LocalTax			
+				, RegisterID
+				, RegistDate
+				, ModifierID
+				, ModifyDate
+				
+			)
+			VALUES
+			(
+				 #{CompanyCode}
+				, #{VendorType}
+				, #{VendorNo}
+				, #{VendorNo}
+				, #{CorporateNo}
+				, #{VendorName}
+				, #{CEOName ,jdbcType=VARCHAR}
+				, #{Industry ,jdbcType=VARCHAR}
+				, #{Sector ,jdbcType=VARCHAR}
+				, #{Address ,jdbcType=VARCHAR}
+				, #{PaymentCondition ,jdbcType=VARCHAR}
+				, #{PaymentMethod ,jdbcType=VARCHAR}
+				, #{VendorStatus}
+				, #{IncomTax ,jdbcType=VARCHAR}
+				, #{LocalTax ,jdbcType=VARCHAR}
+				, #{SessionUser}
+				, SYSDATE
+				, #{SessionUser}
+				, SYSDATE
+			)
+		]]>	
+		<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+		    SELECT act_vendor_VendorID_SEQ.currval  FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<update id="updateVendor" parameterType="cmap">	
+ 		/*
+ 			baseInfo.updateVendor
+ 			거래처 수정
+ 		*/
+		UPDATE act_vendor
+		SET CompanyCode = #{CompanyCode ,jdbcType=VARCHAR}
+			, VendorName = #{VendorName ,jdbcType=VARCHAR}
+			, VendorType = #{VendorType ,jdbcType=VARCHAR}		
+			, CEOName = #{CEOName ,jdbcType=VARCHAR}			
+			, Industry = #{Industry ,jdbcType=VARCHAR}			
+			, Sector = #{Sector ,jdbcType=VARCHAR}			
+			, Address = #{Address ,jdbcType=VARCHAR}			
+			, PaymentCondition = #{PaymentCondition ,jdbcType=VARCHAR}
+			, PaymentMethod = #{PaymentMethod ,jdbcType=VARCHAR}
+			, VendorStatus = #{VendorStatus ,jdbcType=VARCHAR}			
+			, IncomTax = #{IncomTax ,jdbcType=VARCHAR}			
+			, LocalTax = #{LocalTax ,jdbcType=VARCHAR}
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE VendorID = #{VendorID}	
+	</update>
+	
+	<delete id="deleteVendorBank" parameterType="cmap">
+	    /*
+	    	baseInfo.deleteVendorBank
+	    	거래처 은행정보 삭제
+	    */
+	    DELETE FROM act_vendor_bank
+		WHERE 1=2
+		<if test="VendorID != null and VendorID != ''">
+			OR VendorID = #{VendorID}		    
+		</if>
+		<if test="VendorNo != null and VendorNo != ''">
+			OR VendorID IN (SELECT VendorID FROM act_vendor WHERE REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', ''))		    
+		</if>
+	</delete>
+	 	
+	<insert id="insertVendorBank" parameterType="cmap">
+	    /*
+	    	baseInfo.insertVendorBank
+	    	거래처 은행정보 등록
+	    */
+	    INSERT INTO act_vendor_bank
+		(
+			VendorID,
+			BankCode,
+			BankName,
+			BankAccountNo,
+			BankAccountName
+		)
+		VALUES
+		(
+			#{VendorID}
+			, #{BankCode}
+			, #{BankName}
+			, #{BankAccountNo}
+			, #{BankAccountName}
+		)
+	</insert>	
+	 	
+	<select id="selectVendorBank" parameterType="cmap" resultType="cmap">
+	    /*
+	    	baseInfo.selectVendorBank
+	    	거래처 은행정보 조회
+	    */
+	   	SELECT 
+		    VendorID AS "VendorID"
+		    ,LISTAGG(BankCode, ',') within group (order by BANKID) AS "BankCode"
+		    ,LISTAGG(BankName, ',') within group (order by BANKID) AS "BankName"
+		    ,LISTAGG(BankAccountNo, ',') within group (order by BANKID) AS "BankAccountNo"
+		    ,LISTAGG(BankAccountName, ',') within group (order by BANKID) AS "BankAccountName"    
+		FROM act_vendor_bank
+		WHERE VendorID = #{VendorID}
+		GROUP BY VendorID
+	</select>
+	
+	<!-- =============================================거래처요청관리================================= -->
+	<select id="selectVendorRequestList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestList
+ 			거래처 신청 목록 조회
+ 		*/
+		<include refid="oracle.include.pagingHeader" />
+		SELECT VendorApplicationID AS "VendorApplicationID"
+			, VDA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', VDA.CompanyCode, #{companyCode}) AS "CompanyName"
+			, VDA.ApplicationTitle AS "ApplicationTitle"
+			, VDA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('VendorApplicationType', VDA.ApplicationType, #{companyCode}) AS "ApplicationTypeName"
+			, VDA.IsNew AS "IsNew"
+			, FN_GETACTBASECODENAME('IsNewVendor', VDA.IsNew, #{companyCode}) AS "IsNewName"
+			, VDA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName"
+			
+			, CASE WHEN ApplicationType = 'Company'
+				THEN 
+	            SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 1,3) || '-' || SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 4,2) || '-' || SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 6, 5)            
+				ELSE  
+	            CASE WHEN ApplicationType = 'People'
+	                THEN 
+	                SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 1,6) || '-'|| SUBSTR(REPLACE(VDA.VendorNo, '-', ''), 4,7)
+	                ELSE VDA.VendorNo
+	            END
+	        END  AS "VendorNo"			
+			
+			, VDA.VendorNo AS "VendorNoOri"
+			, VDA.CorporateNo AS "CorporateNo"
+			, VDA.VendorName AS "VendorName"
+			, VDA.CEOName AS "CEOName"
+			, VDA.Industry AS "Industry"
+			, VDA.Sector AS "Sector"
+			, VDA.Address AS "Address"
+			, VDA.PaymentCondition AS "PaymentCondition"
+			, VDA.PaymentMethod AS "PaymentMethod"
+			, VDA.VendorStatus AS "VendorStatus"
+			, VDA.IncomTax AS "IncomTax"
+			, VDA.LocalTax AS "LocalTax"
+			, VDA.ModifyDate AS "ModifyDate"
+			, VDA.RegistDate AS "RegistDate"
+		FROM act_vendor_application VDA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%') 
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', '')) 
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER('%' || #{searchApplicationType} || '%') 
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER('%' || #{searchApplicationStatus} || '%')
+		</if>
+	  	<if test="searchIsNew != null and searchIsNew != ''">
+		 	AND VDA.IsNew = #{searchIsNew}
+		</if>
+	  	
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>  
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,VDA.RegistDate DESC 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>"ApplicationTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>"ApplicationStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>"ApplicationTitle"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsNewName")'>"IsNewName"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorNo")'>"VendorNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("VendorName")'>"VendorName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="selectVendorRequestListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorRequestListCnt
+ 			거래처 신청 카운트
+ 		*/
+		SELECT COUNT(*)
+		FROM act_vendor_application VDA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%')
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', ''))
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER('%' || #{searchApplicationType} || '%')
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER('%' || #{searchApplicationStatus} || '%')
+		</if>	
+	  	<if test="searchIsNew != null and searchIsNew != ''">
+		 	AND VDA.IsNew = #{searchIsNew}
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose> 
+	</select>
+	 <select id="selectVendorRequestListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestListExcel
+ 			거래처 신청 목록 조회
+ 		*/
+		SELECT VDA.ApplicationType AS "ApplicationType"
+			, VDA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', VDA.CompanyCode, #{companyCode}) AS "CompanyName"
+			, FN_GETACTBASECODENAME('VendorApplicationType', VDA.ApplicationType, #{companyCode}) AS "ApplicationTypeName"
+			, VDA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName"
+			, VDA.ApplicationTitle AS "ApplicationTitle"
+			, VDA.IsNew AS "IsNew"			
+			, FN_GETACTBASECODENAME('IsNewVendor', VDA.IsNew, #{companyCode}) AS "IsNewName"
+			, VDA.VendorNo AS "VendorNo"
+			, VDA.VendorName AS "VendorName"
+			, VDA.RegistDate AS "RegistDate"
+		FROM act_vendor_application VDA 	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND VDA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchVendorName != null and searchVendorName != ''">
+		 	AND UPPER(VDA.VendorName) LIKE  UPPER('%' || #{searchVendorName} || '%')
+		</if>
+	  	<if test="searchVendorNo != null and searchVendorNo != ''">
+		 	AND UPPER(REPLACE(VDA.VendorNo, '-', '')) LIKE  UPPER(REPLACE('%' || #{searchVendorNo} || '%', '-', ''))
+		</if>
+		
+	  	<if test="searchApplicationType != null and searchApplicationType != ''">
+		 	AND UPPER(VDA.ApplicationType) LIKE  UPPER('%' || #{searchApplicationType} || '%')
+		</if>
+	  	<if test="searchApplicationStatus != null and searchApplicationStatus != ''">
+		 	AND UPPER(VDA.ApplicationStatus) LIKE  UPPER('%' || #{searchApplicationStatus} || '%') 
+		</if>
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND VDA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND VDA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>  
+		
+		
+	</select>
+	
+	<select id="selectVendorRequestDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorRequestDetail
+ 			거래처 신청 상세 조회
+ 		*/
+		SELECT VDA.VendorApplicationID AS "VendorApplicationID"
+			, VDA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', VDA.CompanyCode, #{companyCode}) AS "CompanyName"
+			, VDA.ApplicationTitle AS "ApplicationTitle"
+			, VDA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('VendorApplicationType', VDA.ApplicationType, #{companyCode}) AS "ApplicationTypeName"
+			, VDA.IsNew AS "IsNew"
+			, FN_GETACTBASECODENAME('IsNewVendor', VDA.IsNew, #{companyCode}) AS "IsNewName"
+			, VDA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', VDA.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName"
+			, VDA.VendorNo AS "VendorNo"
+			, VDA.CorporateNo AS "CorporateNo"
+			, VDA.VendorName AS "VendorName"
+			, VDA.CEOName AS "CEOName"
+			, VDA.Industry AS "Industry"
+			, VDA.Sector AS "Sector"
+			, VDA.Address AS "Address"
+			, VDA.PaymentCondition AS "PaymentCondition"
+			, VDA.PaymentMethod AS "PaymentMethod"
+			, FN_GETACTBASECODENAME('PayType', VDA.PaymentCondition, #{companyCode}) AS "PaymentConditionName"
+			, FN_GETACTBASECODENAME('PayMethod', VDA.PaymentMethod, #{companyCode}) AS "PaymentMethodName"
+			, VDA.VendorStatus AS "VendorStatus"
+			, VDA.IncomTax AS "IncomTax"
+			, VDA.LocalTax AS "LocalTax"			
+			, FN_GETACTBASECODENAME('WHTax', VDA.IncomTax, #{companyCode}) AS "IncomTaxName"
+			, FN_GETACTBASECODENAME('WHTax', VDA.LocalTax, #{companyCode}) AS "LocalTaxName"			
+			, VDA.ModifyDate AS "ModifyDate"
+			, VDA.RegistDate AS "RegistDate"
+			, SOU.DisplayName AS "RegisterName"
+		FROM act_vendor_application VDA 
+		LEFT OUTER JOIN sys_object_user SOU
+			ON VDA.RegisterID = SOU.UserCode
+	
+		WHERE 1=1
+		AND VDA.VendorApplicationID = #{VendorApplicationID}		
+	</select>
+	
+	
+	<insert id="insertVendorApplication" parameterType="cmap">
+	<![CDATA[
+ 		/*
+ 			baseInfo.insertVendorApplication
+ 			거래처 신청 등록 
+ 		*/
+		INSERT INTO act_vendor_application
+		(
+			CompanyCode
+			, ApplicationTitle
+			, ApplicationType
+			, IsNew
+			, ApplicationStatus
+			, VendorNo
+			, BusinessNumber
+			, CorporateNo
+			, VendorName
+			, CEOName
+			, Industry
+			, Sector
+			, Address
+			, PaymentCondition
+			, PaymentMethod
+			, VendorStatus
+			, IncomTax
+			, LocalTax			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			 #{CompanyCode}
+			, #{ApplicationTitle}
+			, #{ApplicationType}
+			, #{IsNew}
+			, #{ApplicationStatus}
+			, #{VendorNo}
+			, #{VendorNo}			
+			, #{CorporateNo ,jdbcType=VARCHAR}
+			, #{VendorName}			
+			, #{CEOName ,jdbcType=VARCHAR}
+			, #{Industry ,jdbcType=VARCHAR}
+			, #{Sector ,jdbcType=VARCHAR}
+			, #{Address ,jdbcType=VARCHAR}
+			, #{PaymentCondition ,jdbcType=VARCHAR}
+			, #{PaymentMethod ,jdbcType=VARCHAR}
+			, #{VendorStatus ,jdbcType=VARCHAR}
+			, #{IncomTax ,jdbcType=VARCHAR}
+			, #{LocalTax ,jdbcType=VARCHAR}
+			, #{SessionUser}
+			, SYSDATE
+			, #{SessionUser}
+			, SYSDATE
+		)
+	]]>
+	
+	<selectKey keyProperty="VendorApplicationID" resultType="Integer" order="AFTER">	    
+	    SELECT act_vendor_application_VendorA.currval  FROM DUAL
+	</selectKey>
+	</insert>
+	
+	<update id="updateVendorApplication" parameterType="cmap">	
+ 		/*
+ 			baseInfo.updateVendorApplication
+ 			거래처신처 수정
+ 		*/
+		UPDATE act_vendor_application
+		SET CompanyCode = #{CompanyCode}
+			, ApplicationTitle = #{ApplicationTitle}
+			, IsNew = #{IsNew}
+			<if test="ApplicationType != null and ApplicationType != ''">
+				, ApplicationType = #{ApplicationType}
+			</if>
+			, ApplicationStatus = #{ApplicationStatus}			
+			, VendorNo = #{VendorNo}		
+			, BusinessNumber = #{VendorNo}			
+			, CorporateNo = #{CorporateNo ,jdbcType=VARCHAR}			
+			, VendorName = #{VendorName}			
+			, CEOName = #{CEOName ,jdbcType=VARCHAR}		
+			, Industry = #{Industry ,jdbcType=VARCHAR}		
+			, Sector = #{Sector ,jdbcType=VARCHAR}		
+			, Address = #{Address ,jdbcType=VARCHAR}		
+			, PaymentCondition = #{PaymentCondition ,jdbcType=VARCHAR}			
+			, PaymentMethod = #{PaymentMethod ,jdbcType=VARCHAR}					
+			, VendorStatus = #{VendorStatus ,jdbcType=VARCHAR}		
+			, IncomTax = #{IncomTax ,jdbcType=VARCHAR}		
+			, LocalTax = #{LocalTax ,jdbcType=VARCHAR}
+						
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE VendorApplicationID = #{VendorApplicationID}
+		
+	</update>
+	
+	<delete id="deleteVendorRequestBank" parameterType="cmap">
+	    /*
+	    	baseInfo.deleteVendorBank
+	    	거래처 은행정보 삭제
+	    */
+	    DELETE FROM act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+	</delete>
+	 	
+	<insert id="insertVendorRequestBank" parameterType="cmap">
+	    /*
+	    	baseInfo.insertVendorBank
+	    	거래처 은행정보 등록
+	    */
+	    INSERT INTO act_vendor_application_bank
+		(
+			VendorApplicationID,		
+			BankName,
+			BankCode,
+			BankAccountNo,
+			BankAccountName
+		)
+		VALUES
+		(
+			#{VendorApplicationID}
+			, #{BankName}
+			, #{BankCode}
+			, #{BankAccountNo}
+			, #{BankAccountName}
+		)
+	</insert> 
+	 	
+	<select id="selectVendorRequestBank" parameterType="cmap" resultType="cmap">
+	    /*
+	    	baseInfo.selectVendorRequestBank
+	    	거래처 신청 은행정보 조회
+	    */
+		 SELECT 
+		    VendorApplicationID AS "VendorApplicationID"
+		    ,LISTAGG(BankCode, ',') within group (order by BankAccountNo) AS "BankCode"
+		    ,LISTAGG(BankName, ',') within group (order by BankAccountNo) AS "BankName"
+		    ,LISTAGG(BankAccountNo, ',') within group (order by BankAccountNo) AS "BankAccountNo"
+		    ,LISTAGG(BankAccountName, ',') within group (order by BankAccountNo) AS "BankAccountName"    
+		FROM act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+		GROUP BY VendorApplicationID
+	</select>
+	
+	<select id="selectVendorRequestDeleteCk" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorRequestDeleteCk
+ 			거래처 목록 조회
+ 		*/
+		SELECT 		
+			COUNT(*)
+		FROM act_vendor_application
+		WHERE 1=1
+		AND 
+			<choose>
+				<when test="vdAppList != null">
+					<foreach collection="vdAppList" item="item" index="index" separator="," open="VendorApplicationID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+		AND ApplicationStatus NOT IN ('T', 'R')
+	</select>
+	
+	
+
+	<delete id="deleteVendorRequestList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteVendorRequestList
+ 			거래처 목록삭제
+ 		*/
+		DELETE FROM act_vendor_application
+		WHERE 
+		<choose>
+			<when test="vdAppList != null">
+				<foreach collection="vdAppList" item="item" index="index" separator="," open="VendorApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+		AND ApplicationStatus IN ('T', 'R')
+	</delete>	
+	
+	
+	<update id="vendAprvStatChange" parameterType="cmap">
+ 		/*
+ 			baseInfo.vendAprvStatChange
+ 			업체신청 승인반려
+ 		*/
+		UPDATE act_vendor_application
+		SET 
+			ApplicationStatus = #{ApplicationStatus}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE VendorApplicationID = #{VendorApplicationID}
+	</update>
+	
+	
+	 <select id="selectVendorReqAprvStatck" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorReqAprvStatck
+			거래처 신청 결재 처리전 상태체크
+ 		*/
+ 			SELECT	COUNT(*)
+			FROM act_vendor_application VDA
+			WHERE 1=1
+			 	AND 
+			 	<choose>
+					<when test="VendorApplicationIDList != null">
+						<foreach collection="VendorApplicationIDList" item="item" index="index" separator="," open="VDA.VendorApplicationID IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+					<otherwise>
+						1=2
+					</otherwise>
+				</choose>
+			 	<choose>
+					<when test="ckStatList != null">
+						AND 
+						<foreach collection="ckStatList" item="item" index="index" separator="," open="VDA.ApplicationStatus NOT IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+				</choose>
+	</select>	
+	
+	
+	 <select id="selectVendorReqInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorReqInfoAfterAprv
+			거래처 신청 승인 후 후처리용 조회
+ 		*/
+ 			SELECT	VDA.VendorApplicationID	 AS "VendorApplicationID"
+				, VDA.ApplicationTitle AS "ApplicationTitle"
+				, VDA.ApplicationType AS "ApplicationType"
+				, VDA.CompanyCode AS "CompanyCode"
+				, VDA.VendorNo AS "VendorNo"
+				, VDA.CorporateNo AS "CorporateNo"
+				, VDA.VendorName AS "VendorName"
+				, VDA.CEOName AS "CEOName"
+				, VDA.Industry AS "Industry"
+				, VDA.Sector AS "Sector"
+				, VDA.Address AS "Address"
+				, VDA.PaymentCondition AS "PaymentCondition"
+				, VDA.PaymentMethod AS "PaymentMethod"
+				, VDA.VendorStatus AS "VendorStatus"
+				, VDA.IncomTax AS "IncomTax"
+				, VDA.LocalTax AS "LocalTax"
+				, VDA.IsNew AS "IsNew"
+				, VDA.Comment_ AS "Comment"
+		FROM act_vendor_application VDA
+		WHERE 1=1
+		 	AND VDA.VendorApplicationID = #{VendorApplicationID}
+	</select>	
+	 
+	
+	 <select id="selectVendorReqBankInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectVendorReqBankInfoAfterAprv
+			거래처 신청 승인 후 후처리용 은행정보 조회
+ 		*/
+		SELECT
+		    LISTAGG(BankCode, ',') within group (order by BankAccountNo) AS "BankCode"
+		    ,LISTAGG(BankName, ',') within group (order by BankAccountNo) AS "BankName"
+		    ,LISTAGG(BankAccountNo, ',') within group (order by BankAccountNo) AS "BankAccountNo"
+		    ,LISTAGG(BankAccountName, ',') within group (order by BankAccountNo) AS "BankAccountName" 
+		    ,(SELECT VendorID FROM act_vendor A INNER JOIN act_vendor_application B ON A.VendorNo = B.VendorNo WHERE VendorApplicationID = #{VendorApplicationID}) AS "VendorID"   
+		FROM act_vendor_application_bank
+		WHERE VendorApplicationID = #{VendorApplicationID}
+		GROUP BY VendorApplicationID
+ 	</select>	
+	
+	<insert id="insertVendorReqInfoAfterAprv" parameterType="cmap">
+ 		/*
+ 			baseInfo.insertVendorReqInfoAfterAprv
+			거래처 신청 승인 후 후처리
+ 		*/
+		INSERT INTO act_vendor(
+			CompanyCode
+			, VendorType
+			, VendorNo
+			, BusinessNumber
+			, CorporateNo
+			, VendorName
+			
+			, CEOName
+			, Industry
+			, Sector
+			, Address
+			
+			, PaymentCondition
+			, PaymentMethod
+			, VendorStatus
+			
+			, IncomTax
+			, LocalTax
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES (
+		
+			#{CompanyCode}
+			, #{VendorType}
+			, #{VendorNo}			
+			, #{VendorNo}
+			, #{CorporateNo ,jdbcType=VARCHAR}
+			, #{VendorName}
+						
+			, #{CEOName ,jdbcType=VARCHAR}
+			, #{Industry ,jdbcType=VARCHAR}
+			, #{Sector ,jdbcType=VARCHAR}
+			, #{Address ,jdbcType=VARCHAR}
+			
+			, #{PaymentCondition,jdbcType=VARCHAR}
+			, #{PaymentMethod,jdbcType=VARCHAR}			
+			, #{VendorStatus ,jdbcType=VARCHAR}
+			
+			, #{IncomTax ,jdbcType=VARCHAR}
+			, #{LocalTax ,jdbcType=VARCHAR}
+			
+			, #{SessionUser}
+			, SYSDATE
+			, #{SessionUser}
+			, SYSDATE
+		)
+	<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+	    SELECT act_vendor_VendorID_SEQ.currval  FROM DUAL
+	</selectKey>
+	</insert>
+	
+	
+	<update id="updateVendorReqInfoAfterAprv" parameterType="cmap">
+ 		/*
+ 			baseInfo.updateVendorReqInfoAfterAprv
+ 			거래처 수정
+ 		*/
+		UPDATE act_vendor
+		SET 
+			ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+			, VendorName = #{VendorName}			
+			, CEOName = #{CEOName ,jdbcType=VARCHAR}		
+			, Industry = #{Industry ,jdbcType=VARCHAR}		
+			, Sector = #{Sector ,jdbcType=VARCHAR}		
+			, Address = #{Address ,jdbcType=VARCHAR}			
+			, PaymentCondition = #{PaymentCondition}
+			, PaymentMethod = #{PaymentMethod}					
+			, VendorStatus = #{VendorStatus ,jdbcType=VARCHAR}			
+			, IncomTax = #{IncomTax}
+			, LocalTax = #{LocalTax}
+	
+		WHERE 1=1
+			AND REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+			<choose>
+				<when test="ApplicationType == 'People'">
+				    AND VendorType = 'PE'
+				</when>
+				<when test="ApplicationType == 'Company'">
+				    AND VendorType = 'CO'
+				</when>
+				<when test="ApplicationType == 'Organization'">
+				    AND VendorType = 'OR'
+				</when>
+			</choose>
+	</update>
+	 
+	
+	<!-- =============================================카드신청================================= -->
+	<select id="selectCardApplicationList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationList
+ 			카드 신청 목록 조회
+ 		*/
+	<include refid="oracle.include.pagingHeader" />
+	<![CDATA[		
+		SELECT 
+			CA.CardApplicationID AS "CardApplicationID"
+			, CA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', CA.CompanyCode, #{companyCode}) AS "CompanyName"
+			, CA.ApplicationTitle AS "ApplicationTitle"
+			, CA.ApplicationClass AS "ApplicationClass"
+			, CA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('CardApplicationType', CA.ApplicationType, #{companyCode}) AS "ApplicationTypeName"
+			, CA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', CA.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName"
+			
+			, ('**********' || SUBSTR(CA.CardNo,11)) AS "CardNo"
+			/*
+			
+			, ('****-****-**'|| SUBSTR(CA.CardNo,11,2)|| '-'|| SUBSTR(CA.CardNo,14,4)) CardNo
+			*/
+			
+			, CA.CardCompany AS "CardCompany"
+			, FN_GETACTBASECODENAME('CardCompany', CA.CardCompany, #{companyCode}) AS "CardCompanyName"
+			, CA.LimitType AS "LimitType"
+			, CA.LimitAmountType AS "LimitAmountType"
+			, CA.LimitAmount AS "LimitAmount"
+			, CA.ChangeExpirationDate AS "ChangeExpirationDate"
+			, CA.ApplicationStartDate AS "ApplicationStartDate"
+			, CA.ApplicationFinishDate AS "ApplicationFinishDate"
+			, CA.ApplicationAmount AS "ApplicationAmount"			
+			, TO_CHAR(CA.ApplicationReason) AS "ApplicationReason"
+			, CA.IsUse AS "IsUse"
+			, CA.RegisterID AS "RegisterID"
+			, CA.ModifierID AS "ModifierID"
+			, CA.ModifyDate AS "ModifyDate"
+			, CA.RegistDate AS "RegistDate"
+		FROM act_card_application CA 
+	
+		WHERE 1=1
+		]]>
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER('%' || #{searchApplicationTitle} || '%') 
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%')
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,CA.RegistDate DESC 
+			</if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTypeName")'>"ApplicationTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationStatusName")'>"ApplicationStatusName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>"ApplicationTitle"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>"CardCompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="selectCardApplicationListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationListExcel
+ 			카드 신청 목록 조회
+ 		*/
+	
+		SELECT 
+			CA.CardApplicationID AS "CardApplicationID"
+			, CA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', CA.CompanyCode, #{companyCode}) AS "CompanyName"
+			, CA.ApplicationTitle AS "ApplicationTitle"
+			, CA.ApplicationClass AS "ApplicationClass"
+			, CA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('CardApplicationType', CA.ApplicationType, #{companyCode}) AS "ApplicationTypeName"
+			, CA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', CA.ApplicationStatus, #{companyCode}) AS "ApplicationStatusName"
+			
+			, ('**********'|| SUBSTR(CA.CardNo,11)) AS "CardNo"
+			
+			, CA.CardCompany AS "CardCompany"
+			, FN_GETACTBASECODENAME('CardCompany', CA.CardCompany, #{companyCode}) AS "CardCompanyName"
+			, CA.LimitType AS "LimitType"
+			, CA.LimitAmountType AS "LimitAmountType"
+			, CA.LimitAmount AS "LimitAmount"
+			, CA.ChangeExpirationDate AS "ChangeExpirationDate"
+			, CA.ApplicationStartDate AS "ApplicationStartDate"
+			, CA.ApplicationFinishDate AS "ApplicationFinishDate"
+			, CA.ApplicationAmount AS "ApplicationAmount"			
+			, TO_CHAR(CA.ApplicationReason) AS "ApplicationReason"
+			, CA.IsUse AS "IsUse"
+			, CA.RegisterID AS "RegisterID"
+			, CA.ModifierID AS "ModifierID"
+			, CA.ModifyDate AS "ModifyDate"
+			, CA.RegistDate AS "RegistDate"
+		FROM act_card_application CA 
+	
+		WHERE 1=1
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER('%' || #{searchApplicationTitle} || '%')
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%')
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+	</select>
+	<select id="selectCardApplicationListCnt" resultType="java.lang.Long">
+ 		/* 
+ 			baseInfo.selectCardApplicationListCnt
+ 			카드 신청 카운트
+ 		*/
+		SELECT COUNT(*)
+		FROM act_card_application CA 
+	
+		WHERE 1=1
+		
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CA.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchApplicationTitle != null and searchApplicationTitle != ''">
+		 	AND UPPER(CA.ApplicationTitle) LIKE  UPPER('%' || #{searchApplicationTitle} || '%')
+		</if>
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%') 
+		</if>
+		
+		<choose>
+			<when test="SessionUser != null and SessionUser != ''">
+		 		AND CA.RegisterID = #{SessionUser}
+			</when>
+			<otherwise>
+				AND CA.ApplicationStatus IN ('S', 'E', 'R')
+			</otherwise>
+		</choose>
+	</select>
+	<select id="selectCompanyCardComboList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCompanyCardComboList
+ 			법인카드 목록
+ 		*/
+		SELECT CoCa.CorpCardID AS "CorpCardID"
+			, CoCa.CompanyCode AS "CompanyCode"
+			, CoCa.CardNo AS "CardNo"
+			, ('**********'|| SUBSTR(CoCa.CardNo,11))  AS "CardNoView"
+			, CoCa.CardCompany AS "CardCompany"
+			, CoCa.CardClass AS "CardClass"
+			, CoCa.CardStatus AS "CardStatus"
+			, CoCa.OwnerUserCode AS "OwnerUserCode"
+			, CoCa.VendorNo AS "VendorNo"
+			, CoCa.IssueDate AS "IssueDate"
+			, (SUBSTR(CoCa.ExpirationDate,1,4)|| '/'|| SUBSTR(CoCa.ExpirationDate,5,6)) AS "ExpirationDate"
+			, CoCa.LimitAmountType AS "LimitAmountType"
+			, CoCa.LimitAmount AS "LimitAmount"
+			, CoCa.Note AS "Note"
+			, CoCa.CorpCardID AS "data"
+			, CoCa.CardNo AS "label"
+		FROM act_corp_card CoCa
+		WHERE 1=1
+		AND CoCa.CompanyCode = #{companyCode}
+		AND (
+			(CoCa.OwnerUserCode	= #{SessionUser})
+			OR (CoCa.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{SessionUser})
+			)
+		)
+	</select>
+	<select id="selectCardApplicationDetail" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectCardApplicationDetail
+ 			카드신청 상세
+ 		*/
+		
+		SELECT 
+			CA.CardApplicationID AS "CardApplicationID"
+			, CA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', CA.CompanyCode, CA.CompanyCode) AS "CompanyName"
+			, CA.ApplicationTitle AS "ApplicationTitle"
+			, CA.ApplicationClass AS "ApplicationClass"
+			, CA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('CardApplicationType', CA.ApplicationType, CA.CompanyCode) AS "ApplicationTypeName"
+			, CA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', CA.ApplicationStatus, CA.CompanyCode) AS "ApplicationStatusName"
+			, CA.CardNo AS "CardNo"
+			, ('**********'|| SUBSTR(CA.CardNo,11)) AS "CardNoEncrypt"
+			
+			, (SUBSTR(CC.ExpirationDate,1,4)|| '/'|| SUBSTR(CC.ExpirationDate,5,6)) AS "ExpirationDate"
+			, CC.LimitAmount AS "CurrentAmount"
+			
+			, CA.CardCompany AS "CardCompany"
+			, FN_GETACTBASECODENAME('CardCompany', CA.CardCompany, CA.CompanyCode) AS "CardCompanyName"
+			, CA.ReissuanceType AS "ReissuanceType"
+			, FN_GETACTBASECODENAME('CardReissueType', CA.ReissuanceType, CA.CompanyCode) AS "ReissuanceTypeName"
+			, CA.LimitType AS "LimitType"
+			, CA.LimitAmountType AS "LimitAmountType"
+			, CA.LimitAmount AS "LimitAmount"
+			, FN_GETACTBASECODENAME('CardLimitType', CA.LimitType, CA.CompanyCode) AS "LimitTypeName"
+			, FN_GETACTBASECODENAME('CardLimitAmount', CA.LimitAmountType, CA.CompanyCode) AS "LimitAmountTypeName"
+			, TO_CHAR(TO_DATE(CA.ChangeExpirationDate), 'YYYY.MM.DD') AS "ChangeExpirationDate"
+			, TO_CHAR(TO_DATE(CA.ApplicationStartDate), 'YYYY.MM.DD') AS "ApplicationStartDate"
+			, TO_CHAR(TO_DATE(CA.ApplicationFinishDate), 'YYYY.MM.DD') AS "ApplicationFinishDate"
+			, CA.ApplicationAmount AS "ApplicationAmount"			
+			, TO_CHAR(CA.ApplicationReason) AS "ApplicationReason"
+			, CA.IsUse AS "IsUse"
+			, CA.RegisterID AS "RegisterID"
+			, SOU.DisplayName AS "RegisterName"
+			, CA.ModifierID AS "ModifierID"
+			, CA.ModifyDate AS "ModifyDate"
+			, CA.RegistDate AS "RegistDate"
+		FROM act_card_application CA 
+		LEFT OUTER JOIN sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		LEFT OUTER JOIN act_corp_card CC
+			ON CA.CardNo = CC.CardNo
+		WHERE 1=1
+		AND CA.CardApplicationID = #{CardApplicationID}
+	</select>
+	
+	<select id="selectPrivateCardDuplCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectPrivateCardDuplCnt
+ 			개인카드 신청시 중복체크
+ 		*/
+			SELECT (A.CCCNT + B.CACNT) AS "DUPLCNT"
+			FROM
+			(
+				SELECT COUNT(*) CCCNT
+				FROM act_corp_card CC
+				WHERE CC.CardNo = #{CardNo}
+				AND CC.CardClass = 'CCL01'
+			) A
+			JOIN
+			(
+				SELECT COUNT(*) AS "CACNT"
+				FROM act_card_application CA
+				WHERE CA.CardNo = #{CardNo}
+				AND CA.ApplicationClass = 'PE'
+				AND ApplicationStatus NOT IN ('E', 'R')
+				AND CA.CardApplicationID NOT IN (#{CardApplicationID})
+			) B
+			ON 1=1
+	</select>
+	
+	<insert id="insertCardApplication" parameterType="cmap">
+		<![CDATA[
+ 		/*
+ 			baseInfo.insertCardApplication
+ 			카드신청 등록 
+ 		*/
+		INSERT INTO act_card_application
+		(
+			CompanyCode
+			, ApplicationTitle
+			, ApplicationClass
+			, ApplicationType
+			, ApplicationStatus
+			, CardNo
+			, CardCompany
+			, ReissuanceType
+			, LimitType
+			, LimitAmountType
+			, LimitAmount
+			, ChangeExpirationDate
+			, ApplicationStartDate
+			, ApplicationFinishDate
+			, ApplicationAmount
+			, ApplicationReason
+			, IsUse
+			
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			#{CompanyCode}
+			, #{ApplicationTitle}
+			, #{ApplicationClass}
+			, #{ApplicationType}
+			, #{ApplicationStatus}
+			, #{CardNo,jdbcType=VARCHAR}
+			, #{CardCompany,jdbcType=VARCHAR}
+			, #{ReissuanceType ,jdbcType=VARCHAR}
+			, #{LimitType ,jdbcType=VARCHAR}
+			, #{LimitAmountType ,jdbcType=VARCHAR}
+			, #{LimitAmount ,jdbcType=NUMERIC}
+			, TO_CHAR(TO_DATE(#{ChangeExpirationDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')			
+			, TO_CHAR(TO_DATE(#{ApplicationStartDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')
+			, TO_CHAR(TO_DATE(#{ApplicationFinishDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')
+			, #{ApplicationAmount ,jdbcType=VARCHAR}
+			, #{ApplicationReason}
+			, 'Y'
+
+			, #{SessionUser}
+			, SYSDATE
+			, #{SessionUser}
+			, SYSDATE
+		)
+		]]>
+		<selectKey keyProperty="CardApplicationID" resultType="Integer" order="AFTER">
+		    SELECT ACT_CARD_APPLICATION_CARDAPPLI.currval FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<update id="updateCardApplication" parameterType="cmap">
+ 		/*
+ 			baseInfo.updateCardApplication
+ 			카드신청 수정
+ 		*/
+		UPDATE act_card_application
+		SET 
+			CompanyCode = #{CompanyCode}
+			, ApplicationTitle = #{ApplicationTitle}
+			, ApplicationClass = #{ApplicationClass}
+			, ApplicationType = #{ApplicationType}
+			, ApplicationStatus = #{ApplicationStatus}			
+			, CardNo = #{CardNo ,jdbcType=VARCHAR}		
+			, CardCompany = #{CardCompany ,jdbcType=VARCHAR}		
+			, ReissuanceType = #{ReissuanceType ,jdbcType=VARCHAR}		
+			, LimitType = #{LimitType ,jdbcType=VARCHAR}		
+			, LimitAmountType = #{LimitAmountType ,jdbcType=VARCHAR}		
+			, LimitAmount = #{LimitAmount ,jdbcType=VARCHAR}		
+			, ChangeExpirationDate = TO_CHAR(TO_DATE(#{ChangeExpirationDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')						
+			, ApplicationStartDate = TO_CHAR(TO_DATE(#{ApplicationStartDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')			
+			, ApplicationFinishDate = TO_CHAR(TO_DATE(#{ApplicationFinishDate ,jdbcType=VARCHAR},'YYYY/MM/DD'),'YYYYMMDD')			
+			, ApplicationAmount = #{ApplicationAmount ,jdbcType=VARCHAR}			
+			, ApplicationReason = #{ApplicationReason ,jdbcType=VARCHAR}			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+
+	<delete id="deleteCardApplicationList" parameterType="cmap">
+ 		/*
+ 			baseInfo.deleteCardApplicationList
+ 			카드신청 목록삭제
+ 		*/
+		DELETE FROM act_card_application
+		WHERE 
+		<choose>
+			<when test="cardAppList != null">
+				<foreach collection="cardAppList" item="item" index="index" separator="," open="CardApplicationID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+	</delete>  
+	
+	<select id="selectPrivateCardInfoAfterAprv" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardInfoAfterAprv
+			개인카드 신청 승인후 카드정보 삽입 정보조회
+ 		*/
+ 		
+ 		
+		SELECT CardApplicationID AS "CardApplicationID"
+			, ApplicationTitle AS "ApplicationTitle"
+			, CompanyCode AS "CompanyCode"
+			, CardNo AS "CardNo"
+			, CardCompany AS "CardCompany"
+			, ApplicationType AS "ApplicationType"
+			, 'CCL01'
+			, 'CSTS01'
+			, RegisterID AS "RegisterID"
+		FROM
+		act_card_application ACA
+		WHERE 
+			ACA.CardApplicationID = #{CardApplicationID}
+	</select>	
+	
+	<insert id="insertPrivateCardInfoAfterAprv" parameterType="cmap">
+		/*
+		baseInfo.insertPrivateCardInfoAfterAprv
+		개인카드 신청 승인후 카드정보 삽입
+		*/
+		INSERT INTO act_corp_card(
+				 CompanyCode
+				, CardNo
+				, CardCompany
+				, CardClass
+				, CardStatus
+				, OwnerUserCode
+				, IssueDate
+				, RegisterID
+				, RegistDate
+				, ModifierID
+				, ModifyDate
+			)
+			SELECT 
+			CompanyCode
+				, CardNo
+				, CardCompany
+				, 'CCL01'
+				, 'CSTS01'
+				, RegisterID
+				, TO_CHAR(SYSTIMESTAMP, 'YYYYMMDD')
+				, RegisterID
+				, SYSDATE
+				, RegisterID
+				, SYSDATE
+			FROM act_card_application ACA
+			WHERE ACA.CardApplicationID = #{CardApplicationID}
+	</insert>
+	
+	<!-- =============================================카드신청================================= -->
+	<select id="selectPrivateCardViewList" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardViewList
+ 			개인카드 목록
+ 		*/
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 
+			CA.CardApplicationID AS "CardApplicationID"
+			, CA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', CA.CompanyCode, #{searchCompanyCode}) AS "CompanyName"
+			, CA.ApplicationTitle AS "ApplicationTitle"
+			, CA.ApplicationClass AS "ApplicationClass"
+			, CA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('CardApplicationType', CA.ApplicationType, #{searchCompanyCode}) AS "ApplicationTypeName"
+			, CA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', CA.ApplicationStatus, #{searchCompanyCode}) AS "ApplicationStatusName"
+			, CA.CardNo AS "CardNo"
+			, CA.CardCompany AS "CardCompany"
+			, FN_GETACTBASECODENAME('CardCompany', CA.CardCompany, #{searchCompanyCode}) AS "CardCompanyName"
+			, CA.LimitType AS "LimitType"
+			, CA.LimitAmountType AS "LimitAmountType"
+			, CA.LimitAmount AS "LimitAmount"
+			, CA.ChangeExpirationDate AS "ChangeExpirationDate"
+			, CA.ApplicationStartDate AS "ApplicationStartDate"
+			, CA.ApplicationFinishDate AS "ApplicationFinishDate"
+			, CA.ApplicationAmount AS "ApplicationAmount"			
+			, TO_CHAR(CA.ApplicationReason) AS "ApplicationReason"
+			, CA.IsUse AS "IsUse"
+			, FN_GETACTBASECODENAME('UseYN', CA.IsUse, #{searchCompanyCode}) AS "IsUseView"
+			, CA.RegisterID AS "RegisterID"
+			, SOU.DisplayName AS "RegisterName"
+			, CA.ModifierID AS "ModifierID"
+			, CA.ModifyDate AS "ModifyDate"
+			, CA.RegistDate AS "RegistDate"
+		FROM act_card_application CA 
+		LEFT OUTER JOIN sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		WHERE 1=1
+			AND CA.ApplicationClass = 'PE'
+			
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%') 
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER('%' || #{searchIsUse} || '%')
+		</if>
+		<include refid="oracle.include.pagingFooter" />
+	</select> 
+	 
+	<select id="selectPrivateCardViewListExcel" parameterType="cmap" resultType="cmap">
+ 		/*
+ 			baseInfo.selectPrivateCardViewListExcel
+ 			개인카드 목록 엑셀용
+ 		*/
+	
+		SELECT 
+			CA.CardApplicationID AS "CardApplicationID"
+			, CA.CompanyCode AS "CompanyCode"
+			, FN_GETACTBASECODENAME('CompanyCode', CA.CompanyCode, #{searchCompanyCode}) AS "CompanyName"
+			, CA.ApplicationTitle AS "ApplicationTitle"
+			, CA.ApplicationClass AS "ApplicationClass"
+			, CA.ApplicationType AS "ApplicationType"
+			, FN_GETACTBASECODENAME('CardApplicationType', CA.ApplicationType, #{searchCompanyCode}) AS "ApplicationTypeName"
+			, CA.ApplicationStatus AS "ApplicationStatus"
+			, FN_GETACTBASECODENAME('ApplicationStatus', CA.ApplicationStatus, #{searchCompanyCode}) AS "ApplicationStatusName"
+			, CA.CardNo AS "CardNo"
+			, CA.CardCompany AS "CardCompany"
+			, FN_GETACTBASECODENAME('CardCompany', CA.CardCompany, #{searchCompanyCode}) AS "CardCompanyName"
+			, CA.LimitType AS "LimitType"
+			, CA.LimitAmountType AS "LimitAmountType"
+			, CA.LimitAmount AS "LimitAmount"
+			, CA.ChangeExpirationDate AS "ChangeExpirationDate"
+			, CA.ApplicationStartDate AS "ApplicationStartDate"
+			, CA.ApplicationFinishDate AS "ApplicationFinishDate"
+			, CA.ApplicationAmount AS "ApplicationAmount"
+			, TO_CHAR(CA.ApplicationReason) AS "ApplicationReason"
+			, CA.IsUse AS "IsUse"
+			, FN_GETACTBASECODENAME('UseYN', CA.IsUse, #{searchCompanyCode}) AS "IsUseView"
+			, CA.RegisterID AS "RegisterID"
+			, SOU.DisplayName AS "RegisterName"
+			, CA.ModifierID AS "ModifierID"
+			, CA.ModifyDate AS "ModifyDate"
+			, CA.RegistDate AS "RegistDate"
+		FROM act_card_application CA 
+		LEFT OUTER JOIN sys_object_user SOU
+			ON CA.RegisterID = SOU.UserCode
+		WHERE 1=1
+			AND CA.ApplicationClass = 'PE'
+			
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%')
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER('%' || #{searchIsUse} || '%')
+		</if>
+		
+	</select>
+	
+	<select id="selectPrivateCardViewListCnt" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectPrivateCardViewListCnt
+ 			개인카드 목록
+ 		*/
+		
+		SELECT COUNT(*)
+		FROM act_card_application CA
+		WHERE 1=1
+			AND CA.ApplicationClass = 'PE'
+	  
+	  	<if test="searchCompanyCode != null and searchCompanyCode != ''">
+		 	AND CA.CompanyCode = #{searchCompanyCode}
+		</if>
+	  	<if test="searchCardOwner != null and searchCardOwner != ''">
+		 	AND CA.RegisterID = #{searchCardOwner}
+		</if>
+		
+	  	<if test="searchCardNo != null and searchCardNo != ''">
+		 	AND UPPER(CA.CardNo) LIKE  UPPER('%' || #{searchCardNo} || '%')
+		</if>
+	  	<if test="searchIsUse != null and searchIsUse != ''">
+		 	AND UPPER(CA.IsUse) LIKE  UPPER('%' || #{searchIsUse} || '%') 
+		</if>
+	</select>
+	 
+	<update id="updatePrivateCardUseYN" parameterType="cmap">
+ 		/*
+ 			baseInfo.updatePrivateCardUseYN
+ 			개인카드 사용여부 수정
+ 		*/
+		UPDATE act_card_application
+		SET 
+			IsUse = #{IsUse}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+	<select id="selectCardReqAprvStatck" resultType="java.lang.Long">
+ 		/*
+ 			baseInfo.selectVendorReqAprvStatck
+			카드 신청 결재 처리전 상태체크
+ 		*/
+ 			SELECT	COUNT(*)
+			FROM act_card_application VDA
+			WHERE 1=1
+		 	AND 
+		 	<choose>
+				<when test="CardApplicationIDList != null">
+					<foreach collection="CardApplicationIDList" item="item" index="index" separator="," open="VDA.CardApplicationID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+			<choose>
+			<when test="ckStatList != null">
+					AND 
+					<foreach collection="ckStatList" item="item" index="index" separator="," open="VDA.ApplicationStatus NOT IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+			</choose>
+	</select>	
+	
+	<update id="cardAprvStatChange" parameterType="cmap">
+ 		/*
+ 			baseInfo.cardAprvStatChange
+ 			개인카드 상태값 수정
+ 		*/
+		UPDATE act_card_application
+		SET 
+			ApplicationStatus = #{ApplicationStatus}
+			
+			, ModifierID = #{SessionUser}
+			, ModifyDate = SYSDATE
+		WHERE CardApplicationID = #{CardApplicationID}
+	</update>
+	
+	<select id="getVendorInterfaceSaveCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	act_vendor
+		WHERE	REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+	</select>
+	
+	<insert id="vendorInterfaceInsert" parameterType="cmap" >
+		/*
+			account.baseInfo.vendorInterfaceInsert
+		*/
+		INSERT INTO act_vendor (
+			   	CompanyCode,		VendorType,			VendorNo
+			,	CorporateNo,		VendorName,			CEOName
+			,	Industry,			Sector,				Address
+			,	BankName,			BankAccountNo,		BankAccountName
+			,	PaymentCondition,	PaymentMethod,		VendorStatus
+			,	IncomTax,			LocalTax,			CurrencyCode
+			,	RegisterID,	RegistDate,	ModifierID,	ModifyDate
+		) VALUES (
+				#{companyCode},			#{vendorType},		#{vendorNo}
+			,	#{corporateNo},			#{vendorName},		#{cEOName, jdbcType=VARCHAR}
+			,	#{industry},			#{sector},			#{address}
+			,	#{bankName},			#{bankAccountNo},	#{bankAccountName}
+			,	#{paymentCondition},	#{paymentMethod},	#{vendorStatus}
+			,	#{incomTax},			#{localTax},		#{currencyCode}
+			,	#{UR_Code},	SYSDATE,	#{UR_Code},	SYSDATE
+		)
+	</insert>
+	
+	<update id="vendorInterfaceUpdate" parameterType="cmap" >
+		/*
+			account.baseInfo.vendorInterfaceUpdate
+		*/
+		UPDATE act_vendor
+			SET
+				CompanyCode			= #{companyCode}
+			,	VendorType			= #{vendorType}
+			,	CorporateNo			= #{corporateNo}
+			,	VendorName			= #{vendorName}
+			,	CEOName				= #{cEOName}
+			,	Industry			= #{industry}
+			,	Sector				= #{sector}
+			,	Address				= #{address}
+			,	BankName			= #{bankName}
+			,	BankAccountNo		= #{bankAccountNo}
+			,	BankAccountName		= #{bankAccountName}
+			,	PaymentCondition	= #{paymentCondition}
+			,	PaymentMethod		= #{paymentMethod}
+			,	VendorStatus		= #{vendorStatus}
+			,	IncomTax			= #{incomTax}
+			,	LocalTax			= #{localTax}
+			,	CurrencyCode		= #{currencyCode}
+		WHERE	REPLACE(VendorNo, '-', '') = REPLACE(#{VendorNo}, '-', '')
+	</update>
+	
+	<select id="getVendorBankInterfaceSaveCnt" resultType="cmap">
+		SELECT VendorID AS "VendorID"
+		FROM ACT_VENDOR  
+		WHERE VendorNo = #{vendorNo}
+	</select>
+	
+	<insert id="vendorBankInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO act_vendor_bank
+		(
+			VendorID,
+			BankCode,
+			BankName,
+			BankAccountNo,
+			BankAccountName,
+			BankCountryKey
+		)
+		VALUES
+		(
+			#{vendorID}
+			, #{bankCode}
+			, #{bankName}
+			, #{bankAccountNo}
+			, #{bankAccountName}
+			, #{bankCountryKey}
+		)
+	</insert>
+	
+	<delete id="vendorBankInterfaceDelete" parameterType="cmap" >
+		DELETE FROM act_vendor_bank
+		WHERE VendorID = #{vendorID}
+	</delete>
+	
+	<select id="chkCompanyCodeCntExcel" resultType="java.lang.Long">
+		/*
+ 			baseInfo.chkCompanyCodeCntExcel
+ 			회사코드 검색
+ 		*/
+		SELECT	COUNT(*)
+		FROM	act_base_code
+		WHERE CodeGroup = 'CompanyCode' 
+			AND 
+			<choose>
+				<when test="companyCodes != null">
+					<foreach collection="companyCodes" item="item" index="index" separator="," open="Code IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+		AND CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="chkVendorNoCntExcel" resultType="java.lang.Long">
+		/*
+ 			baseInfo.chkVendorNoCntExcel
+ 			사업자번호 체크
+ 		*/
+		SELECT	COUNT(*)
+		FROM	act_vendor
+		WHERE 	REPLACE(VendorNo, '-', '') = REPLACE(#{vendorNo}, '-', '')
+		AND CompanyCode = #{companyCode}
+	</select>
+	
+	<insert id="insertVendorExcel" parameterType="cmap">
+		<![CDATA[
+	 		/*
+	 			baseInfo.insertVendorExcel
+	 			엑셀 거래처 등록 
+	 		*/
+			INSERT INTO act_vendor
+			(
+				CompanyCode
+				, VendorType
+				, VendorNo
+				, BusinessNumber
+				, CorporateNo
+				, VendorName
+				, CEOName
+				, Industry
+				, Sector
+				, Address
+				, PaymentCondition
+				, PaymentMethod
+				, VendorStatus
+				, IncomTax
+				, LocalTax			
+				, RegisterID
+				, RegistDate
+				, ModifierID
+				, ModifyDate
+			)
+			VALUES
+			(
+				 (SELECT BC.Code 
+					FROM act_base_code BC
+					WHERE CodeGroup = 'CompanyCode'
+					AND CodeName = #{companyName}
+					AND CompanyCode = #{userCompanyCode})
+				, #{vendorType}
+				, #{vendorNo}
+				, #{vendorNo}
+				, #{corporateNo, jdbcType=VARCHAR}
+				, #{vendorName}
+				, #{CEOName, jdbcType=VARCHAR}
+				, #{industry, jdbcType=VARCHAR}
+				, #{sector, jdbcType=VARCHAR}
+				, #{address, jdbcType=VARCHAR}
+				, #{paymentCondition}
+				, #{paymentMethod}
+				, #{vendorStatus}
+				, #{incomTax}
+				, #{localTax}
+				, #{SessionUser}
+				, SYSDATE
+				, #{SessionUser}
+				, SYSDATE
+			)
+		]]>
+		<selectKey keyProperty="VendorID" resultType="Integer" order="AFTER">
+		    SELECT act_vendor_VendorID_SEQ.currval  FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<update id="updateVendorExcel" parameterType="cmap">
+		/* baseInfo.insertVendorExcel 엑셀 거래처 수정 */
+		UPDATE
+			act_vendor
+		SET
+			CompanyCode = (
+				SELECT 
+					BC.Code 
+				FROM 
+					act_base_code BC
+				WHERE 
+					BC.CodeGroup = 'CompanyCode'
+					AND BC.CodeName = #{companyName}
+					AND BC.CompanyCode = #{userCompanyCode}
+			),
+			VendorType = #{vendorType}, 
+			VendorNo = #{vendorNo},
+			BusinessNumber = #{vendorNo},
+			CorporateNo = #{corporateNo},
+			VendorName = #{vendorName},
+			CEOName = #{CEOName},
+			Industry = #{industry},
+			Sector = #{sector},
+			Address = #{address},
+			PaymentCondition = #{paymentCondition},
+			PaymentMethod = #{paymentMethod},
+			VendorStatus = #{vendorStatus},
+			IncomTax = #{incomTax},
+			LocalTax = #{localTax},
+			ModifierID = #{SessionUser},
+			ModifyDate = NOW(3)
+		WHERE
+			VendorID = #{VendorID}
+	</update>
+	
+	<update id="mergeVendorBusinessNumber" parameterType="cmap">
+	    MERGE INTO  ACT_VENDOR A
+		USING DUAL ON (
+			A.VENDORNO 	= #{businessPartner, jdbcType=VARCHAR}
+		)
+		WHEN MATCHED THEN
+		UPDATE SET A.BUSINESSNUMBER = #{taxNumber, jdbcType=VARCHAR}
+	</update>
+</mapper>
+	

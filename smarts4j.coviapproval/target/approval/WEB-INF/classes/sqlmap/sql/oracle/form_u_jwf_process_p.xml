@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.process">
+	<delete id="delete" parameterType="cmap">
+	    DELETE FROM jwf_process
+	    WHERE B.ProcessID = #{ProcessID}
+	</delete>
+	<select id="selectSubjectData" parameterType="cmap" resultType="java.lang.String">
+	    SELECT DocSubject AS "DocSubject"
+	    FROM jwf_process
+	    WHERE ProcessID = #{ProcessID}
+	</select>
+	<select id="selectFormInstID" parameterType="cmap" resultType="java.lang.String">
+	   SELECT LISTAGG(ProcessID, ';') WITHIN GROUP (ORDER BY ProcessID) AS "ProcessIDs"
+		FROM jwf_process
+		WHERE FormInstID = #{FormInstID}
+	</select>
+    <select id="selectIsHasSub" parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*) AS "CNT"
+		FROM jwf_process
+		WHERE ParentProcessID = #{processID}
+		AND ProcessName = 'Sub'
+    </select>
+    <update id="updateState" parameterType="cmap">
+	    UPDATE jwf_process
+		SET ProcessState = #{State}
+		WHERE ProcessID = #{ProcessID}
+	</update>
+	<select id="selectProcessDes" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    	SELECT ProcessDescriptionID AS "ProcessDescriptionID",
+			FormInstID AS "FormInstID",
+			FormID AS "FormID",
+			FormName AS "FormName",
+			FormSubject AS "FormSubject",
+			IsSecureDoc AS "IsSecureDoc",
+			IsFile AS "IsFile",
+			FileExt AS "FileExt",
+			IsComment AS "IsComment",
+			ApproverCode AS "ApproverCode",
+			ApproverName AS "ApproverName",
+			ApprovalStep AS "ApprovalStep",
+			ApproverSIPAddress AS "ApproverSIPAddress",
+			IsReserved AS "IsReserved",
+			ReservedGubun AS "ReservedGubun",
+			ReservedTime AS "ReservedTime",
+			Priority AS "Priority",
+			IsModify AS "IsModify",
+			Reserved1 AS "Reserved1",
+			Reserved2 AS "Reserved2",
+			BusinessData1 AS "BusinessData1",
+			BusinessData2 AS "BusinessData2",
+			BusinessData3 AS "BusinessData3",
+			BusinessData4 AS "BusinessData4",
+			BusinessData5 AS "BusinessData5",
+			BusinessData6 AS "BusinessData6",
+			BusinessData7 AS "BusinessData7",
+			BusinessData8 AS "BusinessData8",
+			BusinessData9 AS "BusinessData9",
+			BusinessData10 AS "BusinessData10"
+		FROM (
+			SELECT ProcessDescriptionID,
+					FormInstID,
+					FormID,
+					FormName,
+					FormSubject,
+					IsSecureDoc,
+					IsFile,
+					FileExt,
+					IsComment,
+					ApproverCode,
+					ApproverName,
+					ApprovalStep,
+					ApproverSIPAddress,
+					IsReserved,
+					ReservedGubun,
+					ReservedTime,
+					Priority,
+					IsModify,
+					Reserved1,
+					Reserved2,
+					BusinessData1,
+					BusinessData2,
+					BusinessData3,
+					BusinessData4,
+					BusinessData5,
+					BusinessData6,
+					BusinessData7,
+					BusinessData8,
+					BusinessData9,
+					BusinessData10
+					FROM jwf_processdescription
+					WHERE FormInstID = #{FormInstID}
+		) A
+		WHERE ROWNUM <= 1
+		ORDER BY processdescriptionid desc
+		]]>
+	</select>
+	<select id="selectTaskID" parameterType="cmap" resultType="java.lang.String">
+	     SELECT taskID AS "taskID"
+		 FROM jwf_workitem
+		 WHERE WorkitemId = #{WorkitemID}
+		 AND State = 288
+	</select>
+	
+	<select id="selectProcessState" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+		    SELECT ProcessState as "ProcessState"
+			FROM jwf_process
+			WHERE processID in (SELECT processID
+									 FROM jwf_workitem
+									 WHERE taskID = #{TaskID} )
+			AND ROWNUM <= 1
+		]]>
+	</select>
+	
+	<select id="selectWorkitemState" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+		     SELECT State as "State"
+		     FROM
+		     (
+			     SELECT State
+				 FROM jwf_workitem
+				 WHERE taskID = #{TaskID}
+				 ORDER BY created desc
+			 )
+			 WHERE ROWNUM <= 1
+		 ]]>
+	</select>
+</mapper>

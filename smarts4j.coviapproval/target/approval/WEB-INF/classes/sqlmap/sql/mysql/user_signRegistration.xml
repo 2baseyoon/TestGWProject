@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.signRegistration">
+    <select id="selectUserSignList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT Seq AS SignID,
+				   UserCode,
+			       IsUse,
+				   FileName,
+				   SortKey,
+				   InsertDate,
+				   FilePath,
+				   FileID
+			FROM covi_approval4j.jwf_signimage
+			WHERE UserCode = #{UserCode}
+	    ]]>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+	<select id="selectUserSignImage" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+			SELECT Seq AS SignID,
+				   UserCode,
+			       IsUse,
+				   FileName,
+				   SortKey,
+				   InsertDate,
+				   FilePath,
+				   FileID
+			FROM covi_approval4j.jwf_signimage
+			WHERE Seq = #{signID}
+	    ]]>
+	</select>
+
+    <delete id="deleteUserSign" parameterType="cmap">
+    	DELETE FROM covi_approval4j.jwf_signimage
+    	WHERE seq = #{SignID}
+    </delete>
+
+    <update id="updateUserSignUseY" parameterType="cmap">
+		<![CDATA[
+        UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = 'Y'
+		WHERE UserCode = #{UserCode}
+		And Seq = #{SignID}
+		]]>
+    </update>
+
+    <update id="insertUserSignUseYTop" parameterType="cmap">
+		<![CDATA[
+        UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = 'Y'
+		WHERE usercode = #{UserCode}
+		and Seq NOT IN (#{SignID})
+		ORDER BY InsertDate DESC
+		LIMIT 1
+		]]>
+    </update>
+    
+    <update id="updateUserSignUseN" parameterType="cmap">
+		<![CDATA[
+	        UPDATE covi_approval4j.jwf_signimage
+			SET IsUse = 'N'
+			WHERE UserCode = #{UserCode}
+			And Seq != #{SignID}
+		]]>
+    </update>
+
+    <insert id="insertUserSign" parameterType="cmap">
+        INSERT INTO covi_approval4j.jwf_signimage(UserCode, FileName, IsUse, InsertDate,FilePath, FileID)
+        VALUES(
+        #{UserCode},#{FileName},#{IsUse},now(3),#{FilePath}, #{FileID}
+        );
+    </insert>
+
+    <!-- 사인등록시 다른 사인사용여부 N으로 변경  -->
+    <update id="insertUserSignUseN" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = 'N'
+		WHERE UserCode = #{UserCode}
+    </update>
+
+    <update id="updateUserSign" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_signimage
+		SET IsUse = #{IsUse}
+		<if test="FileName != null">
+		    ,FileName = #{FileName}
+		</if>
+		<if test="FilePath != null">
+		    ,FilePath = #{FilePath}
+		</if>
+		<if test="FileID != null">
+		    ,FileID = #{FileID}
+		</if>
+		WHERE Seq = #{SignID}
+    </update>
+    
+    <select id="selectUserSignAuth" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM COVI_APPROVAL4J.jwf_signimage
+		WHERE USERCODE = #{userID}
+		<choose>
+			<when test="signID != null and signID !=''"> AND SEQ = #{signID}</when>
+			<otherwise> AND FileName = #{fileName}</otherwise>
+		</choose>
+	</select> 
+</mapper>
+

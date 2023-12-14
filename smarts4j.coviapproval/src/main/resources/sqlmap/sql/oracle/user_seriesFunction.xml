@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.seriesFunction">
+	<!-- 신규 생성할 업무구분 코드 중복체크 -->
+	<select id="selectDupFunctionCodeCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT
+		FROM GOV_SERIES_FUNC
+		WHERE FunctionCode = #{FunctionCode}
+	</select>
+	
+	<!-- 신규 생성할 업무구분 레벨 조회 -->
+	<select id="selectFunctionLevel" parameterType="cmap" resultType="String">
+		SELECT FunctionLevel + 1 AS "FunctionLevel"
+    	FROM GOV_SERIES_FUNC
+    	WHERE FunctionCode = #{ParentFunctionCode}
+	</select>
+	
+	<!-- 신규 생성할 업무구분 정렬 조회(사용자가 정렬을 입력하지 않았을 경우) -->
+	<select id="selectFunctionLastSort" parameterType="cmap" resultType="String">
+		SELECT NVL(MAX(Sort), 0) + 1 AS "LastSort"
+		FROM GOV_SERIES_FUNC
+		WHERE ParentFunctionCode = #{ParentFunctionCode}
+	</select>
+	
+	<!-- 신규 생성할 업무구분이 포함된 레벨 정렬 변경 -->
+	<update id="updateFunctionSort" parameterType="cmap">
+		MERGE INTO GOV_SERIES_FUNC A
+		USING (
+		  SELECT FunctionCode, Sort + 1 AS Sort
+		  FROM GOV_SERIES_FUNC
+		  WHERE ParentFunctionCode = #{ParentFunctionCode}
+		    AND Sort >= #{Sort}
+		  ) B ON (A.FunctionCode = B.FunctionCode)
+		WHEN MATCHED THEN
+		UPDATE SET A.Sort = B.Sort
+	</update>
+	
+	<!-- 업무구분코드 생성 -->
+	<insert id="insertSeriesFunction" parameterType="cmap">
+		INSERT INTO GOV_SERIES_FUNC (FunctionCode, FunctionName, FunctionLevel, ParentFunctionCode, Sort)
+		VALUES (#{FunctionCode}, #{FunctionName}, #{FunctionLevel}, #{ParentFunctionCode}, #{Sort})
+	</insert>
+	
+	<!-- 업무구분코드 수정 -->
+	<update id="updateSeriesFunction" parameterType="cmap">
+	   <![CDATA[
+		UPDATE GOV_SERIES_FUNC
+		SET FunctionName = #{FunctionName}, Sort = #{Sort}
+		WHERE FunctionCode = #{FunctionCode}
+	     ]]>
+	</update>
+	
+	<!-- 삭제전 하위 업무구분코드 여부 확인 -->
+	<select id="selectIsSubFunctionCodeCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) AS CNT
+		FROM GOV_SERIES_FUNC
+		WHERE ParentFunctionCode = #{FunctionCode}
+	</select>
+	
+	<!-- 업무구분코드 삭제 -->
+	<delete id="deleteSeriesFunction" parameterType="cmap">
+		DELETE GOV_SERIES_FUNC WHERE FunctionCode = #{FunctionCode}
+	</delete>
+</mapper>	

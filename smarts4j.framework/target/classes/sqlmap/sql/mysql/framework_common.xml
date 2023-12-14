@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="framework.common">
+	<select id="getExistsContentsMyWebpart" parameterType="cmap"  resultType="java.lang.Long">
+	    /* queryId : framework.common.getExistsContentsMyWebpart */
+	    SELECT     COUNT(*)
+		FROM      portal_webpart P
+		JOIN      mycontents_webpart M ON p.WebpartID = m.WebpartID  AND m.UserCode = #{userCode} and m.serviceDevice = #{serviceDevice}
+		WHERE     P.IsUse = 'Y'
+		AND       P.`Range` = #{cMode}
+		AND       (p.Reserved2 is null or p.Reserved2 = 'A' OR p.Reserved2 = #{serviceDevice})
+		AND 	  p.WebpartID IN (''
+	 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+	            #{item}
+	    	</foreach>
+		)   
+		<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     AND 	 p.BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>	 	
+	</select>
+	
+    <select id="getMyWebpart"  parameterType="cmap" resultType="cmap">
+        <![CDATA[
+			SELECT a.Reserved1
+					, a.WebpartID
+					, CASE WHEN MultiDisplayName IS NULL OR MultiDisplayName = '' THEN DisplayName
+					   ELSE covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)
+				  END AS DisplayName
+					, case when b.WebpartID  IS NULL then 'N' ELSE 'Y' END IsMy
+			FROM portal_webpart a
+			LEFT JOIN mycontents_webpart b ON  a.WebpartID = b.WebpartID AND b.UserCode = #{userCode} AND b.ServiceDevice = #{serviceDevice}
+			WHERE a.IsUse = 'Y'
+			 AND  a.`Range` = #{cMode}
+			 AND  a.Reserved2 IN ('A', #{serviceDevice})
+			AND	  a.WebpartID IN		('']]>
+ 	    <foreach item="item" index="index" collection="webpartIDs" open="," close="" separator=",">
+            #{item}
+    	</foreach>
+    	)
+    	<if test="bizSectionArr != null and bizSectionArr.length > 0">     	
+	     	AND 		a.BizSection IN  
+			<foreach collection="bizSectionArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>	
+    	 <if test='onlyMy != null and onlyMy == "Y"'>	
+    		AND a.Reserved1 NOT IN ('FIX','DEF')
+    	</if>
+    	 <if test='notMy != null and notMy == "Y"'>
+    		AND b.WebpartID is null
+    	</if>
+		ORDER BY  ifnull(b.SortKey,99), a.Reserved1 desc, a.SortKey
+					 
+    </select>
+    
+    <select id="getMyPortal" parameterType="cmap" resultType="cmap">
+		SELECT	  PortalID
+				, CASE WHEN MultiDisplayName IS NULL OR MultiDisplayName = '' THEN DisplayName
+					   ELSE covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)
+				  END AS DisplayName
+		FROM covi_smart4j.portal
+		WHERE BizSection = 'Portal' AND IsUse = 'Y'
+		AND PortalID IN
+		<foreach item="item" index="index" collection="aclPortalArr" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY SortKey ASC 
+	</select>
+	
+	<!-- 즐겨찾기 메뉴 -->
+	<select id="getMyFavoriteMenu" parameterType="cmap" resultType="cmap">
+	    SELECT F.FavoriteID, F.TargetServiceType, F.TargetObjectType, F.TargetURL, Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName) AS DisplayName
+	    FROM sys_favorite AS F 
+	    LEFT OUTER JOIN sys_object_folder AS SOF ON (F.TargetID = SOF.FolderID)
+	    LEFT OUTER JOIN board_config AS BC ON (BC.FolderID = SOF.FolderID)
+	 	LEFT OUTER JOIN board_config_default AS BCD ON (BCD.FolderType = SOF.FolderType)
+	    WHERE UserCode = #{userCode}
+	    AND SOF.DeleteDate IS NULL
+	    AND SOF.IsUse = 'Y'
+	    <if test='aclDataArr != null and aclDataArr.length != 0'>
+	    	AND SOF.FolderID IN
+			<foreach collection="aclDataArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		AND IFNULL(BC.UseFavorite, BCD.UseFavorite) = 'Y'
+	</select>
+    
+</mapper>

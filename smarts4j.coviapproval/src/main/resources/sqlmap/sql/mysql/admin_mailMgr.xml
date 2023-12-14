@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.mailMgr">
+    <select id="selectMailMgrList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+				   		MailID
+						,Sender
+						,Subject
+						,Recipients
+						,CopyRecipients
+						,BlindCopyRecients
+						,Body
+						,BodyFormat
+						,SendYN
+						,InsertDate AS InsertDate
+						,ProcessID
+						,ErrorCount
+						,ErrorMessage
+				FROM COVI_APPROVAL4J.jwf_mail 				   	
+							   	
+				) A		
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+				AND SendYN = #{sel_State}	
+			</if>
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("Recipients")'>Recipients</when>
+					<otherwise>Sender</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')	
+			</if>
+			
+			<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+				AND InsertDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})				
+			</if>		
+									
+		</trim> 
+		
+		
+		
+	<!-- Order by 절 -->
+		 <trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("MailID")'>MailID</when>
+					<when test='sortColumn.equalsIgnoreCase("Sender")'>Sender</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("SendYN")'>SendYN</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessID")'>ProcessID</when>
+					<otherwise>InsertDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				InsertDate ASC
+			</if>
+		</trim> 
+		
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+		
+	
+	</select>
+	
+    
+    <select id="selectMailMgrListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+				   		MailID
+						,Sender
+						,Subject
+						,Recipients
+						,CopyRecipients
+						,BlindCopyRecients
+						,Body
+						,BodyFormat
+						,SendYN
+						,InsertDate
+						,ProcessID
+						,ErrorCount
+						,ErrorMessage
+				FROM COVI_APPROVAL4J.jwf_mail 		
+		) A				
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		     <if test="sel_State != null and sel_State != '' and sel_State.length() gt 0">
+				AND SendYN = #{sel_State}		
+			</if>
+		    
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sel_Search.equalsIgnoreCase("Recipients")'>Recipients</when>
+					<otherwise>Sender</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+			</if>
+			
+			<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+				AND InsertDate BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})					
+			</if>		
+									
+		</trim> 
+	</select>
+	<select id="selectMailDetail" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+				   		MailID
+						,Sender
+						,Subject
+						,Recipients
+						,CopyRecipients
+						,BlindCopyRecients
+						,Body
+						,BodyFormat
+						,SendYN
+						,InsertDate AS InsertDate
+						,ProcessID
+						,ErrorCount
+						,ErrorMessage
+				FROM COVI_APPROVAL4J.jwf_mail 				   	
+				WHERE MailID = #{MailID}
+				) A	
+	</select>
+	
+	
+	<update id="resendMail" parameterType="cmap">
+  	    UPDATE covi_approval4j.jwf_mail
+		SET
+			SendYN = #{SendYN}
+			,ErrorMessage = #{ErrorMessage}
+			,ErrorCount = IF(#{SendYN} = 'E' , iFnull(ErrorCount,0) + 1 ,ErrorCount) 			
+		WHERE MailID=#{MailID}	
+  	</update>
+  	
+</mapper>
+

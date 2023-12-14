@@ -1,0 +1,29 @@
+<div class="PLinkCalendarwrap">
+	<div class="PLinkCalendar webpart" id="schedule_calendar">
+		<div class="mNotiTitle webpart-top">
+			<h3><spring:message code='Cache.lbl_webpart_schedule'/></h3> <!-- 일정 -->
+			<a href="/groupware/layout/schedule_View.do?CLSYS=schedule&CLMD=user&CLBIZ=Schedule&viewType=M" class="btnMainMore">more +</a>
+		</div>
+		<div class="PLinkCalendarcont webpart-content">
+			<div class="scheduleMenu">
+				<!-- 달력 시작 -->
+				<div class="covi-calendar-container" id="wp_calendar"></div>
+				<!-- 달력 끝 -->
+			</div>
+			<div class="PLinkCalendartimelinewrap">
+				<div class="PLinkCalendartimeline mScrollV scrollVType01">
+					<ul id="schedule_calendar_list"></ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script type="text/template" id="template_schedule_calender_li">
+<li onclick="javascript:{link}">
+	<a href="#">
+		<span class="caldate">{startTimeEndTime}</span>
+		<span class="calcont">{subject}</span>
+	</a>
+</li>
+</script>

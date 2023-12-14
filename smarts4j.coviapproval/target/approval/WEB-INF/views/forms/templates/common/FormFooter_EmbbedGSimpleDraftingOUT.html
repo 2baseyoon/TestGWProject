@@ -1,0 +1,117 @@
+<!--의견입력-->
+<span id="CommentList" data-mode="readOnly"></span>
+<div id="CommentListTable" class="tpl-apv-comment" style="display:none;" >
+	<!-- <p class="w_con06_p"><%title%></p> -->
+	<h3 id="tableTitle" class="apptit_h3 mt10" style="display: none"><span><%title%> <spring:message code='Cache.lbl_Opinion'/></span></h3><!-- 의견 -->
+	<table class="tableStyle linePlus mt10">
+		<colgroup>
+			<col style="width:12%;">
+			<col id="name" style="width:20%">
+			<col id="opinion" style="width:*">
+		</colgroup>
+		<tbody class="tpl-dynamic-container">
+	        <tr class="tpl-dynamic" style="height: 43px;">
+				<th id="commentTH"><spring:message code='Cache.lbl_apv_appCom'/></th>		<!-- 결재문서의견 -->
+				<td style="overflow: visible"><span class="btnFlowerName" onclick="coviCtrl.setFlowerName(this);" style="position:relative;cursor:pointer;" data-user-code="<%personId%>" data-user-mail="" ><%person%></span></td>
+				<td style="<%td_style%>"><%comment%></td>
+			</tr>
+		</tbody>
+	</table>
+</div>
+
+<table class="tableStyle fontNormal linePlus mt10" id="tblDocProperties1" cellpadding="0" cellspacing="0">
+    <colgroup>
+    	<col style="width:20%" />
+    	<col style="width:30%">
+    	<col style="width:20%" />
+    	<col style="width:30%">
+    </colgroup>
+    <tbody>
+	    <tr id="trBasicDocProperties">
+	    	<th id="TIT_INITIATOR_OU"><spring:message code='Cache.lbl_WriterDept'/><br>(Group)</th>
+	        <td style="text-align:left;">
+	            <textarea type="text" data-type="mField" id="InitiatorOUDisplay" value="{{ doc.BodyContext.InitiatorOUDisplay }}" data-binding="pre" style="width:100%; border:0px;overflow-y:hidden;line-height: 35px;" readonly="readonly" >{{ doc.BodyContext.InitiatorOUDisplay }}</textarea>
+	        </td>
+	        <th id="TIT_DOC_NO"><spring:message code='Cache.lbl_apv_DocNo'/><br>(Doc. No.)</th>
+	        <td style="text-align:left;">
+	            <textarea  type="text" data-type="dField" id="DocNo" value="{{ doc.FormInstanceInfo.DocNo }}" data-model="FormInstanceInfo.DocNo" data-binding="pre" style="width:100%; border:0px;overflow-y:hidden;line-height: 35px;" readonly="readonly" >{{ doc.FormInstanceInfo.DocNo }}</textarea>
+	        </td>
+	    </tr>
+	</tbody>
+</table>
+
+<!--의견입력끝-->
+<!--write_의견입력-->
+<!-- <table style="width:100%" align="center" border="0" cellspacing="0" cellpadding="0">
+    <tbody>
+        <tr>
+            <td style="width:100%;display: ;" align="center" id="tdCommentView"></td>
+        </tr>
+    </tbody>
+</table> -->
+<!--write_ 의견입력끝 -->
+
+<!-- 참조 -->
+<table class="tableStyle linePlus mt10"  id="tbLinkInfo" cellpadding="0" cellspacing="0"><!-- class="table_5"  -->
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+    <tr id="trHelpApproval" style="display:none;">
+        <th id="TIT_HelpApproval" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_NoteCreateLayout'/></th>
+        <td  id="HelpApproval"></td><!-- class="table_5_td" -->
+    </tr>
+    <tr style="border-top:1px solid #c3d7df" id="AttFileInfoList">
+        <th id="TIT_ATTFILEINFO" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_apv_AddFile'/></th>
+        <td  id="AttFileInfo"></td><!-- class="table_5_td" -->
+    </tr>
+    <!-- 다안기안용 첨부파일 영역 -->
+    <tr style="border-top:1px solid #c3d7df; display:none;" id="AttFileInfoList_Multi">
+        <th id="TIT_ATTFILEINFO_Multi" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_apv_AddFile'/></th>
+        <td>
+        	<div id="AttFileInfo1"></div>
+        </td>
+    </tr>
+    <tr id="trAttFileInfoAdd" style="display:none;">
+        <th class="table_5_th">추가파일</th>
+        <td class="table_5_td" id="AttFileInfoAdd"></td>
+    </tr>
+    <tr style="border-top:1px solid #c3d7df" id="DocLinkInfoList">
+        <th id="TIT_DOCLINKINFO" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_apv_ConDoc'/></th>
+        <td id="DocLinkInfo"></td><!-- class="table_5_td"  -->
+    </tr>
+	    <!-- EDMS연결문서 영역 -->
+    <tr style="border-top:1px solid #c3d7df; display:none;" id="EDMSDocLinkInfoList">
+        <th id="TIT_EDMS_DOCLINKINFO" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_apv_EDMSConDoc'/></th>
+        <td>
+        	<div id="EDMSDocLinkInfo"></div>
+        </td>
+    </tr>
+    <!-- 다안기안용 연결문서 영역 -->
+    <tr style="border-top:1px solid #c3d7df; display:none;" id="DocLinkInfoList_Multi">
+        <th id="TIT_DOCLINKINFO_Multi" class="table_5_th" style="width:13%;"><spring:message code='Cache.lbl_apv_ConDoc'/></th>
+        <td>
+        	<div id="DocLinkInfo1"></div>
+        </td>
+    </tr>
+</table>
+
+<!-- 원문서 -->
+<table class="table_5" style="display:none" cellpadding="0" cellspacing="0">
+    <tr>
+        <th class="table_5_th" style="width:13%;">원문서</th>
+        <td id="RejectDocLinkInfo" class="table_5_td">-</td>
+    </tr>
+    <tr id="divforminfo">
+        <th class="table_5_th">문서설명</th>
+        <td id="tdforminfo" class="table_5_td"></td>
+    </tr>
+    <tr id="trPMLinkInfo">
+        <th class="table_5_th">관련<br /> 프로세스<br /> 메뉴얼</th>
+        <td id="PMLinkInfo" class="table_5_td"></td>
+    </tr>
+</table>
+<br />
+<!--<div id="div_filePreview" style="display:none;">
+
+</div> -->

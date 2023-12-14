@@ -1,0 +1,53 @@
+<div class="widget_card">
+    <div class="widget_head divider">
+        <h3 class="title">임직원 소식</h3>
+        <label class="blind" for="employeeClass">분류</label>
+        <select id="employeeClass" class="ui_select_field">
+
+        </select>
+    </div>
+   	<div class="widget_content" >
+    	<div class="swiper widget_employee_swiper"></div>
+    </div>
+    <div id="ctn_employee_notices_empty" class="widget_empty" style="display:none;">
+    	<div class="message">
+    		<p><spring:message code='Cache.msg_ComNoData'/></p>
+    	</div>
+    </div>
+</div>
+<div class="layer_divpop" hidden>
+	<div class="divpop_contents">
+		<div class="pop_header">
+			<h4 class="divpop_header">
+				<span class="divpop_header_ico"><spring:message code='Cache.lbl_connectBoard'/></span>
+			</h4>
+			<a class="divpop_close" style="cursor:pointer;"></a>
+		</div>
+		<div class="divpop_body" style="height:180px;overflow:hidden;padding:0;">
+			<div class="sadmin_pop">
+				<table class="sadmin_table sa_menuBasicSetting">
+					<colgroup>
+						<col width="130px;">
+						<col width="*">
+					</colgroup>
+					<tbody>
+						<tr>
+							<th><span>기존 경조사 폴더 ID</span>
+							</th><td><span id="condolenceFolderID"></span></td>
+						</tr>
+						<tr>
+							<th><span>변경 경조사 폴더 ID</span></th>
+							<td>
+								<input type="text" placeholder="변경 폴더 ID" id="newCondolenceFolderID"/>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="popBtnWrap">
+					<a href="#" id="saveCondolenceFolderID" class="btnTypeDefault btnTypeBg"><spring:message code='Cache.btn_save'/></a>
+					<a href="#" id="close_popup" class="btnTypeDefault"><spring:message code='Cache.btn_Close'/></a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

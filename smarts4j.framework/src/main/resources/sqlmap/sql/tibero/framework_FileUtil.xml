@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="framework.FileUtil">
+    
+	<insert id="insert" parameterType="cmap"  useGeneratedKeys="true">
+       <![CDATA[
+		INSERT INTO SYS_FILE (
+			 StorageID
+			,ServiceType
+			,ObjectID
+			,ObjectType
+			,MessageID
+			,Version
+			,SaveType
+			,LastSeq
+			,Seq
+			,FilePath
+			,FileName
+			,SavedName
+			,Extention
+			,Size_
+			,ThumWidth
+			,ThumHeight
+			,Description
+			,RegistDate
+			,RegisterCode
+			,CompanyCode
+		)
+		VALUES
+		(
+		     #{StorageID}
+			,#{ServiceType}
+			,#{ObjectID}
+			,#{ObjectType}
+			,#{MessageID}
+			,#{Version}
+			,#{SaveType}
+			,#{LastSeq}
+			,#{Seq}
+			,#{FilePath}
+			,NVL(#{FileName}, ' ')
+			,#{SavedName}
+			,NVL(#{Extention}, ' ')
+			,NVL(#{Size},'0')
+			,#{ThumWidth}
+			,#{ThumHeight}
+			,#{Description}
+			,SYSDATE
+			,#{RegisterCode}
+			,#{CompanyCode}
+		)
+		]]>
+		<selectKey keyProperty="FileID" resultType="Integer" order="AFTER">
+		    SELECT SYS_FILE_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+    
+   	<select id="selectOne" parameterType="cmap" resultType="cmap">
+		SELECT  f.FileID AS "FileID"
+		      , f.StorageID AS "StorageID"
+		      , f.ServiceType AS "ServiceType"
+		      , f.ObjectID AS "ObjectID"
+		      , f.ObjectType AS "ObjectType"
+		      , f.MessageID AS "MessageID"
+		      , f.Version  AS "Version"
+		      , f.SaveType AS "SaveType"
+		      , f.LastSeq AS "LastSeq"
+		      , f.Seq AS "Seq"
+		      , f.FilePath AS "FilePath"
+		      , f.FileName AS "FileName"
+		      , f.SavedName AS "SavedName"
+		      , f.Extention AS "Extention"
+		      , f.SIZE_ AS "Size"
+		      , f.ThumWidth AS "ThumWidth"
+		      , f.ThumHeight AS "ThumHeight"
+		      , f.Description AS "Description"
+		      , TO_CHAR(f.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate" 
+		      , f.RegisterCode AS "RegisterCode"
+		      , f.CompanyCode AS "CompanyCode"
+		      , s.LastSeq as "StorageLastSeq"
+			  , s.FilePath as "StorageFilePath"
+			  , s.InlinePath AS "InlinePath"
+			  , s.IsActive AS "IsActive"
+		FROM SYS_FILE f
+		JOIN sys_storage s on s.StorageID = f.StorageID
+		WHERE f.FileID = #{FileID}
+	</select>
+    
+    <delete id="deleteAll" parameterType="cmap">
+       <![CDATA[
+		DELETE FROM SYS_FILE
+			  WHERE ServiceType = #{ServiceType}
+			   AND ObjectID = #{ObjectID}
+			   AND MessageID = #{MessageID}
+		]]>
+		<if test="ObjectType != null and ObjectType != ''">
+			AND ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND Version = #{Version}
+		</if>
+	</delete>
+	<update id="deleteFlagAll" parameterType="cmap">
+		UPDATE SYS_FILE
+		SET IsDeleted = 'Y'
+		WHERE ServiceType = #{ServiceType} AND ObjectID = #{ObjectID} AND MessageID = #{MessageID}
+		<if test="ObjectType != null and ObjectType != ''">
+			AND ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND Version = #{Version}
+		</if>
+	</update>
+	
+    <select id="selectAttachAll" parameterType="cmap" resultType="cmap">
+		/* queryID = framework.FileUtil.selectAttachAll */
+		SELECT      f.FileID AS "FileID"
+			      , f.StorageID AS "StorageID"
+			      , f.ServiceType AS "ServiceType"
+			      , f.ObjectID AS "ObjectID"
+			      , f.ObjectType AS "ObjectType"
+			      , f.MessageID AS "MessageID"
+			      , f.Version  AS "Version"
+			      , f.SaveType AS "SaveType"
+			      , f.LastSeq AS "LastSeq"
+			      , f.Seq  AS "Seq"
+			      , f.FilePath  AS "FilePath"
+			      , f.FileName  AS "FileName"
+			      , f.SavedName AS "SavedName"
+			      , f.Extention AS "Extention"
+			      , f.Size_ AS "Size"
+			      , f.ThumWidth  AS "ThumWidth"
+			      , f.ThumHeight AS "ThumHeight"
+			      , f.Description AS "Description"
+			      , f.RegisterCode AS "RegisterCode"
+	              , TO_CHAR(f.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+	              , f.CompanyCode AS "CompanyCode"
+	              , s.LastSeq as "StorageLastSeq"
+			  	  , s.FilePath as "StorageFilePath"
+			  	  , s.InlinePath AS "InlinePath"
+			  	  , s.IsActive AS "IsActive"
+		FROM SYS_FILE f
+		JOIN sys_storage s on s.StorageID = f.StorageID
+		WHERE f.ServiceType = #{ServiceType}
+		<choose>
+			<when test="IsDeleted != null and IsDeleted eq 'Y'.toString()">
+				AND NVL(f.IsDeleted, 'N') = 'Y'
+			</when>
+			<otherwise>
+				AND NVL(f.IsDeleted, 'N') = 'N'
+			</otherwise>
+		</choose>
+		<if test='ObjectID != null and ObjectID != "" and !ObjectID.equals("undefined")'>
+		AND f.ObjectID = #{ObjectID}
+		</if>
+		 AND f.MessageID = #{MessageID}
+		 AND f.SaveType != 'INLINE'
+		<if test="ObjectType != null and ObjectType != ''">
+		AND f.ObjectType = #{ObjectType} 
+		</if>
+		<if test="Version != null and Version != ''">
+			AND f.Version = #{Version}
+		</if>
+	</select>
+    
+    <!-- 인라인 이미지 첨부 조회  -->
+   <select id="selectAttachFileAll" parameterType="cmap" resultType="cmap">
+		SELECT
+			F.FILEID AS "FileID"
+			,F.STORAGEID AS "StorageID"
+			,F.SERVICETYPE AS "ServiceType"
+			,F.OBJECTID AS "ObjectID"
+			,F.OBJECTTYPE AS "ObjectType"
+			,F.MESSAGEID AS "MessageID"
+			,F.VERSION AS "Version"
+			,F.SAVETYPE AS "SaveType"
+			,F.LASTSEQ AS "LastSeq"
+			,F.SEQ AS "Seq"
+			,F.FILEPATH AS "FilePath"
+			,F.FILENAME AS "FileName"
+			,F.SAVEDNAME AS "SavedName"
+			,F.EXTENTION AS "Extention"
+			,F.SIZE_ AS "Size"
+			,F.THUMWIDTH AS "ThumWidth"
+			,F.THUMHEIGHT AS "ThumHeight"
+			,F.DESCRIPTION AS "Description"
+			,TO_CHAR(F.REGISTDATE, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			,F.REGISTERCODE AS "RegisterCode"
+			,F.CompanyCode AS "CompanyCode"
+			,S.LastSeq AS "StorageLastSeq"
+			,S.FilePath AS "StorageFilePath"
+			,S.InlinePath AS "InlinePath"
+			,S.IsActive AS "IsActive"
+		FROM SYS_FILE F
+		INNER JOIN sys_storage S ON S.StorageID = F.StorageID
+		WHERE F.SaveType != 'INLINE'
+		AND NVL(F.IsDeleted, 'N') = 'N'
+		<if test="MessageID != null and MessageID != '' ">
+			AND F.MessageID = #{MessageID}
+		</if>
+		<if test="ObjectID != null and ObjectID != '' ">
+			AND F.ObjectID = #{ObjectID}
+		</if>
+		<if test="ObjectType != null and ObjectType != '' ">
+			AND F.ObjectType = #{ObjectType}
+		</if>
+		<if test="ServiceType != null and ServiceType != '' ">
+			AND F.ServiceType = #{ServiceType}
+		</if>
+	</select>
+    
+    <select id="selectStorageInfo" parameterType="cmap" resultType="cmap">
+                SELECT s.StorageID AS "StorageID"
+                	,s.DomainID AS "DomainID"
+                	,s.ServiceType AS "ServiceType"
+                	,s.LastSeq AS "LastSeq"
+                	,s.FilePath AS "FilePath"
+                	,s.InlinePath AS "InlinePath"
+                	,s.IsActive AS "IsActive"
+                	,s.Description AS "Description"
+                	,TO_CHAR(s.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+                	,s.Reserved1 AS "Reserved1"
+                	,s.Reserved2 AS "Reserved2"
+                	,s.Reserved3 AS "Reserved3"
+                	,s.Reserved4 AS "Reserved4"
+                	,s.Reserved5 AS "Reserved5"
+                	,d.DomainCode AS "DomainCode"
+				FROM sys_storage s
+				join sys_object_domain d on s.domainid = d.domainid
+				<!-- WHERE s.IsActive = 'Y'  -->
+				ORDER BY s.DomainID DESC 
+    </select>
+    
+    
+    <select id="selectStorageInfoById" parameterType="Integer" resultType="cmap">
+		SELECT s.StorageID AS "StorageID"
+          	,s.DomainID AS "DomainID"
+          	,s.ServiceType AS "ServiceType"
+          	,s.LastSeq AS "LastSeq"
+          	,s.FilePath AS "FilePath"
+          	,s.InlinePath AS "InlinePath"
+          	,s.IsActive AS "IsActive"
+          	,s.Description AS "Description"
+          	,TO_CHAR(s.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+          	,s.Reserved1 AS "Reserved1"
+          	,s.Reserved2 AS "Reserved2"
+          	,s.Reserved3 AS "Reserved3"
+          	,s.Reserved4 AS "Reserved4"
+          	,s.Reserved5 AS "Reserved5"
+          	,d.DomainCode AS "DomainCode"
+		FROM sys_storage s
+		join sys_object_domain d on s.domainid = d.domainid
+		WHERE s.StorageID = #{storageId}
+    </select>
+        
+    <insert id="insertStorageInfo" parameterType="egovframework.coviframework.vo.StorageInfo">
+       <![CDATA[
+		INSERT INTO sys_storage (
+			DomainID
+			, ServiceType
+			, LastSeq
+			, FilePath
+			, InlinePath
+			, IsActive
+			, Description
+			, RegistDate
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, Reserved5
+		)
+		VALUES
+		(
+			#{domainID}
+			,#{serviceType}
+			,#{lastSeq}
+			,#{filePath}
+			,#{inlinePath}
+			,#{isActive}
+			,#{description}		
+			,SYSDATE
+			,#{reserved1}
+			,#{reserved2}
+			,#{reserved3}
+			,#{reserved4}
+			,#{reserved5}
+		)
+		]]>
+		<selectKey keyProperty="storageID" resultType="Integer" order="AFTER">
+		    SELECT SYS_STORAGE_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <update id="updateStorageInfo" parameterType="egovframework.coviframework.vo.StorageInfo">
+    	update sys_storage 
+   		set   
+    		DomainID = #{domainID}
+			, ServiceType = #{serviceType}
+			, LastSeq = #{lastSeq}
+			, FilePath = #{filePath}
+			, InlinePath = #{inlinePath}
+			, IsActive = #{isActive}
+			, Description = #{description}
+			, Reserved1 = #{reserved1}
+			, Reserved2 = #{reserved2}
+			, Reserved3 = #{reserved3}
+			, Reserved4 = #{reserved4}
+			, Reserved5 = #{reserved5}
+		where
+			StorageID = #{storageID}
+    </update>
+    
+    
+    <update id="toggleStorageActiveById" parameterType="int">
+    	update sys_storage 
+   		set IsActive = CASE WHEN IsActive = 'Y' THEN 'N' ELSE 'Y' END
+		where StorageID = #{storageID}
+    </update>   
+	    
+	<delete id="deleteStorageInfoByIds" parameterType="int[]">
+		DELETE FROM sys_storage 
+		where StorageID in
+		<foreach collection="array" item="storageID" open="(" close=")" separator=",">
+			#{storageID}
+		</foreach>
+	</delete>
+    
+    <select id="selectStorageId" parameterType="egovframework.coviframework.vo.StorageInfo" resultType="Integer">
+		select NVL(max(StorageID), 0) AS "StorageID"
+		from sys_storage sst 
+		where sst.ServiceType = #{serviceType} and sst.DomainID = #{domainID}
+    </select>
+    
+	<select id="selectStorageInfoList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT s.StorageID AS "StorageID"
+				,s.DomainID AS "DomainID"
+				,s.ServiceType AS "ServiceType"
+				,s.LastSeq AS "LastSeq"
+				,s.FilePath AS "FilePath"
+				,s.InlinePath AS "InlinePath"
+				,s.IsActive AS "IsActive"
+				,s.Description AS "Description"
+				,s.RegistDate AS "RegistDate"
+				,s.Reserved1 AS "Reserved1"
+				,s.Reserved2 AS "Reserved2"
+				,s.Reserved3 AS "Reserved3"
+				,s.Reserved4 AS "Reserved4"
+				,s.Reserved5 AS "Reserved5"
+				,d.DomainCode AS "DomainCode"
+				,d.MultiDisplayName AS "MultiDisplayName"
+			FROM sys_storage s
+			join sys_object_domain d on s.domainid = d.domainid
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">			
+				<if test="domain != null">
+					AND s.DomainID = #{domain}
+				</if>	
+			</trim>
+		    <!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("DomainID")'>s.DomainID</when>
+						<when test='sortColumn.equalsIgnoreCase("ServiceType")'>s.ServiceType</when>
+						<when test='sortColumn.equalsIgnoreCase("LastSeq")'>s.LastSeq</when>
+						<when test='sortColumn.equalsIgnoreCase("FilePath")'>s.FilePath</when>
+						<when test='sortColumn.equalsIgnoreCase("InlinePath")'>s.InlinePath</when>
+						<when test='sortColumn.equalsIgnoreCase("IsActive")'>s.IsActive</when>
+						<otherwise>s.RegistDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					s.IsActive DESC, s.RegistDate DESC
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+    </select>
+	
+	<select id="selectStorageInfoListCnt" parameterType="cmap" resultType="Long">
+		SELECT COUNT(s.StorageID)
+		FROM sys_storage s
+		join sys_object_domain d on s.domainid = d.domainid
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">			
+			<if test="domain != null">
+				AND s.DomainID = #{domain}
+			</if>	
+		</trim>
+    </select>
+    
+    <select id="selectFileStorageInfo" parameterType="cmap" resultType="cmap">
+                SELECT s.StorageID AS "StorageID"
+					,s.DomainID AS "DomainID"
+					,s.ServiceType AS "StorageServiceType"
+					,s.LastSeq AS "StorageLastSeq"
+					,s.FilePath AS "StorageFilePath"
+					,s.InlinePath AS "InlinePath"
+					,s.IsActive AS "IsActive"
+					,s.Description AS "Description"
+					,f.FileID AS "FileID"
+					,f.ServiceType AS "FileServiceType"
+					,f.ObjectID AS "ObjectID"
+					,f.ObjectType AS "ObjectType"
+					,f.MessageID AS "MessageID"
+					,f.Version AS "Version"
+					,f.SaveType AS "SaveType"
+					,f.LastSeq AS "FileLastSeq"
+					,f.Seq AS "Seq"
+					,f.FilePath AS "FileFilePath"
+					,f.FileName AS "FileName"
+					,f.SavedName AS "SavedName"
+					,f.Extention AS "Extention"
+					,f.Size_ AS "Size"
+					,f.RegisterCode AS "RegisterCode"
+					,f.CompanyCode AS "CompanyCode"
+				FROM sys_storage s
+				join sys_file f on s.StorageID = f.StorageID
+				WHERE 
+				<choose>
+					<when test="fileIDs != null">
+						<foreach collection="fileIDs" item="item" index="index" separator="," open="f.FileID IN (" close=")">
+							#{item}
+						</foreach>
+					</when>
+					<otherwise>
+						1=2
+					</otherwise>
+				</choose>
+    </select>
+    
+    <!-- 아래는 개발 완료후 대체 삭제할 부분 => 전자결재에서 사용하고 있는 쿼리이므로 삭제하면 안됨 --> 
+   <insert id="insertFileDb" parameterType="cmap"  useGeneratedKeys="true">
+       <![CDATA[
+		INSERT INTO SYS_FILE(
+			StorageID
+			,ServiceType
+			,ObjectID
+			,ObjectType
+			,MessageID
+			,Version
+			,SaveType
+			,LastSeq
+			,Seq
+			,FilePath
+			,FileName
+			,SavedName
+			,Extention
+			,Size_
+			,ThumWidth
+			,ThumHeight
+			,Description
+			,RegistDate	
+			,RegisterCode
+			,CompanyCode
+	)
+	VALUES
+	(
+			#{StorageID}
+			,#{ServiceType}
+			,#{ObjectID}
+			,#{ObjectType}
+			,#{MessageID}
+			,#{Version}
+			,#{SaveType}
+			,#{LastSeq}
+			,#{Seq}
+			,#{FilePath}
+			,#{FileName}
+			,#{SavedName}
+			,#{Extention}
+			,#{Size}
+			,#{ThumWidth}
+			,#{ThumHeight}
+			,#{Description}
+			,SYSDATE
+			,#{RegisterCode}
+			,#{CompanyCode}
+	)
+	]]>
+	
+		<selectKey keyProperty="FileID,RegistDate" resultType="hashmap" order="AFTER">
+		    <!-- SELECT CONVERT(LAST_INSERT_ID(), char(50)) AS FileID, CONVERT(NOW(), char(50))AS RegistDate; -->
+		    SELECT   CAST(SYS_FILE_SEQ.CURRVAL AS CHAR(50))AS "FileID"
+		          ,  CAST(TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD HH24:MI:SS')AS CHAR(50))AS "RegistDate" 
+		     FROM dual
+		</selectKey>
+   </insert>
+    
+   <delete id="deleteFileDb" parameterType="cmap">
+		DELETE FROM SYS_FILE
+		WHERE ServiceType = #{ServiceType}
+		AND ObjectType = #{ObjectType}
+		AND SavedName = #{SavedName}
+		<choose>
+			<when test='MessageID != null '> AND MessageID = #{MessageID} </when>
+			<when test='FileID != null '> AND FileID = #{FileID} </when>
+			<otherwise> 1=2 </otherwise>
+		</choose>
+   </delete>
+    
+   <delete id="deleteFileDbAll" parameterType="cmap">
+		DELETE FROM SYS_FILE
+		WHERE MessageID = #{MessageID}
+		AND ServiceType = #{ServiceType}
+		<if test="ObjectID != null and ObjectID != '' ">
+			AND ObjectID = #{ObjectID}
+		</if>
+   </delete>
+    
+   <update id="updateMessageID">
+       <![CDATA[
+       	UPDATE SYS_FILE SET
+       	MessageID = #{MessageID}
+       	WHERE ServiceType = #{ServiceType}
+		AND ObjectType = #{ObjectType}
+		AND SavedName = #{SavedName}
+		AND RegisterCode = #{RegisterCode}
+		]]>
+   </update>
+   
+   <update id="updateFileSeq" parameterType="cmap">
+       <![CDATA[
+       	UPDATE SYS_FILE
+       	SET Seq = #{Seq}
+       	WHERE FileID = #{FileID}
+		]]>
+   </update>
+    
+   <select id="selectFileAll" parameterType="cmap" resultType="cmap">
+		SELECT    FileID AS "FileID"
+		        , StorageID AS "StorageID"
+		        , ServiceType AS "ServiceType"
+		        , ObjectID AS "ObjectID"
+		        , ObjectType AS "ObjectType"
+		        , MessageID AS "MessageID"
+		        , Version AS "Version"
+		        , SaveType AS "SaveType"
+		        , LastSeq AS "LastSeq"
+		        , Seq AS "Seq"
+		        , FilePath AS "FilePath"
+		        , FileName AS "FileName"
+		        , SavedName AS "SavedName"
+		        , Extention AS "Extention"
+		        , Size_ AS "Size_"
+		        , ThumWidth AS "ThumWidth"
+		        , ThumHeight  AS "ThumHeight"
+		        , Description AS "Description"
+		        , RegistDate AS "RegistDate"
+		        , RegisterCode AS "RegisterCode"
+		        , CompanyCode AS "CompanyCode"
+		FROM SYS_FILE
+		WHERE SaveType != 'INLINE'
+		AND NVL(IsDeleted, 'N') = 'N'
+		<if test="MessageID != null and MessageID != '' ">
+			AND MessageID = #{MessageID}
+		</if>
+		<if test="ObjectID != null and ObjectID != '' ">
+			AND ObjectID = #{ObjectID}
+		</if>
+		<if test="ObjectType != null and ObjectType != '' ">
+			AND ObjectType = #{ObjectType}
+		</if>
+		<if test="ServiceType != null and ServiceType != '' ">
+			AND ServiceType = #{ServiceType}
+		</if>
+	</select>
+       
+   <delete id="deleteFileDbByFileId" parameterType="cmap">
+		DELETE 
+	   	  FROM SYS_FILE
+       	 WHERE FileID IN
+			   <foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=",">
+			   	#{fileId}
+	           </foreach>
+   </delete>
+      
+   <select id="selectByFileId" parameterType="cmap" resultType="cmap">
+   		SELECT  f.FileID AS "FileID"
+		      , f.StorageID AS "StorageID"
+		      , f.ServiceType AS "ServiceType"
+		      , f.ObjectID AS "ObjectID"
+		      , f.ObjectType AS "ObjectType"
+		      , f.MessageID AS "MessageID"
+		      , f.Version  AS "Version"
+		      , f.SaveType AS "SaveType"
+		      , f.LastSeq AS "LastSeq"
+		      , f.Seq AS "Seq"
+		      , f.FilePath AS "FilePath"
+		      , f.FileName AS "FileName"
+		      , f.SavedName AS "SavedName"
+		      , f.Extention AS "Extention"
+		      , f.SIZE_ AS "Size"
+		      , f.ThumWidth AS "ThumWidth"
+		      , f.ThumHeight AS "ThumHeight"
+		      , f.Description AS "Description"
+		      , f.RegistDate  AS "RegistDate"
+		      , f.RegisterCode AS "RegisterCode"
+		      , f.CompanyCode AS "CompanyCode"
+		      , s.LastSeq as "StorageLastSeq"
+			  , s.FilePath as "StorageFilePath"
+			  , s.InlinePath AS "InlinePath"
+			  , s.IsActive AS "IsActive"
+		FROM SYS_FILE f
+		JOIN sys_storage s on s.StorageID = f.StorageID
+		WHERE f.FileID IN
+	   	<foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=",">
+	   		#{fileId}
+        </foreach>
+	</select>
+	
+   <update id="updateObjectID" parameterType="cmap">
+		UPDATE SYS_FILE 
+       	   SET ObjectID = #{objectId}
+       	 WHERE FileID IN
+	           <foreach collection="fileIdArr" item="fileId" open="(" close=")" separator=",">
+	           	#{fileId}
+	           </foreach>
+   	</update>
+   
+	<insert id="insertEncryption" parameterType="cmap">
+		INSERT INTO SYS_FILE_ENCRYPTION ( FileID, FileName, Status, RegisterCode, RegistDate)
+		VALUES ( #{FileID}, #{FileName}, 'READY', #{RegisterCode}, sysdate)
+		<selectKey keyProperty="EncID" resultType="Integer" order="AFTER">
+		    SELECT CAST(SYS_FILE_ENCRYPTION_SEQ.CURRVAL AS CHAR(50)) AS "EncID" FROM dual
+		</selectKey>
+	</insert>
+	<update id="updateEncryptionStatus" parameterType="cmap">
+		UPDATE SYS_FILE_ENCRYPTION
+		SET Status = #{Status}
+			,ElapsedTime = #{ElapsedTime}
+			,Message = #{Message}
+		WHERE FileID = #{FileID}
+	</update>
+	<update id="updateSysFileEncrypted" parameterType="cmap">
+		UPDATE SYS_FILE
+		SET Encrypted = 'Y'
+		WHERE FileID = #{FileID}
+	</update>
+	
+</mapper>

@@ -1,0 +1,1954 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="messaging">
+    
+    <resultMap type="cmap" id="messageMap">
+ 	    <result property="ReservedStr4" column="ReservedStr4" jdbcType="CLOB" javaType="java.lang.String" />
+	</resultMap>
+	
+   	<update id="initmsgdata_init" parameterType="cmap">	
+  	        UPDATE SYS_MESSAGING
+  	        SET MessagingState = '1'
+	  	        , SubTotalCount = (
+								   	 SELECT COUNT(0)
+									 FROM SYS_MESSAGING_SUB A
+								     INNER JOIN SYS_OBJECT_USER D ON A.ReceiverCode = D.UserCode AND D.IsUse = 'Y'
+									 WHERE A.MessagIngID = #{MessagingID}
+								  )
+	  	        , SendCount = 0
+	  	        , FailCnt = 0
+	  	        , SendStartDate = NULL	
+	  	        , SendEndDate = NULL	
+	  	        , ReservedDate = SYSDATE
+	  	        , ModifiedDate = SYSDATE
+  	        WHERE MessagingID = #{MessagingID}
+	</update>	
+    
+    <update id="initmsgdata_initsub" parameterType="cmap">	
+        UPDATE SYS_MESSAGING_SUB
+        SET   SuccessState = 'N'
+	        , SendDate = NULL
+	        , RetryCount = 0	
+        WHERE MessagingID = #{MessagingID}
+	</update>	 
+    
+   	 <update id="initmsgdata_retry" parameterType="cmap">	
+        UPDATE SYS_MESSAGING
+        SET   MessagingState = '2'	
+    	    , SendStartDate = SYSTIMESTAMP
+    	    , ThreadType = #{ThreadType} <!-- 즉시 재전송  -->
+        WHERE MessagingID = #{MessagingID}
+	</update>	
+   	
+    <update id="initmsgdata_retryfail" parameterType="cmap">	
+        UPDATE SYS_MESSAGING_SUB
+        SET   SuccessState = 'N'
+			, SendDate = SYSDATE
+			, RetryCount = 0	
+        WHERE MessagingID = #{MessagingID}
+        AND	 SuccessState = 'F'
+	</update>
+    
+    <update id="initmsgdata_retryfinal" parameterType="cmap">	
+        UPDATE SYS_MESSAGING
+        SET  SubTotalCount = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER  JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}
+			 ),
+			SendCount = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER  JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}  
+				AND A.SuccessState = 'C'
+			 ),
+			FailCnt = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER  JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}  
+				AND (A.SuccessState = 'F' OR A.SuccessState = 'R')
+			 )
+		WHERE MessagingID = #{MessagingID}
+	</update>	  
+    
+    <select id="selectmsgsubdata" parameterType="cmap" resultType="cmap">
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		<![CDATA[
+			SELECT     X.SubSeq AS "SubSeq"
+					 , X.SubID AS "SubID"
+					 , X.MessagingID AS "MessagingID"
+					 , X.ReceiverCode AS "ReceiverCode"
+					 , X.MediaType AS "MediaType"
+					 , X.EmpNo AS "EmpNo"
+					 , X.DisplayName AS "DisplayName"
+					 , X.GroupName  AS "GroupName"
+					 , X.MailAddress  AS "MailAddress"
+					 , TO_CHAR(X.SendDate, 'YYYY-MM-DD HH24:MI') AS "SendDate" 
+					 , X.ResultMessage AS "ResultMessage"
+					 , X.SuccessState AS "SuccessState"
+					 , X.RetryCount AS "RetryCount"
+					FROM(			
+						SELECT          ROWNUM AS SubSeq
+									   ,A.SubID
+									   ,A.MessagingID
+									   ,A.ReceiverCode
+									   ,A.MediaType
+									   ,B.EmpNo
+									   ,B.DisplayName
+									   ,BG.DeptName AS GroupName
+									   ,B.MailAddress
+									   ,A.SendDate
+									   ,A.ResultMessage
+									   ,A.SuccessState
+									   ,A.RetryCount
+						FROM  SYS_MESSAGING_SUB A 
+			            LEFT JOIN SYS_OBJECT_USER B  ON B.UserCode	= A.ReceiverCode
+						LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON B.UserCode = BG.UserCode and  bg.jobType='Origin'
+						WHERE 1=1
+			 ]]>			
+						AND A.MessagingID = #{MessagingID}	
+						<if test="MediaType != null">
+							 AND  A.MediaType = #{MediaType}
+						</if>
+						<trim prefix="ORDER BY">
+							A.MessagingID DESC, A.SubID DESC
+						</trim>		
+					) X
+					
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+					
+	</select>
+    
+    <select id="selectmsgsubdatacnt" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(0)
+		FROM  SYS_MESSAGING_SUB A
+			            LEFT JOIN SYS_OBJECT_USER B  ON B.UserCode	= A.ReceiverCode
+						LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON B.UserCode = BG.UserCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				      	A.MessagingID = #{MessagingID}
+			<if test="MediaType != null">
+			    AND  A.MediaType = #{MediaType}
+			</if>	
+		</trim>
+ 	</select>   	
+ 	
+   <delete id="deletemsgdata_partsub" parameterType="cmap">
+        DELETE 
+    	FROM SYS_MESSAGING_SUB  		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="SubID == null">1 = 1</if>
+		  	<if test="SubID != null">SubID = #{SubID}</if>
+		</trim>
+	</delete>  
+      
+    <update id="updatemsgdata_status" parameterType="cmap">	
+        UPDATE SYS_MESSAGING
+        SET  SubTotalCount = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER  JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}
+			 ),
+			SendCount = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}  AND A.SuccessState = 'C'
+			 ),
+			FailCnt = (
+				SELECT COUNT(0) 
+				FROM  SYS_MESSAGING_SUB A
+				INNER  JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				WHERE A.MessagingID = #{MessagingID}  AND (A.SuccessState = 'F' OR (A.SuccessState = 'R' AND A.RetryCount = 4))
+			 )
+		WHERE MessagingID = #{MessagingID}
+	</update>	  	   
+      
+    <delete id="deletemsgdata_fullsub" parameterType="cmap">
+        DELETE 
+    	FROM SYS_MESSAGING_SUB  		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="MessagingID == null">1 = 1</if>
+		  	<if test="MessagingID != null">MessagingID = #{MessagingID}</if>
+		</trim>
+	</delete> 
+      
+    <delete id="deletemsgdata_fulltarget" parameterType="cmap">
+        DELETE 
+    	FROM SYS_MESSAGING_TARGET 		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="MessagingID == null">1 = 1</if>
+		  	<if test="MessagingID != null">MessagingID = #{MessagingID}</if>
+		</trim>
+	</delete>  
+      
+    <delete id="deletemsgdata_full" parameterType="cmap">
+        DELETE 
+    	FROM SYS_MESSAGING  		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    <if test="MessagingID == null">1 = 1</if>
+		  	<if test="MessagingID != null">MessagingID = #{MessagingID}</if>
+		</trim>
+	</delete> 
+      
+   <update id="updatemessagingdata" parameterType="cmap">	
+		UPDATE  SYS_MESSAGING
+		SET   ServiceType		= CASE WHEN #{ServiceType} IS NULL THEN ServiceType ELSE #{ServiceType} END
+    		, ObjectType		= CASE WHEN #{ObjectType} IS NULL THEN ObjectType ELSE #{ObjectType} END
+			, ObjectID			= CASE WHEN TO_NUMBER(NVL(#{ObjectID},0)) = 0 THEN TO_NUMBER(ObjectID) ELSE TO_NUMBER(#{ObjectID})END
+			, MsgType			= CASE WHEN #{MsgType} IS NULL THEN MsgType ELSE #{MsgType} END
+		    , MessageID			= CASE WHEN TO_NUMBER(NVL(#{MessageID},0)) = 0 THEN TO_NUMBER(MessageID) ELSE TO_NUMBER(#{MessageID}) END
+            , SubMsgID			= CASE WHEN TO_NUMBER(NVL(#{SubMsgID},0)) = 0 THEN TO_NUMBER(SubMsgID) ELSE TO_NUMBER(#{SubMsgID}) END
+			, MediaType			= CASE WHEN #{MediaType} IS NULL THEN MediaType ELSE UPPER(#{MediaType}) END
+       	    , IsUse				= CASE WHEN #{IsUse} IS NULL THEN IsUse ELSE #{IsUse} END
+			, IsDelay			= CASE WHEN #{IsDelay} IS NULL THEN IsDelay ELSE #{IsDelay} END
+			, MessagingSubject	= CASE WHEN #{MessagingSubject} IS NULL THEN MessagingSubject ELSE #{MessagingSubject} END
+			, MessagingState	= CASE WHEN #{MessagingState} IS NULL THEN MessagingState ELSE #{MessagingState} END
+			, ApprovalState		= CASE WHEN #{ApprovalState} IS NULL THEN ApprovalState ELSE #{ApprovalState} END
+			, ApproverCode		= CASE WHEN #{ApproverCode} IS NULL THEN ApprovalState ELSE #{ApproverCode} END
+			, SubTotalCount		= CASE WHEN TO_NUMBER(NVL(#{SubTotalCount},0)) = 0 THEN TO_NUMBER(SubTotalCount) ELSE TO_NUMBER(#{SubTotalCount}) END
+			, SendCount			= CASE WHEN TO_NUMBER(NVL(#{SendCount},0)) = 0 THEN TO_NUMBER(SendCount) ELSE TO_NUMBER(#{SendCount}) END
+    	    , SenderCode		= CASE WHEN #{SenderCode} IS NULL THEN SenderCode ELSE #{SenderCode} END
+			, ReservedDate		= CASE WHEN TO_DATE(NVL(#{ReservedDate},''), 'YYYY-MM-DD HH24:MI:SS') IS NULL THEN ReservedDate ELSE TO_DATE(#{ReservedDate}, 'YYYY-MM-DD HH24:MI:SS') END
+			, SendStartDate		= CASE WHEN TO_DATE(NVL(#{SendStartDate},''), 'YYYY-MM-DD HH24:MI:SS') IS NULL THEN SendStartDate ELSE TO_DATE(#{SendStartDate}, 'YYYY-MM-DD HH24:MI:SS') END
+			, SendEndDate		= CASE WHEN TO_DATE(NVL(#{SendEndDate},''), 'YYYY-MM-DD HH24:MI:SS') IS NULL THEN SendEndDate ELSE TO_DATE(#{SendEndDate}, 'YYYY-MM-DD HH24:MI:SS') END
+			, XSLPath			= CASE WHEN #{XSLPath} IS NULL THEN XSLPath ELSE #{XSLPath} END
+			, Width				= CASE WHEN TO_NUMBER(NVL(#{Width},0)) = 0 THEN TO_NUMBER(Width) ELSE TO_NUMBER(#{Width}) END
+			, Height			= CASE WHEN TO_NUMBER(NVL(#{Height},0)) = 0 THEN TO_NUMBER(Height) ELSE TO_NUMBER(#{Height}) END
+			, PopupURL			= CASE WHEN #{PopupURL} IS NULL THEN PopupURL ELSE #{PopupURL} END
+			, GotoURL			= CASE WHEN #{GotoURL} IS NULL THEN GotoURL ELSE #{GotoURL} END
+			, MobileURL			= CASE WHEN #{MobileURL} IS NULL THEN GotoURL ELSE #{MobileURL} END
+			, OpenType			= CASE WHEN #{OpenType} IS NULL THEN OpenType ELSE #{OpenType} END
+			, MessageContext	= CASE WHEN #{MessageContext} IS NULL THEN TO_CLOB(MessageContext) ELSE TO_CLOB(#{MessageContext}) END
+      		, ReservedStr1		= CASE WHEN #{ReservedStr1} IS NULL THEN ReservedStr1 ELSE #{ReservedStr1} END
+			, ReservedStr2		= CASE WHEN #{ReservedStr2} IS NULL THEN ReservedStr2 ELSE #{ReservedStr2} END
+			, ReservedStr3		= CASE WHEN #{ReservedStr3} IS NULL THEN ReservedStr3 ELSE #{ReservedStr3} END
+			, ReservedStr4		= CASE WHEN #{ReservedStr4} IS NULL THEN ReservedStr4 ELSE #{ReservedStr4} END
+			, ReservedInt1		= CASE WHEN TO_NUMBER(NVL(#{ReservedInt1},0)) = 0 THEN TO_NUMBER(ReservedInt1) ELSE TO_NUMBER(#{ReservedInt1}) END
+			, ReservedInt2		= CASE WHEN TO_NUMBER(NVL(#{ReservedInt2},0)) = 0 THEN TO_NUMBER(ReservedInt2) ELSE TO_NUMBER(#{ReservedInt2}) END
+			, ModifiedDate		= SYSDATE
+			, ModifierCode		= CASE WHEN #{ModifierCode} IS NULL THEN ModifierCode ELSE #{ModifierCode} END
+			, DeleteDate		= CASE WHEN TO_DATE(NVL(#{DeleteDate},''), 'YYYY-MM-DD HH24:MI:SS') IS NULL THEN DeleteDate ELSE TO_DATE(#{DeleteDate}, 'YYYY-MM-DD HH24:MI:SS') END
+		WHERE  MessagingID	= #{MessagingID}
+	</update>	   
+      
+    <update id="updatemsgpartialapproval_sub" parameterType="cmap">	
+        UPDATE SYS_MESSAGING_SUB
+        SET SuccessState = 'F'
+        WHERE MessagingID = #{MessagingID}
+        	AND MediaType IN
+		        	 <foreach collection="RejectMediaType" item="item"  separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+	</update>	 
+      
+    <update id="updatemsgpartialapproval" parameterType="cmap">	
+        UPDATE SYS_MESSAGING
+        SET ApprovalState = 'A'
+        WHERE MessagingID = #{MessagingID}
+	</update> 
+      
+    <update id="updatemsgsent_sub" parameterType="cmap">	
+        UPDATE SYS_MESSAGING_SUB
+        SET   SuccessState = 'C'
+        	, SendDate = SYSDATE
+        WHERE SubID IN
+		        	 <foreach collection="SubID" item="item"  separator="," open="(" close=")">
+					    #{item}
+					</foreach>
+	</update>	  
+    
+	<update id="updatemsgsent" parameterType="cmap">	
+		UPDATE  SYS_MESSAGING
+		SET		SendEndDate = SYSDATE
+		WHERE	MessagingID IN 
+				(	
+				SELECT * FROM (SELECT A.MessagingID 
+					FROM SYS_MESSAGING A
+							LEFT JOIN (
+								SELECT MessagingID 
+								     , COUNT(0) CNT 
+								FROM SYS_MESSAGING_SUB
+								WHERE SubID IN <foreach collection="SubID" item="item"  separator="," open="(" close=")">  #{item}	</foreach>
+									 AND SuccessState IN ('N', 'I', 'R')
+								GROUP BY MessagingID
+							) B
+							ON A.MessagingID = B.MessagingID
+					WHERE A.MessagingID IN (
+												SELECT MessagingID
+												FROM SYS_MESSAGING_SUB
+												WHERE SubID IN <foreach collection="SubID" item="item"  separator="," open="(" close=")">  #{item}	</foreach>
+											)
+						AND B.CNT IS NULL)dummy_ 
+			    )	
+	</update>	 
+    	
+    <update id="updatemsgsentfail" parameterType="cmap">	
+        UPDATE SYS_MESSAGING_SUB
+        SET SuccessState	= 
+		        	CASE WHEN (RetryCount + 1) <![CDATA[ < ]]> (
+		        												SELECT SettingValue
+		        												FROM  SYS_BASE_CONFIG
+																WHERE  UPPER(SettingKey) = UPPER(CONCAT(#{MediaType}, 'RetryCount'))
+															) 
+					THEN 'R' ELSE 'F' END
+        	, ResultMessage	= #{ResultMessage}
+        	, RetryCount = RetryCount + 1
+        WHERE SubID = #{SubID}
+	</update>		
+    	
+	<select id="selectmsgapprovallist" parameterType="cmap" resultType="cmap">
+		SELECT  A.MessagingID AS "MessagingID"
+		      , A.ServiceType AS "ServiceType"
+		      , A.MsgType AS "MsgType"
+		      , A.MessagingSubject AS "MessagingSubject"
+		      , A.SubTotalCount AS "SubTotalCount"
+		      , A.SenderCode AS "SenderCode"
+		      , A.ReceiverText AS "ReceiverText"
+		      , A.RegistDate AS "RegistDate"
+		      , B.MessagingID AS "MessagingID_1"
+		      , B.MediaType AS "MediaType"
+		FROM (
+			SELECT    MessagingID
+					, ServiceType
+					, MsgType
+					, MessagingSubject
+					, SubTotalCount
+					, SenderCode
+					, ReceiverText
+					, TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate 
+			FROM (
+				SELECT *
+				FROM SYS_MESSAGING  	
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					ApprovalState = 'W'
+					<if test="ServiceType != null">
+						AND ServiceType = #{ServiceType} 
+					</if>
+					<if test="MsgType != null">
+						AND MsgType = #{MsgType} 
+					</if>
+					<if test="SearchColumn != null and SearchText != null">
+						<if test="SearchColumn == 'Title'.toString()">
+							AND MessagingSubject LIKE '%'||#{searchtext}||'%'
+						</if>
+						<if test="SearchColumn == 'Contents'.toString()">
+							AND MessageContext LIKE '%'||#{searchtext}||'%'
+						</if>
+						<if test="SearchColumn == 'Requester'.toString()">
+							AND SenderCode LIKE '%'||#{searchtext}||'%'
+						</if>
+					</if>
+				</trim>
+			)  A 
+		) A
+	    LEFT OUTER JOIN
+	    (
+	    	SELECT MessagingID,
+  			(
+				SELECT TRIM(LISTAGG(MTYPE.MediaType,'@') WITHIN GROUP(ORDER BY MTYPE.MediaType))
+				FROM (
+					SELECT MSGSUB.MessagingID
+					     , CONCAT(CONCAT(MSGSUB.MediaType , ';'), CAST(COUNT(*) AS CHAR(30))) AS MediaType
+					FROM SYS_MESSAGING_SUB MSGSUB
+					GROUP BY MSGSUB.MessagingID, MSGSUB.MediaType
+				) MTYPE
+				WHERE MTYPE.MessagingID = SUB.MessagingID
+		   		GROUP BY MTYPE.MessagingID
+			) AS MediaType
+	      	FROM SYS_MESSAGING_SUB SUB 
+	      	WHERE MessagingID IN
+		  	(
+				SELECT MessagingID
+				FROM 
+				(
+					SELECT *
+					FROM SYS_MESSAGING  	
+					<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						ApprovalState = 'W'
+						<if test="ServiceType != null">
+							AND ServiceType = #{ServiceType} 
+						</if>
+						<if test="MsgType != null">
+							AND MsgType = #{MsgType} 
+						</if>
+						<if test="SearchColumn != null and SearchText != null">
+							<if test="SearchColumn == 'Title'.toString()">
+								AND MessagingSubject LIKE '%'||#{searchtext}||'%'
+							</if>
+							<if test="SearchColumn == 'Contents'.toString()">
+								AND MessageContext LIKE '%'||#{searchtext}||'%'
+							</if>
+							<if test="SearchColumn == 'Requester'.toString()">
+								AND SenderCode LIKE '%'||#{searchtext}||'%'
+							</if>
+						</if>
+					</trim>
+				)  A 
+		  	)
+      		GROUP BY MessagingID
+   		) B ON A.MessagingID = B.MessagingID
+   		WHERE 1=1
+		<if test="MessagingID != null ">
+			AND A.MessagingID = #{MessagingID}
+		</if>
+		<if test="pageSize != null and pageOffset != null">
+			AND ROWNUM BETWEEN #{pageSize} AND #{pageOffset}
+		</if>
+		<trim prefix="ORDER BY ">
+			<if test="sortColumn != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ServiceType")'>A.ServiceType</when>
+					<when test='sortColumn.equalsIgnoreCase("MsgType")'>A.MsgType</when>
+					<when test='sortColumn.equalsIgnoreCase("MessagingSubject")'>A.MessagingSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiverText")'>A.ReceiverText</when>
+					<when test='sortColumn.equalsIgnoreCase("MediaType")'>B.MediaType</when>
+					<when test='sortColumn.equalsIgnoreCase("SenderCode")'>A.SenderCode</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>A.RegistDate</when>
+					<otherwise>A.MessagingID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+			<if test="sortColumn == null">
+				A.RegistDate DESC  
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectmsgapprovallistcnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(0) 
+		FROM (
+			SELECT MessagingID
+			     , ServiceType
+			     , MsgType
+			     , MessagingSubject
+			     , SubTotalCount
+			     , SenderCode
+			     , ReceiverText
+			     , RegistDate 
+			FROM( 
+				SELECT *
+				FROM SYS_MESSAGING  	
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					ApprovalState = 'W'
+					<if test="ServiceType != null">
+						AND ServiceType = #{ServiceType} 
+					</if>
+					<if test="MsgType != null">
+						AND MsgType = #{MsgType} 
+					</if>
+					<if test="SearchColumn != null and SearchText != null">
+						<if test="SearchColumn == 'Title'.toString()">
+							AND MessagingSubject LIKE '%'||#{searchtext}||'%' 
+						</if>
+						<if test="SearchColumn == 'Contents'.toString()">
+							AND MessageContext LIKE '%'||#{searchtext}||'%' 
+						</if>
+						<if test="SearchColumn == 'Requester'.toString()">
+							AND SenderCode LIKE '%'||#{searchtext}||'%' 
+						</if>
+					</if>
+				</trim>
+			)  A  
+		) A
+		<if test="MessagingID != null ">
+			WHERE A.MessagingID = #{MessagingID}
+		</if>
+	</select>	    
+    		
+	<select id="selectmastermsglist" parameterType="cmap" resultMap="messageMap">
+		SELECT    A.RNUM AS RNUM 
+		        , A.MessagingID AS "MessagingID"
+		        , A.SenderCode AS "SenderCode"
+		        , A.DisplayName AS "DisplayName"
+		        , A.ServiceType AS "ServiceType"
+		        , A.Code AS "Code"
+		        , A.CodeName AS "CodeName"
+		        , A.MessagingSubject AS "MessagingSubject"
+		        , A.ReceiverText AS "ReceiverText"
+		        , A.MessagingState AS "MessagingState"
+		        , A.ApprovalState AS "ApprovalState"
+		        , A.SubTotalCount AS "SubTotalCount"
+		        , A.SendCount AS "SendCount"
+		        , A.FailCnt AS "FailCnt"
+		        , A.ReservedDate AS "ReservedDate"
+		        , A.SendStartDate AS "SendStartDate"
+		        , A.SendEndDate AS "SendEndDate"
+		        , A.RegistDate AS "RegistDate"
+		        , A.ProcessTime AS "ProcessTime"
+		        , A.ObjectType AS "ObjectType"
+		        , A.ObjectID AS "ObjectID"
+		        , A.MessageID AS "MessageID"
+		        , A.SubMsgID AS "SubMsgID"
+		        , A.MediaType AS "MediaType"
+				, A.MsgType AS "MsgType"
+				, A.IsUse AS "IsUse"
+				, A.IsDelay AS "IsDelay"
+				, A.ApproverCode AS "ApproverCode"
+				, A.XSLPath AS "XSLPath"
+				, A.Width AS "Width"
+				, A.Height AS "Height"
+				, A.PopupURL AS "PopupURL"
+				, A.GotoURL AS "GotoURL"
+				, A.OpenType AS "OpenType"
+				, A.MessageContext AS "MessageContext"
+				, A.ReservedStr1 AS "ReservedStr1"
+				, A.ReservedStr2 AS "ReservedStr2"
+				, A.ReservedStr3 AS "ReservedStr3"
+				, A.ReservedStr4 AS "ReservedStr4"
+				, A.ReservedInt1 AS "ReservedInt1"
+				, A.ReservedInt2 AS "ReservedInt2"
+				, A.RegisterCode AS "RegisterCode"
+				, A.ModifiedDate AS "ModifiedDate"
+				, A.ModifierCode AS "ModifierCode"
+				, A.DeleteDate AS "DeleteDate"
+		FROM (		
+			SELECT    ROWNUM AS RNUM
+					, A.MessagingID
+					, A.SenderCode
+					, B.DisplayName
+				 	, BG.DeptName
+					, A.ServiceType
+					, C.Code
+					, C.CodeName
+					, A.MessagingSubject
+					, A.ReceiverText
+					, A.MessagingState
+					, A.ApprovalState
+					, A.SubTotalCount
+					, A.SendCount
+					, A.FailCnt
+				    , TO_CHAR(A.ReservedDate, 'YYYY-MM-DD HH24:MI:SS') AS ReservedDate
+					, A.SendStartDate AS SendStartDate
+					, A.SendEndDate AS SendEndDate
+				    , TO_CHAR(A.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+				    , ROUND(
+				 		 (TO_DATE(TO_CHAR(A.SendEndDate, 'YYYYMMDDHH24MISS'), 'YYYYMMDDHH24MISS')  
+		                   	 - TO_DATE(TO_CHAR(A.SendStartDate, 'YYYYMMDDHH24MISS'), 'YYYYMMDDHH24MISS')
+		                 )*24*60 
+		              ) AS ProcessTime
+					, A.ObjectType
+					, A.ObjectID
+					, A.MessageID
+					, A.SubMsgID
+					, A.MediaType
+					, A.MsgType
+					, A.IsUse
+					, A.IsDelay
+					, A.ApproverCode
+					, A.XSLPath
+					, A.Width
+					, A.Height
+					, A.PopupURL 
+					, A.GotoURL
+					, A.OpenType
+					, A.MessageContext
+					, A.ReservedStr1
+					, A.ReservedStr2
+					, A.ReservedStr3
+					, A.ReservedStr4
+					, A.ReservedInt1
+					, A.ReservedInt2 
+					, A.RegisterCode
+					, A.ModifiedDate
+					, A.ModifierCode
+					, A.DeleteDate 
+			FROM SYS_MESSAGING A 
+			LEFT JOIN SYS_OBJECT_USER B  ON A.SenderCode = B.UserCode 
+			LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON B.UserCode = BG.UserCode 
+			INNER JOIN SYS_BASE_CODE C ON C.CodeGroup = 'TodoMsgType' AND A.MsgType = C.Code
+			LEFT JOIN SYS_OBJECT_DOMAIN D ON D.DomainCode = BG.CompanyCode
+			<!-- WHERE 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				A.DeleteDate IS NULL
+				AND C.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = C.Code AND CodeGroup = 'TodoMsgType' AND DomainID = D.DomainID)
+				<if test="BizSection != null">
+					AND A.ServiceType = #{BizSection}
+				</if>
+				<if test="MsgType != null">
+					AND A.MsgType = #{MsgType}
+				</if>
+				<if test="MsgState!= null">
+					AND A.MessagingState = #{MsgState}
+				</if>
+				<if test="SearchColumn != null and SearchText != null">
+					<if test="SearchColumn == 'Title'.toString()">
+						AND A.MessagingSubject LIKE '%'||#{searchtext}||'%' 
+					</if>
+					<if test="SearchColumn == 'Contents'.toString()">
+						AND A.MessageContext LIKE '%'||#{searchtext}||'%' 
+					</if>
+					<if test="SearchColumn == 'Register'.toString()">
+						AND B.DisplayName LIKE '%'||#{searchtext}||'%' 
+					</if>
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("ServiceType")'>ServiceType</when>
+						<when test='sortColumn.equalsIgnoreCase("MsgType")'>MsgType</when>
+						<when test='sortColumn.equalsIgnoreCase("MessagingSubject")'>MessagingSubject</when>
+						<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+						<when test='sortColumn.equalsIgnoreCase("MessagingState")'>MessagingState</when>
+						<when test='sortColumn.equalsIgnoreCase("SubTotalCount")'>SubTotalCount</when>
+						<when test='sortColumn.equalsIgnoreCase("SendCount")'>SendCount</when>
+						<when test='sortColumn.equalsIgnoreCase("FailCnt")'>FailCnt</when>
+						<when test='sortColumn.equalsIgnoreCase("ProcessTime")'>ProcessTime</when>
+						<when test='sortColumn.equalsIgnoreCase("ReservedDate")'>ReservedDate</when>
+						<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+						<otherwise>MessagingID</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					<include refid="oracle.include.listOrderBy"/>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					RegistDate DESC
+				</if>
+			</trim>
+		) A
+		<if test="pageSize != null and pageOffset != null">
+			WHERE RNUM BETWEEN #{pageSize} AND #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectmastermsglistcnt" parameterType="cmap" resultType="java.lang.Long">
+        SELECT COUNT(0) AS CNT 	
+		FROM SYS_MESSAGING A 	
+		LEFT JOIN SYS_OBJECT_USER B ON A.SenderCode = B.UserCode
+		LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG  ON B.UserCode = BG.UserCode	
+		INNER JOIN SYS_BASE_CODE C ON C.CodeGroup = 'TodoMsgType' AND A.MsgType = C.Code
+		LEFT JOIN SYS_OBJECT_DOMAIN D ON D.DomainCode = BG.CompanyCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			A.DeleteDate IS NULL
+			AND C.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = C.Code AND CodeGroup = 'TodoMsgType' AND DomainID = D.DomainID)
+			<if test="BizSection != null">
+				AND A.ServiceType = #{BizSection}
+			</if>
+			<if test="MsgType != null">
+				AND A.MsgType = #{MsgType}
+			</if>
+			<if test="MsgState!= null">
+				AND A.MessagingState = #{MsgState}
+			</if>
+			<if test="SearchColumn != null and SearchText != null">
+			    <if test="SearchColumn == 'Title'.toString()">
+   					AND A.MessagingSubject LIKE '%'||#{searchtext}||'%' 
+				</if>
+				<if test="SearchColumn == 'Contents'.toString()">
+   					AND A.MessageContext LIKE '%'||#{searchtext}||'%' 
+				</if>
+				<if test="SearchColumn == 'Register'.toString()">
+   					AND B.DisplayName LIKE '%'||#{searchtext}||'%' 
+				</if>
+			</if>
+		</trim>
+ 	</select>   
+	
+	 
+	 <select id="selectDefaultMediaType" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT Reserved1 AS "Reserved1"
+			FROM SYS_BASE_CODE
+			WHERE CodeGroup = 'TodoMsgType' 
+			  AND Code = #{MsgType}
+	    ]]>
+	</select>
+	
+	<insert id="insertMsgData" parameterType="cmap" useGeneratedKeys="true" keyProperty="MessagingID" keyColumn="MessagingID">	
+        INSERT INTO SYS_MESSAGING
+        (	
+	        ServiceType
+	        ,  ObjectType
+	        ,  ObjectID
+	        ,  MsgType
+	        ,  MessageID
+	        ,  SubMsgID
+	        ,  MediaType
+	        ,  IsUse
+	        ,  IsDelay
+	        ,  MessagingSubject
+	        ,  MessagingState
+	        ,  ApprovalState
+	        ,  ApproverCode
+	        ,  SubTotalCount
+	        ,  SendCount
+	        ,  FailCnt
+	        ,  SenderCode
+	        ,  ReceiverText
+	        ,  ReservedDate
+	        ,  SendStartDate
+	        ,  SendEndDate
+	        ,  XSLPath
+	        ,  Width
+	        ,  Height
+	        ,  PopupURL
+	        ,  GotoURL
+	        ,  MobileURL
+	        ,  OpenType
+	        ,  MessageContext
+	        ,  ReservedStr1
+	        ,  ReservedStr2
+	        ,  ReservedStr3
+	        ,  ReservedStr4
+	        ,  ReservedInt1
+	        ,  ReservedInt2
+	        ,  RegistDate
+	        ,  RegisterCode
+	        ,  ModifiedDate
+	        ,  ModifierCode
+	        ,  DeleteDate
+		)
+		VALUES
+		(
+			#{ServiceType}
+			, #{ObjectType}
+			, #{ObjectID}
+			, #{MsgType}
+			, #{MessageID}
+			, #{SubMsgID}
+			, #{MediaType}
+			, #{IsUse}
+			, #{IsDelay}
+			, #{MessagingSubject}
+			, '1'
+			, #{ApprovalState}
+			, #{strApproverCode}
+			, #{SubTotalCount}
+			, #{SendCount}
+			, 0 
+			, NVL(#{SenderCode}, 'superadmin')
+			, #{ReceiverText}
+			, NVL(TO_DATE(#{ReservedDate}, 'YYYY-MM-DD HH24:MI:SS'), SYSDATE)
+			, NULL
+			, NULL
+			, #{XSLPath}
+			, #{Width}
+			, #{Height}
+			, #{PopupURL}
+			, #{GotoURL}
+			, #{MobileURL}
+			, #{OpenType}
+			, #{MessageContext}
+			, #{ReservedStr1}
+			, #{ReservedStr2}
+			, #{ReservedStr3}
+			, #{ReservedStr4}
+			, #{ReservedInt1}
+			, #{ReservedInt2}
+			, SYSDATE
+			, NVL(#{RegistererCode}, 'superadmin')
+			, NULL 
+			, NULL 
+			, NULL 
+		)
+		<selectKey keyProperty="LastMsgID" resultType="int" order="AFTER">
+        	(SELECT SYS_MESSAGING_SEQ.CURRVAL AS "LastMsgID" FROM dual)
+       </selectKey>
+       
+	</insert>	  
+	
+	<insert id="insertMsgData_TargetSurvey" parameterType="cmap" >	
+        INSERT INTO SYS_MESSAGING_TARGET 
+        	(MessagingID, TargetID, InfoType, TargetObjectType, TargetCode)
+			SELECT #{MessagingID}
+					, ROWNUM
+					, D.InfoType
+					, TargetType
+					, TargetCode
+			FROM
+			(
+				SELECT CASE 
+						   WHEN NVL(TargetType,'') = 'GR' THEN 'Group'
+						   WHEN NVL(TargetType,'') = 'UR' THEN 'User'
+						   END AS InfoType
+						, TargetType
+						, TargetCode
+						, RespondentID
+				 FROM SURVEY_TARGET_RESPONDENT 
+				 WHERE SurveyID = #{MessageID}
+			) D
+			ORDER BY D.RespondentID
+	</insert>	  
+	
+	<insert id="insertMsgData_Target" parameterType="cmap" >	
+        INSERT INTO SYS_MESSAGING_TARGET	(
+			MessagingID, TargetID, InfoType, TargetObjectType, TargetCode
+		)
+		SELECT
+				  #{MessagingID}
+				, ROWNUM
+				, D.InfoType
+				, D.TargetObjectType
+				, D.TargetCode
+		FROM
+		(
+			SELECT CASE
+						  WHEN NVL(C.GroupCode,'') <![CDATA[<>]]> '' THEN 'Group'
+						  WHEN NVL(B.UserCode,'') <![CDATA[<>]]> '' THEN 'User'
+						END AS InfoType
+					, CASE
+						  WHEN NVL(C.GroupType,'') = 'Company' THEN 'DN'
+						  WHEN NVL(C.GroupCode,'') <![CDATA[<>]]> '' THEN 'GR'
+						  WHEN NVL(B.UserCode,'') <![CDATA[<>]]> '' THEN 'UR'
+					  END AS TargetObjectType
+					,CASE
+						  WHEN NVL(C.GroupCode,'') <![CDATA[<>]]> '' THEN C.GroupCode
+						  WHEN NVL(B.UserCode,'') <![CDATA[<>]]> '' THEN B.UserCode
+					  END AS TargetCode
+		  	FROM TT_VALUETABLE A
+			  LEFT OUTER JOIN SYS_OBJECT_USER B  ON B.UserCode = A.Value
+			  LEFT OUTER JOIN SYS_OBJECT_GROUP C  ON C.GroupCode = A.Value
+		) D
+		 ORDER BY D.TargetObjectType
+	</insert>	
+	
+	<insert id="createTT_ValueTable" parameterType="cmap" >	
+	    CREATE GLOBAL TEMPORARY TABLE TT_VALUETABLE (
+			value varchar2(30)
+		); 
+    </insert>
+	
+	<insert id="insertTT_ValueTable" parameterType="cmap" >	
+		INSERT TT_VALUETABLE
+		(
+	     	value
+		)
+		VALUES
+	     <foreach collection="ReceiversCode" item="item"  separator="),(" open="(" close=");">
+        	#{item}
+        </foreach>
+    </insert>
+	
+	<select id="selectSurveyTargetRespondentType" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT TargetRespondentType 
+			FROM SURVEY 
+			WHERE SurveyID = #{MessageID}
+	    ]]>
+	</select>
+		
+	<insert id="createTT_tbReceivers_User" parameterType="cmap" >	
+	   CREATE GLOBAL TEMPORARY TABLE TT_TBRECEIVERS_USER
+		(
+			Seq INT PRIMARY KEY,
+			UserCode VARCHAR(50)
+		);
+    </insert>	  
+    
+    <insert id="insertTT_tbReceivers_User" parameterType="cmap" >
+		INSERT INTO TT_TBRECEIVERS_USER
+		(
+			  Seq
+			, UserCode
+		)
+		<if test="TargetRespondentType == 'S'.toString()">
+		    
+		    SELECT TT_TBRECEIVERS_USER_SEQ.NEXTVAL, TBL.* FROM(
+				SELECT TBL.*
+				FROM(
+					SELECT TargetCode AS RespondentCode
+					FROM SURVEY_TARGET_RESPONDENT UserList
+					WHERE SurveyID = #{MessageID} AND TargetType = 'UR'
+					
+					UNION ALL 
+					
+					SELECT UR.UserCode AS RespondentCode
+					FROM SYS_OBJECT_GROUP_MEMBER UR
+					INNER JOIN ( 
+						SELECT GRH.GroupCode 
+							FROM SURVEY_TARGET_RESPONDENT TR
+							INNER JOIN SYS_OBJECT_GROUP GR ON TR.TargetCode = GR.GroupCode AND TR.SurveyID = #{MessageID} AND TargetType = 'GR' 
+							LEFT OUTER JOIN SYS_OBJECT_GROUP GRH ON GRH.GroupPath LIKE CONCAT(GR.GroupPath,'%')
+						) HGR ON UR.GroupCode = HGR.GroupCode 
+				) TBL 
+				GROUP BY RespondentCode
+			)TBL	
+		</if>
+		<if test="TargetRespondentType == 'A'.toString()">
+		    SELECT TT_TBRECEIVERS_USER_SEQ.NEXTVAL, TBL.* FROM(
+				SELECT TBL.* 
+				FROM	(	
+							SELECT UR.UserCode AS RespondentCode
+					         FROM SYS_OBJECT_GROUP_MEMBER UR 
+					         INNER JOIN	(	SELECT GRH.GroupCode
+								               FROM SURVEY_TARGET_RESPONDENT TR 
+								               INNER JOIN SYS_OBJECT_GROUP GR ON TR.TargetCode = GR.GroupCode AND TR.SurveyID = #{MessageID} AND TargetType = 'GR'
+								               LEFT OUTER JOIN SYS_OBJECT_GROUP GRH ON GRH.GroupPath LIKE CONCAT(GR.GroupPath,'%')
+								               WHERE GRH.IsUse = 'Y'
+												) HGR ON UR.GroupCode = HGR.GroupCode
+						) TBL 
+				GROUP BY RespondentCode
+			)TBL
+		</if>
+     </insert>
+    
+     <insert id="createTT_tbReceivers" parameterType="cmap" >	
+	   CREATE GLOBAL TEMPORARY TABLE TT_TBRECEIVERS (
+			Seq INT PRIMARY KEY,
+	    	ReceiverCode VARCHAR(50),
+	    	TargetMedia VARCHAR(100)
+		);      
+     </insert>	  
+    
+	 <insert id="insertMsgData_SubTempSurvey" parameterType="cmap" >
+		INSERT INTO TT_TBRECEIVERS
+		(Seq, ReceiverCode, TargetMedia) 
+		SELECT TT_TBRECEIVERS_SEQ.NEXTVAL, VM.ReceiverCode, VM.TargetMedia FROM (
+		
+			SELECT DISTINCT UserCode AS ReceiverCode, TargetMedia 
+			FROM
+			(
+				SELECT UR.UserCode, NVL(C.MediaType,NVL(#{mMediaType},B.Reserved3)) AS TargetMedia
+			   FROM SYS_MESSAGING_TARGET A 
+				   INNER JOIN TT_TBRECEIVERS_USER UR ON A.TargetCode = UR.UserCode AND A.TargetObjectType = 'UR'
+				   INNER JOIN SYS_BASE_CODE B ON CodeGroup = 'TodoMsgType' AND Code = #{MsgType}
+				   LEFT JOIN SYS_MESSAGING_SETTING C ON UR.UserCode = C.UserCode AND B.Code = C.ServiceType
+			   WHERE A.MessagingID = #{MessagingID} AND B.IsUse = 'Y'
+			) VW
+		)VM
+     </insert>
+        
+     <insert id="insertMsgData_SubTemp" parameterType="cmap" >	
+		INSERT INTO TT_TBRECEIVERS
+		(Seq, ReceiverCode, TargetMedia) 
+		SELECT TT_TBRECEIVERS_SEQ.NEXTVAL, VM.ReceiverCode, VM.TargetMedia  FROM (
+			SELECT DISTINCT UserCode AS ReceiverCode, TargetMedia 
+			FROM
+			(
+			   SELECT UR.UserCode, NVL(C.MediaType,NVL(#{mMediaType},B.Reserved3)) AS TargetMedia
+			   FROM SYS_MESSAGING_TARGET A 
+			   INNER JOIN SYS_OBJECT_USER UR ON A.TargetCode = UR.UserCode AND A.TargetObjectType = 'UR'
+			   INNER JOIN SYS_BASE_CODE B ON CodeGroup = 'TodoMsgType' AND Code = #{MsgType}
+			   LEFT JOIN SYS_MESSAGING_SETTING C ON  UR.UserCode = C.UserCode AND B.Code = C.ServiceType
+			   WHERE A.MessagingID = #{MessagingID} 
+			     AND UR.IsUse = 'Y' 
+			     AND B.IsUse = 'Y'
+			  
+			   UNION
+			 
+			   SELECT UR.UserCode, NVL(C.MediaType,NVL(#{mMediaType},B.Reserved3)) AS TargetMedia
+			   FROM SYS_OBJECT_USER UR 
+			   INNER JOIN SYS_BASE_CODE B ON CodeGroup = 'TodoMsgType' AND Code = #{MsgType}
+			   LEFT JOIN SYS_MESSAGING_SETTING C ON UR.UserCode = C.UserCode AND B.Code = C.ServiceType
+			   LEFT JOIN SYS_OBJECT_GROUP_MEMBER GM ON UR.UserCode = GM.UserCode
+			   WHERE GM.GroupCode IN( 
+			 		SELECT GroupCode
+					FROM SYS_OBJECT_GROUP GR 
+					INNER JOIN SYS_MESSAGING_TARGET A ON CONCAT(';',GR.GroupPath) LIKE '%;'||A.TargetCode||';%' AND A.InfoType = 'Group'
+					WHERE A.MessagingID = #{MessagingID} 
+					  AND GR.IsUse = 'Y'
+				)
+			   AND UR.IsUse = 'Y'
+			 ) VW
+		  )VM 	 
+     </insert>
+    
+   	  <insert id="insertMsgData_Sub" parameterType="cmap" >
+		INSERT INTO SYS_MESSAGING_SUB
+		(MessagingID, ReceiverCode, SendDate, SuccessState, MediaType, ResultMessage, RetryCount)
+		MasterID, ReceiverCode, NULL, 'N', Media, NULL, 0
+		FROM
+		(
+			SELECT MasterID, ReceiverCode, B.Code AS Media
+		   FROM
+			(
+				SELECT   #{MessagingID} AS MasterID
+						,A.ReceiverCode AS ReceiverCode
+						,A.TargetMedia
+		      FROM TT_TBRECEIVERS A
+			) TargetTB
+			   INNER JOIN SYS_BASE_CODE B ON B.CodeGroup = 'NotificationMedia' AND INSTR(B.Code,TargetTB.TargetMedia) > 0
+		   WHERE B.IsUse = 'Y'
+		) OuterTB
+		WHERE INSTR(Media, #{MediaType}) > 0
+     </insert>
+    
+      <update id="updateMsgData_Sub" parameterType="cmap">
+		    UPDATE SYS_MESSAGING 
+		    SET SubTotalCount = (SELECT COUNT(0) FROM SYS_MESSAGING_SUB  WHERE MessagingID = #{MessagingID})
+      		WHERE MessagingID = #{MessagingID}
+	 </update>
+	 
+	 <select id="selectReciverCodes" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT NVL(SettingValue, '') 
+			FROM SYS_BASE_CONFIG 
+			WHERE SettingKey = 'ApproveMessaging'
+	    ]]>
+	</select>
+    	
+	<select id="selectBaseConfigAsNum" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT TO_NUMBER(NVL(TRANSLATE( A.SettingValue, '1234567890'||A.SettingValue ,'1234567890'),0))
+			FROM  SYS_BASE_CONFIG A 
+			WHERE  SettingKey = #{BaseConfigKey} 
+			  AND  IsUse = 'Y'  
+			  AND  ROWNUM = 1
+			ORDER BY ConfigID DESC, SettingKey DESC 
+	    ]]>
+	</select>
+    
+    <select id="selectNeedApprovalNSendAmount" parameterType="cmap" resultType="cmap">
+				SELECT     CASE WHEN D.IsNeedEmailAuth+D.IsNeedSMSAuth+D.IsNeedMessengerAuth+D.IsNeedTodoListAuth+D.IsNeedMDMAuth > 0 THEN 'Y' ELSE 'N' END AS "NeedAuth"
+						 , D.MailTotalCount+D.SMSTotalCount+D.MessengerTotalCount+D.TodoListTotalCount+D.MDMTotalCount AS "SendAmount"
+				FROM(
+					SELECT  MAX(IsNeedEmailAuth) AS IsNeedEmailAuth
+					       ,SUM(MailTotalCount) AS MailTotalCount
+					       ,MAX(IsNeedSMSAuth) AS IsNeedSMSAuth
+					       ,SUM(SMSTotalCount) AS SMSTotalCount
+					       ,MAX(IsNeedMessengerAuth) AS IsNeedMessengerAuth
+					       ,SUM(MessengerTotalCount) AS MessengerTotalCount
+						   ,MAX(IsNeedTodoListAuth) AS IsNeedTodoListAuth
+					       ,SUM(TodoListTotalCount) AS TodoListTotalCount
+						   ,MAX(IsNeedMDMAuth) AS IsNeedMDMAuth
+					       ,SUM(MDMTotalCount) AS MDMTotalCount
+					FROM(
+							SELECT   CASE WHEN B.MediaType = 'MAIL' AND #{intMinCountForEmail} > 0 THEN CASE WHEN #{intMinCountForEmail} <![CDATA[<=]]> B.MediaCount THEN 1 ELSE 0 END ELSE 0 END AS IsNeedEmailAuth
+						           , CASE WHEN B.MediaType = 'MAIL' THEN B.MediaCount ELSE 0 END AS MailTotalCount
+						           , CASE WHEN B.MediaType = 'SMS' AND #{intMinCountForSMS} > 0 THEN CASE WHEN #{intMinCountForSMS} <![CDATA[<=]]> B.MediaCount THEN 1 ELSE 0 END ELSE 0 END AS IsNeedSMSAuth
+						           , CASE WHEN B.MediaType = 'SMS' THEN B.MediaCount ELSE 0 END AS SMSTotalCount
+						           , CASE WHEN B.MediaType = 'MESSENGER' AND #{intMinCountForMessenger} > 0 THEN CASE WHEN #{intMinCountForMessenger} <![CDATA[<=]]> B.MediaCount THEN 1 ELSE 0 END ELSE 0 END AS IsNeedMessengerAuth
+						           , CASE WHEN B.MediaType = 'MESSENGER' THEN B.MediaCount ELSE 0 END AS MessengerTotalCount
+								   , CASE WHEN B.MediaType = 'TODOLIST' AND #{intMinCountForTodoList} > 0 THEN CASE WHEN #{intMinCountForTodoList} <![CDATA[<=]]> B.MediaCount THEN 1 ELSE 0 END ELSE 0 END AS IsNeedTodoListAuth
+						           , CASE WHEN B.MediaType = 'TODOLIST' THEN B.MediaCount ELSE 0 END AS TodoListTotalCount
+								   , CASE WHEN B.MediaType = 'MDM' AND #{intMinCountForMDM} > 0 THEN CASE WHEN #{intMinCountForMDM} <![CDATA[<=]]> B.MediaCount THEN 1 ELSE 0 END ELSE 0 END AS IsNeedMDMAuth
+						           , CASE WHEN B.MediaType = 'MDM' THEN B.MediaCount ELSE 0 END AS MDMTotalCount
+						      FROM
+								(
+										SELECT  A.MediaType
+										      , COUNT(*) AS MediaCount
+							            FROM  SYS_MESSAGING_SUB  A 
+							            WHERE  1 = 1 
+							              AND  A.MessagingID = #{MessagingID}
+							            GROUP  BY A.MediaType
+								) B
+					    ) C
+				) D				
+	 </select>  
+	       
+	 <update id="updateMsgApvStatus" parameterType="cmap">
+		   UPDATE  SYS_MESSAGING
+		   SET  ApprovalState	= CASE WHEN #{NeedAuth} = 'Y' THEN 'W' ELSE 'P' END
+		   		, SubTotalCount	= NVL(#{SendAmount},0)
+		   		, ApproverCode	= CASE WHEN #{NeedAuth} = 'Y' THEN '' ELSE NULL END
+		   WHERE MessagingID		= #{MessagingID}
+			   AND  IsUse			= 'Y'
+			   AND  MessagingState	= 1
+			   AND	ApprovalState <![CDATA[<>]]> 'W'
+			   AND  DeleteDate IS NULL;
+	 </update>
+	
+	 <update id="cancelMsg" parameterType="cmap">
+		    UPDATE  SYS_MESSAGING
+			SET   DeleteDate = SYSDATE
+				, MessagingState = 4
+				, ApprovalState = 'P'
+			WHERE MessagingID = #{MessagingID}
+	 </update>
+	 
+	<update id="updateMsgCnt" parameterType="cmap">
+		 UPDATE SYS_MESSAGING Z SET	  
+			Z.SubTotalCount = 
+					(
+						SELECT COUNT(0)
+				   		FROM  SYS_MESSAGING_SUB A 
+				   		INNER JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y'
+				   		WHERE A.MessagingID = Z.MessagingID
+					)  
+			, Z.SendCount = 
+				 (
+				   SELECT COUNT(0)
+				   FROM  SYS_MESSAGING_SUB A 
+				   INNER JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+				   WHERE A.MessagingID = Z.MessagingID 
+				     AND A.SuccessState = 'C'
+				 )  
+			, Z.FailCnt = 
+				 (   
+			   	   SELECT COUNT(0)
+				   FROM  SYS_MESSAGING_SUB A 
+				   INNER JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y'
+				   WHERE A.MessagingID = Z.MessagingID 
+				   		AND ( A.SuccessState = 'F' 
+				   			OR ( A.SuccessState = 'R' 
+				   				AND  A.RetryCount >= 
+									(
+										CASE A.MediaType 
+											<!-- WHEN 'SMS' THEN #{SMSRetryCount} -->
+											WHEN 'MDM' THEN #{MDMRetryCount} 
+											WHEN 'MAIL' THEN #{MailRetryCount} 
+											WHEN 'MESSENGER' THEN #{MessengerRetryCount} 
+											ELSE 4 
+											END 
+									)
+							)									
+						)
+			   )
+			   WHERE  IsUse = 'Y'
+			   AND  DeleteDate IS NULL
+			   AND  MessagingState	= '2'
+			   AND  ApprovalState IN('P','A')
+		   
+		<choose>
+			<when test="MessagingID != null and !MessagingID.equals('')">
+				AND MessagingID = #{MessagingID}
+			</when>
+			<otherwise>
+				AND ThreadType != 'RT'
+				<if test="IsUseMailNotification == null">
+					AND ServiceType !='Mail'
+				</if>
+				<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+					AND ServiceType = 'Mail'
+				</if>
+			</otherwise>
+		</choose>
+	 </update>
+	 
+     <update id="updateMsgFailCompeleteStatus" parameterType="cmap">
+			UPDATE SYS_MESSAGING
+			SET MessagingState = CASE WHEN SubTotalCount = 0 THEN '3' WHEN SubTotalCount = FailCnt THEN '5' ELSE '3' END
+			  , SendEndDate = SYSTIMESTAMP
+			WHERE MessagingID IN 
+				(
+					SELECT * FROM (
+									SELECT MessagingID
+									FROM SYS_MESSAGING  
+									WHERE SubTotalCount = (SendCount+FailCnt)
+									AND  MessagingState	= '2'
+								   
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+								  ) SWA_TabAl
+				)
+	 </update> 
+	 
+     <update id="updateMsgDelay" parameterType="cmap">
+          UPDATE  SYS_MESSAGING
+          SET  MessagingState = '4'
+          	, ModifiedDate	= SYSTIMESTAMP
+          	, SendEndDate = SYSTIMESTAMP
+          WHERE  IsUse = 'Y'
+          AND  NVL(ReservedDate,RegistDate) <![CDATA[<]]> SYSTIMESTAMP
+          AND  DeleteDate IS NULL
+          AND  MessagingState IN ('1', '2')
+          AND  ApprovalState IN('P','A')
+          AND (
+          	CASE IsDelay WHEN 'N' THEN (
+          		CASE WHEN NVL(ReservedDate,RegistDate)  + interval '30' minute <![CDATA[>]]> SYSTIMESTAMP  THEN 'Y' ELSE 'N' END -- 30분까지는 미지연도 발송
+          	)
+          	ELSE  (
+          		CASE WHEN NVL(ReservedDate,RegistDate)  + interval '5' hour <![CDATA[>]]> SYSTIMESTAMP  THEN 'Y' ELSE 'N' END	-- 지연시 5시간 전것도 발송
+          	)
+          	END
+          ) = 'N'
+		<choose>
+			<when test="MessagingID != null and !MessagingID.equals('')">
+				AND MessagingID = #{MessagingID}
+			</when>
+			<otherwise>
+				AND ThreadType != 'RT'
+				<if test="IsUseMailNotification == null">
+					AND ServiceType !='Mail'
+				</if>
+				<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+					AND ServiceType = 'Mail'
+				</if>
+			</otherwise>
+		</choose>
+          
+	 </update>	 	
+	 
+	 <update id="updateMsgSubDelay" parameterType="cmap">
+	 	UPDATE
+			(SELECT  SMS.SUCCESSSTATE,SMS.RESULTMESSAGE , SMS.RETRYCOUNT,SM.MEDIATYPE
+			FROM SYS_MESSAGING_SUB SMS 
+			JOIN SYS_MESSAGING SM ON SMS.MESSAGINGID = SM.MESSAGINGID 
+			WHERE SMS.SUCCESSSTATE = 'I' 
+			 <!--AND SMS.SENDDATE + INTERVAL '10' MINUTE < SYSTIMESTAMP  -->
+			AND SMS.SENDDATE  <![CDATA[<]]>  SYSTIMESTAMP - INTERVAL '10' MINUTE
+
+			<choose>
+				<when test="MessagingID != null and !MessagingID.equals('')">
+					AND SM.MessagingID = #{MessagingID}
+				</when>
+				<otherwise>
+					AND SM.ThreadType != 'RT'
+					<if test="IsUseMailNotification == null">
+						AND SM.ServiceType != 'Mail'
+					</if>
+					<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+						AND SM.ServiceType = 'Mail'
+					</if>
+				</otherwise>
+			</choose>
+
+			)T
+			SET SUCCESSSTATE = CASE WHEN (RETRYCOUNT + 1)  <![CDATA[ < ]]> 
+          											(	CASE MediaType 
+												   <!-- WHEN 'SMS' THEN #{SMSRetryCount} -->
+														WHEN 'MDM' THEN #{MDMRetryCount} 
+														WHEN 'MAIL' THEN #{MailRetryCount} 
+														WHEN 'MESSENGER' THEN #{MessengerRetryCount} 
+														ELSE 4 
+														END )
+								THEN 'R' ELSE 'F' END
+			,  RESULTMESSAGE = 'CANCEL DUE TO TIMEOUT' 
+			,  RETRYCOUNT = RETRYCOUNT + 1
+      
+	 </update>	 	
+
+	 <update id="updateMsgStatus_Master" parameterType="cmap">
+		    UPDATE  SYS_MESSAGING	
+			SET   MessagingState = '2'
+				, SendStartDate	= SYSTIMESTAMP
+			WHERE  IsUse = 'Y'
+			AND  NVL(ReservedDate,RegistDate) <![CDATA[<=]]> SYSTIMESTAMP
+			AND  DeleteDate IS NULL
+			AND  MessagingState	= '1'
+			AND  ApprovalState IN('P','A')
+			AND (
+				CASE IsDelay WHEN 'N' THEN (
+					CASE WHEN NVL(ReservedDate,RegistDate)  + interval '30' minute <![CDATA[>]]> SYSTIMESTAMP  THEN 'Y' ELSE 'N' END -- 30분까지는 미지연도 발송
+				) 
+				ELSE  (
+					CASE WHEN NVL(ReservedDate,RegistDate)  + interval '5' hour <![CDATA[>]]> SYSTIMESTAMP  THEN 'Y' ELSE 'N' END	-- 지연시 5시간 전것도 발송
+				)
+				END
+			) = 'Y'
+			<choose>
+				<when test="MessagingID != null and !MessagingID.equals('')">
+					AND MessagingID = #{MessagingID}
+				</when>
+				<otherwise>
+					AND ThreadType != 'RT'
+					<if test="IsUseMailNotification == null">
+						AND ServiceType !='Mail'
+					</if>
+					<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+						AND ServiceType = 'Mail'
+					</if>
+				</otherwise>
+			</choose>
+			
+	 </update>
+     
+	 <update id="updateMsgStatus_SMS" parameterType="cmap">
+		    UPDATE SYS_MESSAGING_SUB
+			SET SuccessState = 'I'
+			  , SendDate = SYSDATE
+			WHERE SubID IN (
+								SELECT SubID
+			   					FROM (
+									SELECT A.SubID
+							        FROM  SYS_MESSAGING_SUB A 
+							     	INNER JOIN SYS_MESSAGING B ON B.MessagingID = A.MessagingID
+							        WHERE B.MessagingState = '2'
+									AND A.SuccessState	IN('N','R')
+								  	AND A.MediaType = 'SMS'
+								 	AND A.RetryCount <![CDATA[<]]> #{SMSRetryCount} 
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND B.MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND B.ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND B.ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND B.ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+								 	
+								 	ORDER BY A.SubID
+							 	) TargetMsg
+			   					WHERE ROWNUM <![CDATA[<=]]> #{MaxMessengerCountForOnce}
+							)
+	 </update> 
+     
+     <update id="updateMsgStatus_MAIL" parameterType="cmap">
+		    UPDATE SYS_MESSAGING_SUB
+			SET SuccessState = 'I'
+			  , SendDate = SYSDATE
+			WHERE SubID IN (
+								SELECT SubID
+			   					FROM (
+									SELECT  A.SubID
+									FROM  SYS_MESSAGING_SUB A 
+									INNER  JOIN SYS_MESSAGING B ON B.MessagingID = A.MessagingID
+									WHERE  B.MessagingState = '2'
+									AND A.SuccessState	IN('N','R')
+									AND A.MediaType = 'MAIL'
+									AND A.RetryCount <![CDATA[<]]> #{MailRetryCount}
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND B.MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND B.ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND B.ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND B.ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+									ORDER BY A.SubID
+								) TargetMsg
+			   					WHERE ROWNUM <![CDATA[<=]]> #{MaxEmailCountForOnce}
+							)
+	 </update>
+	
+     <update id="updateMsgStatus_MESSENGER" parameterType="cmap">
+		    UPDATE SYS_MESSAGING_SUB
+		    SET SuccessState = 'I'
+			  , SendDate = SYSDATE
+			WHERE SubID IN (
+								SELECT SubID
+			   					FROM (
+									SELECT A.SubID
+									FROM  SYS_MESSAGING_SUB A 
+									INNER JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+									WHERE  B.MessagingState = '2'
+								    AND  A.SuccessState	IN('N','R')
+								    AND  A.MediaType = 'MESSENGER'
+								    AND  A.RetryCount <![CDATA[<]]> #{MessengerRetryCount}
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND B.MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND B.ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND B.ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND B.ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+								    ORDER BY A.SubID
+								) TargetMsg
+			   					WHERE ROWNUM <![CDATA[<=]]> #{MaxMessengerCountForOnce}
+							)
+	 </update>
+		
+     <update id="updateMsgStatus_MDM" parameterType="cmap">
+		    UPDATE SYS_MESSAGING_SUB
+		    SET  SuccessState = 'I'
+			   , SendDate = SYSDATE
+		    WHERE SubID IN (
+		    					SELECT SubID
+			   					FROM (
+									SELECT A.SubID
+									FROM  SYS_MESSAGING_SUB A 
+									INNER  JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+									WHERE  B.MessagingState = '2'
+									AND  A.SuccessState	IN('N','R')
+									AND  A.MediaType = 'MDM'
+									AND  A.RetryCount <![CDATA[<]]> #{MDMRetryCount}
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND B.MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND B.ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND B.ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND B.ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+														
+									ORDER BY A.SubID
+								) TargetMsg
+			   					WHERE ROWNUM <![CDATA[<=]]> #{MaxMDMCountForOnce}
+							)
+     </update>
+	
+     <update id="updateMsgStatus_ALARM" parameterType="cmap">
+		    UPDATE SYS_MESSAGING_SUB
+			SET  SuccessState = 'I'
+			   , SendDate = SYSDATE
+			WHERE SubID IN (
+									SELECT A.SubID
+									FROM  SYS_MESSAGING_SUB A 
+									INNER  JOIN SYS_MESSAGING B ON B.MessagingID = A.MessagingID
+									WHERE  B.MessagingState = '2'
+									AND  A.SuccessState	IN('N','R')
+									AND  A.MediaType = 'TODOLIST' 
+									<choose>
+										<when test="MessagingID != null and !MessagingID.equals('')">
+											AND B.MessagingID = #{MessagingID}
+										</when>
+										<otherwise>
+											AND B.ThreadType != 'RT'
+											<if test="IsUseMailNotification == null">
+												AND B.ServiceType !='Mail'
+											</if>
+											<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+												AND B.ServiceType = 'Mail'
+											</if>
+										</otherwise>
+									</choose>
+							)
+     </update>
+ 
+     <select id="selectMsgSendList_SMS" parameterType="cmap" resultType="cmap">
+     		SELECT * 
+     		FROM (
+				SELECT A.MessagingID AS "MessagingID"
+				     , A.SubID AS "SubID"
+				     , A.MediaType AS "MediaType"
+				     , B.MsgType AS "MsgType"
+				     , B.ServiceType AS "ServiceType"
+					 , B.ObjectID  AS "ObjectID"
+					 , B.ObjectType AS "ObjectType"
+					 , B.MessageID  AS "MessageID"
+					 , B.MessagingSubject AS "MessagingSubject"
+					 , C.Mobile AS "SenderMobile"
+					 , C.UserCode AS "SenderCode"
+					 , D.LanguageCode  AS "LanguageCode"
+					 , D.Mobile AS "ReceiverMobile" 
+			   FROM SYS_MESSAGING_SUB A 
+			   INNER JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+			   INNER JOIN SYS_OBJECT_USER C  ON C.UserCode = B.SenderCode 
+			   INNER JOIN SYS_OBJECT_USER D  ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y' 
+			   WHERE A.SuccessState IN('N','R') <!-- N: 미처리, R: 재처리  -->
+	           AND A.MediaType = 'SMS'
+	           AND A.RetryCount <![CDATA[<]]> #{SMSRetryCount} 	 
+	           AND B.MessagingState = '2' <!-- 2: 결과대기  -->
+				<choose>
+					<when test="MessagingID != null and !MessagingID.equals('')">
+						AND B.MessagingID = #{MessagingID}
+					</when>
+					<otherwise>
+						AND B.ThreadType != 'RT'
+						<if test="IsUseMailNotification == null">
+							AND B.ServiceType !='Mail'
+						</if>
+						<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+							AND B.ServiceType = 'Mail'
+						</if>
+					</otherwise>
+				</choose>
+	           ORDER BY A.SubID
+     		) TargetMsg
+     		WHERE ROWNUM <![CDATA[<=]]> #{MaxSMSCountForOnce}	          
+     </select>
+	 	
+     <select id="selectMsgSendList_MAIL" parameterType="cmap" resultMap="messageMap">
+           SELECT * 
+           FROM (
+	           SELECT A.MessagingID AS "MessagingID"
+		            , A.SubID AS "SubID"
+		            , A.MediaType AS "MediaType"
+		            , B.MsgType AS "MsgType"
+		            , B.ServiceType AS "ServiceType"
+		            , B.ObjectID AS "ObjectID"
+		            , B.ObjectType AS "ObjectType"
+		            , B.MessageID AS "MessageID"
+		            , B.MessagingSubject AS "MessagingSubject"
+		            , B.ReceiverText AS "ReceiverText"
+		            , B.MessageContext AS "MessageContext"
+		            , B.XSLPath AS "XSLPath"
+		            , B.GotoURL AS "GotoURL"
+		            , B.MobileURL AS "MobileURL"
+		            , B.ReservedStr1 AS "ReservedStr1"
+		            , B.ReservedStr2 AS "ReservedStr2"
+		            , B.ReservedStr3 AS "ReservedStr3"
+		            , B.ReservedStr4 AS "ReservedStr4"
+		            , TO_CHAR(B.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+		            , C.MailAddress AS "SenderEmail"
+		            , C.UserCode AS "SenderCode"
+		            , NVL(C.MultiDisplayName, C.DisplayName) AS "SenderName"
+		            , BG.DeptName AS "SenderGroup"
+		            , BG.CompanySortKey AS "CompanySortKey"
+		            , D.LanguageCode AS "LanguageCode"
+		            , D.MailAddress AS "ReceiverEmail"
+		            , D.UserCode AS "ReceiverCode"
+		            , D.DisplayName AS "ReceiverName"
+		            , Fn_ComTimeZoneGet_S(D.UserCode) AS "ReceiverTimeZone"
+		            , DBG.CompanyCode AS "CompanyCode"
+					, SOD.DomainID AS "DomainID"
+	           FROM SYS_MESSAGING_SUB A 
+	           INNER JOIN SYS_MESSAGING B ON B.MessagingID = A.MessagingID
+	           INNER JOIN SYS_OBJECT_USER C ON C.UserCode = B.SenderCode
+	           LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.UserCode = C.UserCode AND BG.JobType = 'Origin'
+			   INNER JOIN SYS_OBJECT_USER D ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y'
+			   LEFT JOIN SYS_OBJECT_USER_BASEGROUP DBG ON DBG.UserCode = D.UserCode AND DBG.JobType = 'Origin'
+	   		   LEFT JOIN sys_object_domain SOD ON SOD.DomainCode = DBG.CompanyCode
+			   WHERE A.SuccessState IN('N','R') <!-- N: 미처리, R: 재처리  -->
+	           AND A.MediaType = 'MAIL'
+	           AND A.RetryCount <![CDATA[<]]> #{MailRetryCount} 	 
+	           AND B.MessagingState = '2' <!-- 2: 결과대기  -->
+				<choose>
+					<when test="MessagingID != null and !MessagingID.equals('')">
+						AND B.MessagingID = #{MessagingID}
+					</when>
+					<otherwise>
+						AND B.ThreadType != 'RT'
+						<if test="IsUseMailNotification == null">
+							AND B.ServiceType !='Mail'
+						</if>
+						<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+							AND B.ServiceType = 'Mail'
+						</if>
+					</otherwise>
+				</choose>
+			           
+		       ORDER BY A.SubID
+     		) TargetMsg
+     		WHERE ROWNUM <![CDATA[<=]]> #{MaxEmailCountForOnce}	       
+     </select>
+ 	 	 	
+     <select id="selectMsgSendList_MESSANGER" parameterType="cmap" resultMap="messageMap">
+     		SELECT * 
+            FROM (
+				SELECT   A.MessagingID AS "MessagingID"
+				       , A.SubID AS "SubID"
+				       , A.MediaType AS "MediaType"
+				       , B.MsgType AS "MsgType"
+				       , B.ServiceType AS "ServiceType"
+				       , B.ObjectID AS "ObjectID"
+				       , B.ObjectType AS "ObjectType"
+				       , B.MessageID AS "MessageID"
+				       , B.MessagingSubject AS "MessagingSubject"
+				       , B.ReceiverText AS "ReceiverText"
+				       , B.MessageContext AS "MessageContext"
+				       , B.XSLPath AS "XSLPath"
+				       , B.GotoURL AS "GotoURL"
+				       , B.MobileURL AS "MobileURL"
+				       , B.ReservedStr1 AS "ReservedStr1"
+				       , B.ReservedStr2 AS "ReservedStr2"
+				       , B.ReservedStr3 AS "ReservedStr3"
+				       , B.ReservedStr4 AS "ReservedStr4"
+				       , '' AS "SenderEmail" 
+				       , C.UserCode AS "SenderCode"
+				       , C.DisplayName AS "SenderName"
+				       , BG.DeptName AS "SenderGroup"
+				       , BG.CompanySortKey AS "CompanySortKey"
+				       , D.LanguageCode AS "LanguageCode"
+				       , '' AS "ReceiverEmail"
+				       , D.UserCode AS "ReceiverCode"
+				       , D.DisplayName AS "ReceiverName"
+						,od.DomainID  as "DomainID"
+				FROM SYS_MESSAGING_SUB A 
+				INNER JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+				INNER JOIN SYS_OBJECT_USER C  ON C.UserCode = B.SenderCode
+				LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.UserCode = C.UserCode AND BG.JobType = 'Origin'
+				INNER JOIN SYS_OBJECT_USER D  ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y'
+				LEFT JOIN SYS_OBJECT_USER_BASEGROUP DBG ON DBG.UserCode = D.UserCode AND DBG.JobType = 'Origin'
+				LEFT JOIN sys_object_domain od ON od.DomainCode = DBG.CompanyCode
+				WHERE A.SuccessState IN('N','R') <!-- N: 미처리, R: 재처리  -->
+				AND A.MediaType = 'MESSENGER'
+				AND A.RetryCount <![CDATA[<]]> #{MessengerRetryCount} 	 
+				AND B.MessagingState = '2' <!-- 2: 결과대기  -->
+				<choose>
+					<when test="MessagingID != null and !MessagingID.equals('')">
+						AND B.MessagingID = #{MessagingID}
+					</when>
+					<otherwise>
+						AND B.ThreadType != 'RT'
+						<if test="IsUseMailNotification == null">
+							AND B.ServiceType !='Mail'
+						</if>
+						<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+							AND B.ServiceType = 'Mail'
+						</if>
+					</otherwise>
+				</choose>
+				ORDER BY A.SubID
+            ) TargetMsg
+            WHERE ROWNUM <![CDATA[<=]]> #{MaxMessengerCountForOnce}	       
+     </select>
+	 	
+     <select id="selectMsgSendList_MDM" parameterType="cmap" resultMap="messageMap">
+     		SELECT * 
+            FROM (
+				SELECT    A.MessagingID AS "MessagingID"
+				        , A.SubID AS "SubID"
+				        , A.MediaType AS "MediaType"
+				        , B.MsgType AS "MsgType"
+				        , B.ServiceType AS "ServiceType"
+				        , B.ObjectID AS "ObjectID"
+				        , B.ObjectType AS "ObjectType" 
+				        , B.MessageID AS "MessageID" 
+				        , B.MessagingSubject AS "MessagingSubject" 
+				        , B.ReceiverText AS "ReceiverText" 
+				        , B.MessageContext AS "MessageContext" 
+				        , B.XSLPath AS "XSLPath" 
+				        , B.GotoURL AS "GotoURL"
+				        , B.MobileURL AS "MobileURL"
+				        , B.ReservedStr1 AS "ReservedStr1"
+				       	, B.ReservedStr2 AS "ReservedStr2"
+				        , B.ReservedStr3 AS "ReservedStr3"
+				        , B.ReservedStr4 AS "ReservedStr4"
+						, '' AS "SenderEmail"
+				        , C.UserCode AS "SenderCode"
+				        , C.DisplayName AS "SenderName"
+						, D.LanguageCode AS "LanguageCode"
+				        , '' AS "ReceiverEmail"
+				        , D.UserCode AS "ReceiverCode"
+				        , D.DisplayName AS "ReceiverName"
+				        , d.TimeZoneCode  as "TimeZoneCode"
+				        , E.PushAllowYN AS "PushAllowYN"
+				        , E.PushAllowWeek AS "PushAllowWeek"
+				        , E.PushAllowStartTime AS "PushAllowStartTime"
+				        , E.PushAllowEndTime AS "PushAllowEndTime"
+				FROM SYS_MESSAGING_SUB A 
+				INNER JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+				INNER JOIN SYS_OBJECT_USER C  ON C.UserCode = B.SenderCode
+				INNER JOIN SYS_OBJECT_USER D  ON D.UserCode = A.ReceiverCode AND D.IsUse = 'Y'
+				 LEFT JOIN SYS_OBJECT_USER_INFO E ON D.UserCode = E.UserCode
+				WHERE A.SuccessState IN('N','R') <!-- N: 미처리, R: 재처리  -->
+				AND A.MediaType = 'MDM'
+				AND A.RetryCount <![CDATA[<]]> #{MDMRetryCount} 	 
+				AND B.MessagingState = '2' <!-- 2: 결과대기  -->
+				<choose>
+					<when test="MessagingID != null and !MessagingID.equals('')">
+						AND B.MessagingID = #{MessagingID}
+					</when>
+					<otherwise>
+						AND B.ThreadType != 'RT'
+						<if test="IsUseMailNotification == null">
+							AND B.ServiceType !='Mail'
+						</if>
+						<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+							AND B.ServiceType = 'Mail'
+						</if>
+					</otherwise>
+				</choose>
+				ORDER BY A.SubID
+            ) TargetMsg
+            WHERE ROWNUM <![CDATA[<=]]> #{MaxMDMCountForOnce}	       
+     </select> 
+	 	 	 	
+     <insert id="insertMsgSendList_ALARM" parameterType="cmap" >	
+	        INSERT  INTO SYS_ALARM_LIST(UserCode,Category,MsgType,Title,URL,Message,OpenType,ObjectID,ObjectType,PusherCode,ReceivedDate
+						,Width,Height,ReservedStr1,ReservedStr2,ReservedStr3,ReservedStr4,ReservedInt1,ReservedInt2,IsRead,IsPush)
+			SELECT 
+					 A.ReceiverCode 
+			       , B.ServiceType
+			       , B.MsgType
+			       , SUBSTR(B.MessagingSubject, 1, 200)
+			       , B.PopupURL
+				   , Replace(B.ReceiverText,'^',';') AS ReceiverText
+				   , B.OpenType
+			       , B.ObjectID
+			       , B.ObjectType
+			       , B.SenderCode
+			       , SYSDATE
+			       , B.Width 
+			       , B.Height
+			       , B.ReservedStr1
+			       , B.ReservedStr2
+			       , ''
+			       , ''
+			       , B.ReservedInt1
+			       , B.ReservedInt2
+			       , 'N'
+			       , 'Y'
+			FROM  SYS_MESSAGING_SUB A 
+				INNER  JOIN SYS_MESSAGING B  ON B.MessagingID = A.MessagingID
+				INNER  JOIN SYS_OBJECT_USER D  ON D.UserCode = A.ReceiverCode  AND D.IsUse = 'Y'
+			WHERE	A.SuccessState	= 'I'
+				AND B.MessagingState	= '2'
+				AND  A.MediaType		= 'TODOLIST'
+				<choose>
+					<when test="MessagingID != null and !MessagingID.equals('')">
+						AND B.MessagingID = #{MessagingID}
+					</when>
+					<otherwise>
+						AND B.ThreadType != 'RT'
+						<if test="IsUseMailNotification == null">
+							AND B.ServiceType !='Mail'
+						</if>
+						<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+							AND B.ServiceType = 'Mail'
+						</if>
+					</otherwise>
+				</choose>
+     </insert>	
+	 	
+     <update id="updateMsgSendList_ALARM" parameterType="cmap">
+		   UPDATE  SYS_MESSAGING_SUB
+			SET  SendDate	= SYSDATE
+			   , SuccessState	= 'C'
+			   , RetryCount	= 0
+			WHERE  SubID IN 
+			( 
+				SELECT SubID 
+				FROM 
+				(
+					SELECT  A.SubID
+					FROM  	SYS_MESSAGING_SUB A 
+				   	INNER  JOIN SYS_MESSAGING B  ON B.MessagingID	= A.MessagingID
+				   WHERE	A.SuccessState	= 'I'
+					   AND B.MessagingState	= '2'
+					   AND  A.MediaType		= 'TODOLIST'
+						<choose>
+							<when test="MessagingID != null and !MessagingID.equals('')">
+								AND B.MessagingID = #{MessagingID}
+							</when>
+							<otherwise>
+								AND B.ThreadType != 'RT'
+								<if test="IsUseMailNotification == null">
+									AND B.ServiceType !='Mail'
+								</if>
+								<if test="IsUseMailNotification != null and IsUseMailNotification.equalsIgnoreCase('Y')">
+									AND B.ServiceType = 'Mail'
+								</if>
+							</otherwise>
+						</choose>
+					   
+				) InnerTB
+			)
+     </update>
+ 	 	 
+     <select id="selectbasecode" parameterType="cmap" resultType="cmap">
+			SELECT    CodeID AS "CodeID"
+			        , BizSection AS "BizSection"
+			        , CodeGroup AS "CodeGroup"
+			        , Code AS "Code"
+			        , SortKey AS "SortKey"
+			        , IsUse AS "IsUse"
+			        , CodeName AS "CodeName"
+			        , MultiCodeName AS "MultiCodeName"
+			        , Reserved1 AS "Reserved1"
+			        , Reserved2 AS "Reserved2"
+			        , Reserved3 AS "Reserved3"
+			        , ReservedInt AS "ReservedInt"
+			        , Description AS "Description"
+			        , RegisterCode AS "RegisterCode"
+			        , RegistDate AS "RegistDate"
+			        , ModifierCode AS "ModifierCode"
+			        , ModifyDate AS "ModifyDate"
+			FROM SYS_BASE_CODE
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="CodeGroup != null and CodeGroup != ''">
+					AND CodeGroup = #{CodeGroup}
+					AND Code <![CDATA[<>]]> #{CodeGroup}
+				</if>
+				AND IsUse = 'Y'
+				AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = sbc.CodeGroup AND DomainID = #{DomainID})
+			</trim>
+     </select>  
+		
+    <update id="setMessagingType" parameterType="cmap">
+	    UPDATE SYS_BASE_CODE 
+		SET  
+			<choose>
+					<when test='mode.equalsIgnoreCase("USE")'>
+						Reserved1 = 
+							case when #{mediaFlag} = 'Y' then  
+								REPLACE(Reserved1, #{mediaType},'')||';'||#{mediaType}
+							else		
+								REPLACE(Reserved1, #{mediaType},'')
+							end
+						,Reserved2 = case when #{mediaFlag} = 'Y' then Reserved2 else REPLACE(Reserved2, #{mediaType},'')  end  
+						,Reserved3 = case when #{mediaFlag} = 'Y' then Reserved3 else REPLACE(Reserved3, #{mediaType},'')  end  	
+					</when>
+					<when test='mode.equalsIgnoreCase("DEF")'>
+						Reserved2 = 
+							case when #{mediaFlag} = 'Y' then  
+								REPLACE(Reserved2, #{mediaType},'')||';'||#{mediaType}
+							else		
+								REPLACE(Reserved2, #{mediaType}),'')
+							end
+					</when>
+					<when test='mode.equalsIgnoreCase("DIV")'>
+						Reserved3 = 
+							case when #{mediaFlag} = 'Y' then  
+								REPLACE(Reserved3, #{mediaType},'')||';'||#{mediaType}
+							else		
+								REPLACE(Reserved3, #{mediaType},'')
+							end
+					</when>
+					<otherwise>
+						ReservedInt = #{isDisplay}
+					</otherwise>
+				</choose>
+			,ModifyDate = sysdate
+			,ModifierCode = #{USERID}
+		WHERE CodeId= #{codeId}
+ 	</update>
+ 	
+	 
+     <select id="selectUserCode" parameterType="cmap" resultType="String">
+			SELECT UserCode AS "UserCode" FROM sys_object_user WHERE MailAddress = #{mailAddr}
+     </select>
+	
+     <!-- PUSH 알림 전송전 통합알림 안읽은 메시지수 공유 -->
+     <select id="selectBadgeCount" parameterType="cmap" resultType="String">
+			SELECT COUNT(*) 
+			FROM sys_alarm_list a
+			WHERE a.DeleteDate IS NULL 
+			AND a.UserCode = #{userID}
+			AND a.IsNew IS NULL
+			AND a.ReceivedDate > SYSDATE - 14
+     </select>
+		
+     <select id="userMailPushSetting" parameterType="cmap" resultType="java.lang.Long">
+			SELECT COUNT(MediaType) FROM SYS_MESSAGING_SETTING WHERE UserCode = #{userCode} AND ServiceType = 'MessageNew'
+     </select>
+	 	 	
+     <select id="selectUserComment" parameterType="cmap" resultType="String">
+		   	SELECT Comment_ AS "Comment" FROM sys_comment WHERE COMMENTID = #{commentID}
+     </select>
+	 	
+     <select id="selectMessagingList" parameterType="cmap" resultType="cmap">
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+	   SELECT a.MessagingID "MessagingID", a.ServiceType "ServiceType", a.MsgType "MsgType", c.CodeName "MsgTypeName" , a.MessagingSubject "MessagingSubject", a.RegisterCode "RegisterCode", a.RegistDate "RegistDate", a.ReservedDate "ReservedDate"
+	   		, a.SenderCode "SenderCode", b.DisplayName "SenderName"
+			, a.MediaType "MediaType"
+				, a.MessagingState "MessagingState", a.SubTotalCount "SubTotalCount", a.SendCount "SendCount", a.FailCnt "FailCnt"
+				, (SELECT COUNT(t.TargetCode) FROM  sys_messaging_target t WHERE a.MessagingID = t.MessagingID) "TargetCnt"
+				, a.ThreadType "ThreadType"
+     		FROM sys_messaging a
+	   LEFT JOIN SYS_OBJECT_USER B  ON A.SenderCode = B.UserCode 
+	   LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON B.UserCode = BG.UserCode and bg.JobType ='Origin'
+	  INNER JOIN SYS_BASE_CODE C ON C.CodeGroup = 'TodoMsgType' AND A.MsgType = C.Code
+	   LEFT JOIN SYS_OBJECT_DOMAIN D ON D.DomainCode = BG.CompanyCode
+		<if test='urCode != null and urCode !=""'>
+			JOIN sys_messaging_target t ON a.MessagingID = t.MessagingID AND t.TargetCode = #{urCode}
+		</if>
+     	   WHERE  a.IsUse = 'Y'
+      		 AND  (a.ReservedDate between to_date(#{startDate}||'000000','yyyymmddhh24miss') AND to_date(#{endDate}||'235959','yyyymmddhh24miss')
+               	or a.RegistDate BETWEEN to_date(#{startDate}||'000000','yyyymmddhh24miss') AND to_date(#{endDate}||'235959','yyyymmddhh24miss') )
+      		AND  a.DeleteDate IS NULL
+		<if test='domainId != null and domainId !=""'>
+			AND D.DomainId =  #{domainId}
+		</if>
+		<if test='exceptTypeList != null and exceptTypeList.size > 0'>
+			<foreach collection="exceptTypeList" item="item" open="AND MsgType NOT IN (" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		<if test='messagingState != null and messagingState != ""'>
+			AND MessagingState = #{messagingState}
+		</if>	
+		<if test='searchInput != null and searchInput != ""'>
+			AND<choose>
+				<when test='searchType.equalsIgnoreCase("MsgTypeName")'>CodeName</when>
+				<otherwise>MessagingSubject</otherwise>
+			</choose>
+			LIKE '%'|| #{searchInput}||'%'
+		</if>	
+		<trim prefix='ORDER BY'>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("MessagingSubject")'>MessagingSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("MsgTypeName")'>MsgTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("MessagingState")'>MessagingState</when>
+					<when test='sortColumn.equalsIgnoreCase("SenderName")'>SenderName</when>
+					<when test='sortColumn.equalsIgnoreCase("ReservedDate")'>ReservedDate</when>
+					<otherwise>MessagingID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				 a.MessagingID desc
+			</if>
+		</trim>
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+	</select>
+	
+	<select id="selectMessagingListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) AS CNT
+		  FROM sys_messaging a
+     LEFT JOIN SYS_OBJECT_USER B  ON A.SenderCode = B.UserCode 
+	 LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON B.UserCode = BG.UserCode and bg.JobType ='Origin'
+	 LEFT JOIN SYS_OBJECT_DOMAIN D ON D.DomainCode = BG.CompanyCode
+    INNER JOIN SYS_BASE_CODE C ON C.CodeGroup = 'TodoMsgType' AND A.MsgType = C.Code
+		<if test='urCode != null and urCode !=""'>
+			JOIN sys_messaging_target t ON a.MessagingID = t.MessagingID AND t.TargetCode = #{urCode}
+		</if>
+     	   WHERE  a.IsUse = 'Y'
+      		 AND  (a.ReservedDate between to_date(#{startDate}||'000000','yyyymmddhh24miss') AND to_date(#{endDate}||'235959','yyyymmddhh24miss')
+               	or a.RegistDate BETWEEN to_date(#{startDate}||'000000','yyyymmddhh24miss') AND to_date(#{endDate}||'235959','yyyymmddhh24miss') )
+      		AND  a.DeleteDate IS NULL
+		<if test='domainId != null and domainId !=""'>
+			AND D.DomainId =  #{domainId}
+		</if>
+		<if test='exceptTypeList != null and exceptTypeList.size > 0'>
+			<foreach collection="exceptTypeList" item="item" open="AND MsgType NOT IN (" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		<if test='messagingState != null and messagingState != ""'>
+			AND MessagingState = #{messagingState}
+		</if>	
+		<if test='searchInput != null and searchInput != ""'>
+			AND<choose>
+				<when test='searchType.equalsIgnoreCase("MsgTypeName")'>CodeName</when>
+				<otherwise>MessagingSubject</otherwise>
+			</choose>
+			LIKE '%'|| #{searchInput}||'%'
+		</if>	
+	</select>
+	
+	<delete id="deletemsgtype" parameterType="cmap">
+		/* messaging.deletemsgtype */
+        DELETE 
+    	FROM SYS_BASE_CODE 		
+    	WHERE CodeID = #{CodeID}
+	</delete>
+	
+    <update id="updatemsgsendtype" parameterType="cmap">	
+        UPDATE SYS_MESSAGING A
+        SET ThreadType = 'SCHEDULER'
+        WHERE A.MESSAGINGID = #{MessagingID}
+        AND EXISTS (
+        	SELECT '1' FROM SYS_MESSAGING_SUB
+        	WHERE MESSAGINGID = A.MESSAGINGID
+        	AND SuccessState = 'R'
+        )
+	</update>
+    <update id="updateMsgThreadType" parameterType="cmap">
+        UPDATE SYS_MESSAGING
+        SET ThreadType = 'SCHEDULER'
+        WHERE MessagingID = #{MessagingID}
+    </update>
+</mapper>

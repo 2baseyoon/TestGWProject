@@ -1,0 +1,479 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.portalHome">
+	<select	 id="getExecutiveCheck" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM (
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, UR.DisplayName AS CodeName
+					, UR.MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM sys_object_group_member GM
+			LEFT JOIN sys_object_user UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = 'EAccounting_Executive' 
+			AND GM.UserCode = #{UR_Code}
+			
+			UNION 
+			
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, GR.DisplayName AS CodeName
+					, GR.PrimaryMail
+					, GM.MemberGroupID AS MemberID
+			FROM sys_object_group_membergroup GM
+  	  	 	LEFT JOIN sys_object_group GR ON GM.MemberGroupCode = GR.GroupCode
+		   	WHERE GM.GroupCode = 'EAccounting_Executive' 
+			AND GM.MemberGroupCode = #{DeptID}
+		) A		
+	</select>
+	
+	
+	<select id="getProofCodeCount" parameterType="cmap"  resultType="cmap">
+		SELECT NVL(SUM(A.CorpCardAmount),0) + NVL(SUM(A.TaxBillAmount),0) + NVL(SUM(A.ReceiptAmount),0) AS "TotalAmount"  
+		       , NVL(sum(A.CorpCardAmount),0) AS "CorpCardAmount"
+		       , NVL(SUM(A.CorpCardCnt),0) AS "CorpCardCnt"
+		       , NVL(SUM(A.TaxBillAmount),0) AS "TaxBillAmount"
+		       , NVL(SUM(A.TaxBillCnt),0) AS "TaxBillCnt"
+		       , NVL(SUM(A.ReceiptAmount),0) AS "ReceiptAmount"
+		       , NVL(SUM(A.ReceiptCnt),0) AS "ReceiptCnt"
+		FROM (	        		
+			SELECT 
+			  	SUM(ACR.AmountWon) CorpCardAmount
+			  	, COUNT(ACR.ReceiptID) CorpCardCnt
+			  	, 0 TaxBillAmount
+			  	, 0 TaxBillCnt
+			  	, 0 ReceiptAmount
+			  	, 0 ReceiptCnt
+			FROM act_card_receipt ACR
+			JOIN act_corp_card ACC ON	ACR.CardNo = ACC.CardNo 	
+	  	    WHERE ACR.ApproveDate LIKE (#{payDate} || '%')
+	  	    AND ACC.OwnerUserCode = #{UR_Code}
+	  	    	
+			UNION ALL   
+		    
+		    SELECT 0, 0, SUM(ATI.TotalAmount) TaxBillAmount, COUNT(ati.TaxInvoiceID) TaxBillCnt, 0, 0
+			FROM ACT_TAXINVOICE  ATI
+			WHERE WriteDate LIKE (#{payDate} || '%')
+			AND DataIndex IN ('BUY','AP')
+			AND (
+				InvoiceeEmail1 IN (
+									SELECT AM.TaxMailAddress
+									FROM act_manager AM 
+									WHERE AM.ManagerUserCode = #{UR_Code}
+									UNION
+									SELECT SOU.MailAddress
+									FROM sys_object_user SOU 
+									WHERE SOU.UserCode = #{UR_Code}
+								)
+				OR TossUserCode =#{UR_Code}	
+			)
+			
+			UNION ALL
+			
+			SELECT 0, 0, 0, 0, SUM(AR.TotalAmount) ReceiptAmount, COUNT(AR.ReceiptID) ReceiptCnt
+			FROM act_receipt AR  
+			WHERE AR.UseDate BETWEEN TO_DATE((#{payDate}||'01'),'YYYYMMDD') AND LAST_DAY(TO_DATE((#{payDate}||'01'),'YYYYMMDD')) 				
+			AND AR.RegisterID =	#{UR_Code}
+		) A
+	</select>
+	
+	<select id="getAccountCodeCount" parameterType="cmap" resultType="cmap">
+		SELECT 
+			Code AS "Code"
+			, Name AS "Name"
+			, Cnt AS "Cnt"
+			, Amount AS "Amount"
+		FROM (
+			SELECT 
+				NVL(Code, 'Total') Code
+				, MAX(Name) Name
+				, COUNT(*) Cnt
+				, SUM(Amount) Amount
+				, CASE WHEN A.Code IS NULL THEN 0 ELSE 1 END Ord
+			FROM (
+				SELECT 
+				<choose>
+					<when test='IsUseStandardBrief == "Y" '>
+						TO_CHAR(AEAD.StandardBriefID) AS Code, SB.StandardBriefName AS Name
+	                </when>
+	                <otherwise>
+						AEAD.AccountCode AS Code, AC.AccountName AS Name
+	                </otherwise>
+	            </choose>
+					, 1
+					, CASE 
+						WHEN (AEAL.ProofCode = 'TaxBill' AND AEAD.Amount != AEAL.TotalAmount) 
+						THEN AEAD.Amount + AEAL.TaxAmount 
+						ELSE AEAD.Amount 
+					END AS Amount	
+				FROM act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				INNER JOIN act_expence_application_div AEAD
+				ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				INNER JOIN act_account AC ON AEAD.AccountCode = AC.AccountCode
+                <if test='IsUseStandardBrief == "Y" '>
+					INNER JOIN  act_standard_brief SB
+					ON AC.AccountID = SB.AccountID AND AEAD.StandardBriefID = SB.StandardBriefID
+                </if>
+		        WHERE ProofDate	LIKE #{payDate}||'%'
+		        AND AEA.RegisterID = #{UR_Code}
+				AND AEA.ApplicationStatus IN ('S','D','P','DC','E')  
+				AND AEA.COMPANYCODE = #{companyCode}
+				AND AC.COMPANYCODE = #{companyCode}
+			) A
+			GROUP BY ROLLUP(A.Code)
+		) AA
+		ORDER BY Ord, Amount DESC
+	</select>
+	
+	<select id="getApprovalListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM JWF_Process A
+		INNER JOIN JWF_Workitem B ON A.ProcessID = B.ProcessID
+		INNER JOIN JWF_Performer C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN JWF_ProcessDescription D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		WHERE C.UserCode = #{UR_Code}
+		AND C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND C.State = 1
+		AND B.State = #{state}    
+		AND A.ProcessState = 288
+		AND A.DeleteDate IS NULL
+	</select>
+
+	<select id="getApprovalList" parameterType="cmap"  resultType="cmap">
+		SELECT A.ProcessID AS "ProcessID"
+			, B.WorkItemID AS "WorkItemID"
+			, C.PerformerID AS "PerformerID"
+			, A.InitiatorID AS "InitiatorID"
+			, A.InitiatorName AS "InitiatorName"
+			, A.InitiatorUnitID AS "InitiatorUnitID"
+			, A.InitiatorUnitName AS "InitiatorUnitName"
+			, C.UserCode AS "UserCode"
+			, C.UserName AS "UserName"
+			, C.SubKind AS "SubKind"
+			, C.SubKind AS "FormSubKind"
+			, B.Created AS "Created"
+			, B.TaskID AS "TaskID"
+			, D.FormSubject AS "FormSubject"
+			, TO_CHAR(B.Created, 'MM-DD HH24:MI') AS "Created"
+			, B.TaskID AS "TaskID"
+			, U.PhotoPath AS "PhotoPath"
+		FROM JWF_Process A
+		INNER JOIN JWF_Workitem B ON A.ProcessID = B.ProcessID
+		INNER JOIN JWF_Performer C ON B.WorkItemID = C.WorkItemID
+		INNER JOIN JWF_ProcessDescription D ON A.ProcessDescriptionID = D.ProcessDescriptionID
+		LEFT OUTER JOIN sys_object_user U ON U.UserCode = A.InitiatorID
+		WHERE    C.UserCode = #{UR_Code}
+		AND      C.SubKind IN ('T000','T004','T005','T006','T008','T009','T011','T016','T017','T019')
+		AND      C.State = 1
+		AND      B.State = #{state}
+		AND      A.ProcessState = 288
+		AND      A.DeleteDate IS NULL
+		AND      ROWNUM <![CDATA[<]]> 4
+		ORDER BY A.EndDate desc 		
+	</select>
+	
+	<select id="getProofCodeList" parameterType="cmap"  resultType="cmap">
+		SELECT 
+			AEA.ExpenceApplicationID AS "ExpenceApplicationID" 
+			, AEA.CompanyCode AS "CompanyCode"
+			, AEA.ApplicationTitle AS "ApplicationTitle"
+			, AEA.ApplicationType AS "ApplicationType"
+			, AEA.ApplicationStatus AS "ApplicationStatus"
+			, AEA.RegisterID AS "RegisterID"
+			, USR.DisplayName AS "RegisterName"
+			, AEA.ProcessID AS "ProcessID"
+			
+			, TO_CHAR(NVL(AEA.ApplicationDate, AEA.RegistDate), 'MM-DD HH24:MI') AS "ApplicationDate"
+			, AEA.RequestType AS "RequestType"
+			, AEA.RegistDate AS "RegistDate"
+			, AEA.ChargeJob AS "ChargeJob"
+			
+			, AEAL.ExpenceApplicationListID AS "ExpenceApplicationListID"
+			, AEAL.ExpenceApplicationListID AS "cdRownum"
+			, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS "ProofDate"
+			, TO_CHAR(TO_DATE(AEAL.PostingDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS "PostingDate"
+			, AEAL.ProofCode AS "ProofCode"
+			
+			, AEAL.CardUID AS "CardUID"
+			, AEAL.CashUID AS "CashUID"
+			, AEAL.TaxUID AS "TaxUID"
+			, AEAL.TaxType AS "TaxType"
+			, AEAL.TaxCode AS "TaxCode"
+			, AEAL.PayAdjustMethod AS "PayAdjustMethod"
+			, AEAL.PayMethod AS "PayMethod"
+			, AEAL.IsWithholdingTax AS "IsWithholdingTax"
+			, AEAL.IncomeTax AS "IncomeTax"
+			, AEAL.LocalTax AS "LocalTax"
+			, AEAL.PayDate AS "PayDate"
+			, AEAL.VendorNo AS "VendorNo"
+			, AEAL.TotalAmount AS "TotalAmount"				
+			, CASE
+				WHEN (AEAL.ProofCode = 'TaxBill' AND AEAD.Amount != AEAL.TotalAmount) 
+				THEN AEAD.Amount + AEAL.TaxAmount 
+				ELSE AEAD.Amount
+			END AS "Amount"	
+			, AEAD.AccountCode AS "AccountCode"
+			, AC.AccountName AS "AccountName"
+		FROM       act_expence_application AEA
+		INNER JOIN act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN  act_expence_application_div AEAD 	ON AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+		LEFT OUTER JOIN act_account AC                ON AEAD.AccountCode = AC.AccountCode
+		LEFT OUTER JOIN sys_object_user USR				ON AEA.RegisterID = USR.UserCode
+        WHERE      AEA.RegisterID = #{UR_Code}
+		<!-- AND        AEA.Active = 'N' -->
+		AND        AEAL.ProofCode = #{proofCode}		 
+		AND        ROWNUM <![CDATA[<]]> 5		
+	</select>
+	
+	<select id="getMobileReceiptListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(AR.ReceiptID)
+		FROM act_receipt AR
+		WHERE AR.UseDate BETWEEN TO_DATE((#{prevPayDate}||'01'),'YYYYMMDD') AND LAST_DAY(TO_DATE((#{prevPayDate}||'01'),'YYYYMMDD')) 
+		AND AR.RegisterID  = #{UR_Code}
+		AND AR.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getMobileReceiptList" parameterType="cmap"  resultType="cmap">
+		
+		SELECT	AR.ReceiptID AS "ReceiptID"
+				, AR.CompanyCode AS "CompanyCode"
+				, AR.ExpenceMgmtCode AS "ExpenceMgmtCode"
+				, AR.UsageText AS "UsageText"
+				, AR.PhotoDate AS "PhotoDate"
+				, AR.PhotoDate AS "PhotoDateStr"
+				, AR.ReceiptType AS "ReceiptType"
+				, AR.ReceiptFileID AS "ReceiptFileID"
+				, AR.Active AS "Active"
+				, FN_GETACTBASECODENAME('Active', AR.Active,'ALL') AS "ActiveName"
+				, AR.RegisterID AS "RegisterID"
+				, TO_CHAR(AR.UseDate, 'YYYY.MM.DD HH24:MI:SS') AS "UseDate"
+				, REPLACE(ST.FilePath,'{0}',SF.CompanyCode)||SF.FilePath||SF.SavedName AS "URLPath"
+				<choose>
+	                <when test='IsUseStandardBrief == "Y" '>
+						,AR.StandardBriefID AS "Code", SB.StandardBriefName AS "Name"
+	                </when>
+	                <otherwise>
+						,AR.AccountCode AS "Code", AC.AccountName AS "Name"
+	                </otherwise>
+	            </choose>
+				, AR.AccountCode AS "AccountCode"
+				, AC.AccountName AS "AccountName"
+		FROM	act_receipt AR
+		LEFT OUTER JOIN sys_file SF  			ON AR.ReceiptFileID = SF.fileid
+		LEFT OUTER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+		LEFT OUTER JOIN act_account AC    ON AR.AccountCode = AC.AccountCode AND AC.CompanyCode = #{companyCode}
+		<if test='IsUseStandardBrief == "Y" '>
+		LEFT OUTER JOIN act_standard_brief SB ON AR.StandardBriefID = SB.StandardBriefID
+        </if>
+		WHERE	 AR.UseDate BETWEEN TO_DATE((#{prevPayDate}||'01'),'YYYYMMDD') AND LAST_DAY(TO_DATE((#{prevPayDate}||'01'),'YYYYMMDD'))
+		AND      AR.RegisterID = #{UR_Code}
+		AND AR.CompanyCode = #{companyCode} 
+		AND      ROWNUM <![CDATA[<]]> 6
+		ORDER BY AR.ReceiptID DESC   		
+	</select>
+	
+	<select id="getCorpCardListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(ACR.ReceiptID)
+		FROM act_card_receipt	ACR
+		LEFT OUTER JOIN	act_corp_card	ACC ON ACR.CardNo = ACC.CardNo
+		WHERE ((NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode = #{UR_Code} )
+			OR (ACR.TossUserCode	= #{UR_Code} )
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code} )
+				)
+		)				
+		AND		ACR.InfoIndex = 'A'
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND		ACR.Active = 'N'
+		AND ACC.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getCorpCardList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+			ACR.ApproveNo AS "ApproveNo"
+			, ACR.ReceiptID AS "ReceiptID"
+			, CASE 
+				WHEN (ACR.Class	= 'B' OR ACR.InfoIndex = 'C') AND AmountWon > 0 
+				THEN TO_CHAR((ACR.AmountWon*-1), '999,999,999,999,999,999,999,999')
+				ELSE TO_CHAR(ACR.AmountWon, '999,999,999,999,999,999,999,999')
+			END	AS "AmountWon"
+			, ACR.StoreName AS "StoreName"
+			, CASE
+				WHEN ACR.InfoIndex = 'A'
+				THEN 
+					CASE
+						WHEN NVL(ACR.ApproveDate,'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACR.ApproveDate, 'YYYYMMDD'), 'YYYY.MM.DD')
+					END
+				ELSE
+					CASE
+						WHEN NVL(ACR.UseDate,'NODATA') = 'NODATA'
+						THEN ''
+						ELSE TO_CHAR(TO_DATE(ACR.UseDate, 'YYYYMMDD'), 'YYYY.MM.DD')
+					END
+			END AS "ApproveDate"
+			, TO_CHAR(TO_DATE(ACR.ApproveTime, 'HH24MISS'), 'HH24:MI:SS') AS "ApproveTime"
+			<choose>
+                <when test='IsUseStandardBrief == "Y" '>
+					,ACR.StandardBriefID AS "Code", SB.StandardBriefName AS "Name"
+                </when>
+                <otherwise>
+					,ACR.AccountCode AS "Code", C.AccountName AS "Name"
+                </otherwise>
+            </choose>
+		FROM act_card_receipt	ACR
+		LEFT OUTER JOIN act_corp_card ACC ON ACR.CardNo = ACC.CardNo
+		LEFT OUTER JOIN act_account C ON ACR.AccountCode = C.AccountCode AND c.CompanyCode = #{companyCode}
+		<if test='IsUseStandardBrief == "Y" '>
+		LEFT OUTER JOIN  act_standard_brief SB ON ACR.StandardBriefID = SB.StandardBriefID
+        </if>
+		WHERE (
+				(NVL(ACR.TossUserCode,'NODATA') = 'NODATA' AND ACC.OwnerUserCode = #{UR_Code})
+				OR (ACR.TossUserCode = #{UR_Code})
+				OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+										FROM	act_corp_card_search_user	ACCSU
+										WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)				
+		AND ACR.InfoIndex = 'A'
+		AND	NVL(ACR.IsPersonalUse,'N') = 'N'
+		AND	ACR.Active = 'N'
+		AND ACC.CompanyCode = #{companyCode}
+		AND ROWNUM <![CDATA[<]]> 4
+		ORDER BY ApproveDate DESC	
+	</select>
+	
+	<select id="getTaxBillListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT	COUNT(ACI.TaxInvoiceID)
+	    FROM	act_taxinvoice	ACI
+	    LEFT OUTER JOIN
+			act_taxinvoice_item	ATI_ITEM ON ACI.TaxInvoiceID = ATI_ITEM.TaxInvoiceID
+		WHERE	ACI.DataIndex	= 'BUY'
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= 'N'
+		AND		( 
+					ACI.InvoiceeEmail1 IN (	SELECT AM.TaxMailAddress
+											FROM act_manager AM
+											WHERE AM.ManagerUserCode = #{UR_Code}
+											UNION
+											SELECT SOU.MailAddress
+											FROM sys_object_user SOU
+											WHERE SOU.UserCode = #{UR_Code}
+					)
+					OR ACI.InvoiceEmail2 IN (	SELECT AM.TaxMailAddress
+											FROM act_manager AM
+											WHERE AM.ManagerUserCode = #{UR_Code}
+											UNION
+											SELECT SOU.MailAddress
+											FROM sys_object_user SOU
+											WHERE SOU.UserCode = #{UR_Code}
+					)
+					OR ACI.TossUserCode = #{UR_Code}
+		)
+	</select>
+		
+	<select id="getTaxBillList" parameterType="cmap"  resultType="cmap">		
+		SELECT	ACI.TaxInvoiceID AS "TaxInvoiceID"
+			,	TO_CHAR(TO_DATE(ACI.WriteDate, 'YYYYMMDD'),'YYYY.MM.DD') AS "WriteDate"
+			,	ACI.InvoicerCorpName AS "InvoicerCorpName"
+			,	TO_CHAR(ACI.TotalAmount, '999,999,999,999,999,999,999,999') AS "TotalAmount"
+	    FROM	act_taxinvoice ACI
+	    LEFT OUTER JOIN
+			act_taxinvoice_item	ATI_ITEM ON ACI.TaxInvoiceID = ATI_ITEM.TaxInvoiceID
+		WHERE	ACI.DataIndex	= 'BUY'
+		AND	(	
+			CASE	
+				WHEN ACI.IsOffset = 'Y' THEN 'Y'
+				WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+				WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+				WHEN ACI.ApproveStatus = 'N' THEN 'N'
+				ELSE 'R' 
+			END
+		) = 'N'
+		AND (
+			ACI.InvoiceeEmail1 IN ( SELECT AM.TaxMailAddress
+									FROM act_manager AM
+									WHERE AM.ManagerUserCode = #{UR_Code}
+									
+									UNION
+									
+									SELECT SOU.MailAddress
+									FROM sys_object_user SOU
+									WHERE SOU.UserCode = #{UR_Code}
+			)
+			OR ACI.InvoiceEmail2 IN (	SELECT AM.TaxMailAddress
+											FROM act_manager AM
+											WHERE AM.ManagerUserCode = #{UR_Code}
+											UNION
+											SELECT SOU.MailAddress
+											FROM sys_object_user SOU
+											WHERE SOU.UserCode = #{UR_Code}
+			)
+			OR ACI.TossUserCode = #{UR_Code}
+		)
+		AND ROWNUM <![CDATA[<]]> 4
+		ORDER BY WriteDate desc		
+	</select>
+	
+	<select id="getDeadlineInfo" parameterType="cmap" resultType="cmap">
+		/* account.portalHome.getDeadlineInfo */
+		SELECT * FROM (
+			SELECT	
+	    			DL.CompanyCode AS "CompanyCode"
+	    		,	DL.DeadlineID AS "DeadlineID"
+				,	TO_CHAR(TO_DATE(DL.DeadlineStartDate, 'YYYYMMDD'),'YYYY.MM.DD')	AS "DeadlineStartDate"
+				,	TO_CHAR(TO_DATE(DL.DeadlineFinishDate, 'YYYYMMDD'),'YYYY.MM.DD') AS "DeadlineFinishDate"
+				,  	NVL(DL.NoticeText,'') "NoticeText"
+				,   DL.StandardMonth AS "StandardMonth"
+				,	DL.IsUse AS "IsUse"
+				,	DL.Control AS "Control"
+	    	FROM	act_deadline DL
+	    	WHERE
+	    	<choose>
+			    <when test='isSaaS == "Y"'>
+					DL.CompanyCode =	#{companyCode}
+				</when>
+				<otherwise>
+					DL.CompanyCode in ('ALL', 	#{companyCode})
+				</otherwise>
+			</choose>
+			ORDER BY CASE WHEN CompanyCode='ALL' THEN 9 ELSE 0 END
+		)
+		WHERE ROWNUM <![CDATA[<=]]> 1
+	</select>
+	
+	<select id="selectHomeSectionSort" parameterType="cmap" resultType="cmap">
+		SELECT SectionKey AS "SectionKey", SortKey AS "SortKey"
+		FROM act_user_dashboard_sort
+		WHERE UserCode = #{UserCode}
+		AND "Type" = #{Type}
+		ORDER BY SortKey
+	</select>
+	
+	<update id="updateHomeSectionSort" parameterType="cmap">
+		<foreach collection="SortList" item="map" index="index" open="begin" close=";end;" separator=";">
+			MERGE INTO act_user_dashboard_sort D
+			USING dual
+			ON (D.UserCode = #{UserCode} AND D."Type" = #{Type} AND D.SectionKey = #{map.SectionKey})
+			WHEN MATCHED THEN
+			  UPDATE SET D.SortKey = #{map.SortKey}
+			WHEN NOT MATCHED THEN
+			  INSERT (UserCode, "Type", SectionKey, SortKey)
+			  VALUES (#{UserCode}, #{Type}, #{map.SectionKey}, #{map.SortKey})
+
+		</foreach>
+	</update>
+</mapper>

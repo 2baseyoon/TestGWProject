@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget.use">
+	<select id="getBudgetExecuteListCnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_budget4j.bem_execute_regist a
+	    JOIN	covi_budget4j.bem_regist r on a.CompanyCode = r.CompanyCode and a.FiscalYear = r.FiscalYear and a.AccountCode = r.AccountCode AND a.StandardBriefid = r.StandardBriefid	AND a.ExecuteDate BETWEEN r.ValidFrom AND r.ValidTo AND a.BudgetCode = r.CostCenter
+	    #JOIN    covi_budget4j.vw_cost_center b  ON a.CompanyCode = b.CompanyCode AND a.BudgetCode = b.CostCenterCode
+	    JOIN    covi_account4j_si.act_account c ON a.CompanyCode = c.CompanyCode AND a.AccountCode = c.AccountCode
+	    WHERE	a.companyCode = #{companyCode}
+	    AND     a.FiscalYear = #{fiscalYear}
+	    AND EXISTS (
+	    	SELECT 'X' FROM covi_budget4j.vw_cost_center b where a.CompanyCode = b.CompanyCode AND a.BudgetCode = b.CostCenterCode
+	    )
+		<if test ="costCenterType != null and costCenterType !=''">
+		AND		b.CostCenterType = #{costCenterType}
+		</if>
+	    <if test ="costCenterName != null and costCenterName !=''">
+		AND		b.costCenterName LIKE CONCAT('%',  #{costCenterName}, '%')
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	c.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+					C.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+					C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		C.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		C.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test ='authMode == null or authMode != "A" '>
+			AND a.BudgetCode IN (
+				SELECT u.CostCenterCode
+				FROM covi_account4j_si.act_user_cost_center u
+				WHERE u.CompanyCode = a.CompanyCode
+				AND u.CostCenterCode = a.BudgetCode
+				AND u.usercode = #{UR_Code}
+				UNION 
+				SELECT #{UR_Code}
+				FROM DUAL
+			)
+		</if>
+	</select>
+	
+	<select id="getBudgetExecuteList"  parameterType="cmap" resultType="cmap">
+		SELECT a.ExecuteID
+		        ,   a.FiscalYear
+		        ,	a.CostCenterType
+		    	,	covi_account4j_si.Fn_GetBaseCodeName('BudgetType', a.CostCenterType, #{companyCode}) AS CostCenterTypeName
+		    	,	a.CostCenter
+		    	,   a.CostCenterName
+		    	,	a.AccountCode
+		    	,   a.AccountName
+		    	,   a.StandardBriefID
+		    	,   ifnull(d.StandardBriefName,'') StandardBriefName
+				,   DATE_FORMAT(a.ExecuteDate,'%Y.%m.%d') ExecuteDate
+				,   a.UsedAmount
+				,	a.Description
+				,   a.Status
+		    	,	case when STATUS = '' then '상태없음' ELSE  covi_account4j_si.Fn_GetBaseCodeName('ExcuteStatus',a.Status,'ALL') end		AS StatusName
+				,   a.ReservedStr1
+				,   a.FormInstID
+				,   a.ExpenceApplicationListID
+				,   ProcessID
+				,   a.CompanyCode
+				, 	CompanyCodeName
+		FROM  (
+		    SELECT	a.ExecuteID
+		            ,   a.FiscalYear
+		            ,	b.CostCenterType
+			    	,	a.BudgetCode AS CostCenter
+			    	,   b.CostCenterName
+			    	,   c.Accountid
+			    	,	a.AccountCode
+			    	,   c.AccountName
+			    	,   a.StandardBriefID
+					,	a.ExecuteDate
+					,   a.UsedAmount
+					,   a.Description
+					,   a.Status
+					,   a.ReservedStr1
+					,   a.FormInstID
+					,   a.ExpenceApplicationListID
+					,   ProcessID
+					,   a.CompanyCode
+					,   covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',a.CompanyCode, #{companyCode}) CompanyCodeName
+		    FROM	covi_budget4j.bem_execute_regist a
+		    JOIN	covi_budget4j.bem_regist r on a.CompanyCode = r.CompanyCode and a.FiscalYear = r.FiscalYear and a.AccountCode = r.AccountCode AND a.StandardBriefid = r.StandardBriefid	AND a.ExecuteDate BETWEEN r.ValidFrom AND r.ValidTo AND a.BudgetCode = r.CostCenter
+		    JOIN    covi_budget4j.vw_cost_center b ON a.CompanyCode = b.CompanyCode AND a.BudgetCode = b.CostCenterCode
+		    JOIN    covi_account4j_si.act_account c ON a.CompanyCode = c.CompanyCode AND a.AccountCode = c.AccountCode
+       LEFT JOIN    covi_account4j_si.act_expence_application_list l ON a.ExpenceApplicationListID = l.ExpenceApplicationListID
+	   LEFT JOIN    covi_account4j_si.act_expence_application p ON p.ExpenceApplicationID = l.ExpenceApplicationID
+		    WHERE	a.companyCode = #{companyCode}
+	    	AND     a.FiscalYear = #{fiscalYear}
+			<if test ="costCenterType != null and costCenterType !=''">
+			AND		b.CostCenterType = #{costCenterType}
+			</if>
+		    <if test ="costCenterName != null and costCenterName !=''">
+			AND		b.costCenterName LIKE CONCAT('%', #{costCenterName},'%')
+			</if>
+			<choose>
+				<when test="searchStr != null and searchStr !=''">
+					<choose>
+					    <when test="searchType == null or searchType ==''">
+			AND		(	c.AccountCode		LIKE CONCAT('%',#{searchStr},'%')	OR 
+						C.AccountName		LIKE CONCAT('%',#{searchStr},'%')	OR
+						C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+					)
+					    </when>
+					    <when test="searchType == 'GLC'.toString()">
+			AND		C.AccountCode		LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+					    <when test="searchType == 'GLN'.toString()">
+			AND		C.AccountName		LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+						<when test="searchType == 'GLS'.toString()">
+			AND		C.AccountShortName	LIKE CONCAT('%',#{searchStr},'%')
+					    </when>
+					</choose>
+				</when>
+			</choose>
+			<if test ='authMode == null or authMode != "A" '>
+			AND a.BudgetCode IN (
+				SELECT u.CostCenterCode
+				FROM covi_account4j_si.act_user_cost_center u
+				WHERE u.CompanyCode = a.CompanyCode
+				AND u.CostCenterCode = a.BudgetCode
+				AND u.usercode = #{UR_Code}
+				UNION 
+				SELECT #{UR_Code}
+				FROM DUAL
+			)
+			</if>
+		) a	
+		LEFT JOIN covi_account4j_si.act_standard_brief d ON a.AccountID = d.AccountID AND a.StandardBriefID = d.StandardBriefID
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,a.CostCenter , a.AccountCode, a.StandardBriefID desc 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FiscalYear")'>FiscalYear</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterTypeName")'>CostCenterTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>CostCenterName</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>AccountCode</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>AccountName</when>
+					<when test='sortColumn.equalsIgnoreCase("ExecuteDate")'>ExecuteDate</when>
+					<when test='sortColumn.equalsIgnoreCase("UsedAmount")'>UsedAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+					<when test='sortColumn.equalsIgnoreCase("Status")'>Status</when>
+					<otherwise>CompanyCodeName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>		
+	</select>
+	
+	<select id="getBudgetCtrlInfo" parameterType="cmap" resultType="cmap">
+		SELECT CostCenterType, r.PeriodLabel, IFNULL(PeriodLabelName, CONCAT(STR_TO_DATE(r.ValidFrom,'%Y-%m-%d'),' ~ ', STR_TO_DATE(r.ValidTo,'%Y-%m-%d'))) AS PeriodLabelName
+		FROM covi_budget4j.bem_regist r
+		JOIN covi_budget4j.vw_cost_center c 	ON r.CompanyCode = c.CompanyCode AND r.CostCenter = c.CostCenterCode
+		LEFT JOIN covi_budget4j.bem_base_term t ON r.PeriodLabel = t.PeriodLabel
+		WHERE 	r.AccountCode = #{accountCode}
+		AND 	r.StandardBriefID = #{standardBriefID}
+		AND		r.CompanyCode = #{companyCode}
+		AND 	STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN r.ValidFrom AND r.ValidTo
+		<choose>
+		 	<when test="fiscalYear != null and fiscalYear != ''">
+		 		AND	r.FiscalYear = #{fiscalYear}
+		 	</when>
+		 	<otherwise>
+				<choose>
+				 	<when test="executeDate != null and executeDate != ''">
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE CompanyCode = #{companyCode} AND STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN ValidFrom AND ValidTo)
+				 	</when>
+				 	<otherwise>
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE CompanyCode = #{companyCode} AND NOW(3) BETWEEN ValidFrom AND ValidTo)
+				 	</otherwise>
+			 	</choose>
+		 	</otherwise>
+		</choose>
+		GROUP BY CostCenterType
+	</select>
+	
+	<select id="getBudgetType" parameterType="cmap" resultType="java.lang.String">
+		SELECT CostCenterType
+		FROM covi_budget4j.bem_regist r
+		JOIN covi_budget4j.vw_cost_center c ON r.CompanyCode = c.CompanyCode AND r.CostCenter = c.CostCenterCode
+		WHERE 	r.AccountCode = #{accountCode}
+		AND 	r.StandardBriefID = #{standardBriefID}
+		AND		r.CompanyCode = #{companyCode}
+		<choose>
+		 	<when test="fiscalYear != null and fiscalYear != ''">
+		 		AND	r.FiscalYear = #{fiscalYear}
+		 	</when>
+		 	<otherwise>
+				<choose>
+				 	<when test="executeDate != null and executeDate != ''">
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE CompanyCode = #{companyCode} AND STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN ValidFrom AND ValidTo)
+				 	</when>
+				 	<otherwise>
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE CompanyCode = #{companyCode} AND NOW(3) BETWEEN ValidFrom AND ValidTo)
+				 	</otherwise>
+			 	</choose>
+		 	</otherwise>
+		</choose>
+		GROUP BY CostCenterType
+	</select>
+	
+	<select id="getBudgetAmount"  parameterType="cmap" resultType="cmap">
+		SELECT max(budgetAmount) BudgetAmount, IsControl, IsUse
+				, sum(case when STATUS='P' then usedAmount ELSE 0 end)  PendingAmount
+				, sum(case when STATUS='C' then usedAmount ELSE 0 end)  CompletAmount
+				, max(budgetAmount) - ifnull( sum(case when STATUS in ('P','C') then usedAmount else 0 END),0)  RemainAmount
+		FROM  covi_budget4j.bem_regist r
+		LEFT JOIN covi_budget4j.bem_execute_regist e ON  r.CompanyCode = e.CompanyCode AND  r.FiscalYear = e.FiscalYear AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid AND r.CostCenter = e.BudgetCode
+		AND    e.ExecuteDate BETWEEN r.validFrom AND r.validTo
+	    WHERE  r.companyCode = #{companyCode}
+	    AND    r.FiscalYear = #{fiscalYear} 
+	    AND    r.CostCenter = #{budgetCode}
+	    AND    r.accountcode= #{accountCode}
+	     <if test ="standardBriefID != null and standardBriefID !=''">
+		AND	   r.standardBriefID = #{standardBriefID}
+		</if>
+	    AND    STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN r.ValidFrom and r.ValidTo
+	</select>
+	
+	<insert id="addExecuteRegist"  parameterType="cmap">
+		INSERT INTO covi_budget4j.bem_execute_regist
+		(
+			FiscalYear
+			,CompanyCode
+			,CostCenter
+			,AccountCode
+			,StandardBriefID 
+			,ExecuteDate
+			,UsedAmount
+			,Description
+			,InitiatorID
+			,InitiatorName
+			,InitiatorDeptCode
+			,InitiatorDeptName
+			,ForminstID
+			,ExpenceApplicationListID
+			,ExpenceApplicationDivID
+			,Status
+			,BudgetCode
+			,ReservedStr1
+			,ReservedStr2
+			,ReservedStr3 
+			,ReservedStr4 
+			,ReservedStr5
+			,ReservedInt1
+			,ReservedInt2 
+			,RegisterID
+			,RegistDate
+		)
+	     VALUES
+		 (
+		 	<choose>
+			 	<when test="fiscalYear != null and fiscalYear != ''">
+			 		#{fiscalYear}
+			 	</when>
+			 	<otherwise>
+					<choose>
+					 	<when test="executeDate != null and executeDate != ''">
+					 		(SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN ValidFrom AND ValidTo)
+					 	</when>
+					 	<otherwise>
+					 		(SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE NOW(3) BETWEEN ValidFrom AND ValidTo)
+					 	</otherwise>
+				 	</choose>
+			 	</otherwise>
+		 	</choose>
+		 	,#{companyCode}
+			,#{costCenter}
+			,#{accountCode}
+			,#{standardBriefID}
+			<choose>
+			 	<when test="executeDate != null and executeDate != ''">
+			 		,#{executeDate}
+			 	</when>
+			 	<otherwise>
+			 		,NOW(3)
+			 	</otherwise>
+		 	</choose> 
+			,#{usedAmount}
+			,#{description}
+			,#{initiatorID}
+			,#{initiatorName}
+			,#{initiatorDeptCode}
+			,#{initiatorDeptName}
+			,#{forminstID}
+			,#{expenceApplicationListID}
+			,#{expenceApplicationDivID}
+			,#{status}
+			,#{budgetCode}
+			,#{reservedStr1}
+			,#{reservedStr2}
+			,#{reservedStr3}
+			,#{reservedStr4}
+			,#{reservedStr5}
+			,#{reservedInt1}
+			,#{reservedInt2}
+			,#{UR_Code}
+			, now()
+		 )
+	</insert>
+	
+	<update id="changeStatus"  parameterType="cmap">
+		UPDATE covi_budget4j.bem_execute_regist
+		SET    Status = #{status}
+		<if test="status == 'C'.toString()">
+			, FiscalYear = (SELECT MAX(FiscalYear) FROM covi_budget4j.bem_base_term WHERE ExecuteDate BETWEEN ValidFrom AND ValidTo)
+		</if>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<choose>
+			    <when test="executeID != null and executeID !=''">
+			    	ExecuteID = #{executeID}
+			    </when>
+			    <otherwise>
+					ExpenceApplicationListID IN (
+						SELECT ExpenceApplicationListID 
+						FROM covi_account4j_si.act_expence_application_list 
+						WHERE ExpenceApplicationID = #{ExpenceApplicationID}
+					)
+			    </otherwise>
+			</choose>
+		</trim>
+	</update>
+	
+	<delete id="deleteExecuteRegist" parameterType="cmap">
+		DELETE BER 
+		FROM covi_budget4j.bem_execute_regist AS BER
+		INNER JOIN covi_account4j_si.act_expence_application_list AS AEAL ON AEAL.ExpenceApplicationListID = BER.ExpenceApplicationListID
+		WHERE AEAL.ExpenceApplicationID = #{ExpenceApplicationID}
+	</delete>
+</mapper>
+

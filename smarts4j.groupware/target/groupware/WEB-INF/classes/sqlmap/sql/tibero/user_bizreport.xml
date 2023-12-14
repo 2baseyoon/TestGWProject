@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.bizreport">
+	<select id="selectMyProject" parameterType="cmap" resultType="cmap">
+		SELECT	  c.CU_ID AS "ProjectCode"
+				, c.CommunityName AS "ProjectName"
+		FROM community c
+		LEFT JOIN community_member cm ON cm.CU_ID = c.CU_ID
+		WHERE 1=1
+		AND c.Gubun = 'T'
+		AND cm.UR_Code = #{userCode}
+		AND MemberLevel IN (8,9,5)
+		AND NVL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		AND c.DN_ID = #{domainID}
+	</select>
+	
+	<select id="selectFolderReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT '' AS "TaskID"
+			 , A.FolderID AS "FolderID"
+			 , '' AS "ProjectCode"
+			 , A.DisplayName AS "DisplayName"
+			 , A.Description AS "Description"
+			 , A.State AS "State"
+			 , A.State AS "FolderState"
+			 , A.Progress AS "Progress"
+			 , '' AS "StartDate"
+			 , '' AS "EndDate"
+			 , R.ReportID AS "ReportID"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+		FROM task_folder A
+		INNER JOIN report R ON R.TaskFolderID = A.FolderID And R.TaskGubunCode='Task'
+		WHERE 1=1
+		AND A.OwnerCode = #{userCode}
+		AND R.RegisterCode = #{userCode}
+		AND (R.RegistDate BETWEEN #{reportDate} AND TO_DATE(#{reportDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+	</select>
+	
+	<select id="selectTaskReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT A.TaskID AS "TaskID"
+			  ,A.FolderID AS "FolderID"
+			  ,'' AS "ProjectCode"
+			  ,A.Subject AS "Subject"
+			  ,A.Description AS "Description"
+			  ,A.State AS "State"
+			  ,A.State AS "TaskState"
+			  ,A.Progress AS "Progress"
+			  ,TO_CHAR(A.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			  ,TO_CHAR(A.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			  ,R.ReportID AS "ReportID"
+			  ,NVL(R.TaskGubunCode, 'Task') AS "TaskGubunCode"
+			  ,TF.DisplayName AS "FolderName"
+		FROM task A 
+		INNER JOIN task_performer B ON A.TaskID = B.TaskID AND B.PerformerCode = #{userCode}
+		LEFT OUTER JOIN report R
+		ON (
+			R.TaskID = A.TaskID
+			And R.TaskGubunCode = 'Task'
+			And R.RegisterCode = #{userCode}
+			AND	(R.RegistDate BETWEEN #{reportDate} AND TO_DATE(#{reportDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		)
+		LEFT JOIN TASK_FOLDER TF ON TF.DELETEDATE IS NULL AND A.FOLDERID = TF.FOLDERID
+		WHERE 1=1
+		AND (A.StartDate <![CDATA[<=]]> #{reportDate} AND A.EndDate <![CDATA[>=]]> TO_DATE(#{reportDate}, 'YYYY-MM-DD')+(INTERVAL '1' DAY))
+	</select>
+	
+	<select id="selectProjectTaskReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT A.AT_ID
+			  , '' AS "FolderID"
+			  , A.CU_ID
+			  , A.ATName AS "ATName"
+			  , A.StartDate AS "StartDate"
+			  , A.EndDate AS "EndDate"
+			  , A.State AS "State"
+			  , A.State AS "TaskState"
+			  , A.Progress AS "Progress"
+			  , R.ReportID AS "ReportID"
+			  , NVL(R.TaskGubunCode,'TF') AS "TaskGubunCode"
+			  , CU.COMMUNITYNAME AS "CommunityName"
+		FROM tf_activity A
+		INNER JOIN tf_activity_performer B ON A.AT_ID = B.AT_ID AND B.PerformerCode = #{userCode}
+		LEFT OUTER JOIN report R ON R.ProjectCode = A.CU_ID And R.TaskID = A.AT_ID and R.TaskGubunCode='TF' And R.RegisterCode = #{userCode} AND (R.RegistDate BETWEEN #{reportDate} AND TO_DATE(#{reportDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		LEFT JOIN COMMUNITY CU ON CU.GUBUN = 'T' AND A.CU_ID = CU.CU_ID
+		WHERE 1=1
+		AND (A.StartDate <![CDATA[<=]]> #{reportDate} AND A.EndDate <![CDATA[>=]]> TO_DATE(#{reportDate}, 'YYYY-MM-DD')+(INTERVAL '1' DAY))
+	</select>
+	
+	<select id="selectGReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT ReportID AS "ReportID"
+			  ,TaskID AS "TaskID"
+			  ,ProjectCode AS "ProjectCode"
+			  ,TaskFolderID AS "TaskFolderID"
+			  ,TaskGubunCode AS "TaskGubunCode"
+			  ,TaskName AS "TaskName"
+			  ,TaskDate AS "TaskDate"
+			  ,TaskHour AS "TaskHour"
+			  ,TaskStatus AS "TaskStatus"
+			  ,TaskStatus AS "TaskState"
+			  ,TaskPercent AS "TaskPercent"
+			  ,TaskEtc AS "TaskEtc"
+			  ,TaskMemberCode AS "TaskMemberCode"
+			  ,TaskMemberDeptCode AS "TaskMemberDeptCode"
+			  ,RegisterCode AS "RegisterCode"
+			  ,RegistDate AS "RegistDate"
+		FROM report R
+		WHERE R.TaskGubunCode = 'G'
+		AND R.RegisterCode = #{userCode}
+		AND TO_CHAR(R.TaskDate, 'YYYY-MM-DD') = #{reportDate}
+	</select>
+	
+	<insert id="insertTaskReport" parameterType="cmap">
+		INSERT INTO report
+			(TaskID,ProjectCode,TaskFolderID,TaskGubunCode,TaskName,TaskDate,TaskHour,TaskStatus,TaskPercent,TaskEtc,TaskMemberCode,TaskMemberDeptCode,RegisterCode,RegistDate)
+		VALUES 
+			(
+			 #{TaskCode}, #{PjtCode}, #{TaskFolderCode}, #{TaskGubunCode}, #{TaskName}, 
+			<choose>
+				<when test="TaskDate != null and TaskDate != ''">
+					 #{TaskDate},
+				</when>
+				<otherwise>
+					SYSDATE,
+				</otherwise>
+			</choose>
+			 #{TaskHour}, #{TaskStatusCode}, #{TaskPercent}, #{TaskEtc}, #{TaskMemCode}, #{TaskMemDeptCode}, #{RegisterCode}, SYSDATE
+			)
+	</insert>
+	
+	<update id="updateTaskReport" parameterType="cmap">
+		UPDATE report
+		SET TaskGubunCode = #{TaskGubunCode}
+			<choose>
+				<when test="TaskDate != null and TaskDate != ''">
+					,TaskDate = #{TaskDate}
+				</when>
+				<otherwise>
+					,TaskDate = SYSDATE
+				</otherwise>
+			</choose>
+			,TaskHour = #{TaskHour}
+			,TaskStatus = #{TaskStatusCode}
+			,TaskPercent = #{TaskPercent}
+			,TaskEtc = #{TaskEtc}
+			,RegisterCode = #{RegisterCode}
+		WHERE ReportID = #{ReportCode}
+	</update>
+	
+	<delete id="deleteTaskReport" parameterType="cmap">
+		DELETE FROM report
+		WHERE 1=1 AND ReportID = #{ReportCode}
+	</delete>
+	
+	<select id="selectTaskReportWeeklyList" parameterType="cmap" resultType="cmap">
+		SELECT	  A.ReportID AS "ReportID"
+				, A.TaskID AS "TaskID"
+				, A.TaskName AS "TaskName"
+				, A.TaskStatus AS "TaskState"
+				, A.TaskStatus AS "TaskStateName"
+				, A.TaskPercent AS "TaskPercent"
+				, A.TaskHour AS "TaskHour"
+				, TaskDate AS "TaskDate"
+				, A.TaskEtc AS "TaskEtc"
+				, A.TaskGubunCode AS "TaskGubunCode"
+				, A.ProjectCode AS "ProjectCode"
+				, A.TaskFolderID AS "TaskFolderID"
+				, TO_CHAR(A.RegistDate, 'YYYY.MM.DD HH24:MI') AS "RegistDate"
+		FROM report A
+		WHERE 1=1
+		AND A.RegisterCode = #{userCode}
+		AND A.TaskDate BETWEEN #{startDate} AND #{endDate}
+		<if test="projectCode != null and projectCode != ''">
+			AND A.ProjectCode = #{projectCode}
+		</if>
+		<if test="taskGubunCode != null and taskGubunCode != ''">
+			<choose>
+				<when test="taskGubunCode == 'GT'">
+					AND A.TaskGubunCode IN ('T', 'G')
+				</when>
+				<otherwise>
+					AND A.TaskGubunCode = #{taskGubunCode}
+				</otherwise>
+			 </choose>
+		</if>
+		ORDER BY TaskDate, ReportID
+	</select>
+	
+	<insert id="insertProjectTaskReportWeekly" parameterType="cmap">
+		INSERT INTO 
+			report_week
+			(
+			<if test="ProjectCode != null and ProjectCode != ''">
+				ProjectCode,
+			</if>
+			TaskFolderID, TaskGubunCode, StartDate, EndDate, WeekEtc, NextPlan, RegisterCode, RegistDate,RegisterDeptCode)
+		VALUES 
+			(
+			<if test="ProjectCode != null and ProjectCode != ''">
+				#{ProjectCode},
+			</if>
+			#{TaskFolderID},#{TaskGubunCode},#{StartDate}, #{EndDate}, #{WeekEtc}, #{NextPlan}, #{RegisterCode}, SYSDATE, #{RegisterDeptCode})
+	</insert>
+	
+	<update id="updateProjectTaskReportWeekly" parameterType="cmap">
+		UPDATE 
+			report_week
+		SET 
+			WeekEtc = #{WeekEtc}, NextPlan = #{NextPlan}
+		WHERE 
+			ReportWeekID = #{ReportID}
+	</update>
+	
+	<select id="selectReportWeeklyRegistered" parameterType="cmap" resultType="cmap">
+		SELECT ReportWeekID AS "ReportWeekID"
+			 , ProjectCode AS "ProjectCode"
+			 , TaskFolderID AS "TaskFolderID"
+			 , TaskGubunCode AS "TaskGubunCode"
+			 , StartDate AS "StartDate"
+			 , EndDate AS "EndDate"
+			 , WeekEtc AS "WeekEtc"
+			 , NextPlan AS "NextPlan"
+			 , RegisterCode AS "RegisterCode"
+			 , RegistDate AS "RegistDate"
+			 , RegisterDeptCode AS "RegisterDeptCode"
+		FROM report_week 
+		WHERE 1=1
+		<if test="projectCode != null and projectCode != ''">
+			AND ProjectCode = #{projectCode}
+		</if>
+		<if test="TaskGubunCode != null and TaskGubunCode != ''">
+			AND TaskGubunCode = #{TaskGubunCode}
+		</if>
+		AND StartDate = #{StartDate}
+		AND EndDate = #{EndDate}
+		AND RegisterCode = #{RegisterCode}
+	</select>
+	
+	<select id="selectTaskReportWeeklyListAll" parameterType="cmap" resultType="cmap">
+		SELECT A.ReportID AS "ReportID"
+			 , A.ProjectCode AS "ProjectCode"
+			 , TO_CHAR(A.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			 , TO_CHAR(A.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			 , TO_CHAR(A.RegistDate, 'YYYY-MM-DD') AS "RegistDate"
+			 , A.RegisterCode AS "RegisterCode"
+			 , A.RegisterDeptCode AS "RegisterDeptCode"
+			 , A.TaskGubunCode AS "TaskGubunCode"
+			 , A.ProjectCode AS "ProjectCode"
+			 , A.TaskFolderID AS "TaskFolderID"
+		FROM report_week A 
+		WHERE 1=1
+		<if test="projectCode != null and projectCode != ''">
+			AND A.ProjectCode = #{projectCode}
+		</if>
+		<if test="taskGubunCode != null and taskGubunCode != ''">
+			AND A.TaskGubunCode = #{taskGubunCode}
+		</if>
+		<if test="memCode != null and memCode != ''">
+			<![CDATA[
+				AND A.RegisterCode = #{userCode}
+			]]>
+		</if>
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[
+				AND A.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND A.EndDate <= #{endDate}
+			]]>
+		</if>
+		ORDER BY A.StartDate DESC
+	</select>
+	
+	<select id="selectTaskReportWeeklyListAllCnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM report_week A
+		WHERE 1=1
+		<if test="projectCode != null and projectCode != ''">
+			AND A.PrjCode = #{projectCode}
+		</if>
+		<if test="memCode != null and memCode != ''">
+			<![CDATA[
+				AND A.RegisterCode = #{memCode}
+			]]>
+		</if>
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[
+				AND A.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND A.EndDate <= #{endDate}
+			]]>
+		</if>
+	</select>
+	
+	<select id="selectTaskReportWeeklyView" parameterType="cmap" resultType="cmap">
+		SELECT A.ReportWeekID AS "ReportWeekID"
+			 , A.ProjectCode AS "ProjectCode"
+			 , TO_CHAR(A.StartDate, 'YYYY-MM-DD') AS "StartDate"
+			 , TO_CHAR(A.EndDate, 'YYYY-MM-DD') AS "EndDate"
+			 , TO_CHAR(A.RegistDate, 'YYYY-MM-DD') AS "RegistDate"
+			 , A.RegisterCode AS "RegisterCode"
+			 , A.RegisterDeptCode AS "RegisterDeptCode"
+		FROM report_week A
+		WHERE ReportWeekID = #{RepIDX}
+	</select>
+	
+	<select id="selectFolderReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT R.ReportID AS "ReportID"
+			 , R.TaskID AS "TaskID"
+			 , R.ProjectCode AS "ProjectCode"
+			 , TF.DisplayName AS "DisplayName"
+			 , R.TaskName AS "TaskName"
+			 , TO_CHAR(TaskDate, 'YYYY-MM-DD') AS "TaskDate"
+			 , R.TaskStatus AS "TaskState"
+			 , R.TaskStatus AS "TaskStateName"
+			 , R.TaskPercent AS "TaskPercent"
+			 , R.TaskEtc AS "TaskEtc"
+			 , R.TaskMemberCode AS "TaskMemberCode"
+			 , R.TaskMemberDeptCode AS "TaskMemberDeptCode"
+			 , R.TaskHour AS "TaskHour"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+			 , CTE.MultiDisplayName AS "DeptName"
+			 , U.MultiDisplayName AS "UserName"
+			 , CTE.SortPath AS "SortPath"
+			 , U.SortKey AS "SortKey"
+		FROM report R
+		INNER JOIN task_folder TF
+		ON R.TaskFolderID = TF.FolderID
+		INNER JOIN (SELECT GroupCode, MultiDisplayName, SortPath
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN sys_object_user U  ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND TaskGubunCode = 'Task'
+		AND TaskID IS NULL
+		AND ( R.TaskDate BETWEEN #{startDate} AND TO_DATE(#{endDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectTaskReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT R.ReportID AS "ReportID"
+			 , R.TaskID AS "TaskID"
+			 , R.ProjectCode AS "ProjectCode"
+			 , TF.Subject AS "Subject"
+			 , R.TaskName AS "TaskName"
+			 , TO_CHAR(TaskDate, 'YYYY-MM-DD') AS "TaskDate"
+			 , R.TaskStatus AS "TaskState"
+			 , R.TaskStatus AS "TaskStateName"
+			 , R.TaskPercent AS "TaskPercent"
+			 , R.TaskEtc AS "TaskEtc"
+			 , R.TaskMemberCode AS "TaskMemberCode"
+			 , R.TaskMemberDeptCode AS "TaskMemberDeptCode"
+			 , R.TaskHour AS "TaskHour"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+			 , CTE.MultiDisplayName AS "MultiDisplayName"
+			 , U.MultiDisplayName AS "MultiDisplayName"
+			 , CTE.SortPath AS "SortPath"
+			 , U.SortKey AS "SortKey"
+		FROM report R
+		INNER JOIN task TF
+		ON R.TaskID = TF.TaskID
+		INNER JOIN (SELECT GroupCode, MultiDisplayName, SortPath
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN sys_object_user U  ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND TaskGubunCode = 'Task'
+		AND ( R.TaskDate BETWEEN #{startDate} AND TO_DATE(#{endDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectProjectTaskReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT R.ReportID AS "ReportID"
+			 , R.TaskID AS "TaskID"
+			 , R.ProjectCode AS "ProjectCode"
+			 , C.CommunityName AS "CommunityName"
+			 , R.TaskName AS "TaskName"
+			 , TO_CHAR(TaskDate, 'YYYY-MM-DD') AS "TaskDate"
+			 , R.TaskStatus AS "TaskState"
+			 , R.TaskStatus AS "TaskStateName"
+			 , R.TaskPercent AS "TaskPercent"
+			 , R.TaskEtc AS "TaskEtc"
+			 , R.TaskMemberCode AS "TaskMemberCode"
+			 , R.TaskMemberDeptCode AS "TaskMemberDeptCode"
+			 , R.TaskHour AS "TaskHour"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+			 , CTE.MultiDisplayName AS "DeptName"
+			 , U.MultiDisplayName AS "UserName"
+			 , CTE.SortPath AS "SortPath"
+			 , U.SortKey AS "SortKey"
+		FROM report R
+		INNER JOIN community C
+		ON R.ProjectCode = C.CU_ID
+		INNER JOIN (SELECT GroupCode, MultiDisplayName, SortPath
+			FROM sys_object_group E
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN sys_object_user U ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND R.TaskGubunCode = 'TF'
+		AND ( R.TaskDate BETWEEN #{startDate} AND TO_DATE(#{endDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectGReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT R.ReportID AS "ReportID"
+			 , R.TaskID AS "TaskID"
+			 , R.ProjectCode AS "ProjectCode"
+			 , R.TaskName AS "TaskName"
+			 , TO_CHAR(TaskDate, 'YYYY-MM-DD') AS "TaskDate"
+			 , R.TaskStatus AS "TaskState"
+			 , R.TaskStatus AS "TaskStateName"
+			 , R.TaskPercent AS "TaskPercent"
+			 , R.TaskEtc AS "TaskEtc"
+			 , R.TaskMemberCode AS "TaskMemberCode"
+			 , R.TaskMemberDeptCode AS "TaskMemberDeptCode"
+			 , R.TaskHour AS "TaskHour"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+			 , CTE.MultiDisplayName AS "DeptName"
+			 , U.MultiDisplayName AS "UserName"
+			 , CTE.SortPath AS "SortPath"
+			 , U.SortKey AS "SortKey"
+		FROM report R
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN sys_object_user U ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND R.TaskGubunCode = 'G'
+		AND (R.TaskDate BETWEEN #{startDate} AND TO_DATE(#{endDate}, 'YYYY-MM-DD') + (INTERVAL '1' DAY))
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectReportWeeklyListAll" parameterType="cmap" resultType="cmap">
+		SELECT R.ReportWeekID AS "ReportWeekID"
+			 , R.ProjectCode AS "ProjectCode"
+			 , R.StartDate AS "StartDate"
+			 , R.EndDate AS "EndDate"
+			 , R.WeekEtc AS "WeekEtc"
+			 , R.NextPlan AS "NextPlan"
+			 , R.RegisterDeptCode AS "RegisterDeptCode"
+			 , R.RegisterCode AS "RegisterCode"
+			 , R.TaskGubunCode AS "TaskGubunCode"
+			 , CTE.MultiDisplayName AS "DeptName"
+			 , U.MultiDisplayName AS "UserName"
+			 , CTE.SortPath AS "SortPath"
+			 , U.SortKey AS "SortKey"
+		FROM report_week R 
+		INNER JOIN (SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE ON R.RegisterDeptCode = CTE.GroupCode
+		LEFT JOIN sys_object_user U  ON U.UserCode = r.RegisterCode
+		WHERE 1=1
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[ 
+				AND R.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND R.EndDate <= #{endDate}
+			]]>
+		</if>
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportWeekID
+	</select>
+	
+	<select id="selectMyTeamMembers" parameterType="cmap" resultType="cmap">
+		SELECT CTE.GroupCode AS "DeptCode"
+			 , CTE.MultiDisplayName AS "DeptName"
+			 , CTE.SortPath AS "DeptSortPath"
+			 , GM.JobType AS "JobType"
+			 , U.UserCode AS "UserCode"
+			 , U.MultiDisplayName AS "UserName"
+			 , U.SortKey AS "UserSortPath"
+		FROM (SELECT GroupCode, MultiDisplayName, SortPath
+			FROM sys_object_group E 
+			WHERE  E.GroupPath LIKE '%'||#{deptCode}||'%'
+			ORDER BY SortPath
+		) CTE
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP GM ON CTE.GroupCode = GM.DeptCode
+		INNER JOIN SYS_OBJECT_USER U ON GM.UserCode = U.UserCode AND U.ISUSE = 'Y' AND U.ISDISPLAY = 'Y'
+		WHERE GM.JobType = 'Origin'
+		ORDER BY CTE.SortPath, U.SortKey
+	</select>
+</mapper>

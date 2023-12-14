@@ -1,0 +1,660 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.contents">
+
+	<!-- 컨텐츠 앱 목록 조회 -->
+	<select id="selectContentsList" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectContentsList */
+		SELECT       
+			  SOF.FolderID AS FolderID
+			, SOF.MemberOf AS MemberOf
+			, SOF.FolderType AS itemType
+		    , SOF.FolderType
+		    , SOF.FolderPath
+			, SOF.MenuID
+			, CONCAT('board_', SOF.FolderType) AS type
+			, IFNULL(Fn_BaseGetDictionary_S(#{lang}, SOF.MultiDisplayName), SOF.DisplayName) AS FolderName
+			, SOF.DisplayName AS DisplayName
+			, SOF.SortKey
+			, SOF.SortPath
+			, SOF.IsUse
+			, SOF.IsDisplay
+			, SOF.DeleteDate
+			, SOF.RegistDate
+			, Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS RegisterName
+			, (SELECT IFNULL(Fn_BaseGetDictionary_S(#{lang}, t.MultiDisplayName), t.DisplayName) FROM sys_object_folder_type t WHERE FolderType = SOF.FolderType AND BizSection IN (SOF.ObjectType, 'Common')) AS FolderTypeName
+			, (SELECT COUNT(0) FROM sys_object_folder AS self WHERE self.MemberOf = sof.FolderID AND self.IsUse = 'Y' AND self.DeleteDate IS NULL) AS hasChild 
+			, SOF.RegisterCode
+			, SOF.Description
+			, SOD.DomainCode
+			, BC.UseIcon AS UseIcon
+			, IFNULL((SELECT COUNT(*) FROM covi_smart4j.sys_favorite WHERE TargetServiceType = 'ContentsApp' and TargetID = SOF.FolderID and UserCode = #{USERID}),0) IsFav
+		FROM sys_object_folder AS SOF 
+		LEFT JOIN board_config AS BC ON SOF.FolderID = BC.FolderID
+		LEFT JOIN sys_object_domain AS SOD ON SOF.DomainID = SOD.DomainID
+		LEFT OUTER JOIN sys_object_user SOU ON SOF.RegisterCode = SOU.UserCode
+		WHERE SOF.DomainID = #{domainID}
+		<choose>
+		    <when test="communityID != null and communityID != ''">
+				AND SOF.ObjectType = 'Community'
+			</when>
+			<otherwise>
+				AND SOF.ObjectType = #{bizSection}
+			</otherwise>
+		</choose>
+		AND SOF.MenuID IN
+		<foreach item="item" index="index" collection="menuID" open="(" close=")" separator=",">
+            #{item}
+    	</foreach>
+    	
+    	<if test='isFav == null or !isFav.equalsIgnoreCase("Y")'>
+	    	<if test='isFolderMenu.equalsIgnoreCase("Y")'>
+	    		AND (SOF.FolderType IN ('Root','Folder'))
+	    	</if>
+	    	
+	    	<if test='!isFolderMenu.equalsIgnoreCase("Y")'>
+		    	<if test="folderType != null and folderType != ''">
+					AND SOF.FolderType = #{folderType}
+				</if>
+		    	<if test="memberOf != null and memberOf != ''">
+					AND SOF.MemberOf = #{memberOf}  
+					AND (SOF.FolderType = 'Folder' OR SOF.Reserved4='Y' )
+				</if>
+	    	</if>
+    	</if>
+    	<if test='isFav != null and isFav.equalsIgnoreCase("Y")'>
+			AND SOF.FolderType = 'Board'
+			HAVING IsFav > 0
+		</if>
+    	
+    	AND SOF.IsUse = 'Y'
+		AND SOF.IsDisplay = 'Y'
+		AND SOF.DeleteDate IS NULL
+		
+		<if test="searchText != null and searchText != ''">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("1")'>SOF.DisplayName</when>
+				<when test='searchType.equalsIgnoreCase("2")'>SOF.Description</when>
+				<otherwise>SOF.DisplayName </otherwise>
+			</choose>
+			LIKE CONCAT('%', #{searchText}, '%')
+		</if>
+		ORDER BY SOF.FolderPath, SOF.SortKey ASC
+	</select>
+	
+	<!-- 즐겨찾기 -->
+	<insert id="addContentsFavorite" parameterType="cmap">
+	/* user.contents.addContentsFavorite */
+		INSERT INTO covi_smart4j.sys_favorite
+					( TargetServiceType, TargetObjectType, TargetID, TargetURL, UserCode )
+		VALUES		( 'ContentsApp', #{ftype}, #{fid}, '', #{USERID} )
+	</insert>
+
+	<!-- 즐겨찾기 해제 -->
+	<delete id="deleteContentsFavorite" parameterType="cmap">
+	/* user.contents.deleteContentsFavorite */
+		DELETE FROM covi_smart4j.sys_favorite 
+		WHERE TargetServiceType = 'ContentsApp'
+			AND TargetObjectType =  #{ftype}
+		 	AND TargetID = #{fid}
+		 	AND UserCode = #{USERID}
+	</delete>
+	
+	<!-- 컨텐츠 앱 이름변경 조회 -->
+	<select id="selectContentsName" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectContentsName */
+		SELECT FolderID
+			, DisplayName
+			, MultiDisplayName
+		FROM covi_smart4j.sys_object_folder
+		WHERE FolderID = #{folderID}
+	</select>
+	
+	<!-- 컨텐츠 앱 이름변경 처리 -->
+	<update id="updateContentsNameChange" parameterType="cmap">
+	/* user.contents.updateContentsNameChange */
+		UPDATE covi_smart4j.sys_object_folder
+			SET DisplayName = #{displayName}
+				, MultiDisplayName = #{multiDisplayName}
+				, ModifierCode = #{USERID}
+				, ModifyDate = NOW()
+		WHERE FolderID = #{folderID}  
+	</update>
+	
+	<!-- 사용자 정의 폼 추가 UserFormID 조회 -->
+	<select id="selectUserFormKey" parameterType="cmap" resultType="java.lang.Long">
+	/* user.contents.selectUserFormKey */
+		SELECT 
+			IFNULL(MAX(UserFormID), 1)
+		FROM covi_smart4j.board_userform
+		WHERE FolderID = #{folderID}
+			AND SortKey = #{sortKey}
+			AND DeleteDate IS null
+	</select>
+	
+	<!-- 사용자 정의 폼 현재 UserFormData 조회 -->
+	<select id="selectUserFormData" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectUserFormData */
+		SELECT 
+			UserFormID
+			, GotoLink
+		FROM covi_smart4j.board_userform
+		WHERE FolderID = #{folderID}
+			AND SortKey = #{sortKey}
+			AND DeleteDate IS null
+	</select>
+    
+    <!-- 사용자 정의 필드 수정 -->
+    <update id="updateUserDefField" parameterType="cmap">
+    /* user.contents.updateUserDefField */
+		<foreach collection="userFormList" item="user" open="" close=";" separator=";">
+		INSERT INTO board_userform ( UserFormID, FolderID, SortKey, FieldName, FieldType
+				, FieldSize, FieldLimitCnt, IsList, IsOption, IsCheckVal
+				, IsSearchItem, Description, DefVal, FieldAlign, FieldLimitMax
+				, FieldLimitMin, FieldRow, FieldWidth, FieldWidthUnit, FieldHeight, FieldHeightUnit, GotoLink
+				, IsDup, IsLabel, IsTooltip, IsTitle )
+		VALUES ( #{user.UserFormID}, #{folderID}, #{user.SortKey}, #{user.FieldName}, #{user.FieldType}
+				, #{user.FieldSize}, #{user.FieldLimitCnt}, #{user.IsList}, #{user.IsOption}, #{user.IsCheckVal}
+				, #{user.IsSearchItem}, #{user.Description}, #{user.DefVal}, #{user.FieldAlign}, #{user.FieldLimitMax}
+				, #{user.FieldLimitMin}, #{user.FieldRow}, #{user.FieldWidth}, #{user.FieldWidthUnit}, #{user.FieldHeight}, #{user.FieldHeightUnit}, #{user.GotoLink}
+				, #{user.IsDup}, #{user.IsLabel}, #{user.IsTooltip}, #{user.IsTitle} )
+		ON   DUPLICATE KEY
+	     UPDATE FieldName = #{user.FieldName}
+	        	, FieldType = #{user.FieldType}
+	        	, FieldSize = #{user.FieldSize}
+	        	, FieldLimitCnt = #{user.FieldLimitCnt}
+	        	, IsList = #{user.IsList}
+	        	, IsOption = #{user.IsOption}
+	        	, IsCheckVal = #{user.IsCheckVal}
+	        	, isSearchItem = #{user.IsSearchItem}
+	        	, SortKey = #{user.SortKey}
+	        	, Description = #{user.Description}
+	        	, DefVal = #{user.DefVal}
+	        	, FieldAlign = #{user.FieldAlign}
+	        	, FieldLimitMax = #{user.FieldLimitMax}
+	        	, FieldLimitMin = #{user.FieldLimitMin}
+	        	, FieldRow = #{user.FieldRow}
+	        	, FieldWidth = #{user.FieldWidth}
+	        	, FieldWidthUnit = #{user.FieldWidthUnit}
+	        	, FieldHeight = #{user.FieldHeight}
+	        	, FieldHeightUnit = #{user.FieldHeightUnit}
+	        	, GotoLink = #{user.GotoLink}
+	        	, IsDup = #{user.IsDup}
+	        	, IsLabel = #{user.IsLabel}
+	        	, IsTooltip = #{user.IsTooltip}
+	        	, IsTitle = #{user.IsTitle}
+	  </foreach>      
+    </update>
+    
+    <!-- 사용자 정의 필드 수정 -->
+    <update id="updateUserformGotoLink" parameterType="cmap">
+    /* user.contents.updateUserformGotoLink */
+    	UPDATE board_userform SET
+    		GotoLink = #{gotoLink}
+    	WHERE UserFormID = #{userFormID}
+	</update>
+    
+    <!-- 차트 -->
+    <select id="getFolderChart" parameterType="cmap" resultType="cmap">
+	      SELECT ChartID, ChartName, ChartType, ChartCol, ChartMethod, ChartSubCol
+			FROM board_chart bm
+		   WHERE folderid = #{folderID}
+		   <if test="chartID != null and chartID != ''">
+		   	AND ChartID = #{chartID}
+		   </if>
+	</select>
+	
+	<insert id="insertFolderChart" parameterType="cmap" >
+	      INSERT INTO board_chart(ChartName, FolderID, ChartType, ChartCol, ChartMethod, ChartSubCol, RegisterCode, RegistDate)
+	      VALUES(#{chartName}, #{folderID}, #{chartType}, #{chartCol}, #{chartMethod}, #{chartSubCol}, #{USERID}, now() )
+	</insert>
+	
+	<update id="updateFolderChart" parameterType="cmap" >
+	      UPDATE board_chart
+	         SET ChartName = #{chartName}
+	         	, ChartType = #{chartType}
+	         	, ChartCol = #{chartCol}
+	         	, ChartMethod = #{chartMethod}
+	         	, ChartSubCol = #{chartSubCol}
+	       WHERE chartID = #{chartID}
+	</update>
+	
+	<delete id="deleteFolderChart" parameterType="cmap" >
+	      DELETE FROM board_chart
+	       WHERE chartID = #{chartID}
+	</delete>
+	
+    <select id="getFolderChartData" parameterType="cmap" resultType="cmap">
+		with cte AS (    
+			      SELECT bm.MessageID
+			      	<choose>
+				      	 <when test='chartCol == "UserForm"'>,bu.IsOption IsOption</when>
+				      	 <otherwise>,'N' IsOption</otherwise>  
+			      	 </choose>
+			      	<choose>
+				      	 <when test='chartSubCol != null'>
+				      	  ,(SELECT  buvs.FieldValue FROM board_userform_value buvs where bm.MessageID = buvs.MessageID AND buvs.UserFormID = #{chartSubCol}) GroupVal
+				      	 </when>
+				      	 <otherwise>,0 GroupVal </otherwise>
+					</choose>	
+			      	<choose>
+						<when test='chartCol == "CreatorCode"'>
+							,ifnull(bm.CreatorCode,'') GroupCode
+						</when>
+						<when test='chartCol == "CreateMonth"'>
+							,date_format(bm.CreateDate ,'%Y-%m') GroupCode
+						</when>
+						<otherwise>
+							,ifnull(buv.FieldValue,'') GroupCode
+						</otherwise>
+					</choose>	
+				FROM board_message bm
+				<if test='chartCol == "UserForm"'>
+				   LEFT JOIN board_userform bu  ON bm.folderid = bu.folderid  AND bu.UserFormID =  #{chartColID} 
+			  	   LEFT JOIN board_userform_value buv  ON bm.MessageID = buv.MessageID  AND bu.UserFormID = buv.UserFormID 
+			  	   LEFT JOIN board_userform_option buo ON buv.UserFormID  = buo.UserFormID AND buv.FieldValue = buo.OptionValue
+			  	</if>	   
+		    	<if test="searchType == 'UserForm'"><!-- 조회조건이 사용자 정의 폼에 있으면 -->
+				   LEFT JOIN board_userform sbu  ON bm.folderid = sbu.folderid  AND sbu.UserFormID =  #{userFormID} 
+			  	   LEFT JOIN board_userform_value sbuv  ON bm.MessageID = sbuv.MessageID  AND sbu.UserFormID = sbuv.UserFormID AND (sbu.IsOption = 'Y' OR (sbu.IsOption = 'N' and sbuv.FieldValue 	LIKE CONCAT('%',#{searchText},'%')))  
+			  	   LEFT JOIN board_userform_option sbuo ON sbuv.UserFormID  = sbuo.UserFormID and bm.folderid = sbuo.folderid  AND (sbu.IsOption = 'N' OR (sbu.IsOption = 'Y' and sbuo.OptionName 	LIKE CONCAT('%',#{searchText},'%')	AND sbuv.FieldValue LIKE CONCAT('%',sbuo.OptionValue  ,'%')))
+			  	</if>   
+				   WHERE bm.folderid = #{folderID}
+					 AND BM.DeleteDate IS NULL
+					 AND BM.MsgState IN ('C', 'A') 
+					 AND BM.MsgType != 'S' 
+					<!-- 검색어 항목 -->
+					<if test="searchText != null and searchText != ''">
+						<choose>
+				       	 	<when test="searchType == 'Total'">
+				           		 AND ( BM.Subject LIKE CONCAT('%',#{searchText},'%') || BM.BodyText LIKE CONCAT('%',#{searchText},'%') )
+				       		</when>
+				       		<when test="searchType == 'UserForm'">
+								 AND  ( (	sbu.IsOption = 'N' AND 	 sbuv.MessageID IS NOT NULL)
+												    OR  (	sbu.IsOption = 'Y' AND 	 sbuo.UserFormID IS NOT NULL))
+				        	</when>
+				       		<when test="searchType == 'Tag'">
+					            AND  ( SELECT GROUP_CONCAT(Tag SEPARATOR ',') FROM board_message_tag WHERE MessageID = BM.MessageID AND Version = BM.Version ) 
+					            		LIKE CONCAT('%',#{searchText},'%')  
+					       	</when>
+							<when test='searchType.equalsIgnoreCase("BodyText")'>AND BM.BodyText LIKE CONCAT('%',#{searchText},'%')</when>
+							<when test='searchType.equalsIgnoreCase("CreatorName")'>AND BM.CreatorName LIKE CONCAT('%',#{searchText},'%')</when>
+							<when test='searchType.equalsIgnoreCase("Number")'>AND BM.Number LIKE CONCAT('%',#{searchText},'%')</when>
+							<otherwise>AND BM.Subject LIKE CONCAT('%',#{searchText},'%') </otherwise>
+						</choose>
+					</if>
+					<if test="startDate != null and endDate != null and startDate != '' and endDate != ''">
+						AND BM.RegistDate between #{startDate} and #{endDate}
+					</if>)
+				SELECT GroupCode 
+			      	<choose>
+						<when test='chartCol == "CreatorCode"'>
+							,(SELECT Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) FROM sys_object_user WHERE UserCode = A.GroupCode) AS GroupName
+						</when>
+						<when test='chartCol == "CreateMonth"'>
+							, GroupCode GroupName 
+						</when>
+						<otherwise>
+					 		, case when IsOption = 'N' then GroupCode ELSE 
+							 	(SELECT Fn_BaseGetDictionary_S(#{lang}, OptionName) 
+								 FROM  board_userform_option buo 
+								 WHERE buo.UserFormID  = #{chartColID}
+								 AND   buo.OptionValue = GroupCode) end GroupName
+						</otherwise>
+					</choose>			 
+					<choose>
+						<when test='chartMethod == "COUNT"'>
+							, COUNT(1) GroupVal
+						</when>
+						<when test='chartMethod == "SUM"'>
+							, ifnull(SUM(GroupVal),0) GroupVal
+						</when>
+						<when test='chartMethod == "AVG"'>
+							, ifnull(AVG(GroupVal),0) GroupVal
+						</when>
+					</choose>		
+				 FROM (
+					SELECT cte.MessageID,
+							  SUBSTRING_INDEX(SUBSTRING_INDEX(cte.GroupCode, ';', numbers.n), ';', -1) GroupCode
+							  , GroupVal
+							  , IsOption
+					FROM
+					  (SELECT 1 n UNION ALL SELECT 2 UNION ALL
+					   SELECT 3   UNION ALL SELECT 4 UNION ALL select 5) numbers 
+					   INNER JOIN cte  on CHAR_LENGTH(cte.GroupCode)	     -CHAR_LENGTH(REPLACE(cte.GroupCode, ';', ''))>=numbers.n-1
+					) A
+			GROUP BY ifnull(GroupCode,'')
+	</select>
+	
+	<!-- 아이콘 조회 -->
+	<select id="selectBoardConfigIcon" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectBoardConfigIcon */
+		SELECT 
+			UseIcon
+		FROM board_config
+		WHERE FolderID = #{folderID}
+	</select>
+	
+	<!-- 아이콘 수정 -->
+	<update id="updateBoardConfigIcon" parameterType="cmap">
+	/* user.contents.updateBoardConfigIcon */
+	 	UPDATE board_config
+ 	    SET 
+			UseIcon = #{useIcon}
+			,ModifierCode = #{userCode}
+			,ModifyDate = now(3)
+		WHERE FolderID = #{folderID}
+ 	</update>
+ 	
+	<!-- 본문사용 수정 -->
+	<update id="updateBoardConfigBody" parameterType="cmap">
+	/* user.contents.updateBoardConfigBody */
+	 	UPDATE board_config
+ 	    SET 
+			UseBody = #{useBody}
+			,ModifierCode = #{userCode}
+			,ModifyDate = now(3)
+		WHERE FolderID = #{folderID}
+ 	</update>
+
+ 	<!-- 컨텐츠 앱 폴더 메뉴 조회 -->
+	<select id="selectContentsFolderMenu" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectContentsFolderMenu */
+	 	SELECT A.MenuID AS no
+	 		, A.DisplayName AS nodeName
+	 		, A.MemberOf AS pno
+	 		, A.SortPath
+	 		, A.DomainID
+	 		, 'N' AS IsAdmin
+		FROM covi_smart4j.sys_object_folder A
+		LEFT join covi_smart4j.sys_object_folder B on B.menuid = A.MemberOf 
+		WHERE A.DomainID = #{domainID}
+			AND A.ObjectType = #{bizSection}
+			AND A.FolderType IN ('Root','Folder')
+			AND (A.MemberOf =0 OR B.MenuID IS NOT NULL)
+			AND A.IsUse = 'Y' 
+			AND A.DeleteDate IS NULL
+		ORDER BY A.SortPath
+	</select>
+	
+	<!-- 이동할 폴더 조회 -->
+	<select id="selectTargetFolder" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectTargetFolder */
+		SELECT MemberOf
+			, SortKey
+			, FolderPath
+			, SortPath
+			, (SELECT COUNT(*) FROM covi_smart4j.sys_object_folder WHERE MemberOf = #{folderID}) AS TargetSortKey
+		FROM covi_smart4j.sys_object_folder A
+		WHERE FolderID = #{folderID}
+	</select>
+	
+	<!-- 컨텐츠 앱 폴더 이동 처리 -->
+    <update id="updateTargetFolder" parameterType="cmap">
+    /* user.contents.updateTargetFolder */
+        UPDATE sys_object_folder
+        SET
+        	MemberOf = #{memberOf}
+        	, FolderPath = #{folderPath}
+        	, SortKey = #{sortKey}
+        	, SortPath = #{sortPath}
+        WHERE FolderID = #{folderID}
+    </update>
+    
+    <!-- 사용자 정의 필드 리스트 여부 저장 -->
+    <update id="deleteUserDefFieldIsList" parameterType="cmap">
+        UPDATE board_userform
+        SET    IsList = 'N'
+        WHERE FolderID = #{folderID}
+    </update>
+
+    <!-- 사용자 정의 필드 정보 리스트 저장 -->
+    <update id="updateUserDefFieldIsList" parameterType="cmap">
+		<foreach collection="userFormList" item="lst" open="" close="" separator=";">
+        UPDATE board_userform 
+        SET    IsList = 'Y'
+        WHERE 	UserFormID =    #{lst}
+    	</foreach>
+    </update>
+ 	
+	<update id="updateBoardConfigSort" parameterType="cmap">
+	 	UPDATE board_config
+ 	    SET 
+			SortCols = #{sortCols}
+			,ModifierCode = #{userCode}
+			,ModifyDate = now(3)
+		WHERE FolderID = #{folderID}
+ 	</update>
+ 	
+ 	<!-- 사용자 정의 폼 삭제전 image 유무 조회 -->
+	<select id="selectUserFormImageData" parameterType="cmap" resultType="cmap">
+	/* user.contents.selectUserFormImageData */
+		SELECT 
+			UserFormID
+			, GotoLink
+		FROM covi_smart4j.board_userform
+		WHERE UserFormID = #{userFormID}
+			AND FieldType = 'Image'
+			AND DeleteDate IS null
+	</select>
+	
+	<!-- 확장옵션 탭: 사용자 정의 컬럼 Grid 조회 -->
+    <select id="selectUserDefFormGridList" parameterType="cmap" resultType="cmap">
+    /* user.contents.selectUserDefFormGridList */
+        SELECT * FROM (
+	        SELECT BU.UserFormID 
+	        	, BU.FolderID 
+	        	, BU.SortKey 
+	        	, BU.FieldType 
+	        	, BU.FieldSize 
+	        	, BU.FieldLimitCnt 
+	        	, BU.FieldAlign
+	        	, BU.IsList
+	        	, BU.IsOption
+	        	, IFNULL(BU.IsCheckVal, 'N') AS IsCheckVal 
+	        	, BU.IsSearchItem
+				, BU.FieldName
+				, Fn_BaseGetDictionary_S(#{lang}, FieldName) AS DisplayName
+				, BU.IsLabel
+				, BU.Description
+				, BU.IsTooltip
+				, BU.IsDup
+				, BU.DefVal
+				, BU.FieldLimitMin
+				, BU.FieldLimitMax
+				, BU.FieldWidth
+				, BU.FieldWidthUnit
+				, BU.FieldHeight
+				, BU.FieldHeightUnit
+				, BU.FieldRow
+				, BU.GotoLink
+				, BU.IsTitle
+				, (SELECT COUNT(*) 
+					FROM board_userform_option 
+					WHERE UserFormID=BU.UserFormID
+						AND FolderID=#{folderID}
+				) AS OptionCnt 
+				, (SELECT GROUP_CONCAT(CONCAT(bup.OptionID,'^',	bup.OptionName,'^',bup.OptionValue,'^',bup.OptionCheck ) SEPARATOR '|')
+					FROM board_userform_option bup
+					WHERE UserFormID=BU.UserFormID
+						AND FolderID=#{folderID}
+					ORDER BY bup.SortKey
+				) AS OptionList
+		FROM board_userform AS BU
+		WHERE 1=1
+		AND BU.FolderID=#{folderID}
+		AND BU.DeleteDate IS NULL 
+		) AS RESULT
+		ORDER BY SortKey ASC
+    </select>
+ 	
+ 	<!-- 대상 폴더 테이블의 데이터로 추가 -->
+	<insert id="insertSaveFolder" parameterType="cmap">
+	/* user.contents.insertSaveFolder */
+ 	    INSERT INTO sys_object_folder (
+			 DomainID
+			,MenuID
+			,ObjectType
+			,FolderType
+			,DisplayName
+			,MultiDisplayName
+			,MemberOf
+			,FolderPath
+			,SortKey
+			,SortPath
+			,IsInherited
+			,IsShared
+			,IsUse
+			,IsDisplay
+			,IsURL
+			,URL
+			,SecurityLevel
+			,IsMobileSupport
+			,IsMsgSecurity
+			,IsAdminNotice
+			,Description
+			,OwnerCode
+			,RegisterCode
+			,RegistDate
+			,Reserved4
+		) 
+		SELECT DomainID
+			,MenuID
+			,ObjectType
+			,FolderType
+			,#{displayName} DisplayName
+			,#{multiDisplayName} MultiDisplayName
+			,MemberOf
+			,FolderPath
+			,SortKey
+			,SortPath
+			,IsInherited
+			,IsShared
+			,IsUse
+			,IsDisplay
+			,IsURL
+			,URL
+			,SecurityLevel
+			,IsMobileSupport
+			,IsMsgSecurity
+			,IsAdminNotice
+			,Description
+			,#{ownerCode} OwnerCode
+			,#{userCode} RegisterCode
+			,now(3) RegistDate
+			,Reserved4
+		FROM sys_object_folder
+		WHERE FolderID = #{pFolderID}
+		
+		<selectKey keyProperty="folderID" resultType="long" order="AFTER">
+			SELECT LAST_INSERT_ID();
+        </selectKey>
+ 	</insert>
+	
+	<!-- 대상 게시판 설정 테이블의 데이터로 추가 -->
+ 	<insert id="insertBoardConfig" parameterType="cmap">
+ 	/* user.contents.insertBoardConfig */
+ 	    INSERT INTO board_config (
+			 FolderID
+			,UseBasicConfig
+			,UseFile 
+			,UseImage 
+			,UseVideo
+			,UsePopNotice 
+			,UseTopNotice 
+			,UseExpiredDate 
+			,UseAnony 
+			,UseReply 
+			,UseComment 
+			,UseInterest 
+			,UseFavorite 
+			,UseRecommend 
+			,UseSecret 
+			,UseTag
+			,UseLink 
+			,UsePrint 
+			,LimitFileSize 
+			,LimitFileCnt 
+			,LimitCommentCnt 
+			,LimitLinkCnt 
+			,RecentlyDay 
+			,ExpireDay 
+			,DefaultContents 
+			,UseScrap 
+			,UseCopy 
+			,UseCommentRecommend 
+			,UseLogWrite
+			,UseReadCnt 
+			,UseTrackback 
+			,UseRSS
+			,UseReaderView 
+			,UseDefaultSecret 
+			,UseEmail 
+			,UseCategory
+			,UseBodyForm
+			,UseUserForm
+			,UseOwnerProcess
+			,UseUserProcess
+			,RegisterCode 
+			,RegistDate
+			,BoardTotalLimitFileSize
+			,CurrentTotalFileSize
+			,UseReservation
+			,UsePubDeptName
+			,UseIcon
+		 )	
+		SELECT 
+			 #{folderID}
+			,UseBasicConfig
+			,UseFile 
+			,UseImage 
+			,UseVideo
+			,UsePopNotice 
+			,UseTopNotice 
+			,UseExpiredDate 
+			,UseAnony 
+			,UseReply 
+			,UseComment 
+			,UseInterest 
+			,UseFavorite 
+			,UseRecommend 
+			,UseSecret 
+			,UseTag
+			,UseLink 
+			,UsePrint 
+			,LimitFileSize 
+			,LimitFileCnt 
+			,LimitCommentCnt 
+			,LimitLinkCnt 
+			,RecentlyDay 
+			,ExpireDay 
+			,DefaultContents 
+			,UseScrap 
+			,UseCopy 
+			,UseCommentRecommend 
+			,UseLogWrite
+			,UseReadCnt 
+			,UseTrackback 
+			,UseRSS
+			,UseReaderView 
+			,UseDefaultSecret 
+			,UseEmail 
+			,UseCategory
+			,UseBodyForm
+			,UseUserForm
+			,UseOwnerProcess
+			,UseUserProcess
+			,RegisterCode 
+			,RegistDate
+			,BoardTotalLimitFileSize
+			,CurrentTotalFileSize
+			,UseReservation
+			,UsePubDeptName
+			,#{useIcon} UseIcon
+		FROM board_config
+		WHERE FolderID = #{pFolderID}
+ 	</insert>
+
+</mapper>

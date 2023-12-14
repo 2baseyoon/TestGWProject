@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.formstempinstbox">
+    <insert id="insertFromForminstanceW" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_formstempinstbox (
+			FormInstID,
+			FormID,
+			SchemaID,
+			FormPrefix,
+			FormInstTableName,
+			UserCode,
+			CreatedDate,
+			Subject,
+			Kind
+		)
+		SELECT 
+			#{FormInstID} AS FormInstID,
+			FI.FormID,
+			FI.SchemaID,
+			F.FormPrefix,
+			'jwf_forminstance' AS FormInstTableName,
+			InitiatorID AS UserCode,
+			now(3) AS CreatedDate,
+			FI.Subject,
+			'W' AS Kind
+		FROM covi_approval4j.jwf_forminstance AS FI
+		INNER JOIN covi_approval4j.jwf_forms AS F 
+			ON FI.FormID = F.FormID
+		WHERE FormInstID = #{FormInstID}
+		<selectKey keyProperty="FormTempInstBoxID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>	
+	
+    <insert id="insertFromForminstanceT" parameterType="cmap">	
+		INSERT INTO covi_approval4j.jwf_formstempinstbox (
+			FormInstID,
+			FormID,
+			SchemaID,
+			FormPrefix,
+			FormInstTableName,
+			UserCode,
+			CreatedDate,
+			Subject,
+			Kind
+		)
+		VALUES
+		(
+			#{FormInstID},
+			#{FormID},
+			#{SchemaID},
+			#{FormPrefix},
+			#{FormInstTableName},
+			#{UserCode},
+			now(3),
+			#{Subject},
+			#{Kind}
+		)
+		<selectKey keyProperty="FormTempInstBoxID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+    <update id="updateFromForminstanceT" parameterType="cmap">	
+		UPDATE covi_approval4j.jwf_formstempinstbox SET
+		Subject = #{Subject}
+		WHERE 	FormTempInstBoxID = #{FormTempInstBoxID}
+	</update>	
+	
+    <delete id="deleteTemp" parameterType="cmap">
+        DELETE FROM covi_approval4j.jwf_formstempinstbox
+        WHERE FormTempInstBoxID = #{FormTempInstBoxID}
+    </delete>
+</mapper>

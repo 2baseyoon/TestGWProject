@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.event">
+	
+    <insert id="insertEvent" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT
+		(
+			  FolderID
+			, FolderType
+			, EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, OwnerCode
+			, RegisterCode
+			, MultiRegisterName
+			, RegistDate
+			, ModifierCode
+			, ModifyDate
+			, DeleteDate
+		) VALUES (
+			#{FolderID}				
+			, #{FolderType}			
+			, #{EventType}			
+			, #{LinkEventID}			
+			, #{MasterEventID}		
+			, #{Subject}				
+			, #{Description}			
+			, #{Place}					
+			, #{IsPublic}				
+			, #{IsDisplay}			
+			, #{IsInviteOther}		
+			, #{ImportanceState}	
+			, #{OwnerCode}			
+			, #{RegisterCode}		
+			, #{MultiRegisterName}		
+			, SYSDATE
+			, #{ModifierCode}		
+			, SYSDATE
+			, #{DeleteDate}			
+		)
+		<selectKey keyProperty="EventID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+
+    <!-- EVENT_REPEAT -->
+    <insert id="insertEventRepeat" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT_REPEAT
+		(
+			   EventID
+			, AppointmentStartTime
+			, AppointmentEndTime
+			, AppointmentDuring
+			, RepeatType
+			, RepeatYear
+			, RepeatMonth
+			, RepeatWeek
+			, RepeatDay
+			, RepeatMonday
+			, RepeatTuesday
+			, RepeatWednseday
+			, RepeatThursday
+			, RepeatFriday
+			, RepeatSaturday
+			, RepeatSunday
+			, RepeatStartDate
+			, RepeatEndType
+			, RepeatEndDate
+			, RepeatCount
+			, RepeatAppointType
+			, RepeatTimeZoneDisplay
+		) VALUES (
+			  #{EventID}						
+			, #{AppointmentStartTime}		
+			, #{AppointmentEndTime}		
+			, #{AppointmentDuring}		
+			, #{RepeatType}					
+			, #{RepeatYear}					
+			, #{RepeatMonth}				
+			, #{RepeatWeek}				
+			, #{RepeatDay}					
+			, #{RepeatMonday}				
+			, #{RepeatTuesday}				
+			, #{RepeatWednseday}			
+			, #{RepeatThursday}			
+			, #{RepeatFriday}				
+			, #{RepeatSaturday}				
+			, #{RepeatSunday}			
+			, #{RepeatStartDate}
+			, #{RepeatEndType}
+			, #{RepeatEndDate}
+			, #{RepeatCount}
+			, #{RepeatAppointType}
+			, #{RepeatTimeZoneDisplay}		
+		)
+		<selectKey keyProperty="RepeatID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_REPEAT_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <!-- EVENT_DATE -->
+    <insert id="insertEventDate" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT_DATE
+		(
+			EventID
+			, RepeatID
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		) VALUES (
+			#{EventID}					
+			, #{RepeatID}				
+			, #{StartDateTime}		
+			, #{StartDate}				
+			, #{StartTime}				
+			, #{EndDateTime}			
+			, #{EndDate}				
+			, #{EndTime}				
+			, #{IsAllDay}				
+			, #{IsRepeat}				
+		)
+		<selectKey keyProperty="DateID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_DATE_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <!-- EVENT_RESOURCE_BOOKING -->
+    <insert id="insertEventResourceBooking" parameterType="cmap">
+        INSERT INTO EVENT_RESOURCE_BOOKING (
+			DateID
+			, EventID
+			, ResourceID
+			, ApprovalDate
+			, ApprovalState
+			, RealEndDateTime
+			, DeleteDate
+		) VALUES (
+			#{DateID}					
+			, #{EventID}					
+			, #{ResourceID}				
+			, #{ApprovalDate}			
+			, #{ApprovalState}			
+			, TO_DATE((SELECT EndDateTime FROM EVENT_DATE WHERE DateID = #{DateID}), 'YYYY-MM-DD HH24:MI')
+			, NULL
+		)
+    </insert>
+    
+    <!-- EVENT_RELATION -->
+    <insert id="insertEventRelation" parameterType="cmap">
+        INSERT INTO EVENT_RELATION
+		(
+			ScheduleID
+			, ResourceID
+			, Reserved1
+			, Reserved2
+		) VALUES (
+			#{ScheduleID}			
+			, #{ResourceID}			
+			, #{Reserved1}			
+			, #{Reserved2}			
+		)
+    </insert>
+    
+    <update id="updateEventRelation" parameterType="cmap">
+        UPDATE EVENT_RELATION
+		SET
+			  ScheduleID = #{ScheduleID}
+			, ResourceID = #{ResourceID}
+		WHERE
+			ScheduleID = #{ScheduleID}
+		AND	ResourceID = #{ResourceID}
+    </update>
+    
+    <!-- EVENT_NOTIFICATION -->
+    <insert id="insertEventNotification" parameterType="cmap">
+        INSERT INTO EVENT_NOTIFICATION
+		(
+			EventID
+			, DateID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		) VALUES (
+			#{EventID}
+			, #{DateID}				
+			, #{RegisterCode}				
+			, #{RegisterKind}				
+			, #{IsNotification}				
+			, #{IsReminder}					
+			, #{ReminderTime}				
+			, #{IsCommentNotification}		
+			, #{MediumKind}				
+		)
+    </insert>
+    
+    <!-- 등록자에 대한 알림 저장 -->
+    <insert id="insertEventNotificationByRegister" parameterType="cmap">
+        INSERT INTO EVENT_NOTIFICATION
+		(
+			EventID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		) VALUES (
+			#{EventID}						
+			, (SELECT RegisterCode FROM EVENT WHERE EventID = #{EventID})				
+			, 'R'
+			, #{IsNotification}				
+			, #{IsReminder}					
+			, #{ReminderTime}				
+			, #{IsCommentNotification}		
+			, #{MediumKind}				
+		)
+    </insert>
+    
+    <!-- Date 테이블 데이터 삭제 -  DateID로 -->
+    <delete id="deleteEventDateByDateID" parameterType="cmap">
+        DELETE
+        FROM EVENT_DATE
+        WHERE
+        	DateID = #{DateID}
+    </delete>
+    
+    <!-- Date 테이블 데이터 삭제 -  EventID로 -->
+    <delete id="deleteEventDateByEventID" parameterType="cmap">
+        DELETE
+        FROM EVENT_DATE
+        WHERE
+        	EventID = #{EventID}
+    </delete
+        >
+    <!-- Resource Booking 테이블 데이터 삭제 -->
+    <delete id="deleteEventResourceBooking" parameterType="cmap">
+        DELETE
+        FROM EVENT_RESOURCE_BOOKING
+        <trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		    <if test="ResourceID != null and ResourceID !='' ">AND ResourceID = #{ResourceID}</if>
+		</trim>
+    </delete>
+    
+    <!-- Relation 테이블 데이터 삭제 -->
+    <delete id="deleteEventRelation" parameterType="cmap">
+        DELETE
+        FROM EVENT_RELATION
+        WHERE
+        	ScheduleID = #{EventID}
+    </delete>
+    
+    <!-- Notification 테이블 데이터 삭제 -->
+    <delete id="deleteEventNotification" parameterType="cmap">
+        DELETE
+        FROM EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+        	<if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+    </delete>
+    
+    <!-- 수정 -->
+    <update id="updateEvent" parameterType="cmap">
+        UPDATE EVENT
+        SET
+        	FolderID = #{FolderID}
+		    ,FolderType = #{FolderType}
+		    ,EventType = #{EventType}
+		<if test="LinkEventID != null and LinkEventID != ''" >
+		    ,LinkEventID = #{LinkEventID}
+		</if>
+		<if test="MasterEventID != null and MasterEventID != ''" >
+		    ,MasterEventID = #{MasterEventID}
+		</if>
+		    ,Subject = #{Subject}
+		    ,Description = #{Description}
+		<if test="Place != null" >
+		    ,Place = #{Place}
+		</if>
+		    ,IsPublic = #{IsPublic}
+		    ,IsInviteOther = #{IsInviteOther}
+		    ,ImportanceState = #{ImportanceState}
+		    ,OwnerCode = #{OwnerCode}
+		    ,ModifierCode = #{ModifierCode}
+		    ,ModifyDate = SYSDATE
+        WHERE EventID = #{EventID}
+    </update>
+    
+    <update id="updateLinkEvent" parameterType="cmap">
+        UPDATE EVENT
+        SET
+		    Subject = #{Subject}
+		    ,Description = #{Description}
+		<if test="Place != null" >
+		    ,Place = #{Place}
+		</if>
+		    ,IsPublic = #{IsPublic}
+		    ,IsInviteOther = #{IsInviteOther}
+		    ,ImportanceState = #{ImportanceState}
+		    ,ModifierCode = #{ModifierCode}
+		    ,ModifyDate = SYSDATE
+        WHERE LinkEventID = #{EventID} 
+        AND EventType = 'A'
+    </update>
+    
+    <update id="updateEventRepeat" parameterType="cmap">
+        UPDATE EVENT_REPEAT
+        SET
+        	AppointmentStartTime = #{AppointmentStartTime}
+			,AppointmentEndTime = #{AppointmentEndTime}
+			,AppointmentDuring = #{AppointmentDuring}
+			,RepeatType = #{RepeatType}
+			,RepeatYear = #{RepeatYear}
+			,RepeatMonth = #{RepeatMonth}
+			,RepeatWeek = #{RepeatWeek}
+			,RepeatDay = #{RepeatDay}
+			,RepeatMonday = #{RepeatMonday}
+			,RepeatTuesday = #{RepeatTuesday}
+			,RepeatWednseday = #{RepeatWednseday}
+			,RepeatThursday = #{RepeatThursday}
+			,RepeatFriday = #{RepeatFriday}
+			,RepeatSaturday = #{RepeatSaturday}
+			,RepeatSunday = #{RepeatSunday}
+			,RepeatStartDate = #{RepeatStartDate}
+			,RepeatEndType = #{RepeatEndType}
+			<if test="RepeatEndDate != null and RepeatEndDate != ''" >
+			,RepeatEndDate = #{RepeatEndDate}
+			</if>
+			,RepeatCount = #{RepeatCount}
+			,RepeatAppointType = #{RepeatAppointType}
+			,RepeatTimeZoneDisplay = #{RepeatTimeZoneDisplay}
+        WHERE
+        	RepeatID = #{RepeatID}
+    </update>
+    
+    <update id="updateEventRepeatDate" parameterType="cmap">
+        UPDATE EVENT_REPEAT
+        SET	  RepeatStartDate = #{StartDate}
+			, RepeatEndDate = #{EndDate}
+			, AppointmentStartTime = #{StartTime}
+			, AppointmentEndTime = #{EndTime}
+        WHERE
+        	RepeatID = #{RepeatID}
+    </update>
+    
+    <update id="updateEventNotification" parameterType="cmap">
+        UPDATE EVENT_NOTIFICATION
+        SET
+        	IsNotification = #{IsNotification}
+			,IsReminder = #{IsReminder}
+			,ReminderTime = #{ReminderTime}
+			,IsCommentNotification = #{IsCommentNotification}
+			,MediumKind = #{MediumKind}
+		<trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		    <if test="RegisterCode != null and RegisterCode !='' ">AND RegisterCode = #{RegisterCode}</if>
+		</trim>
+    </update>
+    
+    <select id="selectResourceList" parameterType="cmap" resultType="cmap">
+        SELECT E.ResourceID AS "FolderID", F.DisplayName AS "ResourceName" 
+		FROM EVENT_RELATION E
+		LEFT JOIN SYS_OBJECT_FOLDER F ON E.ResourceID = F.FolderID
+		WHERE E.ScheduleID = #{EventID}
+    </select>
+    
+    <select id="selectNotificationByOne" parameterType="cmap" resultType="cmap">
+        SELECT 
+			  IsNotification AS "IsNotification"
+			, IsReminder AS "IsReminder"
+			, ReminderTime AS "ReminderTime"
+			, IsCommentNotification AS "IsCommentNotification"
+			, MediumKind AS "MediumKind"
+		FROM EVENT_NOTIFICATION
+		WHERE 1=1 
+		    <if test="EventID != null and EventID !='' ">AND EventID = #{EventID}</if>
+		    <if test="RegisterCode != null and RegisterCode !='' ">AND RegisterCode = #{RegisterCode}</if>
+		    <if test="RegisterKind != null and RegisterKind !='' ">AND RegisterKind = #{RegisterKind}</if>
+		AND ROWNUM = 1 
+    </select>
+    
+    <!-- Event 조회 -->
+    <select id="selectEvent" parameterType="cmap" resultType="cmap">
+         SELECT
+        	E.FolderID AS "FolderID"
+        	,E.FolderType AS "FolderType"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS "FolderName"
+        	,NVL(FC.Color, FD.Reserved2) AS "FolderColor" 
+        	,E.EventID AS "EventID"
+        	,E.EventType AS "EventType" 
+        	,NVL(E.LinkEventID, '')  AS "LinkEventID"
+        	,NVL(E.MasterEventID, '') AS "MasterEventID"
+        	,E.Subject AS "Subject"
+        	,E.Description AS "Description"
+        	,E.Place  AS "Place"
+        	,E.IsPublic  AS "IsPublic"
+        	,E.IsInviteOther AS "IsInviteOther"
+        	,E.ImportanceState AS "ImportanceState"
+        	,E.OwnerCode AS "OwnerCode"
+        	,E.RegisterCode AS "RegisterCode"
+        	,UR.PhotoPath AS "RegisterPhoto"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS "MultiRegisterName"
+        	,(SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = E.RegisterCode) AS "MailAddress"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, U.MultiJobPositionName) AS "MultiJobPositionName"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, U.MultiJobLevelName) AS "MultiJobLevelName"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, U.MultiJobTitleName) AS "MultiJobTitleName"
+        	, FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName)|| ' ' ||FN_BASEGETDICTIONARY_S(#{lang}, U.MultiJobPositionName) AS "RegisterData"
+			, FN_BASEGETDICTIONARY_S(#{lang}, U.MultiDeptName) AS "RegisterDept"
+        	,E.ModifierCode AS "ModifierCode"
+        	,E.RegistDate AS "RegistDate"
+        FROM EVENT E
+        INNER JOIN SYS_OBJECT_FOLDER FD ON E.FolderID = FD.FolderID
+        INNER JOIN SYS_OBJECT_USER_BASEGROUP U ON E.RegisterCode = U.UserCode AND U.JobType = 'Origin'
+        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+        LEFT JOIN SYS_OBJECT_USER UR ON E.RegisterCode = UR.UserCode
+        WHERE
+        	E.EventID = #{EventID}
+        	AND E.DeleteDate IS NULL
+            AND ROWNUM = 1
+    </select>
+
+    <!-- Event Date 조회 -->
+    <select id="selectEventDate" parameterType="cmap" resultType="cmap">
+        SELECT
+        	RepeatID AS "RepeatID"
+        	,StartDate AS "StartDate"
+        	,EndDate AS "EndDate"
+        	,StartTime AS "StartTime"
+        	,EndTime AS "EndTime"
+        	,IsAllDay AS "IsAllDay"
+        	,IsRepeat AS "IsRepeat"
+        	,DateID AS "DateID"
+        FROM EVENT_DATE
+        <trim prefix="WHERE" prefixOverrides="AND">
+		    <if test="EventID != null and EventID !='' ">EventID = #{EventID}</if>
+		    <if test="DateID != null and DateID !='' ">AND DateID = #{DateID}</if>
+		</trim>
+    </select>
+    
+    <!-- Event Repeat 조회 -->
+    <select id="selectEventRepeat" parameterType="cmap" resultType="cmap">
+        SELECT
+        	 AppointmentStartTime AS "AppointmentStartTime"
+        	,AppointmentEndTime AS "AppointmentEndTime"
+        	,AppointmentDuring AS "AppointmentDuring"
+        	,RepeatType AS "RepeatType"
+        	,RepeatYear AS "RepeatYear"
+        	,RepeatMonth AS "RepeatMonth"
+        	,RepeatWeek AS "RepeatWeek"
+        	,RepeatDay AS "RepeatDay"
+        	,RepeatMonday AS "RepeatMonday"
+        	,RepeatTuesday AS "RepeatTuesday"
+        	,RepeatWednseday AS "RepeatWednseday"
+        	,RepeatThursday AS "RepeatThursday"
+        	,RepeatFriday AS "RepeatFriday"
+        	,RepeatSaturday AS "RepeatSaturday"
+        	,RepeatSunday AS "RepeatSunday"
+        	,TO_CHAR(RepeatStartDate, 'YYYY-MM-DD') AS "RepeatStartDate"
+        	,RepeatEndType AS "RepeatEndType"
+        	,TO_CHAR(RepeatEndDate, 'YYYY-MM-DD') AS "RepeatEndDate"
+        	,RepeatCount AS "RepeatCount"
+        	,RepeatAppointType AS "RepeatAppointType"
+        	,RepeatTimeZoneDisplay AS "RepeatTimeZoneDisplay"
+        FROM EVENT_REPEAT er
+        WHERE 1=1 
+		    <if test="EventID != null and EventID !='' "> AND EventID = #{EventID}</if>
+		    <if test="RepeatID != null and RepeatID !=''">AND RepeatID = #{RepeatID}</if>
+        AND ROWNUM = 1
+    </select>
+    
+    <!-- Event Resource 조회 -->
+    <select id="selectEventResource" parameterType="cmap" resultType="cmap">
+        SELECT
+        	  ResourceID AS "FolderID"
+        	, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "ResourceName"
+        	, FN_BASEGETDICTIONARY_S(#{lang}, NVL(b.MultiCodeName,'')) AS "TypeName"
+        	, r.LeastRentalTime AS "LeastRentalTime"
+        FROM EVENT_RELATION ER
+        INNER JOIN SYS_OBJECT_FOLDER FD ON ER.ResourceID = FD.FolderID
+		INNER JOIN resource_ r ON (Fn_ResourceParentIDGet_S(FD.FolderID) = r.FolderID)
+        LEFT JOIN SYS_BASE_CODE b ON NVL(SUBSTR(FD.FolderType, - (LENGTH(FD.FolderType) - LENGTH (SUBSTR(FD.FolderType,1, INSTR(FD.FolderType,'.') +0)))),FD.FolderType) = b.Code AND b.CodeGroup = 'ResourceType'
+        WHERE
+        	ER.ScheduleID = #{EventID}
+        	AND FD.FolderType LIKE '%'||'Resource'||'%'
+        	AND b.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = b.Code AND CodeGroup = 'ResourceType' AND DomainID = FD.DomainID)
+    </select>
+    
+    <!-- Event Notification 조회 -->
+    <select id="selectEventNotification" parameterType="cmap" resultType="cmap">
+        SELECT
+        	 IsNotification AS "IsNotification"
+        	,IsReminder AS "IsReminder"
+        	,ReminderTime AS "ReminderTime"
+        	,IsCommentNotification AS "IsCommentNotification"
+        	,MediumKind AS "MediumKind"
+        FROM EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+        <if test="DateID != null and DateID !='' ">
+        	AND DateID = #{DateID}
+        </if>
+        	AND RegisterCode = #{RegisterCode}
+    </select>
+    
+    <!-- 자원 설정 정보 조회 -->
+    <select id="selectResourceData" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT a.IconPath AS "IconPath"
+							, NVL(a.BookingType,'') AS "BookingType"
+							, NVL(a.ReturnType,'') AS "ReturnType"
+							, NVL(a.BookingType,'') AS "BookingTypeCode"
+							, NVL(a.ReturnType,'') AS "ReturnTypeCode"
+							, NVL(a.NotificationState,'') AS "NotificationState"
+							, NVL(a.NotificationKind,'') AS "NotificationKind"
+							, a.LeastRentalTime AS "LeastRentalTime"
+							, a.LeastPartRentalTime  AS "LeastPartRentalTime"
+							, NVL(a.DescriptionURL,'') AS "DescriptionURL"
+					FROM RESOURCE_ a
+					WHERE FolderID = FN_RESOURCEPARENTIDGET_S(#{FolderID})
+			]]>
+	</select>
+	
+    <select id="selectNotificationComment" parameterType="cmap" resultType="cmap">
+        SELECT RegisterCode AS "RegisterCode"
+        FROM EVENT_NOTIFICATION
+		WHERE EventID = #{EventID}
+		AND IsCommentNotification = 'Y'
+		AND IsNotification = 'Y'
+		<!-- AND RegisterKind = 'A' -->
+    </select>
+    
+    <update id="updateEachScheduleResource" parameterType="cmap">
+        UPDATE EVENT_RESOURCE_BOOKING SET
+		DateID = #{DateID},
+		EventID = #{EventID}
+		WHERE DateID = #{oldDateID}
+		AND EventID = #{oldEventID}
+    </update>
+    
+    <insert id="insertEachScheduleRelation"  parameterType="cmap">
+        INSERT INTO EVENT_RELATION (
+			ScheduleID,
+			ResourceID,
+			Reserved1,
+			Reserved2
+		)
+		SELECT 
+		#{EventID} AS ScheduleID,
+		ResourceID,
+		Reserved1,
+		Reserved2
+		FROM EVENT_RELATION
+		WHERE ScheduleID = #{oldEventID}
+    </insert>
+    
+    <delete id="deleteRelationByScheduleResourceID" parameterType="cmap">
+        DELETE FROM
+        EVENT_RELATION
+        WHERE ScheduleID = #{ScheduleID}
+        AND ResourceID = #{ResourceID}
+    </delete>
+    
+    <update id="updateResourceRealEndDateTime" parameterType="cmap">
+        UPDATE
+        	EVENT_RESOURCE_BOOKING
+        SET
+        	RealEndDateTime = (SELECT TO_DATE(EndDateTime,'yyyy/mm/dd hh24:mi') FROM EVENT_DATE WHERE DateID = #{DateID}),
+        	ApprovalState = (SELECT CASE WHEN BookingType='DirectApproval' THEN 'Approval' ELSE 'ApprovalRequest' END FROM RESOURCE_ WHERE FolderID = FN_RESOURCEPARENTIDGET_S(#{ResourceID}))
+        WHERE
+        	DateID = #{DateID}
+        	AND EventID = #{EventID}
+        	AND ResourceID = #{ResourceID}
+    </update>
+    
+    <select id="selectAnniversaryList" parameterType="cmap" resultType="cmap">
+    	<![CDATA[
+    		SELECT A.CalendarID AS "CalendarID"
+					, A.SolarDate AS "SolarDate"
+					, A.DN_ID AS "DomainID"
+					, A.AnniversaryType AS "AnniversaryType"
+					, A.Anniversary AS "Anniversary"
+			FROM sys_calendar A 
+			INNER JOIN (	SELECT SolarDate, MAX(DN_ID) AS DN_ID
+								FROM sys_calendar A 
+								WHERE A.Anniversary IS NOT NULL
+               					AND SolarDate >= #{StartDate} AND SolarDate < #{EndDate}
+								AND ( DN_ID = 0 OR DN_ID = #{domainID})
+								Group By SolarDate ) B ON A.SolarDate = B.SolarDate AND A.DN_ID = B.DN_ID
+			WHERE A.Anniversary IS NOT NULL
+			ORDER BY A.SolarDate
+    	]]>
+    </select>
+    
+    <select id="selectDateIDs" parameterType="cmap" resultType="java.lang.String">
+        SELECT LISTAGG(DateID, ',') WITHIN GROUP(ORDER BY DateID) AS "DateIDs"
+        FROM event_date
+		WHERE EventID = #{EventID}
+    </select>
+    
+    <!-- 참석자 조회 -->
+    <select id="selectAttendee" parameterType="cmap" resultType="cmap">
+        SELECT   AttenderCode 	   AS UserCode
+        	   , MultiAttenderName AS UserName
+        	   , IsOutsider 	   AS IsOutsider
+          FROM   EVENT_ATTENDANT
+         WHERE   EventID = #{EventID}
+    </select>
+    
+    <!-- 참석요청 조회 -->
+    <select id="selectAttendRequest" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	AttendantID AS "AttendantID", 
+	    	ea.EventID AS "EventID", 
+	    	e.FolderID AS "FolderID", 
+	    	Fn_BaseGetDictionary_S(#{lang}, sou.MultiDisplayName) AS "DisplayName",
+	    	e.Subject AS "Subject",
+	    	(SELECT MIN(ed.DateID) FROM event_date ed WHERE ed.EventID = e.EventID GROUP BY ed.EventID) AS "DateID",
+	    	er.RepeatID AS "RepeatID",
+	    	er.RepeatType AS "RepeatType"
+		FROM EVENT_ATTENDANT ea
+		JOIN EVENT e on (e.EventID = ea.EventID)
+		JOIN EVENT_REPEAT er on (e.EventID = er.EventID)
+		JOIN SYS_OBJECT_FOLDER sof on (sof.FolderID = e.FolderID)
+		JOIN SYS_OBJECT_USER sou on (sou.UserCode = e.OwnerCode)
+		WHERE AttenderCode = #{UserCode}
+		AND (IsAllow = '' OR IsAllow IS NULL)
+		AND SUBSTR(e.FolderType, 0, 8) = 'Schedule'
+		AND sou.IsUse = 'Y'
+		AND (SELECT MAX(ed.endDateTime) FROM event_date ed WHERE ed.eventID = e.EventID GROUP BY ed.eventid) <![CDATA[>=]]> TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI')
+	</select>
+	
+	<!-- 시작일 및 종료일 Update -->
+    <update id="updateEventDate" parameterType="cmap">
+        UPDATE EVENT_DATE
+		SET
+			StartDate = #{StartDate},
+			StartTime = #{StartTime},
+			StartDateTime = CONCAT(#{StartDate}, ' ', #{StartTime})
+			EndDate = #{EndDate},
+			EndTime = #{EndTime},
+			EndDateTime = CONCAT(#{EndDate}, ' ', #{EndTime})
+		WHERE
+			EventID = #{EventID}
+			AND DateID = #{DateID}
+	</update>
+</mapper>

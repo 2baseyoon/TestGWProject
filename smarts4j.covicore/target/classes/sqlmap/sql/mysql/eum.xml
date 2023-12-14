@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="eum">
+    
+ 	<select id="selectAuthCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM messenger_auth 
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</select>
+	<update id="updateAuth"  parameterType="cmap">
+		UPDATE messenger_auth SET AuthDate = NOW()
+								, ExpireTime = date_add(now(),INTERVAL 1 DAY) 
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</update>
+	<update id="createAuth"  parameterType="cmap">
+		INSERT INTO messenger_auth (
+										LogonID
+									,   DeviceType
+									,   AuthDate
+									,   ExpireTime
+													) VALUES (
+										#{id}
+									,   #{deviceType}
+									,   NOW()
+									,   date_add(now(),INTERVAL 1 DAY) 			
+									)
+	</update>
+	<select id="selectTokenInfo" parameterType="cmap" resultType="cmap">
+		SELECT COUNT(*)AS cnt, IFNULL(m.AccessToken,'')AS accessToken , u.LanguageCode AS lang, #{deviceType} AS deviceType, #{id} AS id
+		FROM messenger_auth AS m
+		INNER JOIN sys_object_user AS u ON u.LogonID = m.LogonID AND u.IsUse ='Y' 
+		WHERE m.LogonID = #{id}
+		AND m.DeviceType = #{deviceType}
+		LIMIT 1 
+	</select>
+	<update id="updateAccessToken"  parameterType="cmap">
+		UPDATE messenger_auth SET AccessToken = #{accessToken}
+		WHERE LogonID = #{id}
+		AND DeviceType = #{deviceType}
+	</update>
+</mapper>

@@ -1,0 +1,88 @@
+﻿
+<html>
+	<head>
+  	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  	<title>TSE SAVE</title>
+  	<script type="text/javascript">
+    	function DivideString(strMIMEValue)
+    	{
+	      	var form = document.saveForm;
+	      	var flag = null; 
+	      	var tags;
+	      	
+	      	
+	      	while(strMIMEValue.length > 0) {
+	        	tags = document.createElement("input");
+	        	tags.setAttribute("type", "hidden");
+	        	tags.name = "mime_contents";
+	        	tags.value = strMIMEValue.substr(0, 102400);
+	        	form.appendChild(tags);
+	        	strMIMEValue = strMIMEValue.substr(102400);
+	      	}
+
+	      	
+	      	if(parent.document.getElementById('xfeFlagObject')) {
+	      		
+    			if(parent.document.getElementById('xfeFlagObject').value) {
+    				
+    				flag = parent.document.getElementById('xfeFlagObject').value;	
+    				
+    				if(parent._xfe_object[flag].xfeStackObject.getSaveAction()) {
+    					form.action = parent._xfe_object[flag].xfeStackObject.getSaveAction();
+    				} else {
+    					form.action = "../save/saveas_step2.asp"; //default는 asp로..
+    				}
+    			} else {
+    				form.action = "../save/saveas_step2.asp"; //default는 asp로..
+    			}
+    		} else {
+    			form.action = "../save/saveas_step2.asp"; //default는 asp로..
+    		}
+	      	
+	      	
+	      	
+	      	//if (parent.tseSaveasAction() != undefined && parent.tseSaveasAction() != "") {
+	      	/*
+	      	if(parent.xfeGlobalStackObject.getSaveAction()) {
+	      	
+	        	form.action = parent.xfeGlobalStackObject.getSaveAction();
+	        	
+	      	} else {
+	      		
+	        	form.action = "../save/saveas_step2.asp"; //default는 asp로..
+	        	
+	        }
+	        */
+    	};
+
+    	window.onload = function () {
+    		var strDoc = null;
+    		var flag = null;
+    		
+    		if(parent.document.getElementById('xfeFlagObject')) {
+    			
+    			if(parent.document.getElementById('xfeFlagObject').value) {
+    				flag = parent.document.getElementById('xfeFlagObject').value;
+    				
+    				strDoc = parent._xfe_object[flag].xfeMenuAction._getEditedDocument();
+    			} else {
+    				strDoc = parent.xfeMenuAction._getEditedDocument();
+    			}
+    		} else {
+    			strDoc = parent.xfeMenuAction._getEditedDocument();	
+    		}		
+	      	
+	      	strDoc = strDoc.replace(/contenteditable="true"/mig, '');
+	      	strDoc = strDoc.replace(/contenteditable=true/mig, '');
+	      	strDoc = strDoc.split("&#34;").join("\"");
+	      	strDoc = strDoc.split("&quot;").join("'");
+	      	DivideString(strDoc);
+	      	document.saveForm.submit();
+    	};
+  	</script>
+	</head>
+	<body>
+  	<form name="saveForm" method="post">
+  	</form>
+	</body>
+</html>

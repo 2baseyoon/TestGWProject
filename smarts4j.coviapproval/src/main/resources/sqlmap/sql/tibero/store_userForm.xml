@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="store.userForm">
+	<select id="selectFormsCategoryList" parameterType="cmap" resultType="cmap">
+		SELECT
+			C.CategoryID AS "CategoryID", 
+			MAX(C.CategoryName) AS "CategoryName", 
+			SUM(case when I.StoreItemID is null then 0 else 1 end) AS "FormsCnt"
+		FROM jwf_store_formscategory C  
+			LEFT OUTER JOIN jwf_store_forms F 
+			ON F.CategoryID = C.CategoryID AND F.IsUse = 'Y'
+			<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormName")'>
+						AND F.FormName LIKE '%' || #{searchKeyword} || '%'
+					</when>
+					<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+						AND F.FormPrefix LIKE '%' || #{searchKeyword} || '%'
+					</when>
+				</choose>
+			</if>
+			LEFT OUTER JOIN sys_store_items I 
+			ON F.StoreItemID =I.StoreItemID  
+			<if test="filterIsFree != null and filterIsFree != ''">
+				AND I.IsFree = #{filterIsFree}
+			</if>
+			LEFT OUTER JOIN jwf_store_forms_rev R 
+			ON R.StoredFormRevID = F.StoredFormRevID  
+		WHERE C.IseUse = 'Y'
+		GROUP BY C.CategoryID, C.seq
+		ORDER BY C.seq
+	</select>
+
+	<select id="selectStoreFormList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT
+				StoredFormID AS "StoredFormID",
+				StoredFormRevID AS "StoredFormRevID",
+				CategoryID AS "CategoryID", 
+				FormPrefix AS "FormPrefix",
+				CategoryName AS "CategoryName",
+				FormName AS "FormName",
+				ThumbnailFileID AS "ThumbnailFileID",
+				ModifyDate AS "ModifyDate",
+				PurchasedCnt AS "PurchasedCnt",
+				IsFree AS "IsFree",
+				PurchaseYN AS "PurchaseYN"
+			FROM(
+				SELECT 
+					F.StoredFormID,
+					F.StoredFormRevID,
+					C.CategoryID, 
+					F.FormPrefix,
+					Fn_BaseGetDictionary_S (#{lang}, C.CategoryName) AS CategoryName,
+					Fn_BaseGetDictionary_S (#{lang}, F.FormName) AS FormName,
+					R.ThumbnailFileID,
+					NVL(F.ModifyDate, F.RegistDate) AS ModifyDate,
+					F.PurchasedCnt,
+					I.IsFree,
+					CASE WHEN P.StoredFormRevID IS NULL THEN 'N' ELSE 'Y' END AS PurchaseYN
+				FROM jwf_store_forms F
+				INNER JOIN jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+				INNER JOIN sys_store_items I ON F.StoreItemID =I.StoreItemID  
+				INNER JOIN jwf_store_forms_rev R ON R.StoredFormRevID = F.StoredFormRevID
+				LEFT OUTER JOIN (
+					SELECT SR.StoredFormID, SP.StoredFormRevID, SP.CompanyCode 
+					FROM jwf_store_purchase SP
+					INNER JOIN jwf_store_forms_rev SR ON SP.StoredFormRevID = SR.StoredFormRevID
+					WHERE SP.CompanyCode = #{CompanyCode}
+				) P ON F.StoredFormID = P.StoredFormID 
+				WHERE F.IsUse = 'Y' AND C.IseUse = 'Y'
+			)
+			WHERE 1 = 1
+			<if test="filterPurchase != null and filterPurchase != ''">
+				AND PurchaseYN = #{filterPurchase}
+			</if>
+			<if test="filterIsFree != null and filterIsFree != ''">
+				AND IsFree = #{filterIsFree}
+			</if>
+			<if test="filterCategoryID != null and filterCategoryID != ''">
+				AND CategoryID = #{filterCategoryID}
+			</if>
+			<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormName")'>
+						AND FormName LIKE '%' || #{searchKeyword} || '%'
+					</when>
+					<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+						AND FormPrefix LIKE '%' || #{searchKeyword} || '%'
+					</when>
+					<when test='searchType.equalsIgnoreCase("CategoryName")'>
+						AND CategoryName LIKE '%' || #{searchKeyword} || '%'
+					</when>
+				</choose>
+			</if>
+			
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+			    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					FormName ASC 
+			    </if>
+			  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("CategoryName")'>CategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+						<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+						<when test='sortColumn.equalsIgnoreCase("PurchasedCnt")'>PurchasedCnt</when>
+						<when test='sortColumn.equalsIgnoreCase("PurchaseYN")'>PurchaseYN</when>
+						<when test='sortColumn.equalsIgnoreCase("IsFree")'>IsFree</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+ 	<select id="selectStoreFormListCnt" resultType="java.lang.Long">
+ 		SELECT COUNT(*) FROM (
+			SELECT * FROM (
+				SELECT 
+					F.StoredFormID,
+					F.StoredFormRevID,
+					C.CategoryID, 
+					F.FormPrefix,
+					Fn_BaseGetDictionary_S (#{lang}, C.CategoryName) AS CategoryName,
+					Fn_BaseGetDictionary_S (#{lang}, F.FormName) AS FormName,
+					R.ThumbnailFileID,
+					NVL(F.ModifyDate, F.RegistDate) AS ModifyDate,
+					F.PurchasedCnt,
+					I.IsFree,
+					CASE WHEN P.StoredFormRevID IS NULL THEN 'N' ELSE 'Y' END AS PurchaseYN
+				FROM jwf_store_forms F
+				INNER JOIN jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+				INNER JOIN sys_store_items I ON F.StoreItemID =I.StoreItemID  
+				INNER JOIN jwf_store_forms_rev R ON R.StoredFormRevID = F.StoredFormRevID
+				LEFT OUTER JOIN (
+					SELECT B.StoredFormID, A.StoredFormRevID, A.CompanyCode 
+					FROM jwf_store_purchase A
+					INNER JOIN jwf_store_forms_rev B ON A.StoredFormRevID = B.StoredFormRevID
+					WHERE A.CompanyCode = #{CompanyCode}
+				) P ON F.StoredFormID = P.StoredFormID 
+				WHERE F.IsUse = 'Y' AND C.IseUse ='Y'
+			) A 
+			WHERE 1 = 1
+			<if test="filterPurchase != null and filterPurchase != ''">
+				AND A.PurchaseYN = #{filterPurchase}
+			</if>
+			<if test="filterIsFree != null and filterIsFree != ''">
+				AND A.IsFree = #{filterIsFree}
+			</if>
+			<if test="filterCategoryID != null and filterCategoryID != ''">
+				AND A.CategoryID = #{filterCategoryID}
+			</if>
+			<if test="searchKeyword != null and searchKeyword != '' and searchType != null and searchType != ''">
+				<choose>
+					<when test='searchType.equalsIgnoreCase("FormName")'>
+						AND A.FormName LIKE '%' || #{searchKeyword} || '%'
+					</when>
+					<when test='searchType.equalsIgnoreCase("FormPrefix")'>
+						AND A.FormPrefix LIKE '%' || #{searchKeyword} || '%'
+					</when>
+					<when test='searchType.equalsIgnoreCase("CategoryName")'>
+						AND A.CategoryName LIKE '%' || #{searchKeyword} || '%'
+					</when>
+				</choose>
+			</if>
+		) B
+	</select>
+	
+	<select id="getStoreFormData" parameterType="cmap" resultType="cmap">
+		SELECT
+			F.FormPrefix AS "FormPrefix",
+			F.StoredFormID AS "StoredFormID",
+			F.StoredFormRevID AS "StoredFormRevID",
+			F.FormName AS "FormName",
+			F.FormDescription AS "FormDescription",
+			C.CategoryID AS "CategoryID", 
+			Fn_BaseGetDictionary_S(#{lang}, C.CategoryName) AS "CategoryName", 
+			I.StoreItemID AS "StoreItemID",
+			I.IsFree AS "IsFree",
+			I.Price AS "Price",
+			F.FormDescription AS "FormDescription",
+			R.FormHtmlFileID AS "FormHtmlFileID", 
+			R.FormJsFileID AS "FormJsFileID", 
+			R.MobileFormHtmlFileID AS "MobileFormHtmlFileID", 
+			R.MobileFormJsFileID AS "MobileFormJsFileID",
+			R.ThumbnailFileID AS "ThumbnailFileID",
+			R.RevisionNo AS "RevisionNo",
+			F.PurchasedCnt AS "PurchasedCnt",
+			CASE WHEN P.StoredFormRevID IS NULL THEN 'N' ELSE 'Y' END AS "PurchaseYN",
+			P.PurchaseDate AS "PurchaseDate",
+			F.MobileFormYN AS "MobileFormYN" 
+		FROM jwf_store_forms F
+		INNER JOIN sys_store_items I ON F.StoreItemID = I.StoreItemID 
+		INNER JOIN jwf_store_formscategory C ON F.CategoryID = C.CategoryID 
+		INNER JOIN jwf_store_forms_rev R ON F.StoredFormID = R.StoredFormID
+		LEFT OUTER JOIN (
+			SELECT B.StoredFormID, A.StoredFormRevID, A.CompanyCode, A.PurchaseDate 
+			FROM jwf_store_purchase A
+			INNER JOIN jwf_store_forms_rev B ON A.StoredFormRevID = B.StoredFormRevID
+			WHERE A.CompanyCode = #{CompanyCode}
+		) P ON F.StoredFormID = P.StoredFormID 
+		WHERE R.StoredFormRevID = #{StoredFormRevID}
+	</select>	
+	
+	<select id="getStoreFormClassList" resultType="cmap" >
+		SELECT 
+			A.FormClassID AS "optionValue",
+			'[' || B.DisplayName ||'] ' || A.FormClassName AS "optionText"
+		FROM JWF_FormClass A
+		INNER JOIN sys_object_domain B ON A.EntCode = B.DomainCode
+		  	WHERE (
+			(A.AclAllYN = 'Y'
+				<if test='IsSaaS == "Y"'>
+					and A.EntCode IN ('ORGROOT', #{CompanyCode})
+				</if>
+			)
+			OR exists 
+			( 
+				SELECT 1 FROM jwf_forms_acl jfa 
+				WHERE jfa.TargetID = A.FormClassID AND jfa.ObjectType = 'CLASS'
+				AND jfa.CompanyCode  = #{CompanyCode}
+			)
+		 )
+		ORDER BY A.Sortkey
+	</select>
+		
+	<insert id="insertStorePurchaseForm" parameterType="cmap">	
+		INSERT INTO jwf_store_purchase(
+			CompanyCode, 
+			StoredFormRevID, 
+			IsFree,
+			IsCoupon, 
+			PurchaseDate,
+			RegistDate, 
+			RegisterCode
+		) VALUES (
+			#{CompanyCode},
+			#{StoredFormRevID},
+			#{IsFree},
+			#{IsCoupon},
+			SYSDATE,
+			SYSDATE,
+			#{RegisterCode}
+		)
+		<selectKey keyProperty="PurchaseID" resultType="Integer" order="AFTER">
+		    SELECT JWF_STORE_PURCHASE_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<update id="updateStorePurchasedCnt" parameterType="cmap">	
+		UPDATE jwf_store_forms 
+			SET PurchasedCnt = PurchasedCnt + 1
+		WHERE StoredFormID = #{StoredFormID}
+	</update>
+	
+	<insert id="insertSchemaData" parameterType="cmap">	
+		INSERT INTO jwf_formsschema(			
+			SchemaName
+			,SchemaDesc
+			,SchemaContext
+			,DomainID
+		)
+		SELECT
+			Fn_BaseGetDictionary_S(#{lang}, #{FormName})
+			,' '
+			,SchemaContext
+			,(SELECT DomainID  FROM sys_object_domain sod WHERE DomainCode = #{CompanyCode})
+		FROM jwf_formsschema
+		WHERE SchemaID = ( SELECT SchemaID FROM jwf_forms jf WHERE FormPrefix = 'CSTF_STANDARD_' || #{StoredFormSchema} || '_FORM' )
+		AND ROWNUM = 1
+		<selectKey keyProperty="SchemaID" resultType="Integer" order="AFTER">
+		    SELECT JWF_FORMSSCHEMA_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+	<insert id="insertFormsData" parameterType="cmap">	
+		INSERT INTO jwf_forms(			
+			FormClassID
+			,SchemaID
+			,IsUse
+			,Revision
+			,SortKey
+			,FormName
+			,FormPrefix
+			,FormDesc
+			,FileName
+			,BodyDefault
+			,ExtInfo
+			,AutoApprovalLine
+			,BodyType
+			,SubTableInfo
+			,RegID
+			,RegDate			
+			,FormHelperContext
+			,FormNoticeContext			
+			,CompanyCode
+			,StoredFormID
+			,FormIcon
+		)
+		SELECT
+			#{StoredFormClass}
+			,#{SchemaID}
+			,'Y'
+			,'0'
+			,(SELECT MAX(SortKey) + 1 FROM jwf_forms
+				<if test='IsSaaS == "Y"'> 
+					WHERE CompanyCode= #{CompanyCode}
+				</if>
+			)
+			,#{FormName}
+			,#{FormPrefix} 
+			,#{FormDescription}
+			,#{FileName}
+			,BodyDefault
+			<choose>
+				<when test='MobileFormYN.equalsIgnoreCase("Y")'>,#{extInfo}</when>
+				<otherwise>,ExtInfo</otherwise>
+			</choose>
+			,AutoApprovalLine
+			,BodyType
+			,SubTableInfo
+			,#{RegisterCode}
+			,SYSDATE
+			,FormHelperContext
+			,FormNoticeContext
+			,#{CompanyCode}
+			,#{StoredFormID}
+			,( SELECT FormIcon FROM (SELECT FormIcon FROM jwf_forms jf WHERE FormPrefix = #{FormPrefix} ORDER BY Revision DESC, SortKey DESC) WHERE ROWNUM = 1 )
+		FROM jwf_forms F
+		WHERE FormPrefix = 'CSTF_STANDARD_' || #{StoredFormSchema}  || '_FORM'
+		AND ROWNUM = 1
+		<selectKey keyProperty="FormID" resultType="Integer" order="AFTER">
+		    SELECT JWF_FORMS_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+	<select id="selectFormsExistCnt" resultType="java.lang.Long">
+ 		SELECT COUNT(*) FROM jwf_forms 
+ 		WHERE FormPrefix = #{FormPrefix} AND CompanyCode = #{CompanyCode}
+	</select>
+	
+	<select id="getExtInfo" resultType="cmap" >
+		SELECT ExtInfo AS "ExtInfo"
+		FROM jwf_forms F
+		WHERE FormPrefix = 'CSTF_STANDARD_' || #{StoredFormSchema} ||'_FORM'
+		AND ROWNUM = 1
+	</select>
+</mapper>

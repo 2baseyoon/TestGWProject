@@ -1,0 +1,1301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.portal">
+	<select id="getUserSchedule" parameterType="cmap" resultType="cmap">
+		SELECT
+			AJ.SCHSEQ AS "SchSeq"
+			, ASH.SCHNAME AS "SchName"
+			, TO_CHAR(AJ.ATTDAYSTARTTIME,'HH24:MI') AS "AttDayStartTime"
+			, TO_CHAR(AJ.ATTDAYENDTIME,'HH24:MI') AS "AttDayEndTime"
+		FROM ATTEND_JOB AJ
+		LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+		WHERE AJ.USERCODE = #{UserCode}
+			AND AJ.JOBDATE = #{TargetDate}
+	</select>
+
+	<!-- 근태누락 조회 -->
+	<select id="getCallingTarget" parameterType="cmap" resultType="cmap">
+		<if test='pageSize != null and pageOffset != null'>
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		<if test='LimitSize != null'>
+			SELECT * FROM (
+		</if>
+		SELECT
+			TO_CHAR(AJ.JOBDATE, 'YYYY-MM-DD') AS "JobDate"
+			, FN_BASEGETDICTIONARY_S(#{lang}, OU.MULTIDISPLAYNAME) AS "URName"
+			, AJ.USERCODE AS "UserCode"
+			, FN_BASEGETDICTIONARY_S(#{lang}, BG.MultiJobPositionName) AS "JobPositionName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, BG.MultiJobLevelName) AS "JobLevelName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, BG.MultiJobTitleName) AS "JobTitleName"
+		<if test='DeptUpCode != null '>
+			, (select Fn_BaseGetDictionary_S(#{lang}, ogd.MultiDisplayName)  FROM sys_object_group  ogd
+			where ogd.GroupCode = og.MemberOf
+			) as "UpDeptName"
+		</if>
+		<if test='DeptUpCode == null '>
+			, '' as "UpDeptName"
+		</if>
+			, BG.DEPTNAME AS "DeptName"
+			, PHOTOPATH AS "PhotoPath"
+			, AJ.SCHSEQ AS "SchSeq"
+			, ASH.SCHNAME AS "SchName"
+			, AJ.WORKSTS AS "WorkSts"
+			, AJ.ATTDAYSTARTTIME AS "AttDayStartTime"
+			, AJ.ATTDAYENDTIME AS "AttDayEndTime"
+			, TO_CHAR(AM.ATTSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS "AttStartTime"
+			, TO_CHAR(AM.ATTENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS "AttEndTime"
+			, AM.STARTSTS AS "StartSts"
+			, AM.ENDSTS AS "EndSts"
+		FROM ATTEND_JOB AJ
+			JOIN SYS_OBJECT_USER OU ON AJ.USERCODE = OU.USERCODE
+			JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = AJ.USERCODE AND BG.COMPANYCODE = AJ.COMPANYCODE AND BG.JOBTYPE = 'Origin'
+			<if test='DeptUpCode != null '>
+				JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+			</if>
+			LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+			LEFT JOIN ATTEND_COMMUTING_MST AM ON AJ.USERCODE = AM.USERCODE AND AJ.JOBDATE = AM.TARGETDATE
+		WHERE  AJ.COMPANYCODE = #{CompanyCode}
+			AND (WORKSTS = 'ON' OR WORKSTS IS NULL)
+			AND AJ.ASSYN = 'N'
+			AND OU.ISUSE = 'Y'
+			AND OU.ISDISPLAY = 'Y'
+			<![CDATA[ AND JOBDATE <= TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')]]>
+			<if test='CommStatus == null or CommStatus =="" '>
+				 AND  (StartSts NOT IN ('lbl_att_normal_goWork','lbl_att_goWork')	OR EndSts NOT IN  ('lbl_att_normal_offWork','lbl_att_offWork'))
+			</if>
+			<if test='CommStatus != null and CommStatus !="" '>
+				AND (STARTSTS = #{CommStatus} OR ENDSTS = #{CommStatus})
+			</if>
+			<if test='todayMode != "true" and StartDate != null and  StartDate != "" '>
+				AND AJ.JOBDATE BETWEEN #{StartDate} AND #{EndDate}
+			</if>
+			<if test='todayMode == "true" and authMode == "M" '>
+				AND AJ.JOBDATE BETWEEN TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS') -14 AND TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS')
+			</if>
+			<if test='authMode == "A" '>
+				AND AJ.USERCODE = #{UserCode}
+				AND AJ.JOBDATE BETWEEN add_months(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS') ,-1) AND TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS')
+			</if>
+			<if test='authMode != "A" '>
+				<foreach collection="execptJob" item="type"  open=" AND BG.JOBTITLECODE NOT IN (" close=")" separator=",">
+					#{type}
+				</foreach>
+			</if>
+		ORDER BY JOBDATE DESC
+		<if test='pageSize != null and pageOffset != null'>
+			<include refid="oracle.include.pagingFooter" />
+		</if>
+		<if test='LimitSize != null'>
+			) A
+			WHERE ROWNUM <![CDATA[<=]]> #{LimitSize}
+		</if>
+ 	</select>
+ 	
+ 	<select id="getCallingTargetCnt" parameterType="cmap" resultType="cmap">
+		SELECT
+			COUNT(AJ.USERCODE) AS "Cnt"
+			, MIN(JOBDATE) AS "MinDate"
+			, MAX(JOBDATE) AS "MaxDate"
+		FROM ATTEND_JOB AJ
+		JOIN SYS_OBJECT_USER OU ON AJ.USERCODE = OU.USERCODE
+		JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.USERCODE = AJ.USERCODE AND BG.COMPANYCODE = AJ.COMPANYCODE AND BG.JOBTYPE = 'Origin'
+		<if test='DeptUpCode != null '>
+			JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+		</if>
+		LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+		LEFT JOIN ATTEND_COMMUTING_MST AM ON AJ.USERCODE = AM.USERCODE AND AJ.JOBDATE = AM.TARGETDATE
+		WHERE  AJ.COMPANYCODE = #{CompanyCode}
+		AND (WORKSTS = 'ON' OR WORKSTS IS NULL)
+		AND AJ.ASSYN = 'N'
+		AND OU.ISUSE = 'Y'
+		AND OU.ISDISPLAY = 'Y'
+		<![CDATA[ AND JOBDATE <= TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')]]>
+		<if test='CommStatus == null or CommStatus =="" '>
+			AND (STARTSTS != 'lbl_att_normal_goWork' OR ENDSTS != 'lbl_att_normal_offWork')
+		</if>
+		<if test='CommStatus != null and CommStatus !="" '>
+			AND (STARTSTS = #{CommStatus} OR ENDSTS = #{CommStatus})
+		</if>
+		<if test='todayMode != "true" and StartDate != null and  StartDate != "" '>
+			AND AJ.JOBDATE BETWEEN #{StartDate} AND #{EndDate}
+		</if>
+		<if test='todayMode == "true" and authMode == "M" '>
+			AND AJ.JOBDATE BETWEEN TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS') -14 AND TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS')
+		</if>
+		<if test='authMode == "A" '>
+			AND AJ.USERCODE = #{UserCode}
+			AND AJ.JOBDATE BETWEEN add_months(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS') ,-1) AND TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS')
+		</if>
+		<if test='authMode != "A" '>
+			<foreach collection="execptJob" item="type"  open=" AND BG.JOBTITLECODE NOT IN (" close=")" separator=",">
+				#{type}
+			</foreach>
+		</if>
+ 	</select>
+ 	
+ 	<!-- 연장휴일신청서 -->
+ 	<select id="getExtensionTarget" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				*
+			FROM (
+				SELECT
+					REQSEQ AS "ReqSeq"
+					, REQTYPE AS "ReqType"
+					, AR.UR_CODE AS "UR_Code"
+					, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDISPLAYNAME) AS "URName"
+					, BG.JOBPOSITIONNAME AS "JobPositionName"
+					, REQTITLE AS "ReqTitle"
+					, "Comment" AS "Comment"
+					, REQSTATUS AS "ReqStatus"
+					, TO_CHAR(REQDATE, 'YYYY.MM.DD HH24:MI') AS "ReqDate"
+					, Fn_GetBaseCodeName(#{domainID}, 'AttendReqType', AR.ReqType) AS "ReqName"
+					, Fn_GetBaseCodeName(#{domainID}, 'AttendReqGubun', AR.ReqGubun) AS "ReqGubunName"
+					, Fn_GetBaseCodeName(#{domainID}, 'AttendState', AR.ReqStatus) AS "StatusName"
+					, REQMETHOD AS "ReqMethod"
+					, PROCESSID AS "ProcessID"
+				FROM ATTEND_REQUEST AR
+					LEFT JOIN SYS_OBJECT_USER OU ON AR.UR_CODE = OU.USERCODE
+					LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON AR.UR_CODE = BG.USERCODE AND BG.JOBTYPE = 'Origin'
+				WHERE AR.UR_CODE = #{UserCode} /* 회사 코드로 조회부분 삭제함 */
+					AND TO_CHAR(AR.ReqDate, 'YYYYMMDD') BETWEEN TO_CHAR(ADD_MONTHS(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS') ,-1), 'YYYYMMDD') AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD')
+					AND AR.REQTYPE IN ('O', 'H')
+				ORDER BY REQDATE DESC
+			)
+			WHERE ROWNUM <= 5
+		]]>
+	</select>
+	
+ 	<!-- 회사별 근태 현황-->
+ 	<select id="getCompanyToday" parameterType="cmap" resultType="cmap">
+		SELECT
+			COUNT(UR.USERCODE) AS "UserCnt"
+			, COUNT(M.USERCODE) AS "WorkCnt"
+			, COUNT(VV.UR_CODE) AS "VacCnt"
+			, SUM(CASE WHEN VV.UR_CODE IS NOT NULL AND M.USERCODE IS NULL THEN 1 ELSE 0 END) AS "VacCnt2"
+			, SUM(CASE WHEN M.STARTSTS = 'lbl_att_beingLate' THEN 1 ELSE 0 END) AS "LateCnt"
+			, SUM(CASE WHEN VV.UR_CODE IS NULL AND M.USERCODE IS NULL  AND j.WorkSts = 'ON' AND  NVL(J.ASSYN, 'N')='N' THEN 1 ELSE 0 END) AS "AbsentCnt"
+		FROM SYS_OBJECT_USER UR
+			JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = #{CompanyCode} AND BG.USERCODE = UR.USERCODE  AND BG.JOBTYPE = 'Origin'
+			JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+			LEFT JOIN ATTEND_COMMUTING_MST M ON M.COMPANYCODE = BG.COMPANYCODE AND UR.USERCODE = M.USERCODE AND M.TARGETDATE = #{TargetDate}
+			LEFT JOIN ATTEND_JOB J ON J.COMPANYCODE = BG.COMPANYCODE AND UR.USERCODE = J.USERCODE AND J.JOBDATE = #{TargetDate}
+			LEFT JOIN (
+				SELECT VM.UR_CODE
+				FROM VM_VACATIONINFO_DAY VM
+				WHERE TO_DATE(#{TargetDate},'YYYY.MM.DD') = VM.VACDATE
+				GROUP BY VM.UR_CODE
+			) VV  ON UR.USERCODE = VV.UR_CODE
+		WHERE UR.ISUSE = 'Y'
+		AND UR.ISDISPLAY = 'Y'
+		<foreach collection="attPortalDailyJobTitle" item="item"  open="AND bg.JobTitleCode NOT IN (" close=")" separator=",">
+			#{item}
+		</foreach>
+  	</select>			 
+ 
+ 	<!-- 회사별 근태 현황-->
+ 	<select id="getCompanyDay" parameterType="cmap" resultType="cmap">
+		SELECT
+			COUNT(USERCNT) AS "UserCnt"
+			, SUM(CASE WHEN NORMALCNT > 0 THEN 1 ELSE 0 END) AS "NormalCnt"
+			, SUM(CASE WHEN EXTENCNT > 0 THEN 1 ELSE 0 END) AS "ExtenCnt"
+			, SUM(CASE WHEN HOLICNT > 0 THEN 1 ELSE 0 END) AS "HoliCnt"
+			, SUM(CASE WHEN VACCNT > 0 THEN 1 ELSE 0 END) AS "VacCnt"
+		FROM (
+			SELECT
+				COUNT(USERCODE) AS USERCNT
+				, COUNT(NORMALDATE) AS NORMALCNT
+				, COUNT(EXTENDATE) AS EXTENCNT
+				, COUNT(HOLIDATE) AS HOLICNT
+				, COUNT(VACDATE) AS VACCNT
+			FROM (
+				SELECT
+					UR.USERCODE AS USERCODE
+					, (CASE WHEN M.STARTSTS = 'lbl_att_normal_goWork' AND M.ENDSTS = 'lbl_att_normal_offWork' THEN M.TARGETDATE ELSE NULL END) AS NORMALDATE
+					, (CASE WHEN EXTENCNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.EXTENEND THEN  M.TARGETDATE ELSE NULL  END ) AS EXTENDATE /* 연장근무 시 퇴근시간이 연장 신청 퇴근 시간보다 작을 시 시간 계산 안함 */
+					, (CASE WHEN HOLICNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.HOLIEND THEN  M.TARGETDATE ELSE NULL  END ) AS HOLIDATE /* 연장근무 시 퇴근시간이 연장 신청 퇴근 시간보다 작을 시 시간 계산 안함 */
+					, (
+						SELECT SUM(VV.VACDAY)
+						FROM VM_VACATIONINFO_DAY VV
+						WHERE  VV.UR_CODE = UR.USERCODE AND VV.VACDATE BETWEEN #{StartDate} AND #{EndDate}
+					) AS VACDATE
+				FROM SYS_OBJECT_USER UR
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = #{CompanyCode} AND BG.USERCODE = UR.USERCODE  AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_GROUP OG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+					LEFT JOIN ATTEND_COMMUTING_MST M ON M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate} AND UR.USERCODE = M.USERCODE
+				WHERE UR.ISUSE = 'Y'
+					AND UR.ISDISPLAY = 'Y'
+			) A
+			GROUP BY A.USERCODE
+		) B
+    </select>
+  	
+  	<!-- 부서별 근태 List-->
+ 	<select id="getDeptAttendListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(A.USERCODE)
+		FROM (
+			SELECT
+				NVL(A.USERCODE, B.USERCODE) AS USERCODE
+				, NVL(A.JOBPOSITIONNAME, B.JOBPOSITIONNAME) AS JOBPOSITIONNAME
+				, NVL(A.JOBLEVELNAME, B.JOBLEVELNAME) AS JOBLEVELNAME
+				, NVL(A.JOBTITLENAME, B.JOBTITLENAME) AS JOBTITLENAME
+				, NVL(A.DEPTNAME, B.DEPTNAME) AS DEPTNAME
+				, NVL(A.TARGETDATE, B.TARGETDATE) AS TARGETDATE
+				, NVL(A.ATTAC, 0) AS ATTAC
+				, NVL(A.EXTENAC, 0) AS EXTENAC
+				, NVL(A.HOLIAC, 0) AS HOLIAC
+				, A.ATTSTARTTIME
+				, A.ATTENDTIME
+				, A.ATTDAYSTARTTIME
+				, A.ATTDAYENDTIME
+				, NVL(B.ATTDAYAC, 0) AS ATTDAYAC
+				, NVL(B.VACFLAG, '') AS VACFLAG
+				, NVL(B.VACOFFFLAG, '') AS VACOFFFLAG
+			FROM (
+				SELECT
+					BG.USERCODE
+					, BG.JOBPOSITIONNAME
+					, BG.JOBLEVELNAME
+					, BG.JOBTITLENAME
+					, BG.DEPTNAME
+					, M.TARGETDATE
+					, M.ATTAC
+					, M.EXTENAC
+					, M.HOLIAC
+					, M.ATTSTARTTIME
+					, M.ATTENDTIME
+					, M.ATTDAYSTARTTIME
+					, M.ATTDAYENDTIME
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+					AND M.TARGETDATE = #{TargetDate}
+			) A
+				FULL OUTER JOIN (
+					SELECT
+						BG.USERCODE
+						, BG.JOBPOSITIONNAME
+						, BG.JOBLEVELNAME
+						, BG.JOBTITLENAME
+						, BG.DEPTNAME
+						, TO_DATE(#{TargetDate}, 'YYYY.MM.DD') AS TARGETDATE
+						, J.ATTDAYAC AS ATTDAYAC
+						, LISTAGG(M.VACFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACFLAG
+						, LISTAGG(M.VACOFFFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACOFFFLAG
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+						JOIN VM_VACATIONINFO_DAY M ON M.UR_CODE = BG.USERCODE
+						LEFT JOIN ATTEND_JOB J ON BG.COMPANYCODE = J.COMPANYCODE AND BG.USERCODE = J.USERCODE AND #{TargetDate} = J.JOBDATE
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+						AND TO_CHAR(TO_DATE(#{TargetDate}, 'YYYY.MM.DD'), 'YYYY-MM-DD') = M.VACDATE
+					GROUP BY
+						BG.USERCODE
+						, BG.JOBPOSITIONNAME
+						, BG.JOBLEVELNAME
+						, BG.JOBTITLENAME
+						, BG.DEPTNAME
+						, TO_DATE(#{TargetDate}, 'YYYY.MM.DD')
+						, J.ATTDAYAC
+				) B ON A.USERCODE = B.USERCODE AND TO_CHAR(A.TARGETDATE, 'YYYY-MM-DD') = TO_CHAR(B.TARGETDATE, 'YYYY-MM-DD')
+		) A
+			JOIN SYS_OBJECT_USER UR ON A.USERCODE = UR.USERCODE
+			LEFT JOIN ATTEND_JOB AJ ON AJ.COMPANYCODE = 'GENERAL' AND AJ.JOBDATE = A.TARGETDATE AND AJ.USERCODE = A.USERCODE
+		<trim prefix="WHERE" prefixOverrides="AND | OR ">
+			<if test='SearchText != null and SearchText != ""'>
+				AND UR.DISPLAYNAME LIKE '%'||#{SearchText}||'%'
+			</if>
+			<choose>
+				<when test='SchSeq != null and SchSeq != "" and SchSeq != "multiCheck"'>
+					AND AJ.SCHSEQ = #{SchSeq}
+			  	</when>
+			  	<when test='SchSeq != null and SchSeq != "" and SchSeq == "multiCheck"'>
+			  		<if test='schCheckList.size != 0'>
+						<foreach collection="schCheckList" item="item" index="index" separator="," open="AND AJ.SCHSEQ IN (" close=")">
+							#{item}
+						</foreach>
+					</if>
+			  	</when>
+			</choose>
+		</trim>
+  	</select>
+
+ 	<select id="getDeptAttendList" parameterType="cmap" resultType="cmap">
+		/* attend.portal.getDeptAttendList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			A.USERCODE AS "UserCode"
+			, TO_CHAR(A.TARGETDATE, 'YYYY-MM-DD') AS "TargetDate"
+			, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS "URName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, A.MultiDeptName) AS "DeptName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, A.MultiJobPositionName) AS "JobPositionName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, A.MultiJobLevelName) AS "JobLevelName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, A.MultiJobTitleName) AS "JobTitleName"
+			, A.JobPositionSortKey AS "JobPositionSortKey"
+			, A.JobLevelSortKey AS "JobLevelSortKey"
+			, A.JobTitleSortKey AS "JobTitleSortKey"
+			, UR.ENTERDATE AS "EnterDate"
+			, ASH.SCHNAME AS "SchName"
+			, A.AttAc AS "AttAc"
+			, A.AttAcD AS "AttAcD"
+			, A.AttAcN AS "AttAcN"
+			, A.AttIdle AS "AttIdle"
+			, A.ExtenAc AS "ExtenAc"
+			, A.ExtenAcD AS "ExtenAcD"
+			, A.ExtenAcN AS "ExtenAcN"
+			, A.HoliAc AS "HoliAc"
+			, A.HoliAcD AS "HoliAcD"
+			, A.HoliAcN AS "HoliAcN"
+			, CASE WHEN A.STARTSTS = 'lbl_att_beingLate' THEN ((A.ATTSTARTTIME - A.ATTDAYSTARTTIME) * (24 * 60)) END AS "LateMin"
+			, CASE WHEN A.ENDSTS = 'lbl_att_leaveErly' THEN ((A.ATTDAYENDTIME - A.ATTENDTIME) * (24 * 60)) END AS "EarlyMin"
+			, CASE WHEN A.VACFLAG IS NULL OR A.VACFLAG = '' OR A.VACDAY <![CDATA[ < ]]> 1 THEN TO_CHAR(A.ATTSTARTTIME, 'HH24:MI') ELSE '' END AS "AttStartTime"
+			, CASE WHEN A.VACFLAG IS NULL OR A.VACFLAG = '' OR A.VACDAY <![CDATA[ < ]]> 1 THEN TO_CHAR(A.ATTENDTIME, 'HH24:MI') ELSE '' END AS "AttEndTime"
+		FROM (
+			SELECT
+				NVL(A.USERCODE, B.USERCODE) AS USERCODE
+				, NVL(A.MULTIJOBPOSITIONNAME, B.MULTIJOBPOSITIONNAME) AS MULTIJOBPOSITIONNAME
+				, NVL(A.MULTIDEPTNAME, B.MULTIDEPTNAME) AS MULTIDEPTNAME
+				, NVL(A.MULTIJOBLEVELNAME, B.MULTIJOBLEVELNAME) AS MULTIJOBLEVELNAME
+				, NVL(A.MULTIJOBTITLENAME, B.MULTIJOBTITLENAME) AS MULTIJOBTITLENAME
+				, NVL(A.JOBPOSITIONSORTKEY, B.JOBPOSITIONSORTKEY) AS JOBPOSITIONSORTKEY
+				, NVL(A.JOBLEVELSORTKEY, B.JOBLEVELSORTKEY) AS JOBLEVELSORTKEY
+				, NVL(A.JOBTITLESORTKEY, B.JOBTITLESORTKEY) AS JOBTITLESORTKEY
+				, NVL(A.STARTSTS, '') AS STARTSTS
+				, NVL(A.ENDSTS, '') AS ENDSTS
+				, NVL(A.TARGETDATE, B.TARGETDATE) AS TARGETDATE
+				, NVL(A.ATTAC, 0) AS AttAc
+				, NVL(A.AttAcD, 0) AS AttAcD
+				, NVL(A.AttAcN, 0) AS AttAcN
+				, NVL(A.AttIdle,0) AttIdle
+				, NVL(A.ExtenAc, 0) AS ExtenAc
+				, NVL(A.ExtenAcD, 0) AS ExtenAcD
+				, NVL(A.ExtenAcN, 0) AS ExtenAcN
+				, NVL(A.HoliAc, 0) AS HoliAc
+				, NVL(A.HoliAcD, 0) AS HoliAcD
+				, NVL(A.HoliAcN, 0) AS HoliAcN
+				, A.ATTSTARTTIME
+				, A.ATTENDTIME
+				, A.ATTDAYSTARTTIME
+				, A.ATTDAYENDTIME
+				, NVL(B.ATTDAYAC, 0) AS ATTDAYAC
+				, NVL(B.VACFLAG, '') AS VACFLAG
+				, NVL(B.VACOFFFLAG, '') AS VACOFFFLAG
+				, NVL(B.VACDAY, 0) AS VACDAY
+		FROM (
+				SELECT
+					BG.USERCODE
+					, BG.MULTIJOBPOSITIONNAME
+					, BG.MULTIDEPTNAME
+					, BG.MULTIJOBLEVELNAME
+					, BG.MULTIJOBTITLENAME
+					, BG.JOBPOSITIONSORTKEY
+					, BG.JOBLEVELSORTKEY
+					, BG.JOBTITLESORTKEY
+					, M.STARTSTS
+					, M.ENDSTS
+					, M.TARGETDATE
+					, M.ATTAC
+					, NVL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, NVL(j.AttDayIdle,NVL(m.AttIdle,0)), 'D'),0)  as AttAcD
+					, NVL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, NVL(j.AttDayIdle,NVL(m.AttIdle,0)), 'N'),0)  as AttAcN
+				    , NVL(m.AttIdle,0) AttIdle
+					, M.ExtenAc
+					, CASE WHEN m.ExtenCnt>1 THEN
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0)
+					ELSE
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END as ExtenAcD
+					, CASE WHEN m.ExtenCnt>1 THEN
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0)
+					ELSE
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END as ExtenAcN
+					, M.HoliAc
+					, NVL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as HoliAcD
+					, NVL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as HoliAcN
+					, M.ATTSTARTTIME
+					, M.ATTENDTIME
+					, M.ATTDAYSTARTTIME
+					, M.ATTDAYENDTIME
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+					LEFT JOIN attend_job j
+						ON m.TargetDate = j.JobDate
+						AND j.CompanyCode = #{CompanyCode}
+						AND m.UserCode = j.UserCode
+					LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) eho ON m.TargetDate = eho.jobDate AND m.UserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = #{CompanyCode} AND eho.ApprovalSts = 'Y'
+					LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) ehh ON m.TargetDate = ehh.jobDate AND m.UserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = #{CompanyCode} AND ehh.ApprovalSts = 'Y'
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+					AND M.TARGETDATE =  #{TargetDate}
+			) A
+				FULL OUTER JOIN (
+					SELECT
+						BG.USERCODE
+						, BG.MULTIJOBPOSITIONNAME
+						, BG.MULTIDEPTNAME
+						, BG.MULTIJOBLEVELNAME
+						, BG.MULTIJOBTITLENAME
+						, BG.JOBPOSITIONSORTKEY
+						, BG.JOBLEVELSORTKEY
+						, BG.JOBTITLESORTKEY
+						, TO_DATE( #{TargetDate}, 'YYYY-MM-DD') AS TARGETDATE
+						, J.ATTDAYAC AS ATTDAYAC
+						, LISTAGG(M.VACFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACFLAG
+						, LISTAGG(M.VACOFFFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACOFFFLAG
+						, SUM(M.VACDAY) AS VACDAY
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+						JOIN VM_VACATIONINFO_DAY M ON M.UR_CODE = BG.USERCODE
+						LEFT JOIN ATTEND_JOB J ON BG.COMPANYCODE = J.COMPANYCODE AND BG.USERCODE = J.USERCODE AND  #{TargetDate} = J.JOBDATE
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+						AND TO_DATE( #{TargetDate}, 'YYYY-MM-DD') = M.VACDATE
+					GROUP BY
+						BG.USERCODE
+						, BG.MULTIJOBPOSITIONNAME
+						, BG.MULTIDEPTNAME
+						, BG.MULTIJOBLEVELNAME
+						, BG.MULTIJOBTITLENAME
+						, BG.JOBPOSITIONSORTKEY
+						, BG.JOBLEVELSORTKEY
+						, BG.JOBTITLESORTKEY
+						, TO_DATE( #{TargetDate}, 'YYYY-MM-DD')
+						, J.ATTDAYAC
+				) B ON A.USERCODE = B.USERCODE AND TO_CHAR(A.TARGETDATE, 'YYYY-MM-DD') = TO_CHAR(B.TARGETDATE, 'YYYY-MM-DD')
+		) A
+			JOIN SYS_OBJECT_USER UR ON A.USERCODE = UR.USERCODE
+			LEFT JOIN ATTEND_JOB AJ ON AJ.COMPANYCODE = #{CompanyCode} AND AJ.JOBDATE = A.TARGETDATE AND AJ.USERCODE = A.USERCODE
+			LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test='SearchText != null and SearchText != ""'>
+				AND UR.DISPLAYNAME LIKE '%'||#{SearchText}||'%'
+			</if>
+			<choose>
+				<when test='SchSeq != null and SchSeq != "" and SchSeq != "multiCheck"'>
+					AND AJ.SCHSEQ = #{SchSeq}
+			  	</when>
+			  	<when test='SchSeq != null and SchSeq != "" and SchSeq == "multiCheck"'>
+			  		<if test='schCheckList.size != 0'>
+						<foreach collection="schCheckList" item="item" index="index" separator="," open="AND AJ.SCHSEQ IN (" close=")">
+							#{item}
+						</foreach>
+					</if>
+			  	</when>
+			</choose>
+		</trim>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			"JobTitleSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			"JobLevelSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			"JobPositionSortKey" ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			"URName" ASC
+				  		</if>
+				  	</foreach>
+				  	, A.MULTIDEPTNAME
+			  	</when>
+			</choose>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+  	</select>
+
+	<!-- 부서별 근태 List-->
+ 	<select id="getDeptAttendDayCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(USERCODE)
+		FROM (
+			SELECT
+				AA.USERCODE AS USERCODE
+			FROM (
+				SELECT
+					NVL(A.USERCODE, B.USERCODE) AS USERCODE
+					, NVL(A.TARGETDATE, B.DAYLIST) AS TARGETDATE
+				FROM (
+					SELECT
+						BG.USERCODE
+						, BG.JOBPOSITIONNAME
+						, BG.DEPTNAME
+						, M.STARTSTS
+						, M.ENDSTS
+						, M.TARGETDATE
+						, M.ATTAC
+						, M.EXTENAC
+						, M.HOLIAC
+						, M.ATTSTARTTIME
+						, M.ATTENDTIME
+						, M.ATTDAYSTARTTIME
+						, M.ATTDAYENDTIME
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+						JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+						AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+				) A
+					FULL OUTER JOIN (
+						SELECT
+							BG.USERCODE
+							, BG.JOBPOSITIONNAME
+							, BG.DEPTNAME
+							, M.DAYLIST
+							, J.ATTDAYAC AS ATTDAYAC
+							, LISTAGG(VM.VACFLAG, '|') WITHIN GROUP(ORDER BY VM.VACOFFFLAG) AS VACFLAG
+							, LISTAGG(VM.VACOFFFLAG, '|') WITHIN GROUP(ORDER BY VM.VACOFFFLAG) AS VACOFFFLAG
+						FROM SYS_OBJECT_GROUP OG
+							JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+							JOIN VM_VACATIONINFO_DAY VM ON VM.UR_CODE = BG.USERCODE
+							JOIN ATTEND_DAYLIST M ON M.DAYLIST = VM.VACDATE
+							LEFT JOIN ATTEND_JOB J ON BG.COMPANYCODE = J.COMPANYCODE AND BG.USERCODE = J.USERCODE AND M.DAYLIST = J.JOBDATE
+						WHERE OG.COMPANYCODE = #{CompanyCode}
+							AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+							AND M.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+						GROUP BY
+							BG.USERCODE
+							, BG.JOBPOSITIONNAME
+							, BG.DEPTNAME
+							, M.DAYLIST
+							, J.ATTDAYAC
+					) B ON A.USERCODE = B.USERCODE AND A.TARGETDATE = B.DAYLIST
+			) AA
+				JOIN SYS_OBJECT_USER UR ON AA.USERCODE = UR.USERCODE
+			<trim prefix="WHERE" prefixOverrides="AND | OR ">
+				<if test='SearchText != null and SearchText != ""'>
+					AND UR.DISPLAYNAME LIKE '%'||#{SearchText}||'%'
+				 </if>
+			</trim>
+			GROUP BY AA.USERCODE
+		) UR
+  	</select>
+
+ 	<select id="getDeptAttendDay" parameterType="cmap" resultType="cmap">
+ 	/* attend.portal.getDeptAttendDay */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			AA.USERCODE AS "UserCode"
+			, UR.DISPLAYNAME AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS "URName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, AA.MULTIDEPTNAME) AS "DeptName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, AA.MULTIJOBPOSITIONNAME) AS "JobPositionName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, AA.MULTIJOBLEVELNAME) AS "JobLevelName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, AA.MULTIJOBTITLENAME) AS "JobTitleName"
+			, AA.JOBPOSITIONSORTKEY AS "JobPositionSortKey"
+			, AA.JOBLEVELSORTKEY AS "JobLevelSortKey"
+			, AA.JOBTITLESORTKEY AS "JobTitleSortKey"
+			, UR.ENTERDATE AS "EnterDate"
+			, SUM(AA.AttAc) AS "AttAc"
+			, SUM(AA.AttAcD) AS "AttAcD"
+			, SUM(AA.AttAcN) AS "AttAcN"
+			, sum(AA.AttIdle) AS "AttIdle"
+			, SUM(AA.ExtenAc) AS "ExtenAc"
+			, SUM(AA.ExtenAcD) AS "ExtenAcD"
+			, SUM(AA.ExtenAcN) AS "ExtenAcN"
+			, SUM(AA.HoliAc) AS "HoliAc"
+			, SUM(AA.HoliAcD) AS "HoliAcD"
+			, SUM(AA.HoliAcN) AS "HoliAcN"
+			, SUM(LATEMIN) AS "LateMin"
+			, SUM(EARLYMIN) AS "EarlyMin"
+		FROM
+		(
+			SELECT
+				NVL(A.USERCODE, B.USERCODE) AS USERCODE
+				, NVL(A.TARGETDATE, B.DAYLIST) AS TARGETDATE
+				, NVL(A.MULTIJOBPOSITIONNAME, B.MULTIJOBPOSITIONNAME)  AS MULTIJOBPOSITIONNAME
+				, NVL(A.MULTIDEPTNAME, B.MULTIDEPTNAME) AS MULTIDEPTNAME
+				, NVL(A.MULTIJOBLEVELNAME, B.MULTIJOBLEVELNAME) AS MULTIJOBLEVELNAME
+				, NVL(A.MULTIJOBTITLENAME, B.MULTIJOBTITLENAME) AS MULTIJOBTITLENAME
+				, NVL(A.JOBPOSITIONSORTKEY, B.JOBPOSITIONSORTKEY) AS JOBPOSITIONSORTKEY
+				, NVL(A.JOBLEVELSORTKEY, B.JOBLEVELSORTKEY) AS JOBLEVELSORTKEY
+				, NVL(A.JOBTITLESORTKEY, B.JOBTITLESORTKEY) AS JOBTITLESORTKEY
+				, NVL(A.ATTAC, 0) AS AttAc
+				, NVL(fn_attend_getNightDayTimeV2(A.ATTDAYSTARTTIME, A.ATTDAYENDTIME, #{NightStartDate}, #{NightEndDate}, NVL(B.AttDayIdle,NVL(B.ATTIDLE,0)), 'D'),0)  as AttAcD
+				, NVL(fn_attend_getNightDayTimeV2(A.ATTDAYSTARTTIME, A.ATTDAYENDTIME, #{NightStartDate}, #{NightEndDate}, NVL(B.AttDayIdle,NVL(B.ATTIDLE,0)), 'N'),0)  as AttAcN
+				, NVL(A.AttIdle,0) AttIdle
+				, NVL(A.EXTENAC, 0) AS ExtenAc
+				, NVL(fn_attend_getNightDayTimeV2(B.ExtenStart, B.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, B.eho_IdleTime, 'D'),0) as ExtenAcD
+				, NVL(fn_attend_getNightDayTimeV2(B.ExtenStart, B.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, B.eho_IdleTime, 'N'),0) as ExtenAcN
+				, NVL(A.HOLIAC, 0) AS HoliAc
+				, NVL(fn_attend_getNightDayTimeV2(B.HoliStart, B.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, B.ehh_IdleTime, 'D'),0)  as HoliAcD
+				, NVL(fn_attend_getNightDayTimeV2(B.HoliStart, B.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, B.ehh_IdleTime, 'N'),0)  as HoliAcN
+				, A.ATTSTARTTIME AS ATTSTARTTIME
+				, A.ATTENDTIME AS ATTENDTIME
+				, A.ATTDAYSTARTTIME AS ATTDAYSTARTTIME
+				, A.ATTDAYENDTIME AS ATTDAYENDTIME
+				, NVL(B.VACFLAG, '') AS VACFLAG
+				, NVL(B.VACOFFFLAG, '') AS VACOFFFLAG
+				, NVL(A.STARTSTS, '') AS STARTSTS
+				, NVL(A.ENDSTS, '') AS ENDSTS
+				, CASE WHEN A.STARTSTS = 'lbl_att_beingLate' THEN ((A.ATTSTARTTIME - A.ATTDAYSTARTTIME) * (24 * 60)) END AS LATEMIN
+				, CASE WHEN A.ENDSTS = 'lbl_att_leaveErly' THEN ((A.ATTDAYENDTIME - A.ATTENDTIME) * (24 * 60)) END AS "EARLYMIN"
+			FROM (
+					SELECT
+					BG.USERCODE
+					, BG.MULTIJOBPOSITIONNAME
+					, BG.MULTIDEPTNAME
+					, BG.MULTIJOBLEVELNAME
+					, BG.MULTIJOBTITLENAME
+					, BG.JOBPOSITIONSORTKEY
+					, BG.JOBLEVELSORTKEY
+					, BG.JOBTITLESORTKEY
+					, M.STARTSTS
+					, M.ENDSTS
+					, M.TARGETDATE
+					, M.ATTAC
+					, M.ATTIDLE
+					, M.EXTENAC
+					, M.HOLIAC
+					, M.ATTSTARTTIME
+					, M.ATTENDTIME
+					, M.ATTDAYSTARTTIME
+					, M.ATTDAYENDTIME
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+						JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+						AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+				) A
+				FULL OUTER JOIN (
+					SELECT
+						BG.USERCODE
+						, BG.MULTIJOBPOSITIONNAME
+						, BG.MULTIDEPTNAME
+						, BG.MULTIJOBLEVELNAME
+						, BG.MULTIJOBTITLENAME
+						, BG.JOBPOSITIONSORTKEY
+						, BG.JOBLEVELSORTKEY
+						, BG.JOBTITLESORTKEY
+						, D.DAYLIST
+						, M.ExtenStart
+						, M.ExtenEnd
+						, M.HoliStart
+						, M.HoliEnd
+						, M.ATTIDLE
+						, J.ATTDAYAC AS ATTDAYAC
+						, J.AttDayIdle
+						, eho.IdleTime as eho_IdleTime
+						, ehh.IdleTime as ehh_IdleTime
+						, LISTAGG(VM.VACFLAG, '|') WITHIN GROUP(ORDER BY VM.VACOFFFLAG) AS VACFLAG
+						, LISTAGG(VM.VACOFFFLAG, '|') WITHIN GROUP(ORDER BY VM.VACOFFFLAG) AS VACOFFFLAG
+					FROM SYS_OBJECT_GROUP OG
+						JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+						JOIN ATTEND_DAYLIST D ON D.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+						JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE AND M.TARGETDATE = D.DAYLIST
+						LEFT JOIN VM_VACATIONINFO_DAY VM ON VM.UR_CODE = BG.USERCODE AND VM.VACDATE = TO_CHAR(M.TARGETDATE,'YYYY-MM-DD')
+						LEFT JOIN ATTEND_JOB J ON BG.COMPANYCODE = J.COMPANYCODE AND BG.USERCODE = J.USERCODE AND D.DAYLIST = J.JOBDATE
+						LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) eho ON M.TARGETDATE = eho.jobDate AND M.UserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = #{CompanyCode} AND eho.ApprovalSts = 'Y'
+						LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) ehh ON M.TARGETDATE = ehh.jobDate AND M.UserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = #{CompanyCode} AND ehh.ApprovalSts = 'Y'
+					WHERE OG.COMPANYCODE = #{CompanyCode}
+						AND OG.GROUPPATH LIKE #{DeptUpCodeWork} || '%'
+						AND D.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+					GROUP BY
+						BG.USERCODE
+						, BG.MULTIJOBPOSITIONNAME
+						, BG.MULTIDEPTNAME
+						, BG.MULTIJOBLEVELNAME
+						, BG.MULTIJOBTITLENAME
+						, BG.JOBPOSITIONSORTKEY
+						, BG.JOBLEVELSORTKEY
+						, BG.JOBTITLESORTKEY
+						, D.DAYLIST
+						, J.ATTDAYAC
+						, J.AttDayIdle
+						, M.ATTIDLE
+						, M.ExtenStart
+						, M.ExtenEnd
+						, M.HoliStart
+						, M.HoliEnd
+						, eho.IdleTime
+						, ehh.IdleTime
+				) B ON A.USERCODE = B.USERCODE AND A.TARGETDATE = B.DAYLIST
+			) AA
+			JOIN SYS_OBJECT_USER UR ON AA.USERCODE = UR.USERCODE
+		<trim prefix="WHERE" prefixOverrides="AND | OR ">
+			<if test='SearchText != null and SearchText != ""'>
+				AND UR.DISPLAYNAME LIKE '%'||#{SearchText}||'%'
+			 </if>
+		</trim>
+		GROUP BY
+			AA.USERCODE
+			, UR.DISPLAYNAME
+			, UR.MULTIDISPLAYNAME
+			, AA.MULTIJOBPOSITIONNAME
+			, AA.MULTIDEPTNAME
+			, AA.MULTIJOBTITLENAME
+			, AA.MULTIJOBLEVELNAME
+			, AA.JOBPOSITIONSORTKEY
+			, AA.JOBLEVELSORTKEY
+			, AA.JOBTITLESORTKEY
+			, UR.ENTERDATE
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			"JobTitleSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			"JobLevelSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			"JobPositionSortKey" ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			"URName" ASC
+				  		</if>
+				  	</foreach>
+				  	, AA.MULTIDEPTNAME, UR.DISPLAYNAME
+			  	</when>
+			</choose>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+  	</select>
+  	
+ 	<select id="getDeptUserAttendList" parameterType="cmap" resultType="cmap">
+			SELECT
+				TO_CHAR(C.DAYLIST ,'MM.DD') AS "dayList"
+				, C.WEEKD AS "weekd"
+				, CASE
+					WHEN WEEKD = 0 THEN 'mon'
+					WHEN WEEKD = 1 THEN 'tue'
+					WHEN WEEKD = 2 THEN 'wed'
+					WHEN WEEKD = 3 THEN 'thu'
+					WHEN WEEKD = 4 THEN 'fri'
+					WHEN WEEKD = 5 THEN 'sat'
+					WHEN WEEKD = 6 THEN 'sun'
+				END AS "weekn"
+				, FN_ATTENDANCE_MYSQLWEEKMODE5(C.DAYLIST) - FN_ATTENDANCE_MYSQLWEEKMODE5(C.DAYLIST - TO_NUMBER(TO_CHAR(C.DAYLIST, 'DD'))-1) + 1  AS "week"
+				, AHS.HOLIDAYNAME AS "HolidayName"
+				, VV.VACFLAG AS "VacFlag"
+				, CASE WHEN VV.VACFLAG IS NOT NULL THEN (SELECT CODENAME FROM SYS_BASE_CODE WHERE DOMAINID = #{domainID} AND CODEGROUP='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(VV.VACFLAG,'|',1)) END AS "VacFlagName"
+				, VV.VACOFFFLAG AS "VacOffFlag"
+				, ASH.SCHNAME AS "SchName"
+				, TO_CHAR(M.ATTSTARTTIME, 'HH24:MI') AS "AttStartTime"
+				, TO_CHAR(M.ATTENDTIME, 'HH24:MI') AS "AttEndTime"
+				, case when AJ.AssYn='Y' then
+						0
+					when NVL(vv.VacDay,0) > 0 then
+						NVL(aj.AttDayAC,0)*NVL(vv.VacDay,0)
+					when aj.WorkSts = 'HOL' AND aj.AttDayAC>0 then
+						aj.AttDayAC
+					else 0 END as "VacTime"
+				, CASE
+					WHEN VV.VACFLAG IS NULL THEN M.ATTAC
+					ELSE
+						CASE
+							WHEN VV.VACDAY <![CDATA[ < ]]> 1 THEN
+								CASE
+									WHEN AJ.ATTDAYAC > TRUNC((AJ.ATTDAYAC*NVL(VV.VACDAY, 0))+ATTAC, 0) THEN
+										TRUNC((AJ.ATTDAYAC*NVL(VV.VACDAY, 0))+ATTAC, 0)
+									ELSE
+										AJ.ATTDAYAC
+								END
+							ELSE AJ.ATTDAYAC
+						END
+				END AS "AttAC"
+				, NVL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, NVL(aj.AttDayIdle,NVL(m.AttIdle,0)), 'D'),0)  as "AttAcD"
+				, NVL(fn_attend_getNightDayTimeV2(m.AttDayStartTime, m.AttDayEndTime, #{NightStartDate}, #{NightEndDate}, NVL(aj.AttDayIdle,NVL(m.AttIdle,0)), 'N'),0)  as "AttAcN"
+				, M.EXTENAC AS "ExtenAC"
+				, CASE WHEN m.ExtenCnt>1 THEN
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0)
+					ELSE
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'D'),0) END as "ExtenAcD"
+				, CASE WHEN m.ExtenCnt>1 THEN
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0)
+					ELSE
+						NVL(fn_attend_getNightDayTimeV2(m.ExtenStart, m.ExtenEnd, #{ExtNightStartDate}, #{ExtNightEndDate}, eho.IdleTime, 'N'),0) END as "ExtenAcN"
+				, M.HOLIAC AS "HoliAc"
+				, NVL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'D'),0)  as "HoliAcD"
+				, NVL(fn_attend_getNightDayTimeV2(m.HoliStart, m.HoliEnd, #{HolNightStartDate}, #{HolNightEndDate}, ehh.IdleTime, 'N'),0)  as "HoliAcN"
+				, CASE WHEN STARTSTS='lbl_att_beingLate' THEN ((M.ATTSTARTTIME - M.ATTDAYSTARTTIME) * (24 * 60)) END AS "LateMin"
+				, CASE WHEN ENDSTS='lbl_att_leaveErly' THEN ((M.ATTDAYENDTIME - M.ATTENDTIME) * (24 * 60)) END AS "EarlyMin"
+			FROM ATTEND_DAYLIST C
+				LEFT JOIN ATTEND_COMMUTING_MST M ON C.DAYLIST = M.TARGETDATE AND M.COMPANYCODE = #{CompanyCode} AND M.USERCODE = #{UserCode}
+				LEFT JOIN ATTEND_JOB AJ ON C.DAYLIST = AJ.JOBDATE AND AJ.COMPANYCODE = #{CompanyCode} AND AJ.USERCODE = #{UserCode}
+				LEFT JOIN ATTEND_HOLIDAY_SCHEDULE AHS ON C.DAYLIST = AHS.HOLIDAYSTART AND AJ.COMPANYCODE = #{CompanyCode}
+				LEFT JOIN (
+					SELECT
+						VACDATE
+						, UR_CODE
+						, LISTAGG(REPLACE(VV.VACFLAG,' ',''), '|') WITHIN GROUP(ORDER BY VV.VACOFFFLAG) AS VACFLAG
+						, LISTAGG(REPLACE(VV.VACOFFFLAG,' ',''), '|') WITHIN GROUP(ORDER BY VV.VACOFFFLAG) AS VACOFFFLAG
+						, SUM(VACDAY) AS VACDAY
+					FROM VM_VACATIONINFO_DAY VV
+					WHERE VV.UR_CODE = #{UserCode}
+						AND VV.VACDATE BETWEEN #{StartDate} AND #{EndDate}
+					GROUP BY
+						VACDATE
+						, UR_CODE
+				) VV ON C.DAYLIST = VV.VACDATE
+				LEFT JOIN ATTEND_SCHEDULE ASH ON AJ.SCHSEQ = ASH.SCHSEQ
+				LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) eho ON c.dayList = eho.jobDate AND m.UserCode = eho.UserCode AND eho.JobStsName = 'O' AND eho.CompanyCode = #{CompanyCode} AND eho.ApprovalSts = 'Y'
+				LEFT JOIN (select NVL(NULLIF(IdleTime,''),0) as IdleTime, jobDate, UserCode, JobStsName, CompanyCode, ApprovalSts from attend_extensionholiday) ehh ON c.dayList = ehh.jobDate AND m.UserCode = ehh.UserCode AND ehh.JobStsName = 'H' AND ehh.CompanyCode = #{CompanyCode} AND ehh.ApprovalSts = 'Y'
+		WHERE C.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+			ORDER BY C.DAYLIST ASC
+	</select>
+
+	<select id="getUserCommStatusListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT
+				COUNT(USERCODE)
+			FROM
+			(
+				SELECT
+					M.USERCODE
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+					AND UR.ISUSE = 'Y'
+					AND UR.ISDISPLAY = 'Y'
+					AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+		]]>
+				<choose>
+					<when test='Status == "COMM"'>
+						AND M.STARTSTS != 'lbl_n_att_absent'
+					</when>
+					<when test='Status == "LATE"'>
+						AND M.STARTSTS = 'lbl_att_beingLate'
+					</when>
+					<when test='Status == "ABSENT"'>
+						AND (M.STARTSTS = 'lbl_n_att_absent' OR M.ENDSTS = 'lbl_n_att_absent')
+				UNION ALL
+				SELECT
+					BG.USERCODE
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					LEFT JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE AND M.TARGETDATE = TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD')
+					LEFT JOIN ATTEND_JOB J ON J.COMPANYCODE = BG.COMPANYCODE AND UR.USERCODE = J.USERCODE AND J.JOBDATE = TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD')
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+					AND UR.ISUSE = 'Y'
+					AND UR.ISDISPLAY = 'Y'
+					AND M.TARGETDATE IS NULL
+					AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD') BETWEEN #{StartDate} AND #{EndDate}
+					AND  j.WorkSts = 'ON'
+					AND (J.ASSYN IS NULL OR J.ASSYN='N')
+					AND NOT EXISTS (
+						SELECT VV.UR_CODE
+						FROM VM_VACATIONINFO_DAY VV
+						WHERE VV.UR_CODE = BG.USERCODE AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD') = VV.VACDATE
+						GROUP BY VV.UR_CODE
+					)
+					</when>
+					<when test='Status == "EXTEN"'>
+						AND EXTENCNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.EXTENEND
+					</when>
+					<when test='Status == "HOLI"'>
+						AND HOLICNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.HOLIEND
+					</when>
+				</choose>
+			) A
+	</select>
+
+ 	<select id="getUserCommStatusList" parameterType="cmap" resultType="cmap">
+ 	/* attend.portal.getUserCommStatusList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			USERCODE AS "UserCode"
+			, JOBPOSITIONNAME AS "JobPositionName"
+			, DEPTNAME AS "DeptName"
+			, TARGETDATE AS "TargetDate"
+			, STARTSTS AS "StartSts"
+			, ENDSTS AS "EndSts"
+			, URNAME AS "URName"
+			, ATTAC AS "AttAC"
+			, EXTENAC AS "ExtenAC"
+			, HOLIAC AS "HoliAc"
+			, ATTSTARTTIME AS "AttStartTime"
+			, ATTENDTIME AS "AttEndTime"
+			, ATTDAYSTARTTIME AS "AttDayStartTime"
+			, ATTDAYENDTIME AS "AttDayEndTime"
+		FROM (
+			<![CDATA[
+			SELECT
+				BG.USERCODE
+				, JOBPOSITIONNAME
+				, FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIDEPTNAME) AS DEPTNAME
+				, TO_CHAR(M.TARGETDATE, 'YYYY-MM-DD') AS TARGETDATE
+				, M.STARTSTS
+				, M.ENDSTS
+				, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+				, ATTAC
+				, EXTENAC
+				, HOLIAC
+				, TO_CHAR(ATTSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTSTARTTIME
+				, TO_CHAR(ATTENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTENDTIME
+				, TO_CHAR(ATTDAYSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTDAYSTARTTIME
+				, TO_CHAR(ATTDAYENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTDAYENDTIME
+			FROM SYS_OBJECT_GROUP OG
+				JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE  AND BG.JOBTYPE = 'Origin'
+				JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+				JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE
+			WHERE OG.COMPANYCODE = #{CompanyCode}
+				AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+				AND UR.ISUSE = 'Y'
+				AND UR.ISDISPLAY = 'Y'
+				AND M.TARGETDATE BETWEEN #{StartDate} AND #{EndDate}
+			]]>
+			<choose>
+				<when test='Status == "COMM"'>
+				AND M.STARTSTS != 'lbl_n_att_absent'
+				</when>
+				<when test='Status == "LATE"'>
+				AND M.STARTSTS = 'lbl_att_beingLate'
+				</when>
+				<when test='Status == "ABSENT"'>
+				AND (M.STARTSTS = 'lbl_n_att_absent' OR  M.ENDSTS = 'lbl_n_att_absent')
+			UNION ALL
+			SELECT
+				BG.USERCODE
+				, JOBPOSITIONNAME
+				, FN_BASEGETDICTIONARY_S(#{lang}, BG.MULTIDEPTNAME) AS DEPTNAME
+				, TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYY-MM-DD') AS TARGETDATE
+				,'lbl_n_att_absent' AS STARTSTS
+				,'lbl_n_att_absent' AS ENDSTS
+				, FN_BASEGETDICTIONARY_S(#{lang}, UR.MULTIDISPLAYNAME) AS URNAME
+				, ATTAC
+				, EXTENAC
+				, HOLIAC
+				, TO_CHAR(M.ATTSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTSTARTTIME
+				, TO_CHAR(M.ATTENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTENDTIME
+				, TO_CHAR(M.ATTDAYSTARTTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTDAYSTARTTIME
+				, TO_CHAR(M.ATTDAYENDTIME, 'YYYY-MM-DD HH24:MI:SS') AS ATTDAYENDTIME
+			FROM SYS_OBJECT_GROUP OG
+				JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE AND BG.JOBTYPE = 'Origin'
+				JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+				LEFT JOIN ATTEND_COMMUTING_MST M ON M.USERCODE = BG.USERCODE AND M.TARGETDATE = TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD')
+				LEFT JOIN ATTEND_JOB J ON J.COMPANYCODE = BG.COMPANYCODE AND UR.USERCODE = J.USERCODE AND J.JOBDATE = TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD')
+			WHERE OG.COMPANYCODE = #{CompanyCode}
+				AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+				AND UR.ISUSE = 'Y'
+				AND UR.ISDISPLAY = 'Y'
+				AND M.TARGETDATE IS NULL
+				AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD') BETWEEN #{StartDate} AND #{EndDate}
+				AND  j.WorkSts = 'ON'
+				AND (J.ASSYN IS NULL OR J.ASSYN='N')
+				AND NOT EXISTS (
+					SELECT VV.UR_CODE
+					FROM VM_VACATIONINFO_DAY VV
+					WHERE VV.UR_CODE = BG.USERCODE AND TO_CHAR(TO_DATE(#{UR_TimeZone}, 'YYYYMMDD HH24MISS'), 'YYYYMMDD')  = VV.VACDATE
+					GROUP BY VV.UR_CODE
+				)
+				</when>
+				<when test='Status == "EXTEN"'>
+				AND EXTENCNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.EXTENEND
+				</when>
+				<when test='Status == "HOLI"'>
+				AND HOLICNT > 0 AND M.ATTENDTIME IS NOT NULL AND M.ATTENDTIME >= M.HOLIEND
+				</when>
+			</choose>
+		)
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, TARGETDATE
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				, <choose>
+						<when test='sortColumn.equalsIgnoreCase("URName")'>"URName"</when>
+						<when test='sortColumn.equalsIgnoreCase("DeptName")'>"DeptName"</when>
+						<when test='sortColumn.equalsIgnoreCase("TargetDate")'>"TargetDate"</when>
+						<when test='sortColumn.equalsIgnoreCase("AttStartTime")'>"AttStartTime"</when>
+						<when test='sortColumn.equalsIgnoreCase("AttEndTime")'>"AttEndTime"</when>
+						<when test='sortColumn.equalsIgnoreCase("Status")'>"StartSts"</when>
+						<otherwise>"TargetDate"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	<select id="getUserVacListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT
+				COUNT(M.USERCODE)
+			FROM
+			(
+				SELECT
+					BG.USERCODE
+        			, DAYLIST
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE  AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					JOIN VM_VACATIONINFO_DAY M ON M.UR_CODE = BG.USERCODE
+					JOIN ATTEND_DAYLIST C ON C.DAYLIST = M.VACDATE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+					AND UR.ISUSE = 'Y'
+					AND UR.ISDISPLAY = 'Y'
+					AND C.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+				GROUP BY BG.USERCODE, DAYLIST
+			) M
+		]]>
+	</select>
+	<select id="getUserVacList" parameterType="cmap" resultType="cmap">
+		/* attend.portal.getUserVacList */
+		<include refid="oracle.include.pagingHeader" />
+		<![CDATA[
+			SELECT
+				USERCODE AS "UserCode"
+				, JOBPOSITIONNAME AS "JobPositionName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDEPTNAME) AS "DeptName"
+				, TO_CHAR(DAYLIST, 'YYYY-MM-DD') AS "dayList"
+				, VACFLAG AS "VacFlag"
+				, VACOFFFLAG AS "VacOffFlag"
+				, CASE WHEN M.VACFLAG IS NOT NULL THEN (SELECT CODENAME FROM SYS_BASE_CODE WHERE DOMAINID = #{domainID} AND CODEGROUP='VACATION_TYPE' AND CODE=SUBSTRING_INDEX(M.VACFLAG,'|',1)) END AS "VacName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, MULTIDISPLAYNAME) AS "URName"
+			FROM (
+				SELECT
+					BG.USERCODE
+					, JOBPOSITIONNAME
+					, DEPTNAME
+					, C.DAYLIST
+					, UR.MULTIDISPLAYNAME
+					, LISTAGG(M.VACFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACFLAG
+     				, LISTAGG(M.VACOFFFLAG, '|') WITHIN GROUP(ORDER BY M.VACOFFFLAG) AS VACOFFFLAG
+				FROM SYS_OBJECT_GROUP OG
+					JOIN SYS_OBJECT_USER_BASEGROUP BG ON BG.COMPANYCODE = OG.COMPANYCODE AND BG.DEPTCODE = OG.GROUPCODE  AND BG.JOBTYPE = 'Origin'
+					JOIN SYS_OBJECT_USER UR ON BG.USERCODE = UR.USERCODE
+					JOIN VM_VACATIONINFO_DAY M ON M.UR_CODE = BG.USERCODE
+					JOIN ATTEND_DAYLIST C ON C.DAYLIST = M.VACDATE
+				WHERE OG.COMPANYCODE = #{CompanyCode}
+					AND OG.GROUPPATH LIKE #{DeptUpCode}||'%'
+					AND UR.ISUSE = 'Y'
+					AND UR.ISDISPLAY = 'Y'
+					AND C.DAYLIST BETWEEN #{StartDate} AND #{EndDate}
+				GROUP BY
+					BG.USERCODE
+					, JOBPOSITIONNAME
+					, BG.MULTIDEPTNAME
+					, C.DAYLIST
+					, UR.MULTIDISPLAYNAME
+			) M
+		]]>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					, M.DAYLIST
+			    </if>
+			  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				 	, <choose>
+						<when test='sortColumn.equalsIgnoreCase("DeptName")'>"DeptName"</when>
+						<when test='sortColumn.equalsIgnoreCase("dayList")'>"dayList"</when>
+						<when test='sortColumn.equalsIgnoreCase("VacName")'>"VacName"</when>
+						<when test='sortColumn.equalsIgnoreCase("URName")'>"URName"</when>
+						<otherwise>"dayList"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	<select id="getDeptAttStatusWebpart" parameterType="cmap" resultType="cmap">
+		/*attend.portal.getDeptAttStatusWebpart*/
+			SELECT
+			TO_CHAR(DAYLIST, 'YYYY-MM-DD') AS "dayList"
+			, DEPTFULLPATH AS "DeptFullPath"
+			, DISPLAYNAME AS "DisplayName"
+			, DEPTNAME AS "DeptName"
+			, JOBPOSITIONNAME AS "JobPositionName"
+			, JOBLEVELNAME AS "JobLevelName"
+			, JOBTITLENAME AS "JobTitleName"
+			, ENTERDATE AS "EnterDate"
+			, TARGETUSERCODE AS "TargetUserCode"
+			, TARGETUSERCODE AS "UserCode"
+			, VACFLAG AS "VacFlag"
+			, VACOFFFLAG AS "VacOffFlag"
+			, CASE WHEN VacFlag IS NOT NULL THEN (FN_BASEGETDICTIONARY_S(#{lang}, VacCodeName)) END "VacName"
+			, CASE WHEN VacFlag IS NOT NULL THEN (VacAmPmVacDay) END "VacAmPmVacDay"
+			, WORKSTS AS "WorkSts"
+			, TO_CHAR(ATTSTARTTIME, 'HH:MIAM', 'NLS_DATE_LANGUAGE=ENGLISH') AS "v_AttStartTime"
+			, TO_CHAR(ATTENDTIME, 'HH:MIAM', 'NLS_DATE_LANGUAGE=ENGLISH') AS "v_AttEndTime"
+			, STARTSTS AS "StartSts"
+			, ENDSTS AS "EndSts"
+			, EXTENAC AS "ExtenAc"
+			, HOLIAC AS "HoliAc"
+			, NVL(HOLICNT, 0) AS "HoliCnt"
+			, JH_JOBSTSNAME AS "jh_JobStsName"
+			, VACCNT AS "VacCnt"
+		FROM (
+			SELECT
+				BSJH.DAYLIST
+				, BSJH.TARGETUSERCODE
+				, BSJH.DEPTCODE
+				, M.ATTSTARTTIME
+				, M.ATTENDTIME
+				, NVL(M.EXTENAC, 0) AS EXTENAC
+				, NVL(M.HOLIAC, 0) AS HOLIAC
+				, M.HOLICNT
+				, M.STARTSTS
+				, M.ENDSTS
+				, J.WORKSTS
+				, BSJH.VACOFFFLAG
+				, BSJH.VacCodeName
+				, BSJH.JH_JOBSTSNAME
+				, BSJH.VACFLAG
+				, BSJH.VacAmPmVacDay
+				, BSJH.DEPTFULLPATH
+				, BSJH.DISPLAYNAME
+				, BSJH.DEPTNAME
+				, BSJH.JOBPOSITIONNAME
+				, BSJH.JOBLEVELNAME
+				, BSJH.JOBTITLENAME
+				, BSJH.ENTERDATE
+				, BSJH.JOBPOSITIONSORTKEY
+				, BSJH.JOBLEVELSORTKEY
+				, BSJH.JOBTITLESORTKEY
+				, BSJH.SORTKEY
+				, BSJH.VACCNT
+		FROM (
+				SELECT
+					BS.DAYLIST
+					, BS.TARGETUSERCODE
+					, BS.DEPTFULLPATH
+					, BS.DISPLAYNAME
+					, BS.DEPTNAME
+					, BS.JOBPOSITIONNAME
+					, BS.JOBLEVELNAME
+					, BS.JOBTITLENAME
+					, BS.ENTERDATE
+					, BS.DEPTCODE
+					, BS.COMPANYCODE
+					, BS.JOBPOSITIONSORTKEY
+					, BS.JOBLEVELSORTKEY
+					, BS.JOBTITLESORTKEY
+					, BS.SORTKEY
+					, VV.VACOFFFLAG
+					, VV.VACCNT
+					, VV.VacCodeName
+					, VV.VacAmPmVacDay
+					, CASE WHEN SUM(NVL(VV.VACCNT, 0)) > 0 THEN VV.VACFLAG ELSE '' END AS VACFLAG
+					, CASE
+						WHEN COUNT(JH.JOBSTSHISSEQ) > 0 THEN
+							CASE
+								WHEN COUNT(JH.JOBSTSHISSEQ) > 1 THEN FN_BASEGETDICTIONARY_S(#{lang}, JH.JOBSTSNAME) || '+'
+								ELSE FN_BASEGETDICTIONARY_S(#{lang}, JH.JOBSTSNAME)
+							END
+						ELSE ''
+					END AS JH_JOBSTSNAME
+				FROM (
+					SELECT
+						DAYLIST
+						, USERCODE AS TARGETUSERCODE
+						, DEPTFULLPATH
+						, DISPLAYNAME
+						, DEPTNAME
+						, JOBPOSITIONNAME
+						, JOBLEVELNAME
+						, JOBTITLENAME
+						, ENTERDATE
+						, DEPTCODE
+						, COMPANYCODE
+						, JOBPOSITIONSORTKEY
+						, JOBLEVELSORTKEY
+						, JOBTITLESORTKEY
+						, SORTKEY
+					FROM (
+						SELECT
+							DAYLIST
+						FROM ATTEND_DAYLIST
+						WHERE DAYLIST = #{Today}
+					) DL,
+					(
+						SELECT
+							U.USERCODE
+							, FN_BASEGETDICTIONARY_S(#{lang}, U.MULTIDISPLAYNAME) AS DISPLAYNAME
+							, FN_BASEGETDICTIONARY_S(#{lang}, B.MULTIDEPTNAME) AS DEPTNAME
+							, FN_BASEGETDICTIONARY_S(#{lang}, B.MULTIJOBPOSITIONNAME) AS JOBPOSITIONNAME
+							, FN_BASEGETDICTIONARY_S(#{lang}, B.MULTIJOBLEVELNAME) AS JOBLEVELNAME
+							, FN_BASEGETDICTIONARY_S(#{lang}, B.MULTIJOBTITLENAME) AS JOBTITLENAME
+							, U.ENTERDATE
+							, B.JOBPOSITIONSORTKEY
+							, B.JOBLEVELSORTKEY
+							, B.JOBTITLESORTKEY
+							, U.SORTKEY
+							, B.COMPANYCODE
+							, B.DEPTCODE
+							, (SELECT DISPLAYNAME FROM SYS_OBJECT_GROUP R WHERE GROUPCODE = SOG.MEMBEROF) AS DEPTFULLPATH
+						FROM SYS_OBJECT_USER_BASEGROUP B
+							JOIN SYS_OBJECT_USER U ON B.USERCODE = U.USERCODE
+							LEFT JOIN SYS_OBJECT_GROUP SOG ON B.DEPTCODE = SOG.GROUPCODE
+						WHERE B.COMPANYCODE = #{CompanyCode}
+						and B.DEPTCODE = #{DeptCode}
+						and U.ISUSE = 'Y'
+						and U.ISDISPLAY = 'Y'
+					) U
+				) BS
+					LEFT JOIN (
+					select vd.VacDate, vd.UR_Code, SUM(vd.VacDay) as VacCnt
+							, LISTAGG(vd.VacFlag,'|') WITHIN GROUP(ORDER BY vd.StartTime, vd.VacOffFlag ASC) as VacFlag
+							, LISTAGG(vd.VacOffFlag,'|') WITHIN GROUP(ORDER BY vd.StartTime, vd.VacOffFlag ASC) as VacOffFlag
+							, LISTAGG(NVL(bc.MultiCodeName,vd.VacFlag),'|') WITHIN GROUP(ORDER BY vd.StartTime, vd.VacOffFlag ASC) as VacCodeName
+							, TO_CHAR(NVL(SUM(AmVacDay),0),'fm90.000')||'|'||TO_CHAR(NVL(SUM(PmVacDay),0),'fm90.000') as VacAmPmVacDay
+							from (select UR_Code, VacDate, REPLACE(VacOffFlag,' ','') as VacOffFlag, REPLACE(VacFlag,' ','') as VacFlag, VacDay, StartTime, EndTime
+								,CASE WHEN VacOffFlag = 'AM' THEN
+										CAST(VacDay AS DECIMAL(9,3))
+									END as AmVacDay
+								,CASE WHEN VacOffFlag = 'PM' THEN
+										CAST(VacDay AS DECIMAL(9,3))
+									END as PmVacDay
+								from vm_vacationinfo_day
+									where 1=1
+									and VacDate = #{Today}
+							) vd
+							left join sys_base_code bc
+								on bc.DomainID = #{domainID}
+									AND bc.codegroup='VACATION_TYPE'
+									AND bc.CODE=vd.VacFlag
+									AND vd.VacDate = #{Today}
+								group by vd.VacDate, vd.UR_Code
+					) VV ON BS.DAYLIST = VV.VacDate AND BS.TARGETUSERCODE = VV.UR_CODE
+					LEFT JOIN ATTEND_JOB_HISTORY JH ON BS.DAYLIST = JH.JOBDATE AND BS.TARGETUSERCODE = JH.USERCODE AND BS.COMPANYCODE = JH.COMPANYCODE
+					WHERE BS.DAYLIST = #{Today}
+				GROUP BY
+					BS.DAYLIST
+					, BS.TARGETUSERCODE
+					, BS.DEPTFULLPATH
+					, BS.DISPLAYNAME
+					, BS.DEPTNAME
+					, BS.JOBPOSITIONNAME
+					, BS.JOBTITLENAME
+					, BS.JOBLEVELNAME
+					, BS.ENTERDATE
+					, BS.DEPTCODE
+					, BS.COMPANYCODE
+					, BS.JOBPOSITIONSORTKEY
+					, BS.JOBLEVELSORTKEY
+					, BS.JOBTITLESORTKEY
+					, BS.SORTKEY
+					, VV.VACOFFFLAG
+					, VV.VACFLAG
+					, VV.VACCNT
+					, VV.VacCodeName
+					, VV.VacAmPmVacDay
+					, JH.JOBSTSNAME
+			) BSJH
+				LEFT JOIN ATTEND_COMMUTING_MST M ON BSJH.DAYLIST = M.TARGETDATE AND BSJH.COMPANYCODE = M.COMPANYCODE AND BSJH.TARGETUSERCODE = M.USERCODE
+				LEFT JOIN ATTEND_JOB J ON BSJH.DAYLIST = J.JOBDATE AND BSJH.COMPANYCODE = J.COMPANYCODE AND BSJH.TARGETUSERCODE = J.USERCODE
+		) ATT
+		ORDER BY JobTitleSortKey ASC, JobLevelSortKey ASC, JobPositionSortKey ASC, DisplayName ASC, SortKey ASC
+	</select>
+ </mapper> 
+

@@ -1,0 +1,1741 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.jobFunctionList">
+
+    <!-- 특정 사용자의 담당업무 개수 조회  -->
+    <select id="selectJobFunctionCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) AS CNT
+		FROM covi_approval4j.jwf_jobfunction AS jf
+		INNER JOIN covi_approval4j.jwf_jobfunctionmember AS jfm
+		ON jf.JobFunctionID = jfm.JobFunctionID
+		WHERE jfm.UserCode = #{userCode}
+		AND jf.IsUse = 'Y'
+		AND jf.JobFunctionType = #{JobFunctionType}
+		<choose>
+            <when test='isSaaS == "Y"'>
+                AND jf.EntCode = #{entCode}
+            </when>
+            <otherwise>
+				AND jf.EntCode IN ('ORGROOT', #{entCode})
+            </otherwise>
+        </choose>
+	</select>
+
+     <!-- 특정 사용자의 담당업무 목록 조회  -->
+    <select id="selectJobFunctionList" parameterType="cmap" resultType="cmap">
+        SELECT jf.JobFunctionCode, jf.JobFunctionName, jfm.JobFunctionMemberID, jfm.UserCode
+        FROM covi_approval4j.jwf_jobfunction AS jf
+		INNER JOIN covi_approval4j.jwf_jobfunctionmember AS jfm
+		ON jf.JobFunctionID = jfm.JobFunctionID
+		WHERE jfm.UserCode = #{userCode}
+		AND jf.IsUse = 'Y'
+		AND jf.JobFunctionType = #{JobFunctionType}
+		<choose>
+            <when test='isSaaS == "Y"'>
+                AND jf.EntCode = #{entCode}
+            </when>
+            <otherwise>
+				AND jf.EntCode IN ('ORGROOT', #{entCode})
+            </otherwise>
+        </choose>
+		ORDER BY jf.SortKey
+    </select>
+
+    <!-- 미결함 목록 조회 -->
+    <select id="selectJobFunctionApprovalList" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+	       SELECT ApprovalList.* FROM (
+		        SELECT PRO.ProcessID
+					, W.WorkItemID
+					, PER.PerformerID
+					, W.TaskID
+					, PRO.InitiatorID
+					, PRO.InitiatorName
+					, PRO.InitiatorUnitID
+					, PRO.InitiatorUnitName
+					, PER.UserCode
+					, PER.UserName
+					, PER.SubKind
+					, PER.SubKind AS FormSubKind
+					, PD.*
+					, W.Created
+					, F.ExtInfo
+					, U.PhotoPath
+					, IFNULL(JF.SchemaContext, '') as SchemaContext
+				FROM covi_approval4j.jwf_process AS PRO
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+				LEFT OUTER JOIN covi_approval4j.jwf_forms AS F ON PD.FormID = F.FormID
+				LEFT OUTER JOIN covi_approval4j.jwf_formsschema AS JF ON F.SchemaID = JF.SchemaID
+				LEFT OUTER JOIN COVI_SMART4J.sys_object_user AS U ON U.UserCode = PRO.InitiatorID
+				WHERE PER.UserCode = #{jobFunctionCode}
+				AND PER.SubKind = 'T008'
+				AND PER.State = 1
+				AND W.State = 288
+				AND PRO.ProcessState = 288
+				AND PRO.DeleteDate IS NULL
+		]]>
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (PD.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR PD.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND PD.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND FI.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND FI.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+		   ) AS ApprovalList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+	            <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, Priority DESC 
+		    </if>
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Created Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<otherwise>, FormSubject</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+
+    <!-- 미결함 목록 개수 -->
+    <select id="selectJobFunctionApprovalListCnt" parameterType="cmap" resultType="java.lang.Long">
+        <![CDATA[
+	        SELECT COUNT(*) FROM (
+		        SELECT PRO.ProcessID
+					, W.WorkItemID
+					, PER.PerformerID
+					, W.TaskID
+					, PRO.InitiatorID
+					, PRO.InitiatorName
+					, PRO.InitiatorUnitID
+					, PRO.InitiatorUnitName
+					, PER.UserCode
+					, PER.UserName
+					, PER.SubKind
+					, PD.*
+					, W.Created
+				FROM covi_approval4j.jwf_process AS PRO
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+				WHERE PER.UserCode = #{jobFunctionCode}
+				AND PER.SubKind = 'T008'
+				AND PER.State = 1
+				AND W.State = 288
+				AND PRO.ProcessState = 288
+				AND PRO.DeleteDate IS NULL
+		]]>
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (PD.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR PD.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND PD.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND FI.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND FI.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) AS ApprovalList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+    </select>
+
+    <!-- 미결함 그룹별 목록 조회 -->
+    <select id="selectJobFunctionApprovalGroupList" parameterType="cmap" resultType="cmap">
+       SELECT 
+		<if test="searchGroupType == 'Date'">
+			ApprovalList.Date AS fieldID
+			, COUNT(ApprovalList.Date) AS fieldCnt
+	        , ApprovalList.Date AS fieldName
+	    </if>
+	    <if test="searchGroupType == 'FormPrefix'">
+	    	ApprovalList.FormPrefix AS fieldID
+	    	, COUNT(ApprovalList.FormPrefix) AS fieldCnt
+	        , ApprovalList.FormName AS fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorID'">
+	     	ApprovalList.InitiatorID AS fieldID
+	     	, COUNT(ApprovalList.InitiatorID) AS fieldCnt
+	        , ApprovalList.InitiatorName AS fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorUnitID'">
+	     	ApprovalList.InitiatorUnitID AS fieldID
+	     	, COUNT(ApprovalList.InitiatorUnitID) AS fieldCnt
+	        , ApprovalList.InitiatorUnitName AS fieldName
+	    </if>
+	       FROM (
+		        SELECT PRO.ProcessID
+					, W.WorkItemID
+					, PER.PerformerID
+					, PRO.InitiatorID
+					, PRO.InitiatorName
+					, PRO.InitiatorUnitID
+					, PRO.InitiatorUnitName
+					, PER.UserCode
+					, PER.UserName
+					, PER.SubKind
+					, PD.*
+					, W.Created
+					<choose>
+						<when test="searchGroupType == 'Date'">
+							,CASE WHEN IFNULL(W.Created, '') = '0000-00-00 00:00:00' THEN '' 
+							ELSE DATE_FORMAT(Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, W.Created),'%Y-%m-%d')
+							END AS 'Date'								
+						</when>
+						<otherwise>
+							, DATE_FORMAT(W.Created,'%Y-%m-%d') AS `Date`
+						</otherwise>
+					</choose>
+				FROM covi_approval4j.jwf_process AS PRO
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+				WHERE PER.UserCode = #{jobFunctionCode}
+				AND PER.SubKind = 'T008'
+				AND PER.State = 1
+				AND W.State = 288
+				AND PRO.ProcessState = 288
+				AND PRO.DeleteDate IS NULL
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (PD.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR PD.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND PD.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND FI.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND FI.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+		   ) AS ApprovalList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+		</trim>
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+			 	<if test="searchGroupType == 'Date'">
+			 		ApprovalList.Date
+			 	</if>
+		 		<if test="searchGroupType == 'FormPrefix'">
+		 			ApprovalList.FormPrefix
+			    </if>
+			     <if test="searchGroupType == 'InitiatorID'">
+			     	ApprovalList.InitiatorID
+			    </if>
+			     <if test="searchGroupType == 'InitiatorUnitID'">
+			     	ApprovalList.InitiatorUnitID
+			    </if>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	fieldName ASC
+			</if>
+		</trim>
+    </select>
+
+
+     <!-- 미결함 엑셀 데이터 조회 -->
+    <select id="selectJobFunctionApprovalListExcel" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+	       SELECT ApprovalList.* FROM (
+		        SELECT PRO.ProcessID
+					, W.WorkItemID
+					, PER.PerformerID
+					, PRO.InitiatorID
+					, PRO.InitiatorName
+					, PRO.InitiatorUnitID
+					, PRO.InitiatorUnitName
+					, PER.UserCode
+					, PER.UserName
+					, PER.SubKind
+					, PD.*
+					, DATE_FORMAT(W.Created,'%Y-%m-%d %H:%i:%s') AS Created
+					, Fn_SplitString_r(PD.businessdata5, '^^^', 2) as SubUserName
+				FROM covi_approval4j.jwf_process AS PRO
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+				WHERE PER.UserCode = #{jobFunctionCode}
+				AND PER.SubKind = 'T008'
+				AND PER.State = 1
+				AND W.State = 288
+				AND PRO.ProcessState = 288
+				AND PRO.DeleteDate IS NULL
+		]]>
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (PD.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR PD.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND PD.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND FI.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND FI.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+		   ) AS ApprovalList
+	     <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				 <choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+			    <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created LIKE CONCAT('%',#{searchGroupWord},'%')
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, Priority DESC 
+		    </if>
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Created Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<otherwise>, FormSubject</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+    </select>
+
+    <!-- 진행함 목록 조회 -->
+    <select id="selectJobFunctionProcessList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessList.*,JD.DomainDataContext FROM (
+			        SELECT PRO.ProcessID
+						, W.WorkItemID
+						, PER.PerformerID
+						, PRO.InitiatorID
+						, PRO.InitiatorName
+						, PRO.InitiatorUnitID
+						, PRO.InitiatorUnitName
+						, PER.UserCode
+						, PER.UserName
+						, PER.SubKind
+						, PER.SubKind AS FormSubKind
+						, PD.*
+						, W.Finished AS Created
+						, U.PhotoPath
+					FROM covi_approval4j.jwf_process AS PRO
+					INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+					INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+					INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+					INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+					LEFT OUTER JOIN COVI_SMART4J.sys_object_user AS U ON U.UserCode = PRO.InitiatorID
+					WHERE PER.UserCode = #{jobFunctionCode}
+					AND PER.SubKind = 'T008'
+					AND PER.State = 1
+					AND W.State = 528
+					AND PRO.ProcessState = 288
+					AND PRO.DeleteDate IS NULL
+		]]>
+					<choose>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+							AND (PD.BusinessData1 IS NULL
+								<if test='bizDataList != null'>
+									OR PD.BusinessData1 IN 
+									<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+										#{item}
+									</foreach>
+								</if>
+							)
+						</when>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+							AND PD.BusinessData1 = #{businessData1}
+						</when>
+					</choose>
+					<choose>
+			            <when test='isSaaS == "Y"'>
+			                AND FI.EntCode = #{entCode}
+			            </when>
+			            <otherwise>
+							AND FI.EntCode IN ('ORGROOT', #{entCode})
+			            </otherwise>
+			        </choose>
+			) AS ProcessList
+		INNER JOIN COVI_APPROVAL4J.jwf_domaindata JD ON ProcessList.ProcessID = JD.ProcessID
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				 <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, Priority DESC 
+		    </if>
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Created Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<otherwise>, FormSubject</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+    <!-- 진행함 목록 개수 조회 -->
+     <select id="selectJobFunctionProcessListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) FROM (
+		        SELECT PRO.ProcessID
+					, W.WorkItemID
+					, PER.PerformerID
+					, PRO.InitiatorID
+					, PRO.InitiatorName
+					, PRO.InitiatorUnitID
+					, PRO.InitiatorUnitName
+					, PER.UserCode
+					, PER.UserName
+					, PER.SubKind
+					, PD.*
+					, W.Finished AS Created
+				FROM covi_approval4j.jwf_process AS PRO
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+				INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+				WHERE PER.UserCode = #{jobFunctionCode}
+				AND PER.SubKind = 'T008'
+				AND PER.State = 1
+				AND W.State = 528
+				AND PRO.ProcessState = 288
+				AND PRO.DeleteDate IS NULL
+		]]>
+				<choose>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+						AND (PD.BusinessData1 IS NULL
+							<if test='bizDataList != null'>
+								OR PD.BusinessData1 IN 
+								<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+									#{item}
+								</foreach>
+							</if>
+						)
+					</when>
+					<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+						AND PD.BusinessData1 = #{businessData1}
+					</when>
+				</choose>
+				<choose>
+		            <when test='isSaaS == "Y"'>
+		                AND FI.EntCode = #{entCode}
+		            </when>
+		            <otherwise>
+						AND FI.EntCode IN ('ORGROOT', #{entCode})
+		            </otherwise>
+		        </choose>
+			) AS ProcessList
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				 <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	</select>
+
+    <!-- 진행함 그룹별 목록 조회 -->
+      <select id="selectJobFunctionProcessGroupList" parameterType="cmap" resultType="cmap">
+			SELECT 
+			<if test="searchGroupType == 'Date'">
+				ProcessList.Date AS fieldID
+				, COUNT(ProcessList.Date) AS fieldCnt
+		        , ProcessList.Date AS fieldName
+		    </if>
+		    <if test="searchGroupType == 'FormPrefix'">
+		    	ProcessList.FormPrefix AS fieldID
+		    	, COUNT(ProcessList.FormPrefix) AS fieldCnt
+		        , ProcessList.FormName AS fieldName
+		    </if>
+		     <if test="searchGroupType == 'InitiatorID'">
+		     	ProcessList.InitiatorID AS fieldID
+		     	, COUNT(ProcessList.InitiatorID) AS fieldCnt
+		        , ProcessList.InitiatorName AS fieldName
+		    </if>
+		     <if test="searchGroupType == 'InitiatorUnitID'">
+		     	ProcessList.InitiatorUnitID AS fieldID
+		     	, COUNT(ProcessList.InitiatorUnitID) AS fieldCnt
+		        , ProcessList.InitiatorUnitName AS fieldName
+		    </if>
+			FROM (
+			        SELECT PRO.ProcessID
+						, W.WorkItemID
+						, PER.PerformerID
+						, PRO.InitiatorID
+						, PRO.InitiatorName
+						, PRO.InitiatorUnitID
+						, PRO.InitiatorUnitName
+						, PER.UserCode
+						, PER.UserName
+						, PER.SubKind
+						, PD.*
+						, W.Finished AS Created
+						<choose>
+							<when test="searchGroupType == 'Date'">
+								,CASE WHEN IFNULL(W.Finished, '') = '0000-00-00 00:00:00' THEN '' 
+								ELSE DATE_FORMAT(Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, W.Finished),'%Y-%m-%d')
+								END AS 'Date'									
+							</when>
+							<otherwise>
+								, DATE_FORMAT(W.Finished,'%Y-%m-%d') AS `Date`
+							</otherwise>
+						</choose>
+					FROM covi_approval4j.jwf_process AS PRO
+					INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+					INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+					INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+					INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+					WHERE PER.UserCode = #{jobFunctionCode}
+					AND PER.SubKind = 'T008'
+					AND PER.State = 1
+					AND W.State = 528
+					AND PRO.ProcessState = 288
+					AND PRO.DeleteDate IS NULL
+					<choose>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+							AND (PD.BusinessData1 IS NULL
+								<if test='bizDataList != null'>
+									OR PD.BusinessData1 IN 
+									<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+										#{item}
+									</foreach>
+								</if>
+							)
+						</when>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+							AND PD.BusinessData1 = #{businessData1}
+						</when>
+					</choose>
+					<choose>
+			            <when test='isSaaS == "Y"'>
+			                AND FI.EntCode = #{entCode}
+			            </when>
+			            <otherwise>
+							AND FI.EntCode IN ('ORGROOT', #{entCode})
+			            </otherwise>
+			        </choose>
+			) AS ProcessList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>				
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+		</trim>
+
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+				<if test="searchGroupType == 'Date'">
+			 		ProcessList.Date
+			 	</if>
+		 		<if test="searchGroupType == 'FormPrefix'">
+		 			ProcessList.FormPrefix
+			    </if>
+			     <if test="searchGroupType == 'InitiatorID'">
+			     	ProcessList.InitiatorID
+			    </if>
+			     <if test="searchGroupType == 'InitiatorUnitID'">
+			     	ProcessList.InitiatorUnitID
+			    </if>	 	
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	fieldName ASC
+			</if>
+		</trim>
+	</select>
+
+    <!-- 진행함 엑셀 데이터 조회 -->
+	 <select id="selectJobFunctionProcessListExcel" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ProcessList.* FROM (
+			        SELECT PRO.ProcessID
+						, W.WorkItemID
+						, PER.PerformerID
+						, PRO.InitiatorID
+						, PRO.InitiatorName
+						, PRO.InitiatorUnitID
+						, PRO.InitiatorUnitName
+						, PER.UserCode
+						, PER.UserName
+						, PER.SubKind
+						, PD.*
+						, DATE_FORMAT(W.Finished,'%Y-%m-%d %H:%i:%s') AS Created
+						, Fn_SplitString_r(PD.businessdata5, '^^^', 2) as SubUserName
+					FROM covi_approval4j.jwf_process AS PRO
+					INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PRO.FormInstID = FI.FormInstID
+					INNER JOIN covi_approval4j.jwf_workitem AS W ON PRO.ProcessID = W.ProcessID
+					INNER JOIN covi_approval4j.jwf_performer AS PER ON W.WorkItemID = PER.WorkItemID
+					INNER JOIN covi_approval4j.jwf_processdescription AS PD ON PRO.ProcessDescriptionID = PD.ProcessDescriptionID
+					WHERE PER.UserCode = #{jobFunctionCode}
+					AND PER.SubKind = 'T008'
+					AND PER.State = 1
+					AND W.State = 528
+					AND PRO.ProcessState = 288
+					AND PRO.DeleteDate IS NULL
+		]]>
+					<choose>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+							AND (PD.BusinessData1 IS NULL
+								<if test='bizDataList != null'>
+									OR PD.BusinessData1 IN 
+									<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+										#{item}
+									</foreach>
+								</if>
+							)
+						</when>
+						<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+							AND PD.BusinessData1 = #{businessData1}
+						</when>
+					</choose>
+					<choose>
+			            <when test='isSaaS == "Y"'>
+			                AND FI.EntCode = #{entCode}
+			            </when>
+			            <otherwise>
+							AND FI.EntCode IN ('ORGROOT', #{entCode})
+			            </otherwise>
+			        </choose>
+			) AS ProcessList
+	     <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+			    <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Created BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, Priority DESC 
+		    </if>
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Created Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<otherwise>, FormSubject</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+
+
+	<!-- 완료함 목록 조회 -->
+    <select id="selectJobFunctionCompleteList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT CompleteList.* FROM (
+	        SELECT PROA.ProcessID AS ProcessArchiveID
+				, WA.WorkitemID AS WorkItemArchiveID
+				, WA.PerformerID
+				, PROA.InitiatorID
+				, PROA.InitiatorName
+				, PROA.InitiatorUnitID
+				, PROA.InitiatorUnitName
+				, WA.UserCode
+				, WA.UserName
+				, WA.SubKind
+				, WA.SubKind AS FormSubKind
+				, PDA.*
+				, PDA.ProcessDescriptionID AS ProcessDescriptionArchiveID 
+				, WA.Finished
+			FROM covi_approval4j.jwf_process AS PROA
+			INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+			INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+			INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+			WHERE WA.UserCode = #{jobFunctionCode}
+			AND WA.SubKind = 'T008'
+			AND WA.PIBusinessState = '02_01'
+			AND WA.Deleted IS NULL
+			AND WA.PIDeleted IS NULL
+			AND	PROA.ProcessState = 528
+			AND	WA.State = 528
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+		)AS CompleteList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>		
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Finished Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("SubKind")'>, SubKind</when>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>, FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>, InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>, FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>, DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("IsComment")'>, IsComment</when>
+					<when test='sortColumn.equalsIgnoreCase("IsModify")'>, IsModify</when>
+					<otherwise>, Finished</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+    <!-- 완료함 목록 개수 -->
+    <select id="selectJobFunctionCompleteListCnt" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) FROM (
+		        SELECT PROA.ProcessID AS ProcessArchiveID
+					, WA.WorkitemID AS WorkItemArchiveID
+					, WA.PerformerID
+					, PROA.InitiatorID
+					, PROA.InitiatorName
+					, PROA.InitiatorUnitID
+					, PROA.InitiatorUnitName
+					, WA.UserCode
+					, WA.UserName
+					, WA.SubKind
+					, PDA.*
+					, WA.Finished
+				FROM covi_approval4j.jwf_process AS PROA
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+				WHERE WA.UserCode = #{jobFunctionCode}
+				AND WA.SubKind = 'T008'
+				AND WA.PIBusinessState = '02_01'
+				AND WA.Deleted IS NULL
+				AND WA.PIDeleted IS NULL
+				AND	PROA.ProcessState = 528
+				AND	WA.State = 528
+				
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+			) AS CompleteList
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>			
+			</if>
+		</trim>
+	</select>
+
+	<!-- 완료함 그룹별 목록 조회 -->
+    <select id="selectJobFunctionCompleteGroupList" parameterType="cmap" resultType="cmap">
+		SELECT 
+		<if test="searchGroupType == 'Date'">
+			CompleteList.Date AS fieldID
+			, COUNT(CompleteList.Date) AS fieldCnt
+	        , CompleteList.Date AS fieldName
+	    </if>
+	    <if test="searchGroupType == 'FormPrefix'">
+	    	CompleteList.FormPrefix AS fieldID
+	    	, COUNT(CompleteList.FormPrefix) AS fieldCnt
+	        , CompleteList.FormName AS fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorID'">
+	     	CompleteList.InitiatorID AS fieldID
+	     	, COUNT(CompleteList.InitiatorID) AS fieldCnt
+	        , CompleteList.InitiatorName AS fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorUnitID'">
+	     	CompleteList.InitiatorUnitID AS fieldID
+	     	, COUNT(CompleteList.InitiatorUnitID) AS fieldCnt
+	        , CompleteList.InitiatorUnitName AS fieldName
+	    </if>
+		FROM (
+	        SELECT PROA.ProcessID AS ProcessArchiveID
+				, WA.WorkitemID AS WorkItemArchiveID
+				, WA.PerformerID
+				, PROA.InitiatorID
+				, PROA.InitiatorName
+				, PROA.InitiatorUnitID
+				, PROA.InitiatorUnitName
+				, WA.UserCode
+				, WA.UserName
+				, WA.SubKind
+				, PDA.*
+				, WA.Finished
+				<choose>
+					<when test="searchGroupType == 'Date'">
+						,CASE WHEN IFNULL(WA.Finished, '') = '0000-00-00 00:00:00' THEN '' 
+						ELSE DATE_FORMAT(Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, WA.Finished),'%Y-%m-%d')
+						END AS 'Date'							
+					</when>
+					<otherwise>
+						, DATE_FORMAT(WA.Finished,'%Y-%m-%d') AS `Date`
+					</otherwise>
+				</choose>
+			FROM covi_approval4j.jwf_process AS PROA
+			INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+			INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+			INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+			WHERE WA.UserCode = #{jobFunctionCode}
+			AND WA.SubKind = 'T008'
+			AND WA.PIBusinessState = '02_01'
+			AND WA.Deleted IS NULL
+			AND WA.PIDeleted IS NULL
+			AND	PROA.ProcessState = 528
+			AND	WA.State = 528
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+		)AS CompleteList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		  	    `Date` BETWEEN #{startDate} AND TIMESTAMPADD(Day,1,#{endDate})
+		  	 </if>
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				AND 
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+		</trim>
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+			 	<if test="searchGroupType == 'Date'">
+			 		CompleteList.Date
+			 	</if>
+		 		<if test="searchGroupType == 'FormPrefix'">
+		 			CompleteList.FormPrefix
+			    </if>
+			     <if test="searchGroupType == 'InitiatorID'">
+			     	CompleteList.InitiatorID
+			    </if>
+			     <if test="searchGroupType == 'InitiatorUnitID'">
+			     	CompleteList.InitiatorUnitID
+			    </if>		
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	fieldName ASC
+			</if>
+		</trim>
+	</select>
+
+    <!-- 완료함 엑셀 목록 조회 -->
+    <select id="selectJobFunctionCompleteListExcel" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT CompleteList.* FROM (
+	        SELECT PROA.ProcessID AS ProcessArchiveID
+				, WA.WorkitemID AS WorkItemArchiveID
+				, WA.PerformerID
+				, PROA.InitiatorID
+				, PROA.InitiatorName
+				, PROA.InitiatorUnitID
+				, PROA.InitiatorUnitName
+				, WA.UserCode
+				, WA.UserName
+				, WA.SubKind
+				, PDA.*
+				, DATE_FORMAT(WA.Finished,'%Y-%m-%d %H:%i:%s') AS Finished
+				, Fn_SplitString_r(PDA.businessdata5, '^^^', 2) as SubUserName
+			FROM covi_approval4j.jwf_process AS PROA
+			INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+			INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+			INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+			WHERE WA.UserCode = #{jobFunctionCode}
+			AND WA.SubKind = 'T008'
+			AND WA.PIBusinessState = '02_01'
+			AND WA.Deleted IS NULL
+			AND WA.PIDeleted IS NULL
+			AND	PROA.ProcessState = 528
+			AND	WA.State = 528
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+		)AS CompleteList
+	     <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+			    <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+		  	<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Finished Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("SubKind")'>, SubKind</when>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>, FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>, InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>, FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>, DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("IsComment")'>, IsComment</when>
+					<when test='sortColumn.equalsIgnoreCase("IsModify")'>, IsModify</when>
+					<otherwise>, Finished</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+
+    <!-- 반려함 목록 조회 -->
+    <select id="selectJobFunctionRejectList" parameterType="cmap" resultType="cmap">
+      <![CDATA[
+      SELECT RejectList.* FROM (
+	      SELECT PROA.ProcessID AS ProcessArchiveID
+				, WA.WorkitemID AS WorkItemArchiveID
+				, WA.PerformerID
+				, PROA.InitiatorID
+				, PROA.InitiatorName
+				, PROA.InitiatorUnitID
+				, PROA.InitiatorUnitName
+				, WA.UserCode
+				, WA.UserName
+				, WA.SubKind
+				, WA.SubKind AS FormSubKind
+				, PDA.*
+				, PDA.ProcessDescriptionID AS ProcessDescriptionArchiveID
+				, WA.Finished
+			FROM covi_approval4j.jwf_process AS PROA
+			INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+			INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+			INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+			WHERE WA.UserCode = #{jobFunctionCode}
+			AND WA.SubKind = 'T008'
+			AND WA.PIBusinessState = '02_02'
+			AND WA.Deleted IS NULL
+			AND WA.PIDeleted IS NULL
+			AND	PROA.ProcessState = 528
+			AND	WA.State = 528
+			
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+		) AS RejectList
+	    <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+		    <if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Finished Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("SubKind")'>, SubKind</when>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>, FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>, InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>, FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>, DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("IsComment")'>, IsComment</when>
+					<when test='sortColumn.equalsIgnoreCase("IsModify")'>, IsModify</when>
+					<otherwise>, Finished</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+
+    <!-- 반려함 목록 개수  -->
+    <select id="selectJobFunctionRejectListCnt" parameterType="cmap" resultType="java.lang.Long">
+      <![CDATA[
+	      	SELECT COUNT(*) FROM (
+		      SELECT PROA.ProcessID AS ProcessArchiveID
+					, WA.WorkitemID AS WorkItemArchiveID
+					, WA.PerformerID
+					, PROA.InitiatorID
+					, PROA.InitiatorName
+					, PROA.InitiatorUnitID
+					, PROA.InitiatorUnitName
+					, WA.UserCode
+					, WA.UserName
+					, WA.SubKind
+					, PDA.*
+					, WA.Finished
+				FROM covi_approval4j.jwf_process AS PROA
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+				WHERE WA.UserCode = #{jobFunctionCode}
+				AND WA.SubKind = 'T008'
+				AND WA.PIBusinessState = '02_02'
+				AND WA.Deleted IS NULL
+				AND WA.PIDeleted IS NULL
+				AND	PROA.ProcessState = 528
+				AND	WA.State = 528
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+			) AS RejectList
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+				<choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	</select>
+
+     <!-- 반려함 그룹별 목록 조회 -->
+    <select id="selectJobFunctionRejectGroupList" parameterType="cmap" resultType="cmap">
+		SELECT 
+		<if test="searchGroupType == 'Date'">
+			RejectList.Date AS fieldID
+			, COUNT(RejectList.Date) AS fieldCnt
+	        , RejectList.Date as fieldName
+	    </if>
+	    <if test="searchGroupType == 'FormPrefix'">
+	    	RejectList.FormPrefix AS fieldID
+	    	, COUNT(RejectList.FormPrefix) AS fieldCnt
+	        , RejectList.FormName as fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorID'">
+	     	RejectList.InitiatorID AS fieldID
+	     	, COUNT(RejectList.InitiatorID) AS fieldCnt
+	        , RejectList.InitiatorName as fieldName
+	    </if>
+	     <if test="searchGroupType == 'InitiatorUnitID'">
+	     	RejectList.InitiatorUnitID AS fieldID
+	     	, COUNT(RejectList.InitiatorUnitID) AS fieldCnt
+	        , RejectList.InitiatorUnitName as fieldName
+	    </if>
+	      FROM (
+		      SELECT PROA.ProcessID AS ProcessArchiveID
+					, WA.WorkitemID AS WorkItemArchiveID
+					, WA.PerformerID
+					, PROA.InitiatorID
+					, PROA.InitiatorName
+					, PROA.InitiatorUnitID
+					, PROA.InitiatorUnitName
+					, WA.UserCode
+					, WA.UserName
+					, WA.SubKind
+					, PDA.*
+					, WA.Finished
+					<choose>
+						<when test="searchGroupType == 'Date'">
+							,CASE WHEN IFNULL(WA.Finished, '') = '0000-00-00 00:00:00' THEN '' 
+							ELSE DATE_FORMAT(Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, WA.Finished),'%Y-%m-%d')
+							END AS 'Date'								
+						</when>
+						<otherwise>
+							, DATE_FORMAT(WA.Finished,'%Y-%m-%d') AS `Date`
+						</otherwise>
+					</choose>
+				FROM covi_approval4j.jwf_process AS PROA
+				INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+				INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+				INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+				WHERE WA.UserCode = #{jobFunctionCode}
+				AND WA.SubKind = 'T008'
+				AND WA.PIBusinessState = '02_02'
+				AND WA.Deleted IS NULL
+				AND WA.PIDeleted IS NULL
+				AND	PROA.ProcessState = 528
+				AND	WA.State = 528
+				
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+			) AS RejectList
+	    <!-- 검색 Where 절  -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+		</trim>
+		<!-- Group By 절 -->
+		<trim prefix="GROUP BY">
+		  	<if test="searchGroupType != null and searchGroupType != '' ">
+			 	<if test="searchGroupType == 'Date'">
+			 		RejectList.`Date`
+			 	</if>
+		 		<if test="searchGroupType == 'FormPrefix'">
+		 			RejectList.FormPrefix
+			    </if>
+			     <if test="searchGroupType == 'InitiatorID'">
+			     	RejectList.InitiatorID
+			    </if>
+			     <if test="searchGroupType == 'InitiatorUnitID'">
+			     	RejectList.InitiatorUnitID
+			    </if>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="searchGroupType != null ">
+			 	fieldName ASC
+			</if>
+		</trim>
+	</select>
+
+
+    <!-- 반려함 엑셀 목록 조회 -->
+    <select id="selectJobFunctionRejectListExcel" parameterType="cmap" resultType="cmap">
+      <![CDATA[
+      SELECT RejectList.* FROM (
+	      SELECT PROA.ProcessID AS ProcessArchiveID
+				, WA.WorkitemID AS WorkItemArchiveID
+				, WA.PerformerID
+				, PROA.InitiatorID
+				, PROA.InitiatorName
+				, PROA.InitiatorUnitID
+				, PROA.InitiatorUnitName
+				, WA.UserCode
+				, WA.UserName
+				, WA.SubKind
+				, PDA.*
+				, DATE_FORMAT(WA.Finished,'%Y-%m-%d %H:%i:%s') AS Finished
+				, Fn_SplitString_r(PDA.businessdata5, '^^^', 2) as SubUserName				
+			FROM covi_approval4j.jwf_process AS PROA
+			INNER JOIN covi_approval4j.jwf_forminstance AS FI ON PROA.FormInstID = FI.FormInstID
+			INNER JOIN covi_approval4j.jwf_workitem AS WA ON PROA.ProcessID = WA.ProcessID
+			INNER JOIN covi_approval4j.jwf_processdescription AS PDA ON PROA.ProcessDescriptionID = PDA.ProcessDescriptionID
+			WHERE WA.UserCode = #{jobFunctionCode}
+			AND WA.SubKind = 'T008'
+			AND WA.PIBusinessState = '02_02'
+			AND WA.Deleted IS NULL
+			AND WA.PIDeleted IS NULL
+			AND	PROA.ProcessState = 528
+			AND	WA.State = 528
+			
+		]]>
+			<choose>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('Y')">
+					AND (PDA.BusinessData1 IS NULL
+						<if test='bizDataList != null'>
+							OR PDA.BusinessData1 IN 
+							<foreach collection="bizDataList" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					)
+				</when>
+				<when test="isApprovalList != null and isApprovalList.equalsIgnoreCase('N')">
+					AND PDA.BusinessData1 = #{businessData1}
+				</when>
+			</choose>
+			<choose>
+	            <when test='isSaaS == "Y"'>
+	                AND FI.EntCode = #{entCode}
+	            </when>
+	            <otherwise>
+					AND FI.EntCode IN ('ORGROOT', #{entCode})
+	            </otherwise>
+	        </choose>
+		) AS RejectList
+	     <!-- 검색 데이터 Where 절 -->
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+				<choose> 
+					<when test='searchType.equalsIgnoreCase("InitiatorUnitName")'>InitiatorUnitName</when>
+					<when test='searchType.equalsIgnoreCase("InitiatorName")'>InitiatorName</when>
+					<when test='searchType.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>FormSubject</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{searchWord},'%')
+			</if>
+			<if test="searchGroupType != null and searchGroupType !='' and searchGroupWord != null and searchGroupWord != '' and searchGroupWord.length() gt 0">
+			    <choose>
+	                <when test="searchGroupType == 'Date' ">
+	                    AND Finished BETWEEN #{searchGroupWord} AND TIMESTAMPADD(Day,1,#{searchGroupWord})
+	                </when>
+	                <otherwise>
+	                    AND 
+						<choose>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorID")'>InitiatorID</when>
+							<when test='searchGroupType.equalsIgnoreCase("InitiatorUnitID")'>InitiatorUnitID</when>
+							<when test='searchGroupType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+						</choose>
+						= #{searchGroupWord}
+	                </otherwise>
+	            </choose>
+			</if>
+		</trim>
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY" prefixOverrides =",">
+		  	<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+		        , Finished Desc
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("SubKind")'>, SubKind</when>
+					<when test='sortColumn.equalsIgnoreCase("FormSubject")'>, FormSubject</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorUnitName")'>, InitiatorUnitName</when>
+					<when test='sortColumn.equalsIgnoreCase("InitiatorName")'>, InitiatorName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFile")'>, IsFile</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>, FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("DocNo")'>, DocNo</when>
+					<when test='sortColumn.equalsIgnoreCase("IsComment")'>, IsComment</when>
+					<when test='sortColumn.equalsIgnoreCase("IsModify")'>, IsModify</when>
+					<otherwise>, Finished</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectJobfunctionAuth" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+        FROM covi_approval4j.jwf_jobfunction jf
+		INNER JOIN covi_approval4j.jwf_jobfunctionmember jfm ON jf.JobFunctionID = jfm.JobFunctionID
+		WHERE jf.JOBFUNCTIONCODE = #{jobFunctionCode}
+		AND jf.EntCode = #{entCode}
+		AND jfm.USERCODE = #{userID}
+	</select>
+</mapper>
+

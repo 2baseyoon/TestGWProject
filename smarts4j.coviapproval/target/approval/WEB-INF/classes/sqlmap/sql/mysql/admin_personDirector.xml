@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.personDirector">
+    <select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT A.* FROM (SELECT A.UserCode
+			, A.EntCode
+			, A.UserName
+			, A.Description
+			, A.SortKey
+			, A.AuthStartDate
+			, A.AuthEndDate		
+			, B.TargetCode AS TargetCode 
+			, B.TargetName AS TargetName 
+			, B.ViewStartDate AS ViewStartDate 
+			, B.ViewEndDate AS ViewEndDate
+			FROM covi_approval4j.jwf_persondirector A 
+			LEFT OUTER JOIN covi_approval4j.jwf_persondirectormember B ON A.UserCode = B.UserCode AND A.EntCode = B.EntCode
+			WHERE A.UserCode = #{UserCode}
+			AND A.EntCode = #{EntCode}
+		) A
+    ]]>  
+	</select>
+		
+ 	<select id="selectgrid" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM (SELECT A.UserCode
+				, A.EntCode
+				, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, A.UserName) AS UserName
+				, A.Description
+				, A.SortKey
+				, A.AuthStartDate
+				, A.AuthEndDate					
+				, group_concat(B.TargetCode) AS TargetCode 
+				, GROUP_CONCAT(CONCAT( covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, B.TargetName), '(', B.TargetCode, ')') ) AS TargetName 
+		FROM covi_approval4j.jwf_persondirector A 
+		LEFT OUTER JOIN covi_approval4j.jwf_persondirectormember B ON A.UserCode = B.UserCode AND A.EntCode = B.EntCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="UserCode != null and UserCode != '' and UserCode.length() gt 0">
+			 	A.UserCode = #{UserCode}
+			</if>	
+			<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+			 	AND A.EntCode = #{EntCode}
+			</if>		
+		</trim>
+		GROUP BY A.UserCode
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("TargetName")'>TargetName</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+ 	<select id="selectgridcnt" resultType="java.lang.Long">
+		<![CDATA[
+		SELECT COUNT(*) FROM (
+			SELECT A.UserCode
+				, A.EntCode
+				, A.UserName
+				, A.Description
+				, A.SortKey
+				, A.AuthStartDate
+				, A.AuthEndDate						
+				, group_concat(B.TargetCode) AS TargetCode 
+				, group_concat(B.TargetName) AS TargetName 
+			FROM covi_approval4j.jwf_persondirector A 
+			LEFT OUTER JOIN covi_approval4j.jwf_persondirectormember B ON A.UserCode = B.UserCode AND A.EntCode = B.EntCode
+		]]>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+		    	<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+				 	A.EntCode = #{EntCode}
+				</if>	
+		    	<if test="UserCode != null and UserCode != '' and UserCode.length() gt 0">
+					AND A.UserCode = #{UserCode}
+				</if>		  
+				
+			</trim>
+			GROUP BY A.UserCode
+		) A
+	</select>
+ 	
+ 	
+ 	<delete id="deletejwf_persondirector" parameterType="cmap">
+        DELETE 
+    	FROM covi_approval4j.jwf_persondirector 
+  		WHERE   UserCode = #{UserCode} 
+  			AND EntCode = #{EntCode}
+		
+	</delete>
+	
+	<delete id="deletejwf_persondirectormember" parameterType="cmap">
+        DELETE 
+    	FROM covi_approval4j.jwf_persondirectormember
+  		WHERE UserCode = #{UserCode} 
+  		AND EntCode = #{EntCode}
+	</delete>
+ 	
+	<insert id="insertjwf_persondirector" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_persondirector 
+		(
+		     UserCode
+			,EntCode
+			,UserName
+			,Description
+			,SortKey
+			,AuthStartDate
+			,AuthEndDate		
+		)
+		VALUES 
+		(
+			 #{UserCode}
+			,#{EntCode}
+			,#{UserName}
+			,#{Description}
+			,IF(#{SortKey} = '', 0, #{SortKey})
+			,IF(#{AuthStartDate} = '', NULL, #{AuthStartDate})
+			,IF(#{AuthEndDate} = '', NULL, #{AuthEndDate})
+		)
+	]]>
+	</insert>
+	
+	<insert id="insertjwf_persondirectormember" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_persondirectormember 
+		(
+			UserCode
+			,EntCode
+			,TargetCode
+			,TargetName
+			,ViewStartDate
+			,ViewEndDate
+		)
+		VALUES 
+		(
+			#{UserCode}
+			,#{EntCode}
+			,#{TargetCode}
+			,#{TargetName}
+			,IF(#{ViewStartDate} = '', NULL, #{ViewStartDate})
+			,IF(#{ViewEndDate} = '', NULL, #{ViewEndDate})
+		)
+	]]>
+	</insert>
+	
+	<select id="selectDuplicateTargetCnt" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(*) 
+		FROM covi_approval4j.jwf_persondirector AS PD
+		LEFT OUTER JOIN covi_approval4j.jwf_persondirectormember AS PDM ON PD.UserCode = PDM.UserCode AND PD.EntCode = PDM.EntCode
+		WHERE PD.UserCode = #{UserCode}
+		AND PD.EntCode <![CDATA[<>]]> #{EntCode}
+		    <if test="TargetCodes != null and TargetCodes.size != 0">
+		       	AND PDM.TargetCode IN
+		        <foreach collection="TargetCodes" item="TargetCode" open="(" close=")" separator=",">
+		           #{TargetCode}
+		        </foreach>
+			</if>
+	</select>
+</mapper>
+

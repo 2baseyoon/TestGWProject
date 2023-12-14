@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="cache.baseconfig">
+	
+ 	<select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT concat(DN_ID ,'_',SettingKey) AS `key` , SettingValue AS value 
+		FROM covi_smart4j.base_config WHERE IsUse = 'Y'
+    ]]>
+	</select>
+</mapper>

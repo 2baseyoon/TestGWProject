@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="investigation">
+	<select id="selectInvestigationList" parameterType="cmap" resultType="cmap">
+		SELECT CD.InvestigationID 
+				, CD.CompanyCode 
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, #{companyCode}) CompanyName
+				, CD.InvestCodeGroup
+				, CASE WHEN CD.IsGroup = 'Y' THEN CD.InvestCodeName ELSE GrpCD.InvestCodeName END AS InvestCodeGroupName
+				, CD.InvestCode
+				, CD.InvestCodeName
+				, CD.IsGroup
+				, CD.IsUse
+				, CD.SortKey
+				, CD.InvestAmount
+				, CD.Description
+				, CD.RegisterID
+				, CD.ModifierID
+				, DATE_FORMAT(CD.ModifyDate, '%Y.%m.%d') ModifyDate
+				, DATE_FORMAT(CD.RegistDate, '%Y.%m.%d') RegistDate
+		FROM covi_account4j_si.act_investigation CD
+		LEFT OUTER JOIN covi_account4j_si.act_investigation GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.InvestCode = Cd.InvestCodeGroup
+		WHERE 1=1
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+		<if test="searchGrp != null and searchGrp != ''">
+			AND CD.InvestCodeGroup = #{searchGrp}
+		</if>
+		<if test="searchText != null and searchText != ''">
+		 	AND CD.InvestCodeName LIKE CONCAT('%' , #{searchText} , '%')
+		</if>	
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,GrpCD.SortKey
+				,CD.IsGroup DESC
+				,CD.SortKey
+				,CD.InvestCode 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("InvestigationID")'>InvestigationID</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("InvestCodeGroup")'>InvestCodeGroup</when>
+					<when test='sortColumn.equalsIgnoreCase("InvestCodeGroupName")'>InvestCodeGroupName</when>
+					<when test='sortColumn.equalsIgnoreCase("InvestCode")'>InvestCode</when>
+					<when test='sortColumn.equalsIgnoreCase("InvestCodeName")'>InvestCodeName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsGroup")'>IsGroup</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("InvestAmount")'>InvestAmount</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterID")'>RegisterID</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifierID")'>ModifierID</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	
+	<select id="selectInvestigationListExcel" parameterType="cmap" resultType="cmap">
+		/*	investigation.selectInvestigationListExcel
+		*/
+		SELECT CD.InvestigationID 
+				, CD.CompanyCode 
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, #{companyCode}) CompanyName
+				, CD.InvestCodeGroup
+				, CASE WHEN CD.IsGroup = 'Y' THEN CD.InvestCodeName ELSE GrpCD.InvestCodeName END AS InvestCodeGroupName
+				, CD.InvestCode
+				, CD.InvestCodeName
+				, CD.IsGroup
+				, CD.IsUse
+				, CD.SortKey
+				, CD.InvestAmount
+				, CD.Description
+				, CD.RegisterID
+				, CD.ModifierID
+				, DATE_FORMAT(CD.ModifyDate, '%Y.%m.%d') ModifyDate
+				, DATE_FORMAT(CD.RegistDate, '%Y.%m.%d') RegistDate
+		FROM covi_account4j_si.act_investigation CD
+		LEFT OUTER JOIN covi_account4j_si.act_investigation GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.InvestCode = Cd.InvestCodeGroup
+		WHERE 1=1
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchGrp != null and searchGrp != ''">
+		 	AND CD.InvestCodeGroup = #{searchGrp}
+		</if>
+	  	<if test="searchText != null and searchText != ''">
+		 	AND CD.InvestCodeName LIKE CONCAT('%' , #{searchText} , '%')
+		</if>
+		ORDER BY GrpCD.SortKey
+				,CD.IsGroup DESC
+				,CD.SortKey
+				,CD.InvestCode 
+	</select>
+
+ 	<select id="selectInvestigationListCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	investigation.selectInvestigationListCnt
+ 	    */
+ 	    SELECT COUNT(CD.InvestigationID)
+		FROM covi_account4j_si.act_investigation CD
+		LEFT OUTER JOIN covi_account4j_si.act_investigation GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.InvestCode = Cd.InvestCodeGroup
+		WHERE 1=1
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+	  	<if test="searchGrp != null and searchGrp != ''">
+		 	AND CD.InvestCodeGroup = #{searchGrp}
+		</if>
+	  	<if test="searchText != null and searchText != ''">
+		 	AND CD.InvestCodeName LIKE CONCAT('%' , #{searchText} , '%')
+		</if>
+	</select>
+
+    
+    <select id="selectInvestItemCombo" parameterType="cmap" resultType="cmap">
+        /*
+        investigation.selectInvestItemCombo
+        */
+        SELECT 
+        	InvestigationID,
+        	InvestCodeGroup,
+        	InvestCode,
+        	InvestCodeName,
+        	IsGroup,
+        	IsUse,
+        	SortKey,
+        	InvestAmount,
+        	Description
+		FROM covi_account4j_si.act_investigation 
+		WHERE IsGroup = 'Y'
+		AND IsUse = 'Y'
+		AND	CompanyCode = (
+				CASE WHEN EXISTS (SELECT InvestCode FROM covi_account4j_si.act_investigation WHERE IsGroup	= 'Y' AND IsUse = 'Y' AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+    </select>
+    
+    <select id="selectInvestTargetCombo" parameterType="cmap" resultType="cmap">
+        /*
+        investigation.selectInvestTargetCombo
+        */
+        SELECT 
+        	InvestigationID,
+        	InvestCodeGroup,
+        	InvestCode,
+        	InvestCodeName,
+        	IsGroup,
+        	IsUse,
+        	SortKey,
+        	InvestAmount,
+        	Description
+		FROM covi_account4j_si.act_investigation 
+		WHERE IsGroup = 'N'
+		AND IsUse = 'Y'
+		AND InvestCodeGroup = #{investCodeGroup}
+		AND	CompanyCode = (
+				CASE WHEN EXISTS (SELECT InvestCode FROM covi_account4j_si.act_investigation WHERE IsGroup	= 'N' AND IsUse = 'Y' AND InvestCodeGroup = #{investCodeGroup} AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+    </select>
+
+ 	<select id="selectInvestigationCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	investigation.selectInvestigationCnt
+ 	    */
+ 	    SELECT COUNT(CD.InvestigationID)
+		FROM covi_account4j_si.act_investigation CD
+		WHERE InvestigationID = #{investigationID}
+	</select>
+	
+    <insert id="insertInvestInfo" parameterType="cmap">
+        /*
+        investigation.insertInvestInfo
+        */
+        INSERT INTO covi_account4j_si.act_investigation (
+        		CompanyCode,
+	        	InvestCodeGroup,
+				InvestCode,
+				InvestCodeName,
+				IsGroup,
+				IsUse,
+				SortKey,
+				InvestAmount,
+				Description,
+				RegisterID,
+				RegistDate,
+				ModifyDate
+	        
+        ) VALUES (
+        		#{companyCode},
+				#{investCodeGroup},
+				#{investCode},
+				#{investCodeName},
+				#{isGroup},
+				#{isUse},
+				#{sortKey},
+				#{investAmount},
+				#{description},
+				#{userCode},
+				NOW(),
+				NOW()
+        )
+        
+    </insert>
+    
+	<update id="updateInvestInfo" parameterType="cmap">
+		/*
+		investigation.updateInvestInfo
+		*/
+		UPDATE covi_account4j_si.act_investigation
+		SET 
+			CompanyCode = #{companyCode}
+			, InvestCodeName = #{investCodeName}
+			, IsUse = #{isUse}
+			, SortKey = #{sortKey}
+			, InvestAmoun = #{investAmount}
+			, Description = #{description}
+			, ModifierID = #{userCode}
+			, ModifyDate = NOW()
+		WHERE InvestigationID = #{investigationID}
+	</update>
+    
+    <delete id="deleteInvestInfo">
+        /*
+        investigation.deleteInvestInfo
+        */
+    	DELETE FROM covi_account4j_si.act_investigation
+    	WHERE InvestigationID = #{investigationID}
+    </delete>
+		
+	<select id="selectInvestigationInfo" parameterType="cmap" resultType="cmap">
+		/*
+		investigation.selectInvestigationInfo
+		*/
+		
+		SELECT CD.InvestigationID 
+			, CD.CompanyCode 
+			, CD.InvestCodeGroup
+			, CASE WHEN CD.IsGroup = 'Y' THEN CD.InvestCodeName ELSE GrpCD.InvestCodeName END AS InvestCodeGroupName
+			, CD.InvestCode
+			, CD.InvestCodeName
+			, CD.IsGroup
+			, CD.IsUse
+			, CD.SortKey
+			, CD.InvestAmount
+			, CD.Description
+			, CD.RegisterID
+			, CD.ModifierID
+			, DATE_FORMAT(CD.ModifyDate, '%Y.%m.%d') ModifyDate
+			, DATE_FORMAT(CD.RegistDate, '%Y.%m.%d') RegistDate
+		FROM covi_account4j_si.act_investigation CD
+		LEFT OUTER JOIN covi_account4j_si.act_investigation GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.InvestCode = Cd.InvestCodeGroup
+		WHERE 1=1
+		AND CD.InvestigationID = #{investigationID}
+	</select>
+	
+    <select id="selectInvestCrtr" parameterType="cmap" resultType="cmap">	    
+		SELECT 
+			 MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'myself' THEN InvestAmount END ) AS marrigeMyself
+			,MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'children' THEN InvestAmount END ) AS marrigeChildren
+			,MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'sibling' THEN InvestAmount END ) AS marrigeSibiling			
+			,MAX( CASE WHEN InvestCodeGroup = 'sixty' AND InvestCode = 'parents' THEN InvestAmount END ) AS parentsMyself
+			,MAX( CASE WHEN InvestCodeGroup = 'sixty' AND InvestCode = 'spouseparents' THEN InvestAmount END ) AS parentsSpouse		
+			,MAX( CASE WHEN InvestCodeGroup = 'childbirth' AND InvestCode = 'myself' THEN InvestAmount END ) AS childbirthMyself
+			,MAX( CASE WHEN InvestCodeGroup = 'firstbirth' AND InvestCode = 'myself' THEN InvestAmount END ) AS firstbirthMyself		
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'myself' THEN InvestAmount END ) AS condolenceMyself
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'spouse' THEN InvestAmount END ) AS condolenceSpouse			
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'children' THEN InvestAmount END ) AS condolenceChildren	
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'parents' THEN InvestAmount END ) AS condolenceParents
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'sibling' THEN InvestAmount END ) AS condolenceSibling
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'grandparents' THEN InvestAmount END ) AS condolenceGrand
+
+			,MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'myself' THEN InvestAmountEtc END ) AS marrigeMyself_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'children' THEN InvestAmountEtc END ) AS marrigeChildren_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'marriage' AND InvestCode = 'sibling' THEN InvestAmountEtc END ) AS marrigeSibiling_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'sixty' AND InvestCode = 'parents' THEN InvestAmountEtc END ) AS parentsMyself_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'sixty' AND InvestCode = 'spouseparents' THEN InvestAmountEtc END ) AS parentsSpouse_etc		
+			,MAX( CASE WHEN InvestCodeGroup = 'childbirth' AND InvestCode = 'myself' THEN InvestAmountEtc END ) AS childbirthMyself_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'firstbirth' AND InvestCode = 'myself' THEN InvestAmountEtc END ) AS firstbirthMyself_etc	
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'myself' THEN InvestAmountEtc END ) AS condolenceMyself_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'spouse' THEN InvestAmountEtc END ) AS condolenceSpouse_etc		
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'children' THEN InvestAmountEtc END ) AS condolenceChildren_etc	
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'parents' THEN InvestAmountEtc END ) AS condolenceParents_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'sibling' THEN InvestAmountEtc END ) AS condolenceSibling_etc
+			,MAX( CASE WHEN InvestCodeGroup = 'condolence' AND InvestCode = 'grandparents' THEN InvestAmountEtc END ) AS condolenceGrand_etc
+		FROM covi_account4j_si.act_investigation INV
+		WHERE IsUse = 'Y'
+		AND	IsGroup = 'N'
+	</select>
+	
+	<select id="selectInvestigationUseList" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT 
+				AEA.ExpenceApplicationID,  
+				AEA.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AEA.CompanyCode, #{companyCode}) CompanyName,
+				AEA.ApplicationTitle,
+				AEA.ApplicationStatus,
+				AEA.ProcessID,
+				(SELECT FormInstID FROM covi_approval4j.jwf_process P WHERE P.ProcessID = AEA.ProcessID) AS FormInstID,
+				AEA.RegisterID,
+				SOU.DisplayName AS UserName,
+				SOUB.DeptName,
+				SOUB.JobLevelName,
+				AEAL.ProofDate,
+				DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDateStr,
+				AEAL.PayDate,
+				DATE_FORMAT(AEAL.PayDate, '%Y.%m.%d') AS PayDateStr,
+				AEAL.ReservedStr1 AS InvestItem, 
+				(SELECT InvestCodeName FROM covi_account4j_si.act_investigation AII WHERE AEAL.ReservedStr1 = AII.InvestCodeGroup AND AII.IsGroup = 'Y') AS InvestItemName, 
+				AEAL.ReservedStr2 AS InvestTarget,
+				(SELECT InvestCodeName FROM covi_account4j_si.act_investigation AIT WHERE AEAL.ReservedStr1 = AIT.InvestCodeGroup AND AEAL.ReservedStr2 = AIT.InvestCode AND AIT.IsGroup = 'N') AS InvestTargetName,
+				AEAL.TotalAmount
+			FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			INNER JOIN covi_smart4j.sys_object_user SOU
+			ON AEA.RegisterID = SOU.UserCode
+			INNER JOIN covi_smart4j.sys_object_user_basegroup SOUB
+			ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+			WHERE 1=1
+			AND AEA.RequestType = 'INVEST'
+			AND AEA.ApplicationStatus = 'E'
+			<if test="companyCode != null and companyCode != ''">
+		 		AND AEA.CompanyCode = #{companyCode}
+		 	</if>
+			<if test="ProofDate != null and ProofDate != ''">
+		 		AND AEAL.ProofDate = #{ProofDate}
+		 	</if>
+			<if test="PayDate != null and PayDate != ''">
+		 		AND AEAL.PayDate = #{PayDate}
+		 	</if>
+			<if test="DeptName != null and DeptName != ''">
+		 		AND SOUB.DeptName LIKE CONCAT('%', #{DeptName}, '%')
+		 	</if>
+			<if test="UserName != null and UserName != ''">
+		 		AND SOU.DisplayName LIKE CONCAT('%', #{UserName}, '%')
+		 	</if>
+			<if test="InvestItem != null and InvestItem != ''">
+		 		AND AEAL.ReservedStr1 = #{InvestItem}
+		 	</if>
+			<if test="InvestTarget != null and InvestTarget != ''">
+		 		AND AEAL.ReservedStr2 = #{InvestTarget}
+		 	</if>
+		) A
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ProofDate DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>ApplicationTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("ProofDateStr")'>ProofDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("PayDateStr")'>PayDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevelName")'>JobLevelName</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>TotalAmount</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+	    	LIMIT #{pageSize} OFFSET #{pageOffset}
+	    </if>
+	</select>
+	
+	<select id="selectInvestigationUseListExcel" parameterType="cmap" resultType="cmap">
+		SELECT * FROM (
+			SELECT 
+				AEA.ExpenceApplicationID,  
+				AEA.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AEA.CompanyCode, #{companyCode}) CompanyName,
+				AEA.ApplicationTitle,
+				AEA.ApplicationStatus,
+				AEA.ProcessID,
+				AEA.RegisterID,
+				SOU.DisplayName AS UserName,
+				SOUB.DeptName,
+				SOUB.JobLevelName,
+				AEAL.ProofDate,
+				DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDateStr,
+				AEAL.PayDate,
+				DATE_FORMAT(AEAL.PayDate, '%Y.%m.%d') AS PayDateStr,
+				AEAL.ReservedStr1 AS InvestItem,
+				(SELECT InvestCodeName FROM covi_account4j_si.act_investigation AII WHERE AEAL.ReservedStr1 = AII.InvestCodeGroup AND AII.IsGroup = 'Y') AS InvestItemName, 
+				AEAL.ReservedStr2 AS InvestTarget,
+				(SELECT InvestCodeName FROM covi_account4j_si.act_investigation AIT WHERE AEAL.ReservedStr1 = AIT.InvestCodeGroup AND AEAL.ReservedStr2 = AIT.InvestCode AND AIT.IsGroup = 'N') AS InvestTargetName,
+				AEAL.TotalAmount
+			FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			INNER JOIN covi_smart4j.sys_object_user SOU
+			ON AEA.RegisterID = SOU.UserCode
+			INNER JOIN covi_smart4j.sys_object_user_basegroup SOUB
+			ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+			WHERE 1=1
+			AND AEA.RequestType = 'INVEST'
+			AND AEA.ApplicationStatus = 'E'
+			<if test="companyCode != null and companyCode != ''">
+		 		AND AEA.CompanyCode = #{companyCode}
+		 	</if>
+			<if test="ProofDate != null and ProofDate != ''">
+		 		AND AEAL.ProofDate = #{ProofDate}
+		 	</if>
+			<if test="PayDate != null and PayDate != ''">
+		 		AND AEAL.PayDate = #{PayDate}
+		 	</if>
+			<if test="DeptName != null and DeptName != ''">
+		 		AND SOUB.DeptName LIKE CONCAT('%', #{DeptName}, '%')
+		 	</if>
+			<if test="UserName != null and UserName != ''">
+		 		AND SOU.DisplayName LIKE CONCAT('%', #{UserName}, '%')
+		 	</if>
+			<if test="InvestItem != null and InvestItem != ''">
+		 		AND AEAL.ReservedStr1 = #{InvestItem}
+		 	</if>
+			<if test="InvestTarget != null and InvestTarget != ''">
+		 		AND AEAL.ReservedStr2 = #{InvestTarget}
+		 	</if>
+		) A
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ProofDate DESC
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationTitle")'>ApplicationTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("ProofDateStr")'>ProofDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("PayDateStr")'>PayDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("JobLevelName")'>JobLevelName</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>TotalAmount</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+	</select>
+	
+	<select id="selectInvestigationUseListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(AEA.ExpenceApplicationID)
+		FROM covi_account4j_si.act_expence_application AEA
+		INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		INNER JOIN covi_smart4j.sys_object_user SOU
+		ON AEA.RegisterID = SOU.UserCode
+		INNER JOIN covi_smart4j.sys_object_user_basegroup SOUB
+		ON SOU.UserCode = SOUB.UserCode AND SOUB.JobType = 'Origin'
+		WHERE 1=1
+		AND AEA.RequestType = 'INVEST'
+		AND AEA.ApplicationStatus = 'E'
+		<if test="companyCode != null and companyCode != ''">
+	 		AND AEA.CompanyCode = #{companyCode}
+	 	</if>
+		<if test="ProofDate != null and ProofDate != ''">
+	 		AND AEAL.ProofDate = #{ProofDate}
+	 	</if>
+		<if test="PayDate != null and PayDate != ''">
+	 		AND AEAL.PayDate = #{PayDate}
+	 	</if>
+		<if test="DeptName != null and DeptName != ''">
+	 		AND SOUB.DeptName LIKE CONCAT('%', #{DeptName}, '%')
+	 	</if>
+		<if test="UserName != null and UserName != ''">
+	 		AND SOU.DisplayName LIKE CONCAT('%', #{UserName}, '%')
+	 	</if>
+		<if test="InvestItem != null and InvestItem != ''">
+	 		AND AEAL.ReservedStr1 = #{InvestItem}
+	 	</if>
+		<if test="InvestTarget != null and InvestTarget != ''">
+	 		AND AEAL.ReservedStr2 = #{InvestTarget}
+	 	</if>
+	</select>
+</mapper>

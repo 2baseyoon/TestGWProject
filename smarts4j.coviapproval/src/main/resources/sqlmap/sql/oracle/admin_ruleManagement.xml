@@ -1,0 +1,1132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.ruleManagement">
+    <select id="selectMasterManagementList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+	        SELECT * FROM (
+		        SELECT A.RuleID AS "RuleID"
+			           , MAX(A.EntCode) AS "EntCode" 
+			           , MAX(D.MultiDisplayName) AS "EntName"
+			           , MAX(RuleName) AS "RuleName"
+			           , MAX(RuleType) AS "RuleType"
+			           , (CASE MAX(RuleType) WHEN 3 THEN MAX(C.DisplayName)
+			                 WHEN 4 THEN MAX(E.DisplayName)
+			                 WHEN 5 THEN MAX(E.DisplayName)
+			                 WHEN 6 THEN MAX(F.JobFunctionName)
+			                 ELSE LISTAGG(B.MappingName,'|') WITHIN GROUP(ORDER BY B.MappingID ASC) END ) AS "MappingNames"
+				        , MAX(A.MappingCode) AS "MappingCode"
+				        , MAX(D.DomainID) AS "DN_ID"
+		        FROM jwf_rulemaster A
+		        LEFT JOIN jwf_rulemastermapping B ON A.RuleID = B.RuleID
+		        LEFT JOIN sys_object_user C ON A.MappingCode = C.UserCode
+		        LEFT JOIN sys_object_domain D ON A.EntCode = D.DomainCode
+		        LEFT JOIN sys_object_group E ON A.MappingCode = E.GroupCode
+		        LEFT JOIN jwf_jobfunction F ON A.MappingCode = F.JobFunctionCode		    
+		 		<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+		 		        AND A.EntCode = #{entCode}	  
+					<if test="sel_Type != null and sel_Type != '' and sel_Type.length() gt 0">
+						AND A.ruletype = #{sel_Type}
+					</if> 		        		
+					<if test="sel_Type== '' and sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+						AND A.ruleName LIKE '%'||#{search}||'%'  
+					</if>					
+				</trim>	
+		        GROUP BY A.RuleID
+	        ) LIST
+	        <trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("EntCode")'>"EntCode"</when>
+						<when test='sortColumn.equalsIgnoreCase("RuleName")'>"RuleName"</when>
+						<when test='sortColumn.equalsIgnoreCase("RuleType")'>"RuleType"</when>
+						<otherwise>"EntCode"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			 </trim>
+        <include refid="oracle.include.pagingFooter"/> 
+	</select>
+	
+ 	<select id="selectMasterManagementCnt" resultType="java.lang.Long">
+		 SELECT COUNT(*) AS "cnt"
+		 FROM jwf_rulemaster
+ 		<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+ 		        EntCode = #{entCode}	  
+			<if test="sel_Type != null and sel_Type != '' and sel_Type.length() gt 0">
+				AND ruletype = #{sel_Type}
+			</if> 		        		
+			<if test="sel_Type== '' and sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">	
+				AND ruleName LIKE '%'||#{search}||'%'  
+			</if>					
+		</trim>			 
+	</select>
+	
+	<insert id="insertMasterManagement" parameterType="cmap">	
+		INSERT  INTO jwf_rulemaster (EntCode, RuleName, RuleType, MappingCode)
+	    VALUES (#{entCode}, #{ruleName}, #{ruleType}, #{mappingCode})
+	</insert>
+	
+	<update id="updateMasterManagement" parameterType="cmap">			
+		UPDATE jwf_rulemaster
+		SET RuleName = #{ruleName},
+		   	  RuleType = #{ruleType},
+		   	  MappingCode = #{mappingCode}
+		WHERE RuleID = #{ruleId}
+	</update>
+	
+	<delete id="deleteMasterManagement" parameterType="cmap">
+        DELETE FROM jwf_rulemaster 
+        WHERE RuleID = #{ruleId}
+	</delete>
+	
+    <select id="selectMappingList" parameterType="cmap" resultType="cmap">
+        SELECT MappingID AS "MappingID"
+        , MappingCode AS "MappingCode"
+        , MappingName  AS "MappingName"
+        FROM jwf_rulemastermapping 
+        WHERE RuleID = #{ruleId}
+	</select>
+	
+	<insert id="insertMapping" parameterType="cmap">	
+		INSERT INTO jwf_rulemastermapping (RuleID, MappingCode, MappingName)
+	    VALUES (#{ruleId}, #{mappingCode}, #{mappingName})
+	</insert>
+	
+	<delete id="deleteMapping" parameterType="cmap">
+        DELETE FROM jwf_rulemastermapping 
+         WHERE 1 = 1
+	     <if test="ruleId != null and ruleId != ''">
+		   AND RuleID = #{ruleId}
+		 </if>
+	     <if test="paramArr != null and paramArr != ''">
+	       AND MappingID IN
+	         <foreach collection="paramArr" item="mappingId" open="(" close=")" separator=",">
+	            #{mappingId}
+	         </foreach>
+		 </if>		        
+	</delete>
+	
+    <select id="selectRankList" parameterType="cmap" resultType="cmap">
+         SELECT G.GroupID AS "JobPositionID"
+		         , G.GroupCode AS "JobPositionCode"
+		         , G.DisplayName AS "JobPositionName" 
+         FROM sys_object_group G
+		 INNER JOIN sys_object_domain D ON G.CompanyCode = D.DomainCode
+		 WHERE G.GroupType = 'JobPosition'
+		 AND D.DomainID = #{dnId}
+		 ORDER BY "JobPositionID" ASC
+	</select>
+	
+    <select id="selectRuleTreeList" parameterType="cmap" resultType="cmap">
+		SELECT ItemID AS "id"
+			, ItemID AS "no"
+			, ItemName AS "nodeName"
+			, UpperItemID AS "pid"
+			, UpperItemID AS "pno"
+			, UpperItemCode AS "pcode"
+			, '#' AS "url"
+			, ItemCode as "code"
+			, DocKind AS "DocKind"
+			, ItemDesc AS "ItemDesc"
+			, ItemType AS "type"
+			, MaxAmount AS "MaxAmount"
+			, SortNum AS "SortNum"
+		FROM jwf_ruleitem A
+		WHERE EntCode = #{entCode}
+		ORDER BY sortnum,ItemID
+	</select>
+	
+	<insert id="insertRuleTree" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (
+			EntCode, ItemName, UpperItemID, DocKind, ItemDesc, ItemType, ItemCode,
+			AccountCode, AccountName, StandardBriefID, StandardBriefName, GroupCode, GroupName, MaxAmount,
+			UpperItemCode,SortNum			
+		)
+	    VALUES (
+	    	#{entCode}, #{itemName}, (CASE WHEN #{upperItemId} = '' THEN NULL ELSE #{upperItemId} END), #{docKind}, #{itemDesc}, #{itemType}, #{itemCode}, 
+	    	#{AccountCode}, #{AccountName}, #{StandardBriefID}, #{StandardBriefName}, #{GroupCode}, #{GroupName},
+	    	(CASE WHEN #{MaxAmount} = '' THEN '0' ELSE #{MaxAmount} END),
+	    	#{upperItemCode},#{sortnum}
+	    )	    
+	</insert>
+	
+	<update id="updateRuleTree" parameterType="cmap">			
+		UPDATE jwf_ruleitem
+		SET ItemName = #{itemName},
+		   	DocKind = #{docKind},
+		   	ItemDesc = #{itemDesc},
+		   	ItemType = #{itemType},
+			AccountCode = #{AccountCode, jdbcType=NVARCHAR},
+			AccountName = #{AccountName, jdbcType=NVARCHAR},
+			StandardBriefID = #{StandardBriefID, jdbcType=NVARCHAR},
+			StandardBriefName = #{StandardBriefName, jdbcType=NVARCHAR},
+			GroupCode = #{GroupCode, jdbcType=NVARCHAR},
+			GroupName = #{GroupName, jdbcType=NVARCHAR},
+			MaxAmount = #{MaxAmount, jdbcType=INTEGER},
+			SortNum = #{sortnum}
+		 WHERE ItemID = #{itemId}
+	</update>
+	
+	<delete id="deleteRuleTree" parameterType="cmap">
+        DELETE FROM jwf_ruleitem
+        WHERE ItemID IN (
+					           		 SELECT ItemID
+					                 FROM JWF_RULEITEM A     
+					                 START WITH ItemID = #{itemId}
+					                 CONNECT BY UpperItemID = PRIOR A.ItemID
+         				 		)       				 		
+	</delete>
+	
+    <select id="selectRuleGridList" parameterType="cmap" resultType="cmap">
+          <include refid="oracle.include.pagingHeader"/>
+          	SELECT * FROM (
+	       	 SELECT ApvID AS "ApvID"
+	       	 , B.ItemName AS "ItemName"
+	       	 , B.ItemID AS "ItemID"
+	       	 , ApvName AS "ApvName"
+	       	 , C.RuleName AS "RuleName"
+	       	 , C.RuleID AS "RuleID"
+	       	 , ApvType AS "ApvType"
+	       	 , ApvDesc AS "ApvDesc"
+	       	 , Sort  AS "Sort"
+			 FROM jwf_ruleapv A
+			 LEFT JOIN jwf_ruleitem B ON A.ItemID = B.ItemID
+			 LEFT JOIN jwf_rulemaster C ON A.RuleID = C.RuleID
+			 WHERE A.ItemID = #{itemId}
+			 ) LIST
+			 <trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("ApvID")'>"ApvID"</when>
+						<when test='sortColumn.equalsIgnoreCase("RuleID")'>"RuleID"</when>
+						<when test='sortColumn.equalsIgnoreCase("ApvType")'>"ApvType"</when>
+						<when test='sortColumn.equalsIgnoreCase("ApvDesc")'>"ApvDesc"</when>
+						<otherwise>"Sort"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			 </trim>
+		 <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+ 	<select id="selectRuleGridCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) AS "cnt"
+		FROM jwf_ruleapv
+		WHERE ItemID = #{itemId}
+	</select>
+	
+	<select id="selectRuleManagement" parameterType="cmap" resultType="cmap">
+		SELECT ApvName AS "ApvName"
+			, ItemID AS "ItemID"
+			, ItemCode AS "ItemCode"
+			, RuleID AS "RuleID"
+			, ApvType AS "ApvType"
+			, Sort AS "Sort"
+			, ApvDesc AS "ApvDesc"
+			, ApvClass AS "ApvClass"
+			, ApvClassAtt01 AS "ApvClassAtt01"
+		FROM
+			jwf_ruleapv
+		WHERE
+			ApvID = #{apvId}
+	</select>
+	
+	<insert id="insertRuleManagement" parameterType="cmap">	
+		INSERT INTO jwf_ruleapv (ApvName, ItemID, ItemCode, RuleID, ApvType, Sort, ApvDesc, ApvClass, ApvClassAtt01)
+	    VALUES (#{apvName}, #{itemId}, #{itemCode}, #{ruleId}, #{apvType}, #{sort}, #{apvDesc}, #{apvClass}, #{apvClassAtt01})
+	</insert>
+	
+	<update id="updateRuleManagement" parameterType="cmap">			
+		UPDATE 	jwf_ruleapv
+		SET 	ApvName = #{apvName},
+				RuleID = #{ruleId},
+				ApvType = #{apvType},
+				Sort = #{sort},
+				ApvDesc = #{apvDesc},
+				ApvClass = #{apvClass},
+				ApvClassAtt01 = #{apvClassAtt01}
+		WHERE 	ApvID = #{apvId}
+	</update>
+		
+	<delete id="deleteRuleManagement" parameterType="cmap">
+        DELETE FROM jwf_ruleapv
+        WHERE 1 = 1
+	     <if test="itemId != null and itemId != ''">
+			   AND ItemID IN ( SELECT ItemID
+						               FROM JWF_RULEITEM A     
+						               START WITH ItemID = #{itemId}
+						               CONNECT BY UpperItemID = PRIOR A.ItemID )						               					               						               						           
+		 </if>
+	     <if test="paramArr != null and paramArr != ''">
+	         AND ApvID IN
+	         <foreach collection="paramArr" item="apvId" open="(" close=")" separator=",">
+	            #{apvId}
+	         </foreach>
+		 </if>
+	</delete>
+		
+ 	<select id="selectRuleForSelBox" resultType="cmap">
+		SELECT 	RuleID AS "RuleID"
+				,RuleName AS "RuleName"
+				,,RuleType AS "RuleType"
+		FROM 	jwf_rulemaster
+		WHERE 	EntCode = #{EntCode}
+			AND RuleId IS NOT null		 		    						 		    
+	</select>
+	
+ 	<select id="selectRuleForForm" resultType="cmap">
+ 	      SELECT     
+               A.ItemID AS "ItemID"
+             , A.ItemCode AS "ItemCode"
+		 	       , A.EntCode AS "EntCode"
+		 	       , A.ItemName  AS "ItemName"
+		 	       , A.ItemDesc AS "ItemDesc"
+		 	       , A.MaxAmount AS "MaxAmount"	
+             ,B.DisplayName||' : '|| Fn_GetRuleItemFullPath2(A.ItemCode, A.EntCode) AS "path"
+		  FROM jwf_ruleitem A
+		  INNER JOIN sys_object_domain B ON A.EntCode = B.DomainCode
+		  WHERE A.UpperItemCode IS NOT NULL AND A.UpperItemCode &lt;&gt; '0'
+	    <if test="entCode != null and entCode != ''">
+	   		AND EntCode = #{entCode}
+	   	</if>
+	    <if test="entCodeList != null and entCodeList != ''">
+		    AND EntCode IN 
+				<foreach collection="entCodeList" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+		</if>
+	    <if test="itemType != null and itemType != ''">
+	   		AND ItemType = #{itemType}
+	   	</if>
+	   	ORDER BY "path", A.SortNum, A.ItemID
+	</select>
+	
+    <select id="selectApvRuleList" parameterType="cmap" resultType="cmap">
+		  SELECT A.ItemID AS "ItemID", 
+		         A.ItemCode AS "ItemCode",
+     		   		MAX(TO_CHAR(A.ItemDesc)) AS "ItemDesc", 
+     		   		MAX(A.MaxAmount) AS "MaxAmount",
+					Fn_GetRuleItemFullPath(A.ItemCode) AS "PATH",
+					LISTAGG( (B.ApvType || '|' ||B.RuleID || '|' ||B.ApvName || '|' || B.Sort || '|' || B.ApvClass || '|' || B.ApvClassAtt01 ), ',' ) WITHIN GROUP(ORDER BY B.Sort ASC) AS "ApvNames",
+					(CASE WHEN listagg(B.draftNm , '') WITHIN GROUP(ORDER BY draftNM) = '' 
+		           			THEN NULL
+         					 ELSE listagg(B.draftNm , '') WITHIN GROUP(ORDER BY draftNM) END ) AS "draftNm",
+			  		MAX(C.CNT) AS "CNT"
+		  FROM JWF_RULEITEM A
+		  LEFT JOIN (SELECT ItemID, ItemCode, ApvType, RuleID, ApvName, Sort, ApvClass, ApvClassAtt01,
+		 					(CASE WHEN ApvType = 'initiator' THEN ApvName 
+		 						  ELSE '' 
+		 						   END
+		 					) AS draftNm
+		 			   FROM JWF_RULEAPV
+		 			) B
+		   ON A.ItemID = B.ItemID
+		   JOIN (SELECT MAX(CNT) AS CNT 
+		 		 FROM (SELECT ItemCode, COUNT(ItemCode) AS CNT
+						   FROM JWF_RULEAPV
+						WHERE ItemCode IN
+					    <foreach collection="paramArr" item="itemCode" open="(" close=")" separator=",">
+				        	#{itemCode}
+				        </foreach>
+						AND  (ApvType != 'initiator')
+						AND ApvType <![CDATA[<>]]> 'ccinfo'
+						AND ApvType <![CDATA[<>]]> 'ccinfo-before'
+					    GROUP BY ItemCode
+					  ) T
+			   ) C ON 1=1
+		 WHERE A.ItemCode IN
+		 <foreach collection="paramArr" item="itemCode" open="(" close=")" separator=",">
+		 	#{itemCode}
+		 </foreach>
+		 <if test="entCode != null and entCode != ''">
+		 	AND A.EntCode = #{entCode}
+		 </if>
+		GROUP BY A.ItemID, A.ItemCode, C.CNT, A.SortNum
+		ORDER BY A.SortNum,A.ItemID
+	</select>
+	
+    <select id="selectApvRuleListForForm" parameterType="cmap" resultType="cmap">
+		SELECT 		A.ApvID AS "ApvID"
+					, A.ApvName AS "ApvName"
+					, A.ItemID AS "ItemID"
+					, A.RuleID AS "RuleID"
+					, A.ApvType AS "ApvType"
+					, A.Sort AS "Sort"
+					, C.RuleType AS "RuleType"
+					, A.ApvClass AS "ApvClass"
+					, A.ApvClassAtt01 AS "ApvClassAtt01"
+					,NVL(C.MappingCode, '') AS "MappingCode"
+		FROM 		jwf_ruleapv A
+		LEFT JOIN 	jwf_ruleitem B ON A.ItemID = B.ItemID
+		LEFT JOIN 	jwf_rulemaster C ON A.RuleID = C.RuleID
+		WHERE 		A.ItemCode = #{itemCode}
+				AND A.ApvType != 'initiator'
+				<if test="entCode != null and entCode != ''">
+			   		AND B.EntCode = #{entCode}
+			   	</if>
+		ORDER BY 	A.Sort
+	</select>
+	
+    <select id="selectRuleTypeZero" parameterType="cmap" resultType="cmap">
+        SELECT A.ApvType AS "ApvType"
+       			, A.ObjectCode AS "ObjectCode"
+       			, A.ObjectType AS "ObjectType"
+       			, A.grName AS "grName"
+       			, A.grCode AS "grCode"
+       			, B.UR_Name AS "UR_Name"
+       			, B.UR_Code AS "UR_Code"
+       			, B.ExternalMailAddress AS "ExternalMailAddress"
+       			, B.JobTitleCode AS "JobTitleCode"
+       			, B.JobTitleName AS "JobTitleName"
+       			, B.JobLevelCode AS "JobLevelCode"
+       			, B.JobLevelName AS "JobLevelName"
+       			, B.JobPositionCode AS "JobPositionCode"
+       			, B.JobPositionName AS "JobPositionName"
+        FROM (SELECT #{apvType} AS ApvType
+        					 , ManagerCode AS ObjectCode
+        					 , 'person' AS ObjectType
+        					 , DisplayName AS grName
+        					 , GroupCode AS grCode
+				 FROM sys_object_group
+				 WHERE GroupCode = #{grCode}
+        ) A
+        LEFT JOIN (SELECT A.DisplayName AS UR_Name
+			  					, A.UserCode AS UR_Code
+			  					, A.ExternalMailAddress
+			  					, BG.JobTitleCode
+								, BG.JobTitleName
+								, BG.JobLevelCode
+								, BG.JobLevelName
+								, BG.JobPositionCode
+								, BG.JobPositionName
+					   FROM sys_object_user A
+					   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+        ) B
+        ON A.ObjectCode = B.UR_Code
+        WHERE A.ObjectCode IS NOT NULL
+        AND B.UR_Code IS NOT NULL
+	</select>
+	
+    <select id="selectRuleTypeOne" parameterType="cmap" resultType="cmap">
+		  SELECT  A.ApvType AS "ApvType"
+	       			, A.ObjectCode AS "ObjectCode"
+	       			, A.ObjectType AS "ObjectType"
+	       			, A.grName AS "grName"
+	       			, A.grCode AS "grCode"
+	       			, B.UR_Name AS "UR_Name"
+	       			, B.UR_Code AS "UR_Code"
+	       			, B.ExternalMailAddress AS "ExternalMailAddress"
+	       			, B.JobTitleCode AS "JobTitleCode"
+	       			, B.JobTitleName AS "JobTitleName"
+	       			, B.JobLevelCode AS "JobLevelCode"
+	       			, B.JobLevelName AS "JobLevelName"
+	       			, B.JobPositionCode AS "JobPositionCode"
+	       			, B.JobPositionName AS "JobPositionName"
+		  FROM (SELECT #{apvType} AS ApvType, ManagerCode AS ObjectCode, 'person' AS ObjectType, 
+			   DisplayName AS grName, GroupCode AS grCode
+			   FROM sys_object_group
+			   WHERE GroupCode = (SELECT MappingCode 
+								  				FROM jwf_rulemastermapping
+								  				JOIN sys_object_group ON GroupCode = #{grCode}
+								 			    WHERE RuleID = #{ruleId} 
+								 			    AND GroupPath LIKE '%;'||MappingCode||';%'  )
+		  ) A
+		  LEFT JOIN (SELECT A.DisplayName AS UR_Name
+				  					, A.UserCode AS UR_Code
+				  					, A.ExternalMailAddress
+				  					, BG.JobTitleCode
+									, BG.JobTitleName
+									, BG.JobLevelCode
+									, BG.JobLevelName
+									, BG.JobPositionCode
+									, BG.JobPositionName
+					   FROM sys_object_user A
+					   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+		  ) B
+		  ON A.ObjectCode = B.UR_Code
+		  WHERE A.ObjectCode IS NOT NULL
+	</select>
+	
+    <select id="selectRuleTypeTwo" parameterType="cmap" resultType="cmap">
+		SELECT 	 A.ApvType AS "ApvType"
+	       			, A.ObjectCode AS "ObjectCode"
+	       			, A.ObjectType AS "ObjectType"
+	       			, A.grName AS "grName"
+	       			, A.grCode AS "grCode"
+	       			, B.UR_Name AS "UR_Name"
+	       			, B.UR_Code AS "UR_Code"
+	       			, B.ExternalMailAddress AS "ExternalMailAddress"
+	       			, B.JobTitleCode AS "JobTitleCode"
+	       			, B.JobTitleName AS "JobTitleName"
+	       			, B.JobLevelCode AS "JobLevelCode"
+	       			, B.JobLevelName AS "JobLevelName"
+	       			, B.JobPositionCode AS "JobPositionCode"
+	       			, B.JobPositionName AS "JobPositionName"
+		FROM (SELECT #{apvType} AS ApvType
+							, Fn_GetRuleMappingPosition(#{ruleId},#{grCode}) AS ObjectCode
+							, 'person' AS ObjectType
+		        	   		, (SELECT DisplayName FROM sys_object_group WHERE GroupCode = #{grCode}) AS grName
+		        	  		, #{grCode} AS grCode
+		          FROM DUAL
+		) A     
+		LEFT JOIN (SELECT A.DisplayName AS UR_Name
+		  					, A.UserCode AS UR_Code
+		  					, A.ExternalMailAddress
+		  					, BG.JobTitleCode
+							, BG.JobTitleName 
+		  					, BG.JobLevelCode
+							, BG.JobLevelName 
+		  					, BG.JobPositionCode
+							, BG.JobPositionName
+					   FROM sys_object_user A
+					   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+		) B
+		ON A.ObjectCode = B.UR_Code
+		WHERE A.ObjectCode IS NOT NULL
+	</select>
+	
+    <select id="selectRuleTypeThree" parameterType="cmap" resultType="cmap">
+        <!-- SELECT A.ApvType AS "ApvType"
+	            , A.ObjectCode AS "ObjectCode"
+	            , A.ObjectType AS "ObjectType"
+	            , B.UR_Name AS "UR_Name"
+	            , B.UR_Code AS "UR_Code"
+	            , B.ExternalMailAddress AS "ExternalMailAddress"
+	            , B.JobTitleCode AS "JobTitleCode"
+	            , B.JobTitleName AS "JobTitleName"
+	            , B.JobLevelCode AS "JobLevelCode"
+	            , B.JobLevelName AS "JobLevelName"
+	            , B.JobPositionCode AS "JobPositionCode"
+	            , B.JobPositionName AS "JobPositionName"
+	            , B.tempGrCode AS "tempGrCode"
+	            , B.tempGrName AS "tempGrName"
+	            , C.tempGrCode AS "tempGrCode"
+	            , C.tempGrName AS "tempGrName"
+			    , (CASE WHEN (#{ruleType} = 3 || #{ruleType} = 4) THEN B.tempGrCode
+		  			 	   ELSE C.tempGrCode
+		  			  	   END ) AS "grCode"
+			    , (CASE WHEN (#{ruleType} = 3 || #{ruleType} = 4) THEN B.tempGrName
+		  			 	   ELSE C.tempGrName
+		  			  	   END ) AS "grName"  		  	   
+        FROM (SELECT #{apvType} AS ApvType
+        					, #{mappingCode} AS ObjectCode,
+		  			   		(CASE WHEN #{ruleType} = 3 THEN 'person'
+		  			         		 WHEN #{ruleType} = 4 THEN 'ou'
+	  			         			 ELSE 'role' END ) AS ObjectType
+		          FROM DUAL
+        ) A
+        LEFT JOIN (SELECT A.DisplayName AS UR_Name
+			  					, A.UserCode AS UR_Code
+			  					, A.ExternalMailAddress
+			  					, BG.JobTitleCode
+								, BG.JobTitleName 
+			  					, BG.JobLevelCode
+								, BG.JobLevelName 
+			  					, BG.JobPositionCode
+								, BG.JobPositionName
+			  					, BG.DeptCode AS tempGrCode
+								, BG.DeptName AS tempGrName  			
+					   FROM sys_object_user A
+					   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+        ) B
+        ON A.ObjectCode = B.UR_Code
+        LEFT JOIN (SELECT JobFunctionCode AS tempGrCode
+        						, JobFunctionName AS tempGrName
+		  			   FROM jwf_jobfunction
+        ) C
+        ON A.ObjectCode = C.tempGrCode
+        WHERE A.ObjectCode IS NOT NULL -->
+        SELECT 
+			#{apvType} AS "ApvType"
+			, #{mappingCode} AS "ObjectCode"
+			, 'person' AS "ObjectType"
+			, A.DisplayName AS "UR_Name"
+			, A.UserCode AS "UR_Code"
+			, A.ExternalMailAddress AS "ExternalMailAddress"
+			, BG.JobTitleCode AS "JobTitleCode"
+			, BG.JobTitleName AS "JobTitleName"
+			, BG.JobLevelCode AS "JobLevelCode"
+			, BG.JobLevelName AS "JobLevelName"
+			, BG.JobPositionCode AS "JobPositionCode"
+			, BG.JobPositionName AS "JobPositionName"
+			, BG.DeptCode AS "tempGrCode"
+			, BG.DeptName AS "tempGrName"
+			, BG.DeptCode AS "grCode"
+			, BG.DeptName AS "grName"
+	   FROM sys_object_user A
+	   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+	   WHERE A.UserCode = #{mappingCode}
+	</select>
+	    
+    <select id="selectRuleTypeFour" parameterType="cmap" resultType="cmap">
+        SELECT 
+			#{apvType} AS "ApvType"
+			, #{mappingCode} AS "ObjectCode"
+			, 'ou' AS "ObjectType"
+			, GroupCode AS "grCode"
+			, DisplayName AS "grName"
+	   FROM sys_object_group A
+	   WHERE A.GroupCode = #{mappingCode}
+    </select>
+    
+    <select id="selectRuleTypeFive" parameterType="cmap" resultType="cmap">
+        SELECT A.ApvType AS "ApvType"
+	            , A.ObjectCode AS "ObjectCode"
+	            , A.ObjectType AS "ObjectType"
+	            , A.grName AS "grName"
+       			, A.grCode AS "grCode"
+       			, B.UR_Name AS "UR_Name"
+       			, B.UR_Code AS "UR_Code"
+       			, B.ExternalMailAddress AS "ExternalMailAddress"
+       			, B.JobTitleCode AS "JobTitleCode"
+       			, B.JobTitleName AS "JobTitleName"
+       			, B.JobLevelCode AS "JobLevelCode"
+       			, B.JobLevelName AS "JobLevelName"
+       			, B.JobPositionCode AS "JobPositionCode"
+       			, B.JobPositionName AS "JobPositionName"
+        FROM (SELECT #{apvType} AS ApvType, ManagerCode AS ObjectCode, 'person' AS ObjectType, 
+					   DisplayName AS grName, GroupCode AS grCode
+				  FROM sys_object_group
+				  WHERE GroupCode = #{mappingCode}
+        ) A
+        LEFT JOIN (SELECT A.DisplayName AS UR_Name
+				  					, A.UserCode AS UR_Code
+				  					, A.ExternalMailAddress
+				  					, BG.JobTitleCode
+									, BG.JobTitleName 
+				  					, BG.JobLevelCode
+									, BG.JobLevelName 
+				  					, BG.JobPositionCode
+									, BG.JobPositionName
+					   FROM sys_object_user A
+					   LEFT JOIN sys_object_user_basegroup BG ON A.UserCode = BG.UserCode AND BG.JobType = 'Origin'
+        ) B
+        ON A.ObjectCode = B.UR_Code
+        WHERE A.ObjectCode IS NOT NULL
+	</select>
+    <select id="selectRuleTypeSix" parameterType="cmap" resultType="cmap">
+        SELECT 
+			#{apvType} AS "ApvType"
+			, #{mappingCode} AS "ObjectCode"
+			, 'role' AS "ObjectType"
+			, JobFunctionCode AS "grCode"
+			, JobFunctionName AS "grName"
+	   FROM jwf_jobfunction
+	   WHERE JobFunctionCode = #{mappingCode}
+    </select>
+    
+    <select id="selectItemMoreInfo" parameterType="cmap" resultType="cmap">
+    	SELECT
+    		ItemID AS "ItemID",
+    		ItemName AS "ItemName",
+    		ItemDesc AS "ItemDesc",
+    		ItemType AS "ItemType",
+	   		Fn_GetRuleItemFullPath(ItemID) AS "PATH",
+    		AccountCode AS "AccountCode",
+    		AccountName AS "AccountName",
+    		StandardBriefID AS "StandardBriefID",
+    		StandardBriefName AS "StandardBriefName",
+    		GroupCode AS "GroupCode",
+    		GroupName AS "GroupName",
+    		MaxAmount AS "MaxAmount"
+    	FROM jwf_ruleitem
+    	<choose>
+    		<when test="itemId != null and itemId != ''">
+		    	WHERE ItemId = #{itemId}
+    		</when>
+    		<when test="itemCode != null and itemCode != ''">
+		    	WHERE ItemCode = #{itemCode}
+		    	<if test="entCode != null and entCode != ''">
+		    		AND EntCode = #{entCode}
+		    	</if>
+    		</when>
+    	</choose>
+    </select>
+    
+ 	
+	<!-- 전결규정 EXCEL 업로드 TEMP -->
+	<insert id="insertRulTemp" parameterType="cmap">	
+		INSERT INTO jwf_rule_temp (code01,code02,code03,code04,code05,name01,name02,name03,name04,name05,charge,approval01,approval02,approval03,approval04,approval05,approval06,approval07,approval08,approval09,approval10,fullcode,entcode)
+	    VALUES (#{code01},#{code02},#{code03},#{code04},#{code05},#{name01},#{name02},#{name03},#{name04},#{name05},#{charge},#{approval01},#{approval02},#{approval03},#{approval04},#{approval05},#{approval06},#{approval07},#{approval08},#{approval09},#{approval10},#{fullcode},#{entcode})
+	</insert> 	
+	
+	<!-- item 1 level 추가 -->
+	<insert id="insertRulItem01" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		SELECT ENTCODE, name01, code01||'00000000' AS ITEMCODE,'','APPROVAL' ,#{vernum} 
+		FROM jwf_rule_temp  
+		group by ENTCODE,code01,name01
+		ORDER BY code01,name01      
+	</insert>  
+		
+	<!-- item 2 level 추가 -->
+	<insert id="insertRulItem02" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		SELECT A.ENTCODE, A.name02, A.code01||A.code02||'000000' AS "ITEMCODE", A.code01||'00000000' AS "UpperItemCode",'APPROVAL',#{vernum}   
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||'00000000')
+		WHERE B.EntCode=#{entcode} 
+		group by A.ENTCODE,code01,name01,code02,name02,ItemID
+		ORDER BY code01,code02     
+	</insert>  
+	
+	<!-- item 3 level 추가 -->
+	<insert id="insertRulItem03" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		SELECT A.ENTCODE, A.name03, A.code01||A.code02||A.code03||'0000' AS ITEMCODE, A.code01||A.code02||'000000' AS "UpperItemCode" ,'APPROVAL',#{vernum}   
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||'000000')
+		WHERE B.EntCode=#{entcode}  AND A.name03 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,name03,ItemID
+		ORDER BY code01,code02,code03    
+	</insert>  
+	
+	<!-- item 4 level 추가 -->
+	<insert id="insertRulItem04" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		SELECT A.ENTCODE, A.name04, A.code01||A.code02||A.code03||A.code04||'00' AS ITEMCODE,A.code01||A.code02||A.code03||'0000','APPROVAL',#{vernum}   
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||A.code03||'0000')
+		WHERE B.EntCode=#{entcode}  AND A.name04 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,code04,name04,ItemID
+		ORDER BY code01,code02,code03,code04   
+	</insert> 	
+	
+	<!-- item 5 level 추가 -->
+	<insert id="insertRulItem05" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		SELECT A.ENTCODE, A.name05, A.code01||A.code02||A.code03||A.code04||A.code05 AS ITEMCODE,A.code01||A.code02||A.code03||A.code04||'00','APPROVAL',#{vernum}   
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||A.code03||A.code04||'00')
+		WHERE B.EntCode=#{entcode}  AND A.name05 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,code04,code05,name05,ItemID
+		ORDER BY code01,code02,code03,code04,code05
+	</insert> 
+	
+	<!-- item 1 level History 추가 -->
+	<insert id="insertRulItem01History" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem_history (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum,insertdate,insertuser)
+		SELECT ENTCODE, name01, code01||'00000000' AS ITEMCODE,'','APPROVAL' ,#{vernum},SYSDATE,#{insertuser} 
+		FROM jwf_rule_temp  
+		group by ENTCODE,code01,name01
+		ORDER BY code01,name01      
+	</insert>  
+		
+	<!-- item 2 level History 추가 -->
+	<insert id="insertRulItem02History" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem_history (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum,insertdate,insertuser)
+		SELECT A.ENTCODE, A.name02, A.code01||A.code02||'000000' AS ITEMCODE, A.code01||'00000000','APPROVAL',#{vernum},SYSDATE,#{insertuser}      
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||'00000000')
+		WHERE B.EntCode=#{entcode} 
+		group by A.ENTCODE,code01,name01,code02,name02,ItemID
+		ORDER BY code01,code02     
+	</insert>  
+	
+	<!-- item 3 level History 추가 -->
+	<insert id="insertRulItem03History" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem_history (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum,insertdate,insertuser)
+		SELECT A.ENTCODE, A.name03, A.code01||A.code02||A.code03||'0000' AS ITEMCODE, A.code01||A.code02||'000000','APPROVAL',#{vernum},SYSDATE,#{insertuser}      
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||'000000')
+		WHERE B.EntCode=#{entcode}  AND A.name03 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,name03,ItemID
+		ORDER BY code01,code02,code03    
+	</insert>  
+	
+	<!-- item 4 level History 추가 -->
+	<insert id="insertRulItem04History" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem_history (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum,insertdate,insertuser)
+		SELECT A.ENTCODE, A.name04, A.code01||A.code02||A.code03||A.code04||'00' AS ITEMCODE, A.code01||A.code02||A.code03||'0000','APPROVAL',#{vernum},SYSDATE,#{insertuser}       
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||A.code03||'0000')
+		WHERE B.EntCode=#{entcode}  AND A.name04 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,code04,name04,ItemID
+		ORDER BY code01,code02,code03,code04   
+	</insert> 	
+	
+	<!-- item 5 level History 추가 -->
+	<insert id="insertRulItem05History" parameterType="cmap">	
+		INSERT INTO jwf_ruleitem_history (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum,insertdate,insertuser)
+		SELECT A.ENTCODE, A.name05, (A.code01||A.code02||A.code03||A.code04||A.code05) AS ITEMCODE, (A.code01||A.code02||A.code03||A.code04||'00'),'APPROVAL',#{vernum},SYSDATE,#{insertuser}     
+		FROM jwf_rule_temp  A
+		 INNER JOIN jwf_ruleitem B ON B.ItemCode = (A.code01||A.code02||A.code03||A.code04||'00')
+		WHERE B.EntCode=#{entcode}  AND A.name05 IS NOT NULL
+		group by A.ENTCODE,code01,code02,code03,code04,code05,name05,ItemID
+		ORDER BY code01,code02,code03,code04,code05
+	</insert> 	
+	
+	<insert id="insertRulMaster" parameterType="cmap">	
+		INSERT INTO jwf_rulemaster (EntCode, RuleName, RuleType,MappingCode)
+		VALUES (#{entcode},#{rulename},#{ruletype},'')
+		
+		  <selectKey keyProperty="RuleID" resultType="Integer" order="AFTER">
+		    SELECT jwf_rulemaster_SEQ.CURRVAL FROM dual
+	     </selectKey>
+	</insert> 
+	
+	<insert id="insertRulMasterHistory" parameterType="cmap">	
+		INSERT INTO jwf_rulemaster_history (EntCode, RuleName, RuleType,MappingCode,VerNum,insertdate,InsertUser)
+		VALUES (#{entcode},#{rulename},#{ruletype},'', #{vernum},SYSDATE, #{insertuser})		
+	</insert> 	
+	
+    <!-- 전결규정 마스터 코드 조회-->
+	<select id="selectRuleIdCnt" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT  count(*)
+ 		  FROM jwf_rulemaster
+ 		 WHERE RuleName = #{rulename}
+	</select>	
+	
+    <!-- 전결규정 마스터 코드 조회-->
+	<select id="selectRuleId" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT  RuleID AS "RuleID"
+		FROM jwf_rulemaster
+ 		WHERE RuleName = #{rulename}
+ 		 AND ROWNUM=1 
+ 		ORDER BY RuleID desc
+	</select>	
+	
+	  <!-- 결재선정보 insert-->
+	<insert id="insertRulApvItem" parameterType="cmap">	
+		INSERT INTO jwf_ruleapv (ApvName, ItemCode, RuleId, ApvType, Sort,VerNum)
+	    VALUES (#{ApvName}, #{ItemCode}, #{RuleId}, #{ApvType}, #{Sort}, #{vernum})
+	</insert> 
+	
+	  <!-- 결재선정보 history insert-->
+	<insert id="insertRulApvItemHistory" parameterType="cmap">	
+		INSERT INTO jwf_ruleapv_history (ApvName, ItemCode, RuleId, ApvType, Sort, VerNum, insertdate,insertuser)
+	    VALUES (#{ApvName}, #{ItemCode}, #{RuleId}, #{ApvType}, #{Sort}, #{vernum}, SYSDATE, #{insertuser})
+	</insert> 	
+	
+    <select id="selectRulManageExcel" parameterType="cmap" resultType="cmap">
+		SELECT   
+		 code01 AS "code01"
+		,code02 AS "code02"
+		,code03 AS "code03"
+		,code04 AS "code04"
+		,code05 AS "code05"
+		,name01 AS "name01"
+		,name02 AS "name02"
+		,name03 AS "name03"
+		,name04 AS "name04"
+		,name05 AS "name05"
+		,charge AS "charge"
+		,approval01 AS "approval01"
+		,approval02 AS "approval02"
+		,approval03 AS "approval03"
+		,approval04 AS "approval04"
+		,approval05 AS "approval05"
+		,approval06 AS "approval06"
+		,approval07 AS "approval07"
+		,approval08 AS "approval08"
+		,approval09 AS "approval09"
+		,approval10 AS "approval10"	
+		FROM jwf_rule_temp
+		WHERE NAME02 IS NOT NULL AND NAME03 IS NOT NULL
+		 AND EntCode = #{EntCode}
+		ORDER BY CODE01 asc  
+		
+    </select>	
+    
+ 	<delete id="deleteRulTemp" parameterType="cmap">
+        DELETE FROM jwf_rule_temp 
+	</delete>   
+    
+ 
+	<insert id="insertRulExcelTemp" parameterType="cmap">	
+		 INSERT INTO jwf_rule_temp (
+		   code01,code02,code03,code04,code05,name01,name02,name03,name04,name05,charge,approval01,approval02,approval03,approval04,approval05,approval06,approval07,approval08,approval09,approval10,fullcode,entcode		   
+		 ) 
+		 SELECT substr(A.itemcode,0,2) AS code01
+                  ,substr(A.itemcode,2,2) AS code02
+				  ,substr(A.itemcode,4,2)  AS code03
+				  ,substr(A.itemcode,6,2) AS code04
+				  ,substr(A.itemcode,8,2) AS code05
+				  ,B.ItemName AS name01
+				  ,C.ItemName AS name02
+				  ,D.ItemName AS name03
+				  ,E.ItemName AS name04
+				  ,F.ItemName AS name05
+				  ,RA.ApvName AS charge
+				  ,R1.ApvName AS approval01
+				  ,R2.ApvName AS approval02
+				  ,R3.ApvName AS approval03
+				  ,R4.ApvName AS approval04
+				  ,R5.ApvName AS approval05
+				  ,R6.ApvName AS approval06
+				  ,R7.ApvName AS approval07
+				  ,R8.ApvName AS approval08
+				  ,R9.ApvName AS approval09
+				  ,R10.ApvName AS approval10				  				  				  				  				  				  				  				  				   
+				  ,A.itemcode AS fullcode
+				  ,A.ENTCODE AS entcode
+		 FROM jwf_ruleitem A
+		  LEFT OUTER JOIN jwf_ruleitem B ON (substr(A.itemcode,0,2)||'00000000')=B.itemcode  
+		  LEFT OUTER JOIN jwf_ruleitem C ON (substr(A.itemcode,0,4)||'000000')=C.itemcode  AND substr(A.itemcode,3,2) != '00'
+		  LEFT OUTER JOIN jwf_ruleitem D ON (substr(A.itemcode,0,6)||'0000')=D.itemcode  AND substr(A.itemcode,5,2) != '00'
+		  LEFT OUTER JOIN jwf_ruleitem E ON (substr(A.itemcode,0,8)||'00')=E.itemcode  AND substr(A.itemcode,7,2) != '00'
+		  LEFT OUTER JOIN jwf_ruleitem F ON (substr(A.itemcode,0,10)||'')=F.itemcode   AND substr(A.itemcode,9,2) != '00'
+		  LEFT OUTER JOIN jwf_ruleapv RA ON A.itemcode= RA.itemcode AND RA.ApvType ='initiator'
+		  LEFT OUTER JOIN jwf_ruleapv R1 ON A.itemcode= R1.itemcode AND R1.Sort=1
+		  LEFT OUTER JOIN jwf_ruleapv R2 ON A.itemcode= R2.itemcode AND R2.Sort=2
+		  LEFT OUTER JOIN jwf_ruleapv R3 ON A.itemcode= R3.itemcode AND R3.Sort=3
+		  LEFT OUTER JOIN jwf_ruleapv R4 ON A.itemcode= R4.itemcode AND R4.Sort=4
+		  LEFT OUTER JOIN jwf_ruleapv R5 ON A.itemcode= R5.itemcode AND R5.Sort=5
+		  LEFT OUTER JOIN jwf_ruleapv R6 ON A.itemcode= R6.itemcode AND R6.Sort=6
+		  LEFT OUTER JOIN jwf_ruleapv R7 ON A.itemcode= R7.itemcode AND R7.Sort=7
+		  LEFT OUTER JOIN jwf_ruleapv R8 ON A.itemcode= R8.itemcode AND R8.Sort=8
+		  LEFT OUTER JOIN jwf_ruleapv R9 ON A.itemcode= R9.itemcode AND R9.Sort=9
+		  LEFT OUTER JOIN jwf_ruleapv R10 ON A.itemcode= R10.itemcode AND R10.Sort=10
+		 WHERE A.itemcode IS NOT NULL 
+		  AND A.EntCode = #{EntCode}
+		 ORDER BY A.itemcode asc
+	</insert> 	
+	
+    <!-- 최신 버전 번호 -->
+	<select id="selectRuleVerNum" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT *
+		FROM(
+		      SELECT VerNum+1 AS "VerNum"
+					FROM (
+						SELECT  distinct NVL(VerNum,0) AS VerNum   FROM jwf_rulemain_history 
+						UNION 
+						SELECT 0 AS VerNum FROM DUAL
+					) A
+		      ORDER BY VerNum DESC
+		    ) T
+		WHERE ROWNUM=1
+	</select>
+	
+    <!-- 사용 버전 번호 -->
+	<select id="selectRuleVerNumUse" parameterType="java.lang.String" resultType="java.lang.Integer">
+		SELECT *
+		FROM(
+		      SELECT VerNum+1 AS "VerNum"
+					FROM (
+						SELECT  distinct NVL(VerNum,0) AS VerNum   FROM jwf_rulemain_history  WHERE ISUSE='Y'
+						UNION 
+						SELECT 0 AS VerNum FROM DUAL
+					) A
+		      ORDER BY VerNum DESC
+		    ) T
+		WHERE ROWNUM=1           
+	</select>	
+	
+	
+	<delete id="deleteRulMaster" parameterType="java.lang.Integer">
+        DELETE FROM jwf_rulemaster WHERE VerNum = #{vernum}
+	</delete>	
+	
+	<delete id="deleteRulApvItem" parameterType="java.lang.Integer">
+        DELETE FROM jwf_ruleapv  
+	</delete>	
+	
+	<delete id="deleteRulItem" parameterType="java.lang.Integer">
+        DELETE FROM jwf_ruleitem  
+	</delete>	
+	
+	<delete id="deleteRulItemCur" parameterType="java.lang.Integer">
+        DELETE FROM jwf_ruleitem WHERE VerNum = #{curVerNum}
+	</delete>	
+	
+	<delete id="deleteRulApvItemCur" parameterType="java.lang.Integer">
+        DELETE FROM jwf_ruleapv WHERE VerNum = #{curVerNum}
+	</delete>		
+	
+	  <!-- 결재선 history 메인정보 insert-->
+	<insert id="insertRulMainHistory" parameterType="cmap">	
+		INSERT INTO jwf_rulemain_history (VerNum, EntCode,insertdate, InsertUser,description,IsUse )
+	    VALUES (#{vernumtop}, #{entcode},SYSDATE, #{insertuser},'','Y')
+	</insert> 	
+	
+     <!-- 버전관리 목록 조회  -->
+    <select id="selectRulHistoryList" parameterType="cmap" resultType="cmap">	 
+		SELECT 
+			  VerNum AS "VerNum"
+			, EntCode AS "EntCode"
+			, InsertDate AS "InsertDate"
+			, InsertUser AS "InsertUser"
+			, Description AS "Description"
+			, NVL(IsUse,'N') AS "IsUse"
+			, Updatedate AS "Updatedate"
+			, UpdateUser AS "UpdateUser"
+		FROM jwf_rulemain_history 
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="serach_vernum != null and serach_vernum != '' and serach_vernum.length() gt 0">
+				AND VerNum = #{search}  	
+			</if>	
+		   <if test="startdate != null and startdate != '' and startdate.length() gt 0">
+				 AND InsertDate <![CDATA[>=]]> #{startdate}  	
+			</if>
+
+			<if test="enddate != null and enddate != '' and enddate.length() gt 0">
+				 AND InsertDate  <![CDATA[<=]]>  #{enddate}  
+			</if>										
+		</trim>	
+		 <trim prefix="ORDER BY">
+			 <choose>
+				<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				<when test='sortColumn.equalsIgnoreCase("EntCode")'>EntCode</when>
+				<when test='sortColumn.equalsIgnoreCase("InsertUser")'>InsertUser</when>
+				<when test='sortColumn.equalsIgnoreCase("InsertDate")'>InsertDate</when>
+				<when test='sortColumn.equalsIgnoreCase("UpdateUser")'>UpdateUser</when>
+				<when test='sortColumn.equalsIgnoreCase("Updatedate")'>Updatedate</when>
+				<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+				<otherwise>VerNum</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		 </trim>	
+
+    </select>	
+    
+    <select id="selectRulHistorycnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+		     VerNum, EntCode, InsertDate,InsertUser,Description
+		FROM jwf_rulemain_history
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="serach_vernum != null and serach_vernum != '' and serach_vernum.length() gt 0">
+				AND VerNum = #{search}  	
+			</if>	
+		   <if test="startdate != null and startdate != '' and startdate.length() gt 0">
+				 AND InsertDate <![CDATA[>=]]> #{startdate}  	
+			</if>
+
+			<if test="enddate != null and enddate != '' and enddate.length() gt 0">
+				 AND InsertDate  <![CDATA[<=]]>  #{enddate}  
+			</if>											
+		</trim>				
+		) A		
+	</select>  
+
+     <!-- 버전관리 상세페이지  -->
+    <select id="selectRuleHistoryData" parameterType="cmap" resultType="cmap">	 
+		SELECT 
+			  VerNum AS "VerNum"
+			, EntCode AS "EntCode"
+			, InsertDate AS "InsertDate"
+			, InsertUser AS "InsertUser"
+			, Description AS "Description"
+			, NVL(IsUse,'N') AS "IsUse"
+			, Updatedate AS "Updatedate"
+			, UpdateUser AS "UpdateUser"
+		FROM jwf_rulemain_history  
+		WHERE vernum = #{vernum} 
+    </select>	
+    
+ 	<update id="updateRuleHistoryData" parameterType="cmap">
+		<![CDATA[
+			UPDATE jwf_rulemain_history
+			SET			
+				Description = #{Description}
+				,IsUse = #{IsUse}
+				,UpdateUser = #{UpdateUser}
+				,Updatedate = SYSDATE
+			WHERE
+				VerNum = #{VerNum}				
+		]]>
+	</update>
+	
+ 	<update id="updateRuleHistoryDataInit" parameterType="cmap">
+		<![CDATA[
+			UPDATE jwf_rulemain_history
+			SET	IsUse ='N'			
+		]]>
+	</update>  	 
+	
+	<!-- 선택버전으로 전결분류 insert -->
+	<insert id="insertRulItemVer" parameterType="java.lang.Integer">	
+		INSERT INTO jwf_ruleitem (EntCode,ItemName,ItemCode,UpperItemCode,ItemType,VerNum)
+		 SELECT ENTCODE, ItemName, itemcode,upperitemcode,ItemType,VerNum
+		 FROM jwf_ruleitem_history  
+		 WHERE VerNum=#{VerNum}	
+		 ORDER BY itemid asc    
+	</insert> 
+	
+	  <!-- 선택버전으로 결재선정보 insert-->
+	<insert id="insertRulApvItemVer" parameterType="java.lang.Integer">	
+		INSERT INTO jwf_ruleapv (ApvName, ItemCode, RuleId, ApvType, Sort,VerNum)
+		 SELECT ApvName, ItemCode, RuleId, ApvType, Sort,VerNum
+		 FROM jwf_ruleapv_history
+		 WHERE VerNum=#{VerNum}	
+		 ORDER BY apvid asc
+	</insert> 
+	
+	<select id="getRuleCount" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM jwf_ruleitem
+		WHERE ItemCode = #{itemCode}
+		AND EntCode = #{entCode}
+	</select>
+	
+    <select id="selectNextItemCode" parameterType="cmap" resultType="cmap">
+		 SELECT substr(itemcode,1,2)+1 AS NextItemCode 
+		 FROM jwf_ruleitem
+		 WHERE entcode= #{entCode}  
+		  AND rownum=1
+		 ORDER BY  substr(itemcode,1,2) DESC	 		
+    </select>    
+    
+    <select id="selectNextItemCode2" parameterType="cmap" resultType="cmap">
+		 SELECT substr(itemcode,3,2)+1 AS NextItemCode 
+		 FROM jwf_ruleitem
+		 WHERE entcode= #{entCode}  
+		  AND UpperItemCode= #{upperItemCode}  
+		  AND rownum=1
+		 ORDER BY  substr(itemcode,3,2) DESC 		
+    </select>    
+    
+    <select id="selectNextItemCode3" parameterType="cmap" resultType="cmap">
+		 SELECT substr(itemcode,5,2)+1 AS NextItemCode 
+		 FROM jwf_ruleitem
+		 WHERE entcode= #{entCode}  
+		  AND UpperItemCode= #{upperItemCode}  
+		  AND rownum=1
+		 ORDER BY  substr(itemcode,5,2) DESC 		
+    </select>    
+    
+    <select id="selectNextItemCode4" parameterType="cmap" resultType="cmap">
+		 SELECT substr(itemcode,7,2)+1 AS NextItemCode 
+		 FROM jwf_ruleitem
+		 WHERE entcode= #{entCode}  
+		  AND UpperItemCode= #{upperItemCode}  
+		  AND rownum=1
+		 ORDER BY  substr(itemcode,7,2) DESC	 		
+    </select>
+    
+    <select id="selectNextItemCode5" parameterType="cmap" resultType="cmap">
+		 SELECT substr(itemcode,9,2)+1 AS NextItemCode 
+		 FROM jwf_ruleitem
+		 WHERE entcode= #{entCode}  
+		  AND UpperItemCode= #{upperItemCode}  
+		  AND rownum=1
+		 ORDER BY  substr(itemcode,9,2) DESC	 		
+    </select>              
+    	
+	
+	<update id="updateRuleApvItemID" parameterType="cmap">			
+		MERGE INTO jwf_ruleapv A
+		USING jwf_ruleitem B
+			ON (A.ItemCode = B.ItemCode)
+		WHEN MATCHED THEN 
+			UPDATE SET A.ItemID = B.ItemID
+	</update>
+	
+	<update id="updateRuleItemUpperItemID" parameterType="cmap">			
+		MERGE INTO jwf_ruleitem A
+		USING jwf_ruleitem B
+			ON (A.UpperItemCode = B.ItemCode)
+		WHEN MATCHED THEN 
+			UPDATE SET A.UpperItemID = B.ItemID
+	</update>		   
+</mapper>
+

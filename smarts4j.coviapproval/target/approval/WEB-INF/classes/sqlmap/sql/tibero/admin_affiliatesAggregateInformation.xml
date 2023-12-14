@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.affiliatesAggregateInformation">
+    <select id="selectEntCountList" parameterType="cmap" resultType="cmap">
+         <include refid="oracle.include.pagingHeader"/>
+         		SELECT * FROM (
+				  	SELECT DN.DisplayName AS "DN_Name", WF_LIST.* 
+					FROM (
+						SELECT U.CompanyCode AS "DN_Code"
+							, SUM( CASE SubKind WHEN 'A' THEN 1 ELSE 0 END) AS "A_Count"
+							, SUM( CASE SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS "REQCMP_count"
+							, CAST(AVG((P.endDate - P.startDate)*24*60) AS INTEGER) AS "document_leadtime"
+						FROM jwf_workitem PF 
+						INNER JOIN  jwf_process P ON PF.ProcessID = P.ProcessID
+						INNER JOIN sys_object_group U ON PF.UserCode = U.GroupCode
+						WHERE PF.SubKind IN ('A', 'REQCMP')
+							AND P.BusinessState LIKE '02_01%'
+							AND P.endDate IS NOT NULL
+							AND P.ProcessState = 528
+							<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+							     AND P.endDate BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+							</if>		
+							<if test="companyCode != null and companyCode != ''">
+							    AND U.CompanyCode = #{companyCode}
+							</if>		
+						GROUP BY U.CompanyCode
+					) WF_LIST
+					INNER JOIN sys_object_domain DN ON WF_LIST."DN_Code" = DN.DomainCode
+         		) TEMP
+				<trim prefix="ORDER BY">
+					<if test="sortColumn != null and sortDirection != null">
+			    		<choose>
+							<when test='sortColumn.equalsIgnoreCase("A_Count")'>"A_Count"</when>
+							<when test='sortColumn.equalsIgnoreCase("REQCMP_count")'>"REQCMP_count"</when>
+							<when test='sortColumn.equalsIgnoreCase("document_leadtime")'>"document_leadtime"</when>
+							<otherwise>"DN_Name"</otherwise>
+						</choose>
+						<choose>
+							<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+							<otherwise> DESC</otherwise>
+						</choose>
+					</if> 
+					<if test="sortColumn == null or sortDirection == null">
+						"DN_Name" ASC
+				   </if>
+				</trim>
+		<include refid="oracle.include.pagingFooter"/>		
+	</select>
+	
+    
+    <select id="selectEntCountListCnt" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM
+		(
+				SELECT DN.DisplayName DN_Name, WF_LIST.* 
+				FROM (
+					SELECT U.CompanyCode AS "DN_Code"
+						, SUM( CASE SubKind WHEN 'A' THEN 1 ELSE 0 END) AS "A_Count"
+						, SUM( CASE SubKind WHEN 'REQCMP' THEN 1 ELSE 0 END) AS "REQCMP_count"
+						, CAST(AVG((P.endDate - P.startDate)*24*60) AS INTEGER) AS "document_leadtime"
+					FROM jwf_workitem PF 
+					INNER JOIN  jwf_process P ON PF.ProcessID = P.ProcessID
+					INNER JOIN sys_object_group U ON PF.UserCode = U.GroupCode
+					WHERE PF.SubKind IN ('A', 'REQCMP')
+						AND P.BusinessState LIKE '02_01%'
+						AND P.endDate IS NOT NULL
+						AND P.ProcessState = 528
+						<if test="startDate != null and startDate != '' and startDate.length() gt 0 and endDate != null and endDate != '' and endDate.length() gt 0">
+						     AND P.endDate BETWEEN #{startDate} AND ADD_MONTHS(#{endDate},'0')+1
+						</if>
+						<if test="companyCode != null and companyCode != ''">
+						    AND U.CompanyCode = #{companyCode}
+						</if>
+					GROUP BY U.CompanyCode
+				) WF_LIST
+				INNER JOIN sys_object_domain DN ON WF_LIST."DN_Code" = DN.DomainCode
+		) A
+	</select>
+	
+    
+    <select id="selectEntMonthlyCountList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			       SELECT A.DN_Code  AS "DN_Code"
+			       		, DN.DisplayName AS "DN_Name"
+						,NVL("1",0) AS "Month1"
+						,NVL("2",0) AS "Month2"
+						,NVL("3",0) AS "Month3"
+						,NVL("4",0) AS "Month4"
+						,NVL("5",0) AS "Month5"
+						,NVL("6",0) AS "Month6"
+						,NVL("7",0) AS "Month7"
+						,NVL("8",0) AS "Month8"
+						,NVL("9",0) AS "Month9"
+						,NVL("10",0) AS "Month10"
+						,NVL("11",0) AS "Month11"
+						,NVL("12",0) AS "Month12"
+				FROM(
+					SELECT 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as "1",
+							SUM(case when Approval_month = 2 then Approval_count end) as "2",
+							SUM(case when Approval_month = 3 then Approval_count end) as "3",
+							SUM(case when Approval_month = 4 then Approval_count end) as "4",
+							SUM(case when Approval_month = 5 then Approval_count end) as "5",
+							SUM(case when Approval_month = 6 then Approval_count end) as "6",
+							SUM(case when Approval_month = 7 then Approval_count end) as "7",
+							SUM(case when Approval_month = 8 then Approval_count end) as "8",
+							SUM(case when Approval_month = 9 then Approval_count end) as "9",
+							SUM(case when Approval_month = 10 then Approval_count end) as "10",
+							SUM(case when Approval_month = 11 then Approval_count end) as "11",
+							SUM(case when Approval_month = 12 then Approval_count end) as "12"					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, TO_CHAR(P.endDate,'MM') AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM jwf_process P
+							INNER JOIN sys_object_group U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL  
+								AND P.ProcessState = 528  
+								AND TO_CHAR(P.endDate,'YYYY') = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, TO_CHAR(P.endDate,'MM')
+					)  TMP_LIST
+					GROUP BY DN_Code
+				)  A
+				INNER JOIN sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			         SELECT A.DN_Code  AS "DN_Code" , DN.DisplayName AS "DN_Name"
+						,NVL("1",0) AS "Month1"
+						,NVL("2",0) AS "Month2"
+						,NVL("3",0) AS "Month3"
+						,NVL("4",0) AS "Month4"
+						,NVL("5",0) AS "Month5"
+						,NVL("6",0) AS "Month6"
+						,NVL("7",0) AS "Month7"
+						,NVL("8",0) AS "Month8"
+						,NVL("9",0) AS "Month9"
+						,NVL("10",0) AS "Month10"
+						,NVL("11",0) AS "Month11"
+						,NVL("12",0) AS "Month12"
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as "1",
+							SUM(case when Approval_month = 2 then Approval_count end) as "2",
+							SUM(case when Approval_month = 3 then Approval_count end) as "3",
+							SUM(case when Approval_month = 4 then Approval_count end) as "4",
+							SUM(case when Approval_month = 5 then Approval_count end) as "5",
+							SUM(case when Approval_month = 6 then Approval_count end) as "6",
+							SUM(case when Approval_month = 7 then Approval_count end) as "7",
+							SUM(case when Approval_month = 8 then Approval_count end) as "8",
+							SUM(case when Approval_month = 9 then Approval_count end) as "9",
+							SUM(case when Approval_month = 10 then Approval_count end) as "10",
+							SUM(case when Approval_month = 11 then Approval_count end) as "11",
+							SUM(case when Approval_month = 12 then Approval_count end) as "12"					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, TO_CHAR(P.endDate,'MM') AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM jwf_performer PF
+							INNER JOIN jwf_workitem W ON W.WorkitemID = PF.WorkitemID
+							INNER JOIN jwf_process P ON W.ProcessID = P.ProcessID
+							INNER JOIN sys_object_group U ON PF.UserCode = U.GroupCode
+							WHERE PF.ActualKind = '1' 
+								AND W.SubKind IN ('REQCMP')
+								AND P.BusinessState LIKE '02_01%'
+								AND P.endDate IS NOT NULL
+								AND P.ProcessState = 528
+								AND TO_CHAR(P.endDate,'YYYY') = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, TO_CHAR(P.endDate,'MM')
+					) TMP_LIST
+					GROUP BY DN_Code
+				) A
+				INNER JOIN sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+			  <trim prefix="ORDER BY">
+				  <if test="sortColumn != null and sortDirection != null">
+			    		<choose>
+							<when test='sortColumn.equalsIgnoreCase("Month1")'>"Month1"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month2")'>"Month2"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month3")'>"Month3"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month4")'>"Month4"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month5")'>"Month5"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month6")'>"Month6"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month7")'>"Month7"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month8")'>"Month8"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month9")'>"Month9"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month10")'>"Month10"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month11")'>"Month11"</when>
+							<when test='sortColumn.equalsIgnoreCase("Month12")'>"Month12"</when>
+							<otherwise>"DN_Name"</otherwise>
+						</choose>
+						<choose>
+							<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+							<otherwise> DESC</otherwise>
+						</choose>
+					</if> 
+					<if test="sortColumn == null or sortDirection == null">
+						"DN_Name" ASC
+				   </if>
+			   </trim>
+  		<include refid="oracle.include.pagingFooter"/>		
+	</select>
+	
+    
+    <select id="selectEntMonthlyCountListCnt" resultType="java.lang.Long">
+        	SELECT COUNT("DN_Name") FROM
+			  (
+			  <if test="CompareItem != null and  (CompareItem eq 'A'.toString())">
+			       SELECT A.DN_Code, DN.DisplayName as "DN_Name"
+						,NVL("1",0) AS "Month1"
+						,NVL("2",0) AS "Month2"
+						,NVL("3",0) AS "Month3"
+						,NVL("4",0) AS "Month4"
+						,NVL("5",0) AS "Month5"
+						,NVL("6",0) AS "Month6"
+						,NVL("7",0) AS "Month7"
+						,NVL("8",0) AS "Month8"
+						,NVL("9",0) AS "Month9"
+						,NVL("10",0) AS "Month10"
+						,NVL("11",0) AS "Month11"
+						,NVL("12",0) AS "Month12"
+				FROM(
+					SELECT 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as "1",
+							SUM(case when Approval_month = 2 then Approval_count end) as "2",
+							SUM(case when Approval_month = 3 then Approval_count end) as "3",
+							SUM(case when Approval_month = 4 then Approval_count end) as "4",
+							SUM(case when Approval_month = 5 then Approval_count end) as "5",
+							SUM(case when Approval_month = 6 then Approval_count end) as "6",
+							SUM(case when Approval_month = 7 then Approval_count end) as "7",
+							SUM(case when Approval_month = 8 then Approval_count end) as "8",
+							SUM(case when Approval_month = 9 then Approval_count end) as "9",
+							SUM(case when Approval_month = 10 then Approval_count end) as "10",
+							SUM(case when Approval_month = 11 then Approval_count end) as "11",
+							SUM(case when Approval_month = 12 then Approval_count end) as "12"					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, TO_CHAR(P.endDate,'MM') AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM jwf_process P
+							INNER JOIN sys_object_group U ON P.InitiatorUnitID = U.GroupCode  
+							WHERE P.BusinessState LIKE '02_01%'  
+								AND P.ParentProcessID = 0
+								AND P.endDate IS NOT NULL 
+								AND P.ProcessState = 528 
+								AND TO_CHAR(P.endDate,'YYYY') = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, TO_CHAR(P.endDate,'MM')
+					)  TMP_LIST
+					GROUP BY DN_Code
+				)  A
+				INNER JOIN sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			  </if>
+			  
+			  <if test="CompareItem != null and  (CompareItem eq 'B'.toString())">
+			         SELECT A.DN_Code, DN.DisplayName as "DN_Name"
+						,NVL("1",0) AS "Month1"
+						,NVL("2",0) AS "Month2"
+						,NVL("3",0) AS "Month3"
+						,NVL("4",0) AS "Month4"
+						,NVL("5",0) AS "Month5"
+						,NVL("6",0) AS "Month6"
+						,NVL("7",0) AS "Month7"
+						,NVL("8",0) AS "Month8"
+						,NVL("9",0) AS "Month9"
+						,NVL("10",0) AS "Month10"
+						,NVL("11",0) AS "Month11"
+						,NVL("12",0) AS "Month12"
+				FROM(
+					select 
+							DN_Code,
+							SUM(case when Approval_month = 1 then Approval_count end) as "1",
+							SUM(case when Approval_month = 2 then Approval_count end) as "2",
+							SUM(case when Approval_month = 3 then Approval_count end) as "3",
+							SUM(case when Approval_month = 4 then Approval_count end) as "4",
+							SUM(case when Approval_month = 5 then Approval_count end) as "5",
+							SUM(case when Approval_month = 6 then Approval_count end) as "6",
+							SUM(case when Approval_month = 7 then Approval_count end) as "7",
+							SUM(case when Approval_month = 8 then Approval_count end) as "8",
+							SUM(case when Approval_month = 9 then Approval_count end) as "9",
+							SUM(case when Approval_month = 10 then Approval_count end) as "10",
+							SUM(case when Approval_month = 11 then Approval_count end) as "11",
+							SUM(case when Approval_month = 12 then Approval_count end) as "12"					
+					FROM (
+							SELECT U.CompanyCode AS DN_Code
+								, TO_CHAR(P.endDate,'MM') AS Approval_month
+								, COUNT(*) AS Approval_count
+							FROM jwf_performer PF
+							INNER JOIN jwf_workitem W ON W.WorkitemID = PF.WorkitemID
+							INNER JOIN jwf_process P ON W.ProcessID = P.ProcessID
+							INNER JOIN sys_object_group U ON PF.UserCode = U.GroupCode
+							WHERE PF.ActualKind = '1' 
+								AND W.SubKind IN ('REQCMP')
+								AND P.BusinessState LIKE '02_01%'
+								AND P.endDate IS NOT NULL
+								AND P.ProcessState = 528
+								AND TO_CHAR(P.endDate,'YYYY') = #{Year}
+								<if test="companyCode != null and companyCode != ''">
+								    AND U.CompanyCode = #{companyCode}
+								</if>
+							GROUP BY U.CompanyCode, TO_CHAR(P.endDate,'MM')
+					) TMP_LIST
+					GROUP BY DN_Code
+				) A
+				INNER JOIN sys_object_domain DN ON A.DN_Code = DN.DomainCode
+			</if>
+		) A
+	</select>
+</mapper>
+

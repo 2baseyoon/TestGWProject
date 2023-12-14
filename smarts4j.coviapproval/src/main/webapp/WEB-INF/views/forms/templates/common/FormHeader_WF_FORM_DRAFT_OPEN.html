@@ -1,0 +1,142 @@
+﻿<!-- 문서분류 -->
+<table class="tableStyle linePlus mt10 fsbTop" cellpadding="0" cellspacing="0">
+    <colgroup>
+    	<col style="width:12%" />
+    	<col style="width:23%">
+    	<col style="width:12%" />
+    	<col style="width:23%">
+    	<col style="width:12%" />
+    	<col style="width:*">
+    </colgroup>
+    <tbody>
+	    <tr>
+	        <th id="TIT_INITIATOR"><spring:message code='Cache.lbl_apv_initiator'/></th>
+	        <td style="text-align:left;">
+	            <input type="text" data-type="mField" id="InitiatorDisplay" value="{{ doc.BodyContext.InitiatorDisplay }}" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+	        </td>
+	        <th id="TIT_INITIATOR_OU"><spring:message code='Cache.lbl_WriterDept'/></th>
+	        <td style="text-align:left;">
+	            <input type="text" data-type="mField" id="InitiatorOUDisplay" value="{{ doc.BodyContext.InitiatorOUDisplay }}" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+	        </td>
+	        <th id="TIT_DOC_NO"><spring:message code='Cache.lbl_apv_DocNo'/></th>
+	        <td style="text-align:left;">
+	            <input type="text" data-type="dField" id="DocNo" value="{{ doc.FormInstanceInfo.DocNo }}" data-model="FormInstanceInfo.DocNo" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+	        </td>
+	    </tr>
+	    <tr>
+	        <th id="TIT_DOC_CLASS"><spring:message code='Cache.lbl_DocCate'/></th>
+	        <td>
+	            <input type="text" data-type="dField" id="DocClassName" value="{{ doc.FormInstanceInfo.DocClassName }}" data-model="FormInstanceInfo.DocClassName" data-binding="pre" style="width:70%; border:0px;" readonly="readonly" />&nbsp;
+	            <span data-mode="writeOnly">
+	                <img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/btn_organization.gif" name="btn_Process" id="btn_Process" align="absMiddle" border="0" onclick="OpenDocClass();" style="cursor:pointer;" />
+	            </span>
+	        </td>
+	        <th id="TIT_DOC_LEVEL"><spring:message code='Cache.lbl_SecurityLevel'/></th>
+	        <td style="text-align:left;">
+	            <select data-type="dField" id="DocLevel" data-element-type="sel_d_v" data-binding="post"></select>
+	        </td>
+	        <th id="TIT_SAVE_TERM"><spring:message code='Cache.lbl_PreservedDate'/></th>
+	        <td style="text-align:left;">
+	            <select data-type="dField" id="SaveTerm" data-element-type="sel_d_v" data-binding="post"></select>
+	        </td>
+	    </tr>
+    </tbody>
+</table>
+
+<table class="tableStyle fontNormal linePlus mt10" id="tblDocProperties2" cellpadding="0" cellspacing="0">
+    <colgroup>
+    	<col style="width:15%"/>
+    	<col style="width:35%">
+    	<col style="width:15%"/>
+    	<col style="width:35%">
+    </colgroup>	  
+    <tbody>  
+	    <!-- 대외공개 / 비공개사유 -->
+	    <tr id="trPublicAction" style="display:none;">
+	        <th id="TIT_PUBLICACTION" class="linePlusTop"><spring:message code='Cache.lbl_apv_Publication'/><br>(Disclosure)</th>
+	        <td style="border-top: 1px solid #c3d7df !important;">
+	        	<div style="margin-left: 6px;">
+		            <select data-type="mField" id="Publication" data-element-type="sel_d_t" data-node-name="Publication" data-binding="post" onchange="ChangePublicAction(this);"  style="width: 90px;">
+			            <option value="1">공개</option>
+		                <option value="2">부분공개</option>
+		                <option value="3">비공개</option>
+		            </select>
+	        	</div>
+	        </td>
+	        <th id="TIT_SECURITYOPTION"><spring:message code='Cache.lbl_apv_SecurityOption'/><br>(Reason)</th>
+	        <td style="text-align:left; border-top: 1px solid #c3d7df !important;">
+	            <table frame="void">
+		            <colgroup>
+		           		<col style="width:95%"/>
+	    				<col style="width:15%">
+	    			</colgroup>
+		            <tr>
+			            <td style="border:none;">
+				            <div data-type="mField" data-element-type="chk_d" data-node-name="SecurityOption1" id="SecurityOption1">
+				            	<input type="checkbox" name="SecurityOption1" value="1" disabled> 1호
+				                <input type="checkbox" name="SecurityOption1" value="2" disabled> 2호
+				                <input type="checkbox" name="SecurityOption1" value="3" disabled> 3호
+				                <input type="checkbox" name="SecurityOption1" value="4" disabled> 4호<br>
+				                <input type="checkbox" name="SecurityOption1" value="5" disabled> 5호
+				                <input type="checkbox" name="SecurityOption1" value="6" disabled> 6호
+					            <input type="checkbox" name="SecurityOption1" value="7" disabled> 7호
+					            <input type="checkbox" name="SecurityOption1" value="8" disabled> 8호
+				            </div>
+					        <input type="hidden" data-type="dField" id="SecurityOption" value="{{ doc.FormInstanceInfo.SecurityOption }}" data-model="FormInstanceInfo.SecurityOption" data-binding="pre" style="width:100px; border:0px;" /> 
+			            </td>
+			            <td style="width:15%; border:none; padding:0px;" data-mode="writeOnly">
+			            	<input type="button" class="AXButton" id="btPublicActionHelp" onclick="ShowPublicActionHelp();" value="Help" style="height: 24px; line-height: 0px; min-width:39px;">
+			            </td>
+		            </tr>
+	            </table>
+	        </td>
+	    </tr>	
+    </tbody>
+</table>
+
+
+<!-- 수신처 -->
+<table class="tableStyle linePlus mt10 fsbTop" style="display: none" cellpadding="0" cellspacing="0" id="ReceiveLine">
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+    <tr>
+        <th id="TIT_RECLINE"><spring:message code='Cache.lbl_DESTINATION'/></th>
+        <td id="RecLine"></td>
+    </tr>
+</table>
+
+<!-- 참조 -->
+<table class="tableStyle linePlus mt10"  style="display: none" cellpadding="0" cellspacing="0" id="CCLine">
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+    <tr>
+        <th id="TIT_L_CCINFO"><spring:message code='Cache.lbl_apv_Lccinfo'/></th>
+        <td>
+            <span id="SendCC"></span>
+        </td>
+    </tr>
+    <tr>
+        <th id="TIT_R_CCINFO"><spring:message code='Cache.lbl_apv_rccinfo'/></th>
+        <td>
+            <span id="RecCC"></span>
+        </td>
+    </tr>
+</table>
+<!-- header end -->
+<!-- bodycontext start -->
+
+<!-- 제목 -->
+<table  class="tableStyle linePlus mt10"  id="tblFormSubject" cellpadding="0" cellspacing="0" >
+    <colgroup>
+        <col style="width:12%" />
+        <col style="width:*" />
+    </colgroup>
+    <tr>
+        <th id="TIT_SUBJECT"><spring:message code='Cache.lbl_Title'/></th>
+        <td><input type="text" class="w100" data-type="dField" id="Subject" value="{{ doc.FormInstanceInfo.Subject }}" title="<spring:message code='Cache.lbl_Title'/>" data-model="FormInstanceInfo.Subject" data-binding="pre" style="height:25px;" required></td>
+    </tr>
+</table>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.editor">
+    
+    <select id="selectStorageInfo" parameterType="cmap" resultType="cmap">
+      		 SELECT * FROM (
+		        SELECT StorageID AS "StorageID"
+						, (CASE   #{saveType} WHEN 'FILE' THEN  FilePath
+													 WHEN 'INLINE' THEN InlinePath END ) AS "URL"
+						,  (CASE   #{saveType}  WHEN 'FILE' THEN FilePath
+						                           WHEN 'INLINE' THEN InlinePath END ) AS "Path"
+						, LastSeq AS "LastSeq"
+						FROM sys_storage
+						WHERE ServiceType =  #{serviceType}
+						AND IsActive = 'Y'
+						AND DomainID IN (0,#{domainID})
+						ORDER BY DomainID DESC
+		) A
+		WHERE ROWNUM = 1
+    </select>
+       
+    
+    <update id="updateLastSeq"  parameterType="cmap">
+        UPDATE sys_storage
+        SET LastSeq = LastSeq + 1
+        WHERE StorageID = #{storageID}
+    </update>
+    
+    <insert id="insertFileInfo" parameterType="cmap">
+       	INSERT INTO SYS_FILE (  StorageID, ServiceType, ObjectID, ObjectType, MessageID ,Version, SaveType, LastSeq,
+			Seq, FilePath, FileName, SavedName, Extention, Size_, Description, ThumWidth, ThumHeight, RegistDate, RegisterCode, CompanyCode)
+		VALUES  ( #{storageID}, #{serviceType}, #{objectID}, #{objectType}, #{messageID}, 0, #{saveType}, #{lastSeq},
+				#{seq}, #{filePath}, #{fileName}, #{saveName}, #{Extention}, #{size}, '', 0, 0, SYSDATE, #{registerCode}, #{companyCode})
+				
+		<selectKey keyProperty="FileID" resultType="long" order="AFTER">
+		    SELECT SYS_FILE_SEQ.CURRVAL FROM dual
+		</selectKey>		
+    </insert>
+    
+    <update id="updateFileMessageID" parameterType="cmap">
+        UPDATE SYS_FILE
+        SET MessageID = #{messageID}
+        WHERE FileID IN (
+	        <foreach collection="fileIDs" item="id" index="index" separator=",">
+				     #{id}
+	      </foreach>
+    	)
+    </update>
+    
+    <select id="selectInlineFIle" parameterType="cmap" resultType="cmap">
+       SELECT  F.FileID AS "FileID"
+		       ,  F.FIlePath AS "FIlePath"
+		       ,  F.SavedName AS "SavedName"
+		       , F.CompanyCode AS "CompanyCode"
+		       ,  S.InlinePath AS "Path"
+	   FROM SYS_FILE F
+	   LEFT JOIN sys_storage S ON F.StorageID = S.StorageID
+       WHERE  F.ServiceType = #{serviceType}
+       AND  F.ObjectID = #{objectID}
+       AND  F.ObjectType = #{objectType}
+       AND  F.MessageID = #{messageID}
+       AND  F.SaveType = 'INLINE'
+    </select>
+    
+    <delete id="deleteInlineFIle" parameterType="cmap">
+       DELETE FROM SYS_FILE
+       WHERE ServiceType = #{serviceType}
+       AND ObjectID = #{objectID}
+       AND ObjectType = #{objectType}
+       AND MessageID = #{messageID}
+       AND SaveType = 'INLINE'
+    </delete>
+</mapper>

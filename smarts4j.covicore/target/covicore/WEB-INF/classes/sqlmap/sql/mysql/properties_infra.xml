@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="properties.infra">	
+	
+	<select id="selectCodeList" parameterType="cmap" resultType="cmap">
+		SELECT Code,
+		       CodeName,
+		       MultiCodeName
+		  FROM covi_smart4j.sys_base_code
+		 WHERE CodeGroup = #{codeGroup}
+		   AND Code != #{codeGroup}
+		   AND IsUse = 'Y'
+		   <if test="reserved1 != null and reserved1 != ''">
+		   	   AND Reserved1 = #{reserved1}
+		   </if>
+		 ORDER BY SortKey 
+	</select>	
+	
+	<select id="selectServerList" parameterType="cmap" resultType="cmap">
+		SELECT server_ip,
+		       DATE_FORMAT(MAX(registdate), '%Y.%m.%d %H:%i:%s') AS registdate
+		  FROM covi_smart4j.z_covi_property_server_value
+		 GROUP BY IF(server_ip = 'Framework', 0, 1), server_ip
+	</select>
+	
+		
+	<select id="selectInfraCodeList" parameterType="cmap" resultType="cmap">
+		SELECT Code,
+		       CodeName,
+		       MultiCodeName
+		  FROM covi_smart4j.sys_base_code
+		 WHERE CodeGroup = #{codeGroup}
+		   AND Code != #{codeGroup}
+		   AND IsUse = 'Y'
+		   <if test="reserved2 != null and reserved2 != ''">
+		   	   AND Reserved2 = #{reserved2}
+		   </if>
+		 ORDER BY SortKey 
+	</select>	
+	
+	<select id="selectInfraList" parameterType="cmap" resultType="cmap">		
+		SELECT
+			A.standardtype AS standardtype,
+			A.name AS name,
+			A.setkey AS setkey,
+			CASE
+				WHEN B.setkey IS NOT NULL THEN B.setvalue
+				ELSE A.setvalue
+			END AS referencevalue,
+			CASE WHEN A.settype ='mutable' THEN  '가변' WHEN A.settype ='immutable' THEN  '불변' ELSE A.settype  END AS referenceValueType,
+			CASE
+				WHEN B.setkey IS NOT NULL THEN B.description
+				ELSE A.description
+			END AS description
+		FROM (
+			SELECT 
+				standardtype, 
+				name,
+				setkey,
+				MAX(setvalue) AS setvalue,
+				type  as settype,
+				MAX(description) AS description
+			FROM 
+				covi_smart4j.z_covi_property_standard_value
+			WHERE 
+ 				standardtype = #{fileType}
+				AND
+				 (
+					dbtype = #{dbType}
+					OR wasType = #{wasType}
+					OR (
+						dbtype = 'A'
+						AND wastype ='A'
+					)
+				)
+			GROUP BY
+				name, setkey
+		) A
+		LEFT OUTER JOIN (
+			SELECT
+				*
+			FROM
+				covi_smart4j.z_covi_property_standard_value
+			WHERE
+ 				standardtype = #{fileType}
+ 				AND dbtype = #{dbType}
+				AND wasType = #{wasType}
+		) B
+		ON
+			A.name = B.name
+			AND A.setkey = B.setkey
+	</select>
+	
+	<select id="selectInfraList2" parameterType="cmap" resultType="cmap">
+		SELECT (SELECT CodeName FROM covi_smart4j.sys_base_code WHERE CodeGroup = 'property_standardtype' AND Code = MT.standardtype) AS standardtype
+		       ,MT.setkey
+		       ,STAND.settype as referenceValueType
+		       ,STAND.setvalue as referenceValue		       
+			   ,STAND.description
+		  FROM (SELECT standardtype,
+				       setkey
+				  FROM covi_smart4j.z_covi_property_server_value
+				 WHERE standardtype = #{fileType}
+				 GROUP BY standardtype, setkey				 
+				 UNION 
+				SELECT standardtype,
+				       setkey
+				  FROM covi_smart4j.z_covi_property_standard_value
+				 WHERE standardtype = #{fileType}) MT
+				 				 
+				LEFT OUTER JOIN 		
+				(SELECT S.standardtype,
+				        S.setkey,
+				        case when S.type ='mutable' then  '가변' when S.type ='immutable' then  '불변' else S.type  end  as settype,
+				        IF(A.setvalue IS NULL, S.setvalue, A.setvalue) AS setvalue,
+				        IF(IFNULL(A.description, '') = '', S.description, A.description) AS description
+				   FROM (SELECT * 
+				  	 	   FROM covi_smart4j.z_covi_property_standard_value 
+				  	 	  WHERE isSaaS = 'A' AND dbtype = 'A' AND wasType = 'A'
+						AND standardtype = #{fileType}
+						) S
+				        LEFT OUTER JOIN 
+				        (SELECT * 
+				           FROM covi_smart4j.z_covi_property_standard_value 
+				          WHERE isSaaS = #{isSaaS} AND dbtype = #{dbType} AND wasType = #{wasType}	            
+			     	    AND standardtype = #{fileType}
+			     	    ) A
+				        ON S.standardtype = A.standardtype AND S.setkey = A.setkey) STAND
+				ON MT.standardtype = STAND.standardtype AND MT.setkey = STAND.setkey
+		ORDER BY (SELECT sortkey FROM covi_smart4j.sys_base_code WHERE CodeGroup = 'property_standardtype' AND Code = MT.standardtype), MT.setkey
+	</select>
+	
+</mapper>

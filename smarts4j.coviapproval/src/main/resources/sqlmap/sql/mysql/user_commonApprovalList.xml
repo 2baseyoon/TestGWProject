@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.commonApprovalList">
+
+    <select id="selectDomainListData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+		SELECT
+				 DomainDataID
+				,DomainDataName
+				,ProcessID
+				,DomainDataContext
+		FROM
+				COVI_APPROVAL4J.jwf_domaindata
+		WHERE
+				ProcessID = #{ProcessID}
+		]]>
+	</select>
+
+	<select id="selectCommFileListData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+	    SELECT
+				 A.*
+				,CONCAT(Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName),' (',Fn_BaseGetDictionary_S(#{lang}, C.MultiDeptName),')') AS UserName
+				,B.UserCode
+				,@RNUM :=@RNUM+1 AS Num
+		FROM
+				covi_smart4j.sys_file AS A
+				INNER JOIN covi_smart4j.sys_object_user B  ON B.UserCode = A.RegisterCode
+				INNER JOIN covi_smart4j.sys_object_user_basegroup C ON C.UserCode = B.UserCode
+				JOIN (SELECT @RNUM := 0)AS R
+		WHERE
+				MessageID = #{FormInstID}  AND A.ServiceType = #{ServiceType} AND A.SaveType != 'INLINE' AND C.JobType = 'Origin'
+		]]>
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("FileName")'>FileName</when>
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+				<otherwise> FileID</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</select>
+
+	<select id="selectDocreadHistoryListData" parameterType="cmap" resultType="cmap">
+	    	SELECT
+				 A.DocReadID
+				,A.UserID
+				,A.JobTitle
+				,A.JobLevel
+				,A.ReadDate
+				,A.ProcessID
+				,A.FormInstID
+		        ,A.AdminYN
+				,B.MultiDisplayName  AS UserName
+				,C.MultiDeptName AS DeptName
+			FROM
+			covi_approval4j.jwf_docreadhistory AS A
+			INNER JOIN covi_smart4j.sys_object_user B ON B.UserCode = A.UserID
+			INNER JOIN covi_smart4j.sys_object_user_basegroup C ON C.UserCode = B.UserCode
+			<choose>
+				<when test="FormInstID != null and FormInstID != '' and FormInstID != 'undefined'">
+					WHERE FormInstID = #{FormInstID}
+				</when>
+				<otherwise>
+					WHERE ProcessID = #{ProcessID}
+				</otherwise>
+			</choose>
+			AND C.JobType = 'Origin'
+			AND A.AdminYN = 'N'
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				ORDER BY
+				<choose>  
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<otherwise> ReadDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+	</select>
+	
+	<select id="selectSingleDocreadData" resultType="java.lang.Long">
+	    SELECT COUNT(DocReadID)
+		FROM covi_approval4j.jwf_docreadhistory
+		WHERE 1=1
+		AND UserID = #{userID}
+		AND ProcessID = #{ProcessID}
+		AND FormInstID = #{FormInstID}
+	</select>
+</mapper>
+

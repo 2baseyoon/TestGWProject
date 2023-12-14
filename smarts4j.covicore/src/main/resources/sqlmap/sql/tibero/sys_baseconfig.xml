@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="baseconfig">
+    
+    <select id="selectone" parameterType="cmap" resultType="cmap">
+    /* baseconfig.selectone */
+		<![CDATA[
+			SELECT A.ConfigID AS "ConfigID"
+			     , A.BizSection AS "BizSection"
+			     , A.DomainID AS "DomainID"
+			     , A.SettingKey AS "SettingKey"
+			     , A.SettingValue AS "SettingValue"
+			     , A.IsCheck AS "IsCheck"
+			     , A.IsUse AS "IsUse"
+			     , A.ConfigType AS "ConfigType"
+			     , A.ConfigName AS "ConfigName"
+			     , A.Description AS "Description"
+			     , B.DisplayName AS "DisplayName"
+			FROM( 
+				SELECT ConfigID, BizSection, DomainID, SettingKey ,SettingValue, IsCheck, IsUse, ConfigType, ConfigName, Description
+				FROM SYS_BASE_CONFIG
+				) A INNER JOIN SYS_OBJECT_DOMAIN B ON A.DomainID = B.DomainID
+			WHERE ConfigID = #{configID}
+	    ]]>
+	</select>
+    
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">
+	/* baseconfig.selectgrid */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	  ConfigID AS "ConfigID"
+				, BizSection AS "BizSection"
+				, BizSectionName AS "BizSectionName"
+				, DisplayName AS "DisplayName"
+				, DomainID AS "DomainID"
+				, SettingKey AS "SettingKey"
+				, SettingValue AS "SettingValue"
+				, IsCheck AS "IsCheck"
+				, IsUse AS "IsUse"
+				, ConfigType AS "ConfigType"
+				, ConfigName AS "ConfigName"
+				, Description AS "Description"
+				, RegisterCode AS "RegisterCode"
+				, RegisterName AS "RegisterName"
+				, ModifierCode AS "ModifierCode"
+				, ModifyDate AS "ModifyDate"
+		FROM (
+			SELECT	  A.ConfigID
+					, A.BizSection
+					, NVL(Fn_BaseGetDictionary_S(#{lang}, D.MultiCodeName), A.BizSection) AS BizSectionName
+					, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+					, A.DomainID
+					, A.SettingKey
+					, A.SettingValue
+					, A.IsCheck
+					, A.IsUse
+					, A.ConfigType
+					, A.ConfigName
+					, A.Description
+					, A.RegisterCode
+					, Fn_BaseGetDictionary_S(#{lang}, C.MultiDisplayName) AS RegisterName
+					, A.ModifierCode
+					, TO_CHAR(A.ModifyDate, 'YYYY-MM-DD HH24:MI:SS') AS ModifyDate
+			FROM sys_base_config A 
+			INNER JOIN sys_object_domain B ON A.DomainID = B.DomainID
+			LEFT JOIN sys_object_user C ON A.RegisterCode = C.UserCode
+			LEFT JOIN sys_base_code D ON D.CodeGroup = 'BizSection' AND A.BizSection = D.Code
+			WHERE 1=1
+			AND D.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = D.Code AND CodeGroup = 'BizSection' AND DomainID = B.DomainID)
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="domain != null and domain != '' and domain.length() gt 0">
+			 	AND DomainID = #{domain}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+			 	AND DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+				    #{domainID}
+				</foreach>
+			</if>
+			<if test="bizsection != null and bizsection != '' and bizsection.length() gt 0 and bizsection != 'BizSection'">
+			 	AND BizSection = #{bizsection}
+			</if>
+			<if test="configtype != null and configtype != '' and configtype.length() gt 0 and configtype != 'ConfigType'">
+			 	AND ConfigType = #{configtype}
+			</if>
+			<if test="isuse != null and isuse != '' and isuse.length() gt 0 and isuse != 'IsUse'">
+			 	AND IsUse = #{isuse}
+			</if>
+			<if test="searchtext != null and searchtext != '' and searchtext.length() gt 0">
+				AND 
+				<choose>
+					<when test='selectsearch.equalsIgnoreCase("ConfigName")'>
+						ConfigName  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("Description")'>
+						Description  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("SettingKey")'>
+						SettingKey  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("All")'>
+					(ConfigName  LIKE '%'||#{searchtext}||'%'
+					Or Description  LIKE '%'||#{searchtext}||'%'
+					Or SettingKey LIKE '%'||#{searchtext}||'%')
+					</when>
+					<otherwise>
+						SettingValue LIKE '%'||#{searchtext}||'%'
+					</otherwise>
+				</choose>
+			</if>
+			<if test="startdate != null and startdate != '' and enddate != null and enddate != ''">
+				AND ModifyDate BETWEEN #{startdate} AND #{enddate}		
+			</if>
+			<if test="configArray != null and configArray.length gt 0">
+				AND SettingKey IN 
+				<foreach collection="configArray" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+			</if>
+			<if test="configTypeArray != null and configTypeArray.length gt 0">
+				AND ConfigType IN 
+				<foreach collection="configTypeArray" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("BizSectionName")'>BizSectionName</when>
+					<when test='sortColumn.equalsIgnoreCase("SettingKey")'>SettingKey</when>
+					<when test='sortColumn.equalsIgnoreCase("SettingValue")'>SettingValue</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsCheck")'>IsCheck</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<otherwise>ConfigID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+    <select id="selectgridcnt" resultType="java.lang.Long">
+    /* baseconfig.selectgridcnt */
+		SELECT COUNT(*)
+		FROM (
+			SELECT	  A.ConfigID
+					, A.BizSection
+					, NVL(Fn_BaseGetDictionary_S(#{lang}, D.MultiCodeName), A.BizSection) AS BizSectionName
+					, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+					, A.DomainID
+					, A.SettingKey
+					, A.SettingValue
+					, A.IsCheck
+					, A.IsUse
+					, A.ConfigType
+					, A.ConfigName
+					, A.Description
+					, A.RegisterCode
+					, Fn_BaseGetDictionary_S(#{lang}, C.MultiDisplayName) AS RegisterName
+					, A.ModifierCode
+					, TO_CHAR(NVL(A.ModifyDate, A.RegistDate), 'YYYY-MM-DD HH24:MI:SS') AS ModifyDate
+			FROM sys_base_config A 
+			INNER JOIN sys_object_domain B ON A.DomainID = B.DomainID
+			LEFT JOIN sys_object_user C ON A.RegisterCode = C.UserCode
+			LEFT JOIN sys_base_code D ON D.CodeGroup = 'BizSection' AND A.BizSection = D.Code
+			WHERE 1=1
+			AND D.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = D.Code AND CodeGroup = 'BizSection' AND DomainID = B.DomainID)
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		  	<if test="domain != null and domain != '' and domain.length() gt 0">
+			 	AND DomainID = #{domain}
+			</if>
+			<if test="domainList != null and domainList.size() gt 0">
+			 	AND DomainID IN 
+				<foreach collection="domainList" item="domainID" index="index" separator="," open="(" close=")">
+				    #{domainID}
+				</foreach>
+			</if>
+			<if test="bizsection != null and bizsection != '' and bizsection.length() gt 0 and bizsection != 'BizSection'">
+			 	AND BizSection = #{bizsection}
+			</if>
+			<if test="configtype != null and configtype != '' and configtype.length() gt 0 and configtype != 'ConfigType'">
+			 	AND ConfigType = #{configtype}
+			</if>
+			<if test="isuse != null and isuse != '' and isuse.length() gt 0 and isuse != 'IsUse'">
+			 	AND IsUse = #{isuse}
+			</if>
+			<if test="searchtext != null and searchtext != '' and searchtext.length() gt 0">
+				AND 
+				<choose>
+					<when test='selectsearch.equalsIgnoreCase("ConfigName")'>
+						ConfigName  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("Description")'>
+						Description  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("SettingKey")'>
+						SettingKey  LIKE '%'||#{searchtext}||'%'
+					</when>
+					<when test='selectsearch.equalsIgnoreCase("All")'>
+					(ConfigName  LIKE '%'||#{searchtext}||'%'
+					Or Description  LIKE '%'||#{searchtext}||'%'
+					Or SettingKey LIKE '%'||#{searchtext}||'%')
+					</when>
+					<otherwise>
+						SettingValue LIKE '%'||#{searchtext}||'%'
+					</otherwise>
+				</choose>
+			</if>
+			<if test="startdate != null and startdate != '' and enddate != null and enddate != ''">
+				AND ModifyDate BETWEEN #{startdate} AND #{enddate}		
+			</if>
+			<if test="configArray != null and configArray.length gt 0">
+				AND SettingKey IN 
+				<foreach collection="configArray" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+			</if>
+			<if test="configTypeArray != null and configTypeArray.length gt 0">
+				AND ConfigType IN 
+				<foreach collection="configTypeArray" item="item" index="index" separator="," open="(" close=")">
+				    #{item}
+				</foreach>
+			</if>
+		</trim>
+	</select>
+    
+    <insert id="insertgrid" parameterType="cmap">
+    /* baseconfig.insertgrid */
+		<![CDATA[
+			INSERT INTO SYS_BASE_CONFIG 
+			(BizSection,DomainID,SettingKey,SettingValue,IsCheck,IsUse,ConfigType,ConfigName,Description,RegisterCode,RegistDate,ModifierCode,ModifyDate)
+			VALUES 
+			(#{BizSection},#{DN_ID},#{SettingKey},#{SettingValue},#{IsCheck},#{IsUse},#{ConfigType},#{ConfigName},#{Description},#{RegID},SYSDATE,#{ModID},SYSDATE)
+		]]>
+	</insert>
+    
+    <update id="insertMerge" parameterType="cmap">
+	/* baseconfig.insertMerge */
+		MERGE INTO  SYS_BASE_CONFIG a
+			  USING  dual
+			  	ON (DomainID = #{DN_ID} AND BizSection = #{BizSection} AND SettingKey = #{SettingKey})
+	   WHEN MATCHED THEN  
+	        UPDATE SET
+			         a.SettingValue = #{SettingValue}
+					 , a.IsCheck = #{IsCheck}
+					 , a.IsUse = #{IsUse}
+					 , a.ConfigType = #{ConfigType}
+					 , a.ConfigName = #{ConfigName}
+					 , a.Description = #{Description}
+					 , a.ModifierCode = #{ModID}
+					 , a.ModifyDate = SYSDATE
+	   WHEN NOT MATCHED THEN
+	      INSERT    (BizSection,DomainID,SettingKey,SettingValue,IsCheck,IsUse,ConfigType,ConfigName,Description,RegisterCode,RegistDate,ModifierCode,ModifyDate)
+		  VALUES	(#{BizSection},#{DN_ID},#{SettingKey},#{SettingValue},#{IsCheck},#{IsUse},#{ConfigType},#{ConfigName},#{Description},#{RegID},SYSDATE,#{ModID},SYSDATE)
+	</update>
+	
+    <update id="updategrid" parameterType="cmap">
+    /* baseconfig.updategrid */
+		<![CDATA[
+			UPDATE
+				SYS_BASE_CONFIG
+			SET
+				BizSection = #{BizSection}
+				, DomainID = #{DN_ID}
+				, SettingKey = #{SettingKey}
+				, SettingValue = #{SettingValue}
+				, IsCheck = #{IsCheck}
+				, IsUse = #{IsUse}
+				, ConfigType = #{ConfigType}
+				, ConfigName = #{ConfigName}
+				, Description = #{Description}
+				, ModifierCode = #{ModID}
+				, ModifyDate = SYSDATE
+			WHERE ConfigID = #{Seq}
+		]]>
+	</update>
+    
+    <update id="updateIsUse" parameterType="cmap">
+    /* baseconfig.updateIsUse */
+	    <![CDATA[
+			UPDATE
+				SYS_BASE_CONFIG
+			SET
+				IsUse = #{IsUse}
+				, ModifierCode = #{ModID}
+				, ModifyDate = SYSDATE
+			WHERE ConfigID = #{Seq}
+		]]>
+	</update> 
+    
+    <delete id="deletegrid" parameterType="cmap">
+    /* baseconfig.deletegrid */
+        DELETE 
+    	FROM SYS_BASE_CONFIG
+  		WHERE ConfigID IN 
+		<foreach collection="seq" item="item" index="index" separator="," open="(" close=")">
+		    #{item}
+		</foreach>
+	</delete>
+    
+	<select id="selectForCheckingDouble" resultType="java.lang.Long" >
+	/* baseconfig.selectForCheckingDouble */
+	    SELECT COUNT(*)
+	    FROM SYS_BASE_CONFIG
+	    WHERE SettingKey = #{settingKey}
+	    AND DomainID = #{DN_ID}
+	</select>
+	
+	<select id="selectForCheckingKey" resultType="java.lang.Long" >
+	/* baseconfig.selectForCheckingKey */
+	    SELECT ConfigID
+	    FROM SYS_BASE_CONFIG
+	    WHERE SettingKey = #{settingKey}
+	    AND DomainID = #{DN_ID}
+	</select>
+</mapper>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogPerformanceLog">    
+	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	  LogID AS "LogID"
+				, MachineName AS "MachineName"
+				, UserCode AS "UserCode"
+				, UserName AS "UserName"
+				, DeptName AS "DeptName"
+				, LogonID AS "LogonID"
+				, SiteName AS "SiteName"
+				, LogType AS "LogType"
+				, LogTitle AS "LogTitle"
+				, ThreadID AS "ThreadID"
+				, RunTime AS "RunTime"
+				, MethodName AS "MethodName"
+				, PageURL AS "PageURL"
+				, PageParam AS "PageParam"
+				, IPAddress AS "IPAddress"
+				, EventDate AS "EventDate"
+		FROM (
+			SELECT	  LogID
+					, MachineName
+					, p.UserCode
+					, FN_BASEGETDICTIONARY_S(#{lang}, NVL(u.MultiDisplayName,'')) AS UserName
+					, FN_BASEGETDICTIONARY_S(#{lang}, NVL(bg.MultiDeptName,'')) AS DeptName
+					, p.LogonID
+					, SiteName
+					, LogType
+					, LogTitle
+					, ThreadID
+					, RunTime
+					, MethodName
+					, PageURL
+					, PageParam
+					, IPAddress
+					, TO_CHAR(EventDate, 'YYYY-MM-DD HH24:MI:SS') AS EventDate
+			FROM LOG_PERFORMANCE p
+			LEFT JOIN SYS_OBJECT_USER u ON p.LogonID = u.UserCode
+			LEFT JOIN SYS_OBJECT_USER_BASEGROUP bg ON u.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+			WHERE 1=1 
+			<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+				AND EventDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')
+			</if>
+			<if test="searchText != null and searchText != '' ">
+				AND ( u.MultiDisplayName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  OR bg.MultiDeptName LIKE CONCAT(CONCAT('%', #{searchText}), '%') ) 
+			</if>
+		) A
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("LogType")'>LogType</when>
+					<when test='sortColumn.equalsIgnoreCase("ThreadID")'>ThreadID</when>
+					<when test='sortColumn.equalsIgnoreCase("RunTime")'>RunTime</when>
+					<when test='sortColumn.equalsIgnoreCase("PageURL")'>PageURL</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+					<when test='sortColumn.equalsIgnoreCase("MachineName")'>MachineName</when>
+					<otherwise>EventDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+ 	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(0) AS CNT
+			FROM LOG_PERFORMANCE p
+			LEFT JOIN SYS_OBJECT_USER u ON p.LogonID = u.UserCode
+			LEFT JOIN SYS_OBJECT_USER_BASEGROUP bg ON u.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+		]]>
+		WHERE 1=1 
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">
+		    AND EventDate BETWEEN TO_DATE(#{startDate}, 'YYYY-MM-DD HH24:MI:SS') AND TO_DATE(#{endDate}, 'YYYY-MM-DD HH24:MI:SS')
+		</if>
+		<if test="searchText != null and searchText != '' ">
+		    AND ( u.MultiDisplayName LIKE CONCAT(CONCAT('%', #{searchText}), '%')  OR bg.MultiDeptName LIKE CONCAT(CONCAT('%', #{searchText}), '%') ) 
+		</if>
+	</select>	
+ 	
+</mapper>

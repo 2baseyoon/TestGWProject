@@ -1,0 +1,59 @@
+<!--실 결재양식 내용 부분 시작 -->
+<div id="divFormContent">
+	<table class="tableStyle linePlus mt10"><!-- class="table_10" -->
+	    <colgroup>
+	        <col style="width:12%" />
+	        <col style="width:38%" />
+	        <col style="width:12%" />
+	        <col style="width:38%" />
+	    </colgroup>
+	    <tr>
+	    	<th>인감 구분</th>
+	    	<td>
+	    		<select data-type="smField" id="SealGubun" data-model="SealGubun" title="인감 구분" data-element-type="sel_d_t" style="width:100%;">
+	            </select>
+	    	</td>
+	    	<th>날인 상태</th>
+	    	<td>
+	    		<select data-type="smField" id="Situation" data-model="Situation" title="날인 상태" data-element-type="sel_d_t" style="width:100%;">
+	            </select>
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<th>용도</th>
+	    	<td>
+	    		<select data-type="smField" id="Uses" data-model="Uses" title="용도" data-element-type="sel_d_t" style="width:100%;">
+	            </select>
+	    	</td>
+	    	<th>날인요청 날짜</th>
+	    	<td>
+	    		<input type="text" data-type="smField" data-pattern="date" id="SealReqDate" data-model="SealReqDate" title="날인요청 날짜" maxlength="10" data-max-char="10"  value="{{ doc.BodyData.MainTable.SealReqDate }}" style="width:100%;">
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<th>계약명/<br/>문서 제목</th>
+	    	<td colspan="3">
+	    		<input type="text" data-type="smField" id="ContractName" data-model="ContractName" title="계약명/문서 제목" maxlength="200" data-max-char="200" value="{{ doc.BodyData.MainTable.ContractName }}" style="width:100%;">
+	    	</td
+	    </tr>
+	    <tr>
+	    	<th>고객사<br/>(제출처)</th>
+	    	<td colspan="3">
+	    		<input type="text" data-type="smField" id="ClientName" data-model="ClientName" title="고객사(제출처)" maxlength="200" data-max-char="200" value="{{ doc.BodyData.MainTable.ClientName }}" style="width:100%;">
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<th>긴급 요청사항</th>
+	    	<td colspan="3">
+	    		<input type="text" data-type="smField" id="EmergencyRequest" data-model="EmergencyRequest" title="긴급 요청사항" maxlength="2000" data-max-char="2000" value="{{ doc.BodyData.MainTable.EmergencyRequest }}" style="width:100%;">
+	    	</td>
+	    </tr>
+	    <tr>
+	    	<th>비고</th>
+	    	<td colspan="3">
+	    		<input type="text" data-type="smField" id="Remarks" data-model="Remarks" title="비고" maxlength="2000" data-max-char="2000" value="{{ doc.BodyData.MainTable.Remarks }}" style="width:100%;">
+	    	</td>
+	    </tr>
+	</table>
+</div>
+<!--실 결재양식 내용 부분 끝 -->

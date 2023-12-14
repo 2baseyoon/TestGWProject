@@ -1,0 +1,247 @@
+<!-- 제목 & 문서분류 -->
+<table id="docInfoTB" class="tableStyle linePlus fsbTop" cellpadding="0" cellspacing="0" >
+	<colgroup>
+    	<col style="width:12%" />
+    	<col style="width:38%" />
+    	<col style="width:12%" />
+    	<col style="width:38%" />
+	</colgroup>
+	<tr>
+		<th id="TIT_SUBJECT"><spring:message code='Cache.lbl_Title'/></th><!-- 제목 -->
+		<td colspan="3"><input type="text" class="w100" data-type="dField" id="Subject" value="{{ doc.FormInstanceInfo.Subject }}" title="<spring:message code='Cache.lbl_Title'/>" data-model="FormInstanceInfo.Subject" data-binding="pre" style="height:25px;" required></td>
+	</tr>
+	<tr>
+		<th id="TIT_DOC_NO"><spring:message code='Cache.lbl_apv_DocNo'/></th><!-- 문서번호 -->
+		<td style="text-align:left;">
+			<input type="text" data-type="dField" id="DocNo" value="{{ doc.FormInstanceInfo.DocNo }}" data-model="FormInstanceInfo.DocNo" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+		</td>
+		<th id="TIT_DOC_LEVEL"><spring:message code='Cache.lbl_SecurityLevel'/></th><!-- 보안등급 -->
+		<td style="text-align:left;">
+			<select data-type="dField" id="DocLevel" data-element-type="sel_d_v" data-binding="post"></select>
+		</td>
+	</tr>
+	<tr>
+		<th id="TIT_SAVE_TERM"><spring:message code='Cache.lbl_preservationPeriod'/></th><!-- 보존기간 -->
+		<td style="text-align:left;">
+			<select data-type="dField" id="SaveTerm" data-element-type="sel_d_v" data-binding="post"></select>
+		</td>
+		<th><spring:message code='Cache.lbl_apv_Publication'/></th><!-- 공개여부 -->
+		<td style="text-align:left;">
+			<select data-type="mField" onchange="setDocInfoDisplay(this)" id="RELEASE_CHECK" name="RELEASE_CHECK" data-element-type="sel_d_t" data-binding="post">
+	    		<option value="1"><spring:message code='Cache.lbl_apv_open'/></option> <!-- 공개 -->
+	    		<option value="3"><spring:message code='Cache.lbl_Private'/></option> <!-- 비공개 -->
+    		</select>
+	    		
+			<div data-type="mField" data-element-type="chk_d" id="RELEASE_CODE" data-node-name="RELEASE_CODE" style = "display: none">
+	            <input type="checkbox" name="RELEASE_CODE" value="1" id="RELEASE_CODE_1" /> <label for="RELEASE_CHECK_1">1호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="2" id="RELEASE_CODE_2" /> <label for="RELEASE_CHECK_2">2호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="3" id="RELEASE_CODE_3" /> <label for="RELEASE_CHECK_3">3호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="4" id="RELEASE_CODE_4" /> <label for="RELEASE_CHECK_4">4호</label><br>
+	            <input type="checkbox" name="RELEASE_CODE" value="5" id="RELEASE_CODE_5" /> <label for="RELEASE_CHECK_5">5호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="6" id="RELEASE_CODE_6" /> <label for="RELEASE_CHECK_6">6호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="7" id="RELEASE_CODE_7" /> <label for="RELEASE_CHECK_7">7호</label>
+	            <input type="checkbox" name="RELEASE_CODE" value="8" id="RELEASE_CODE_7" /> <label for="RELEASE_CHECK_8">8호</label>
+	            <input type="hidden" id="RELEASE_RESTRICTION" class="input-required mw150p" name="returnDataField">
+            </div>
+            
+		</td>
+	</tr>
+</table>
+
+<div style="display: none;">
+	<!-- 화면에 보이지 않는 기본 정보 -->
+	<table class="tableStyle linePlus mt10 fsbTop" cellpadding="0" cellspacing="0">
+	    <colgroup>
+	    	<col style="width:12%" />
+	    	<col style="width:23%">
+	    	<col style="width:12%" />
+	    	<col style="width:23%">
+	    	<col style="width:12%" />
+	    	<col style="width:*">
+	    </colgroup>
+	    <tbody>
+		    <tr>
+		        <th id="TIT_INITIATOR"><spring:message code='Cache.lbl_apv_initiator'/></th>
+		        <td style="text-align:left;">
+		            <input type="text" data-type="mField" id="InitiatorDisplay" value="{{ doc.BodyContext.InitiatorDisplay }}" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+		        </td>
+		        <th id="TIT_INITIATOR_OU"><spring:message code='Cache.lbl_WriterDept'/></th>
+		        <td style="text-align:left;">
+		            <input type="text" data-type="mField" id="InitiatorOUDisplay" value="{{ doc.BodyContext.InitiatorOUDisplay }}" data-binding="pre" style="width:100%; border:0px;" readonly="readonly" />
+		        </td>
+		        <th id="TIT_DOC_CLASS"><spring:message code='Cache.lbl_DocCate'/></th>
+		        <td>
+		            <input type="text" data-type="dField" id="DocClassName" value="{{ doc.FormInstanceInfo.DocClassName }}" data-model="FormInstanceInfo.DocClassName" data-binding="pre" style="width:70%; border:0px;" readonly="readonly" />&nbsp;
+		            <span data-mode="writeOnly">
+		                <img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/btn_organization.gif" name="btn_Process" id="btn_Process" align="absMiddle" border="0" onclick="OpenDocClass();" style="cursor:pointer;" />
+		            </span>
+		        </td>
+		    </tr>
+		    
+	    </tbody>
+	</table>
+	<!-- 수신처 -->
+	<table class="tableStyle linePlus mt10 fsbTop" style="display: none" cellpadding="0" cellspacing="0" id="ReceiveLine">
+	    <colgroup>
+	        <col style="width:12%" />
+	        <col style="width:*" />
+	    </colgroup>
+	    <tr>
+	        <th id="TIT_RECLINE"><spring:message code='Cache.lbl_DESTINATION'/></th>
+	        <td id="RecLine"></td>
+	    </tr>
+	</table>
+	
+	<!-- 참조 -->
+	<table class="tableStyle linePlus mt10" style="display: none" cellpadding="0" cellspacing="0" id="CCLine">
+	    <colgroup>
+	        <col style="width:12%" />
+	        <col style="width:*" />
+	    </colgroup>
+	    <tr>
+	        <th id="TIT_L_CCINFO"><spring:message code='Cache.lbl_apv_Lccinfo'/></th>
+	        <td>
+	            <span id="SendCC"></span>
+	        </td>
+	    </tr>
+	    <tr>
+	        <th id="TIT_R_CCINFO"><spring:message code='Cache.lbl_apv_rccinfo'/></th>
+	        <td>
+	            <span id="RecCC"></span>
+	        </td>
+	    </tr>
+	</table>
+	<!-- 요약전 -->
+	<input type="hidden" data-type="mField" id="SummaryContent" value="{{ doc.BodyContext.SummaryContent }}" />
+</div>
+<!-- header end -->
+<!-- bodycontext start -->
+
+<!-- 다안기안 -->
+<div id="tblMultiDraftInfo" style="display: none;">
+	<table id="MainTable" class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+	    <tbody>
+			<tr>
+	        	<th style="width: 16%"><spring:message code='Cache.lbl_apv_writer'/>&nbsp;<spring:message code='Cache.lbl_PersonNo'/></th>
+	        	<td>
+	            	<input type="text" data-type="smField" id="DRAFTER_ID" data-model="DRAFTER_ID" value="{{ doc.BodyData.MainTable.DRAFTER_ID }}" title="신청자 사번" maxlength="50" data-max-char="20" style="width: 98%;" data-binding="pre" disabled required />
+	        	</td>
+	        	<th style="width: 16%"><spring:message code='Cache.lbl_apv_writer'/>&nbsp;<spring:message code='Cache.lbl_apv_name3'/></th>
+	        	<td>
+	            	<input type="text" data-type="smField" id="DRAFTER_NAME" data-model="DRAFTER_NAME" value="{{ doc.BodyData.MainTable.DRAFTER_NAME }}" title="신청자 성명" maxlength="50" data-max-char="20" style="width: 98%;" data-binding="pre" disabled required />
+	        	</td>
+	    	</tr>
+	   	 	<tr>
+	        	<th style="width: 16%"><spring:message code='Cache.lbl_apv_writer'/>&nbsp;<spring:message code='Cache.lbl_apv_DeptCode'/></th>
+	        	<td>
+	            	<input type="text" data-type="smField" id="DRAFTER_DEPT" data-model="DRAFTER_DEPT" value="{{ doc.BodyData.MainTable.DRAFTER_DEPT }}" title="기안자 부서코드" maxlength="50" data-max-char="50" style="width: 98%;" data-binding="pre" disabled required />
+	        	</td>
+	        	<th style="width: 16%"><spring:message code='Cache.lbl_apv_writer'/>&nbsp;<spring:message code='Cache.lbl_apv_DeptName'/></th>
+	        	<td>
+	            	<input type="text" data-type="smField" id="DRAFTER_DEPTNM" data-model="DRAFTER_DEPTNM" value="{{ doc.BodyData.MainTable.DRAFTER_DEPTNM }}" title="기안자 부서명" maxlength="50" data-max-char="50" style="width: 98%;" data-binding="pre" disabled required />
+	        	</td>
+	    	</tr>
+		</tbody>
+	</table>
+	<table id="SubTable1" class="table_3 multi-row-table tableStyle linePlus mt10" cellspacing="0" cellpadding="0">
+		<tr class="multi-row-control" style="display:none;">
+	    	<td colspan="5">
+	    		<input type="button" id="btn_new_add" class="multi-row-add" />
+	    		<input type="button" id="btn_new_del" class="multi-row-del-auto" />
+	    	</td>
+	    </tr>
+	    <tr>
+	        <th>ROWSEQ</th>
+	        <th>안 넘버</th>
+	        <th>결재유형(indoc/else)</th>
+	        <th>결재 수신처 구분(inreceive-대내수신/outelecdoc-대외전자/outpaperdoc-대외종이)</th>
+	        <th>결재 수신처(inreceive-대내수신) 명칭</th>
+	        <th>결재 수신처(inreceive-대내수신) 정보</th>
+	        <th>제목</th>
+	        <th>발신명의</th>
+	        <th>stamp</th>
+	        <th>logo</th>
+	        <th>symbol</th>
+	        <th>chief</th>
+	        <th>campaign-t</th>
+	        <th>campaign-f</th>
+	        <th>HWP 본문</th>
+	        <th>첨부</th>
+	        <th>연결문서</th>
+	        <th>organ</th>
+	        <th>전화번호</th>
+	        <th>E-mail</th>
+	        <th>우편번호</th>
+	        <th>주소</th>
+	        <th>HomePage</th>
+	        <th>팩스번호</th>
+	        <th>본문</th>
+	    </tr>
+	    <tr class="multi-row-template">
+	    	<td><span data-type="stField" class="multi-row-seq" name="ROWSEQ">1</span></td><!-- 순번 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_ROWSEQ" value="1" disabled /></td><!-- 안 넘버 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_APV_RECEIVER_TYPE" value="indoc" disabled /></td><!-- 결재유형(indoc/else) -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_RECEIVE_TYPE" value="inreceive" disabled /></td><!-- 결재 수신처 구분(inreceive-대내수신/outelecdoc-대외전자/outpaperdoc-대외종이) -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_RECEIVENAMES" disabled /></td><!-- 결재 수신처(inreceive-대내수신) 명칭 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_RECEIPTLIST" disabled /></td><!-- 결재 수신처(inreceive-대내수신) 정보 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_TITLE" disabled required /></td><!-- 제목 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_SENDER_MASTER" disabled /></td><!-- 발신명의 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_STAMP" disabled /></td><!-- stamp -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_LOGO" disabled /></td><!-- logo -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_SYMBOL" disabled /></td><!-- symbol -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_CHIEF" disabled /></td><!-- chief -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_CAMPAIGN_T" disabled /></td><!-- campaign-t -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_CAMPAIGN_F" disabled /></td><!-- campaign-f -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_BODY_CONTEXT_HWP" disabled /></td><!-- HWP 본문 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_ATTACH_FILE" disabled /></td><!-- 첨부 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_LINK_DOC" disabled /></td><!-- 연결문서 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_ORGAN" disabled /></td><!-- organ -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_TELEPHONE" disabled /></td> <!-- 전화번호 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_EMAIL" disabled /></td> <!-- E-mail -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_ZIPCODE" disabled /></td> <!-- 우편번호 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_ADDRESS" disabled /></td> <!-- 주소 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_HOMEURL" disabled /></td> <!-- HomePage -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_FAX" disabled /></td> <!-- 팩스번호 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_BODY" disabled /></td> <!-- 본문 -->
+	    	<td><input type="text" data-type="stField" style="width: 95%; height: 20px;" name="MULTI_BODYURL" disabled /></td> <!-- 한글 본문 다운로드 URL -->
+	    </tr>
+	</table>
+</div>
+
+<!-- 탭 -->
+<div class="mb10">
+	<div class="buttonLine" id="buttonOut" data-mode="writeOnly">
+		<div style="float:right;">
+			<input class="AXButton" id="btItemAdd" onclick="addTabData();" type="button" value="<spring:message code='btn_add_draft'/>"><!-- [안]추가  -->
+			<input class="AXButton" id="btItemDel" onclick="deleteTabData();" type="button" value="<spring:message code='btn_remove_draft'/>"><!-- [안]삭제  -->
+		</div>
+	</div>
+	<div class="tabLine" style="margin-top:20px; margin-bottom: -1px;">
+		<ul class="writeTab" id="writeTab">
+			<li class="on" idx="1" style="width: 45px;" doctype="normal"><a onclick="javascript:changeTabData(1);" style="line-height:35px;">1<spring:message code="Cache.lbl_an"/></a></li>
+		</ul>
+	</div>
+</div>
+
+<!-- 버튼 -->
+<div class="buttonLine" id="buttonIn" style="height: 40px;" data-mode="writeOnly">
+	<div id="divHWPSender" style="float: left; font-size: 12px; display: none;">
+		<select id="ApvReceiverTypeSelect" name="ApvReceiverTypeSelect" data-element-type="sel_d_t" data-type="mField" data-node-name="ApvReceiverType" style="font-size:12px; width: 90px" onChange="setDocInfoHWPDisplay(this)">
+			<option value="indoc" selected="selected"><spring:message code='Cache.Approval_InternalPayment'/></option><!-- 내부결재 -->
+			<option value="else"><spring:message code='Cache.Approval_TrialDelivery'/></option><!-- 시행발송 -->
+		</select>
+		&nbsp;&nbsp;
+		<span><spring:message code='lbl_apv_originatingName'/></span><!-- 발신명의 -->
+		<select id="SenderMasterSelect" name="SenderMasterSelect" data-element-type="sel_d_t" data-type="mField" data-node-name="SenderMaster" style="font-size:12px;" onChange="setDocInfoHWPDisplay(this)">
+			<option value=""><spring:message code='Cache.lbl_selection'/></option>
+		</select>
+	</div>
+	<div style="float: right;">
+		<input class="AXButton" id="btAttachAdd" onclick="AddFileMulti();" type="button" value="<spring:message code='Cache.btn_addfile'/>">
+		<input class="AXButton" id="btDocLinkMulti" onclick="openDocLink();" type="button" value="<spring:message code='Cache.btn_apv_doclink'/>">
+		<input class="AXButton" id="btRecieveMulti" onclick="setRecieverMulti();" type="button" style="display: none;" value="<spring:message code='Cache.btn_apv_recdept'/>">
+	</div>
+</div>
+
+<!-- 저장할 필요 없지만 필요한 필드들 -->
+<input type="hidden" id="RECEIVEGOV_NAMES" /><!-- 수신처 팝업에서 사용됨 (대외전자) -->

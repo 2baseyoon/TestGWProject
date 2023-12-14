@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="fido">
+	<select id="selectUserCode" parameterType="cmap" resultType="String">
+		SELECT UserCode AS userCode 
+		FROM covi_smart4j.sys_object_user
+		WHERE 1=1
+		AND LogonID = #{logonID}
+		AND IsUse = "Y"
+	</select>
+
+	<!-- FIDO 인증요청 정보 추가 -->
+	<insert id="createFido" parameterType="cmap">
+	    INSERT INTO covi_smart4j.sys_base_fido (
+		 AuthType
+		 , AuthStatus
+		 , AuthSystem
+		 , AuthToken
+		 , LogonID
+		 , UserCode
+		 , EQ_AuthKind
+		 , AuthEQ_Info
+		 , Reffer
+		) VALUES(
+		 #{authType}
+		 , "Req"
+		 , #{authSystem}
+		 , #{authToken}
+		 , #{logonID}
+		 , #{userCode}
+		 <!-- , (SELECT UserCode FROM covi_smart4j.sys_object_user WHERE LogonID = #{logonID})  -->
+		 , #{eq_AuthKind}
+		 , #{authEQ_Info}
+		 , #{reffer}
+		 )
+		 <selectKey keyProperty="authKey" resultType="long" order="AFTER">
+			SELECT LAST_INSERT_ID();
+        </selectKey>
+	</insert>
+	
+	<!-- FIDO 요청 상태값 변경  -->
+	<update id="updateFidoStatus" parameterType="cmap">
+		UPDATE covi_smart4j.sys_base_fido 
+		SET 
+		<choose>
+			<when test="reqMode == 'MobileSucc'">
+				AuthStatus = "Succ"
+				, SuccessDate = NOW(3)
+				, EQ_AuthKind =  #{eq_AuthKind}
+				, AuthEQ_Info = #{authEQ_Info}
+			</when>
+			<when test="reqMode == 'CheckAuth'">
+				AuthStatus = "Check"
+				, CheckDate = NOW(3)
+			</when>
+			<when test="reqMode == 'CancelAuth' or reqMode == 'MobileFail'">
+				AuthStatus = "Fail"
+				,Description = #{description}
+				, FailDate = NOW(3)
+			</when>
+		</choose>
+		WHERE 1=1
+		AND AuthKey = #{authKey}
+<!-- 		AND AuthToken = #{authToken} -->
+	</update>
+	
+	<!-- FIDO 인증 상태 조회  -->
+	<select id="selectFidoStatus" parameterType="cmap" resultType="String">
+		SELECT authStatus
+		FROM covi_smart4j.sys_base_fido
+		WHERE 1=1
+		AND AuthKey = #{authKey}
+		AND AuthType = #{authType}
+		AND LogonID = #{logonID}
+		<!-- AND AuthToken = #{authToken}  -->
+	</select>
+
+	<!-- FIDO AuthToken 값 추가  -->
+	<update id="updateAuthToken" parameterType="cmap">
+		UPDATE covi_smart4j.sys_base_fido
+		SET authToken = #{authToken}
+		WHERE AuthKey =  #{authKey}
+	</update>
+</mapper>

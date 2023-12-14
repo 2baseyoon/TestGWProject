@@ -1,0 +1,683 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.board">
+    <!-- 좋아요가 가장 많은 게시글 조회 -->
+    <select id="selecMostLikeBoardMessage" parameterType="cmap" resultType="cmap">
+		SELECT a.MessageID AS "MessageID"
+				, a.Version AS "Version"
+				, a.FolderID AS "FolderID"
+				, a.Subject AS "Subject"
+				, a.RegistDate AS "RegistDate"
+				, COUNT(b.LikeID) AS "LikeCnt"
+		FROM board_message a
+		LEFT JOIN sys_like b ON a.MessageID = REGEXP_SUBSTR(b.TargetID,'[^_]+',1,1) AND b.TargetServiceType = 'Board'
+		WHERE a.DeleteDate IS NULL
+		AND ROWNUM &lt;= 1
+		GROUP BY MessageID, Version, FolderID,Subject, a.RegistDate
+		-- HAVING COUNT(b.LikeID) > 0 
+		ORDER BY "LikeCnt" DESC, "RegistDate";
+	</select>
+	
+     <!-- 댓글 개수가 가장 많은 게시글 조회 (최다 댓글 게시글 조회)  -->
+     <select id="selectMaxCommentBoardMessage" parameterType="cmap" resultType="cmap">
+			SELECT a.MessageID AS "MessageID"
+					, a.Version AS "Version"
+					, a.FolderID AS "FolderID"
+					, a.Subject AS "Subject"
+					, (COUNT(b.CommentID) + SUM(b.ReplyCount)) AS "CommentCnt"
+			FROM board_message a
+			LEFT JOIN sys_comment b ON a.MessageID = REGEXP_SUBSTR(b.TargetID,'[^_]+',1,1) AND b.TargetServiceType = 'Board' AND b.MemberOf = 0 
+			WHERE a.DeleteDate IS NULL
+			AND b.DeleteDate IS NULL
+			AND ROWNUM &lt;= 1
+			GROUP BY MessageID, Version, FolderID, Subject
+			--  HAVING COUNT(b.CommentID) > 0
+			ORDER BY "CommentCnt" DESC
+	</select>
+    
+    
+      <!-- 조회수가 가장 많은 게시글 조회  -->
+     <select id="selectMaxReadBoardMessage" parameterType="cmap" resultType="cmap">
+		  SELECT   a.MessageID AS "MessageID"
+					, a.Version AS "Version"
+					, a.FolderID AS "FolderID"
+					, a.Subject AS "Subject"
+					,a.ReadCnt AS "ReadCnt"
+					, (SELECT COUNT(*) FROM sys_like b 
+						WHERE b.TargetServiceType = 'Board' 
+						AND b.TargetID = REGEXP_SUBSTR(a.MessageID,'[^_]+',1,1) ) AS LikeCnt
+		  FROM board_message a
+		  WHERE a.DeleteDate IS NULL
+		  AND ROWNUM &lt;= 1
+		  ORDER BY a.ReadCnt DESC, a.RegistDate DESC
+	</select>
+	
+      <!-- 태그 목록 조회  -->
+     <select id="selectBoardTag" parameterType="cmap" resultType="cmap">
+		  SELECT Tag, COUNT(TAG) AS Cnt from board_message_tag
+		  WHERE ROWNUM &lt;= #{limitCnt}
+		  GROUP BY Tag
+		  ORDER BY Cnt DESC
+	</select>
+	
+   <select id="selectMultipleBoardList" parameterType="cmap" resultType="cmap">
+        SELECT
+        	FolderID AS "FolderID"
+        	, MenuID AS "MenuID"
+        	, Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS "FolderName"
+        FROM sys_object_folder
+        WHERE 1=1
+        <if test='multipleFolderIDArr != null and multipleFolderIDArr.length != 0'>
+			AND FolderID IN  
+			<foreach collection="multipleFolderIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+        AND IsUse = 'Y'
+        AND DeleteDate IS NULL
+    </select>
+     
+    <select id="selectMultipleBoardMessageList" parameterType="cmap" resultType="cmap">
+        SELECT 
+        	SOF.MenuID AS "MenuID"
+        	, SOF.FolderID AS "FolderID"
+        	, BM.MessageID AS "MessageID"
+        	, BM.Version AS "Version"
+        	, BM.Subject AS "Subject"
+        	, BM.CreatorCode AS "CreatorCode"
+        	, Fn_BaseGetDictionary_S(#{lang}, CreatorName) AS "CreatorName"
+        	, TO_CHAR(BM.RegistDate,'YYYY.MM.DD') AS "RegistDate"
+        FROM board_message BM
+        INNER JOIN sys_object_folder SOF ON (BM.FolderID = SOF.FolderID)
+        WHERE 1=1
+        AND SOF.FolderID = #{folderID}
+        AND SOF.DeleteDate IS NULL
+        AND SOF.IsUse = 'Y'
+        AND BM.MsgType NOT IN ('N', 'B')
+        AND BM.MsgState IN ('C', 'A')
+        AND BM.DeleteDate IS NULL
+        AND (UseSecurity != 'Y' OR (UseSecurity = 'Y' AND CreatorCode = #{userCode}))
+		AND (BM.ExpiredDate IS NULL OR  BM.ExpiredDate >= SYSDATE) 
+        ORDER BY DECODE(BM.ParentID, 0, BM.MessageID , BM.Seq) desc, depth,step ASC
+    </select>
+    
+    <select id="selectPopupNoticeList" parameterType="cmap" resultType="cmap">
+    /* selectPopupNoticeList */
+   		SELECT FD.MenuID AS "MenuID"
+			, FD.FolderID AS "FolderID"
+			, FD.OwnerCode AS "FolderOwnerCode"
+			, FD.FolderType AS "FolderType"
+			, BM.Version AS "Version"
+			, BM.MessageID AS "MessageID"
+			, BM.Subject AS "Subject"
+			, BM.CreatorCode AS "CreatorCode"
+			, NVL(BM.OwnerCode, '') AS "OwnerCode"
+			, NVL(BM.RegistDept, '') AS "RegistDept"
+			, NVL(BM.UseMessageReadAuth, 'N') AS "UseMessageReadAuth"
+			, NVL(FG.UseMessageAuth, 'N') AS "UseMessageAuth"
+		FROM board_message BM 
+		INNER JOIN sys_object_folder FD ON BM.FolderID = FD.FolderID
+		INNER JOIN board_config FG ON FD.FolderID = FG.FolderID AND FG.UsePopNotice = 'Y'
+		WHERE FD.IsUse = 'Y' 
+		AND FD.IsDisplay = 'Y'
+		AND FD.DeleteDate IS NULL
+		AND BM.DeleteDate IS NULL
+		AND BM.IsPopup = 'Y'
+		AND BM.MsgType IN ('O', 'M')
+		AND BM.MsgState IN ('C', 'A')
+		AND SYSDATE BETWEEN BM.PopupStartDate AND BM.PopupEndDate
+		AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= SYSDATE)
+		<if test='folderACLArr != null and folderACLArr.length != 0'>
+			AND FD.FolderID IN  
+			<foreach collection="folderACLArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+    </select>
+    
+	<!-- MY 도메인 정보 조회 -->
+	<select id="selectDomain" parameterType="cmap" resultType="cmap">
+		SELECT   DomainID AS "DomainID"
+			   , DomainCode AS "DomainCode"
+			   , DomainURL AS "DomainURL"
+			   , DisplayName AS "DisplayName"
+			   , MultiDisplayName AS "MultiDisplayName"
+			   , MemberOf AS "MemberOf"
+			   , DomainPath AS "DomainPath"
+			   , SortKey AS "SortKey"
+			   , SortPath AS "SortPath"
+			   , IsUse AS "IsUse"
+			   , ServiceUser AS "ServiceUser"
+			   , Description AS "Description"
+			   , RegistDate AS "RegistDate"
+			   , ServiceStart AS "ServiceStart"
+			   , ServiceEnd AS "ServiceEnd"
+			   , SubDomain AS "SubDomain"
+			   , OrgSyncType AS "OrgSyncType"
+			   , DomainRepName AS "DomainRepName"
+			   , DomainRepTel AS "DomainRepTel"
+			   , DomainCorpTel AS "DomainCorpTel"
+			   , DomainImagePath AS "DomainImagePath"
+			   , DomainZipcode AS "DomainZipcode"
+			   , DomainAddress AS "DomainAddress"
+			   , Memo AS "Memo"
+			   , DomainBannerPath AS "DomainBannerPath"
+			   , DomainBannerLink AS "DomainBannerLink"
+			   , ChargerName AS "ChargerName"
+			   , ChargerTel AS "ChargerTel"
+			   , ChargerID AS "ChargerID"
+			   , ChargerEmail AS "ChargerEmail"
+			   , IsUseGoogleSchedule AS "IsUseGoogleSchedule"
+		 FROM sys_object_domain
+		 WHERE DomainID = #{DomainID}
+	</select>
+	
+	<!-- 팝업/웹파트 임직원 소식 조회  -->
+	<select id="selectEmployeesNotice" parameterType="cmap" resultType="cmap">
+	 /* webpart.board.selectEmployeesNotice */
+	<include refid="oracle.include.pagingHeader" />
+			SELECT * FROM (
+				SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS "UserName"
+						, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobLevelName ) AS "JobLevelName"
+						, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobTitleName ) AS "JobTitleName"
+						, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobPositionName ) AS "JobPositionName"
+						, ur.MailAddress AS "MailAddress"	
+						, ur.PhotoPath AS "PhotoPath"
+						, gr.SortKey AS "SortKey"
+						, gr.JobTitleSortKey AS "JobTitleSortKey"
+						, gr.JobPositionSortKey AS "JobPositionSortKey"
+						, gr.JobLevelSortKey AS "JobLevelSortKey"
+						, notice.* 
+			FROM  (
+			<trim prefixOverrides ="UNION ALL">		
+				<if test="selMode == 'ALL'">
+					<if test='Birth == "Y"'>
+						UNION ALL (
+							SELECT a.UserCode AS "UserCode"
+								, 'Birth' AS "Type"
+								, a.BirthDiv AS "DateDiv"
+								, TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "Date"
+								, 0 AS "isVac"
+								, TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+								, 'off' AS "offFlag"
+							FROM sys_object_user a
+							WHERE
+						<if test='birthMode == "D"'>	
+							(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MMDD'))
+							OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = (
+								SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') 
+								FROM SYS_CALENDAR
+								WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND DN_ID = 0
+							))
+						</if>
+						<if test='birthMode == "M"'>
+							(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MM'))
+							OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = (
+								SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') 
+								FROM SYS_CALENDAR
+								WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YY-MM') AND DN_ID = 0
+							))
+						</if>
+						)
+					</if>
+					<if test='NewJoin == "Y"'>
+						UNION ALL (
+							SELECT a.UserCode  AS "UserCode"
+								, 'Enter' AS "Type"
+								, 'S' AS "DateDiv"
+								, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+								, 0 AS "isVac"
+								, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+								, 'off' AS "offFlag"
+							FROM sys_object_user a
+							WHERE a.EnterDate IS NOT NULL AND LENGTH(a.EnterDate) > 0
+								AND a.EnterDate <![CDATA[>]]> TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - NUMTODSINTERVAL(#{enterInterval}, 'DAY'), 'YYYYMMDD')
+		
+						)
+					</if>
+					<if test='Condolence == "Y"'>
+						UNION ALL (
+							SELECT EventOwner AS "UserCode"
+								, EventType AS "Type"
+								, 'S' AS "DateDiv"
+								, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+								, 0 AS "isVac"
+								, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+								, 'off' AS "offFlag"
+							FROM board_message_event
+							WHERE EventDate IS NOT NULL
+							AND EventDate
+								BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+								AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')
+						)
+					</if>
+					<if test='Vacation == "Y"'>
+						UNION ALL (
+							SELECT Apply.UR_Code AS "UserCode"
+									, Apply.VacFlag AS "Type"
+									, 'S' AS "DateDiv"
+									, Apply.VacDate AS "Date" 
+									, 1 AS "isVac"
+									, TO_CHAR(TO_DATE(Apply.VacDate,'YYYY-MM-DD HH24:MI:SS') + ((TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - TO_DATE(Apply.VacDate,'YYYY-MM-DD HH24:MI:SS')) * 2)) AS "DateSort"								
+									, Apply.VacOffFlag AS "offFlag"									
+							FROM (
+								SELECT 
+									a.UR_Code, a.VacFlag, b.VacDate, b.VacDay, a.VacOffFlag
+								FROM vm_vacationinfo a
+							    JOIN vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+								WHERE a.GUBUN = 'VACATION_APPLY'
+							    AND b.vacdate 
+							    	BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+									AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')							
+							) Apply
+						)
+					</if>
+				</if>
+			</trim>
+			<if test="selMode == 'Birth'">
+					(
+						SELECT a.UserCode AS "UserCode"
+							, 'Birth' AS "Type"
+							, a.BirthDiv AS "DateDiv"
+							, TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "Date"
+							, 0 AS "isVac"
+							, TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+							, 'off' AS "offFlag"
+						FROM sys_object_user a
+						WHERE 
+					<if test='birthMode == "D"'>	
+						(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MMDD'))
+						OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = (
+							SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND DN_ID = 0
+						))
+					</if>
+					<if test='birthMode == "M"'>
+						(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MM'))
+						OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = (
+							SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') 
+							FROM SYS_CALENDAR
+							WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YY-MM') AND DN_ID = 0
+						))
+					</if>
+					)
+			</if>
+			<if test="selMode == 'NewJoin'">
+					(
+						SELECT a.UserCode AS "UserCode"
+							, 'Enter' AS "Type"
+							, 'S' AS "DateDiv"
+							, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+							, 0 AS "isVac"
+							, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+							, 'off' AS "offFlag"
+						FROM sys_object_user a
+						WHERE a.EnterDate IS NOT NULL AND LENGTH(a.EnterDate) > 0
+							AND a.EnterDate <![CDATA[>]]> TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - NUMTODSINTERVAL(#{enterInterval}, 'DAY'), 'YYYYMMDD')
+					)
+			</if>
+			<if test="selMode == 'Condolence'">
+					(
+						SELECT EventOwner AS "UserCode"
+							, EventType AS "Type"
+							, 'S' AS "DateDiv"
+							, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+							, 0 AS "isVac"
+							, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "DateSort"
+							, 'off' AS "offFlag"
+						FROM board_message_event
+						WHERE EventDate IS NOT NULL
+						AND EventDate 
+							BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+							AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')
+						ORDER BY EventType, RegistDate DESC
+					)
+			</if>
+			<if test="selMode == 'Vacation'">
+					(
+						SELECT Apply.UR_Code AS "UserCode"
+								, Apply.VacFlag AS "Type"
+								, 'S' AS "DateDiv"
+								, Apply.VacDate AS "Date" 
+								, 1 AS "isVac"
+								, TO_CHAR(TO_DATE(Apply.VacDate,'YYYY-MM-DD HH24:MI:SS') + ((TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - TO_DATE(Apply.VacDate,'YYYY-MM-DD HH24:MI:SS')) * 2)) AS "DateSort"
+								, Apply.VacOffFlag AS "offFlag"		
+						FROM (
+							SELECT 
+								a.UR_Code, a.VacFlag, b.VacDate, b.VacDay, a.VacOffFlag
+							FROM vm_vacationinfo a
+						    JOIN vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+							WHERE a.GUBUN = 'VACATION_APPLY'
+						    AND b.vacdate 
+						    	BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+								AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')							
+						) Apply
+					)
+			</if>
+				) notice
+				INNER JOIN sys_object_user ur ON notice."UserCode" = ur.UserCode
+				INNER JOIN sys_object_user_basegroup gr ON notice."UserCode" = gr.UserCode AND gr.JobType = 'Origin'
+				WHERE ur.IsUse = 'Y' AND ur.IsDisplay = 'Y' AND gr.CompanyCode = #{DN_Code}
+				<if test="searchName != null and searchName != '' and searchName.length() gt 0">
+					AND ur.MultiDisplayName like '%'||#{searchName}||'%'
+				</if>
+			) a	
+			<if test='paging == "portal"'>
+				<![CDATA[WHERE ROWNUM <= #{count}]]>		
+			</if>
+			<if test='paging == "popup"'>
+				<![CDATA[WHERE ROWNUM <= 20]]>		
+			</if>		
+			ORDER BY "isVac" ASC, "DateSort" DESC, 
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder == 'JobTitle'">
+				  			"JobTitleSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder == 'JobLevel'">
+				  			"JobLevelSortKey" ASC
+				  		</if>
+				  		<if test="orgOrder == 'JobPosition'">
+				  			"JobPositionSortKey" ASC
+				  		</if>
+		  				<if test="orgOrder == 'DN'">
+				  			"UserName" ASC
+				  		</if>
+				  	</foreach>
+				  	, "SortKey" ASC
+			  	</when>
+			  	<otherwise>
+			  		<![CDATA[ "SortKey" ASC, "JobTitleSortKey" ASC, "JobLevelSortKey" ASC, "JobPositionSortKey" ASC, "UserName" ASC ]]>
+			  	</otherwise>
+			</choose>		
+		<include refid="oracle.include.pagingFooter" />
+	</select>  
+	
+	<!-- 팝업/웹파트 임직원 소식 조회 카운트 -->
+	<select id="selectEmployeesNoticeCount" parameterType="cmap" resultType="cmap">
+		/* webpart.board.selectEmployeesNoticeCount */
+		SELECT COUNT(*) as "Cnt" FROM (
+			SELECT Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS "UserName"
+					, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobLevelName ) AS "JobLevelName"
+					, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobTitleName ) AS "JobTitleName"
+					, Fn_BaseGetDictionary_S(#{lang}, gr.MultiJobPositionName ) AS "JobPositionName"
+					, ur.MailAddress AS "MailAddress"	
+					, ur.PhotoPath AS "PhotoPath"
+					, notice.* 
+			FROM  (
+			<trim prefixOverrides ="UNION ALL">		
+				<if test="selMode == 'ALL'">
+					<if test='Birth == "Y"'>
+						UNION ALL (
+							SELECT a.UserCode AS "UserCode"
+								, 'Birth' AS "Type"
+								, a.BirthDiv AS "DateDiv"
+								, TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "Date"
+								, 'off' AS "offFlag"
+							FROM sys_object_user a
+							WHERE
+						<if test='birthMode == "D"'>	
+							(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MMDD'))
+							OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = (
+								SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') 
+								FROM SYS_CALENDAR
+								WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND DN_ID = 0
+							))
+						</if>
+						<if test='birthMode == "M"'>
+							(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MM'))
+							OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = (
+								SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') 
+								FROM SYS_CALENDAR
+								WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YY-MM') AND DN_ID = 0
+						))
+					</if>
+					)
+				</if>
+				<if test='NewJoin == "Y"'>
+					UNION ALL (
+						SELECT a.UserCode  AS "UserCode"
+							, 'Enter' AS "Type"
+							, 'S' AS "DateDiv"
+							, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+							, 'off' AS "offFlag"
+						FROM sys_object_user a
+						WHERE a.EnterDate IS NOT NULL AND LENGTH(a.EnterDate) > 0
+							AND a.EnterDate <![CDATA[>]]> TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - NUMTODSINTERVAL(#{enterInterval}, 'DAY'), 'YYYYMMDD')
+	
+					)
+				</if>
+				<if test='Condolence == "Y"'>
+					UNION ALL (
+						SELECT EventOwner AS "UserCode"
+							, EventType AS "Type"
+							, 'S' AS "DateDiv"
+							, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+							, 'off' AS "offFlag"
+						FROM board_message_event
+						WHERE EventDate IS NOT NULL
+						AND EventDate
+							BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+							AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')
+					)
+				</if>
+				<if test='Vacation == "Y"'>
+					UNION ALL (
+						SELECT Apply.UR_Code AS "UserCode"
+								, Apply.VacFlag AS "Type"
+								, 'S' AS "DateDiv"
+								, Apply.VacDate AS "Date" 
+								, Apply.VacOffFlag AS "offFlag"	
+						FROM (
+							SELECT 
+								a.UR_Code, a.VacFlag, b.VacDate, b.VacDay, a.VacOffFlag
+							FROM vm_vacationinfo a
+						    JOIN vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+							WHERE a.GUBUN = 'VACATION_APPLY'
+						    AND b.vacdate 
+						    	BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+								AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')							
+						) Apply
+					)
+				</if>
+			</if>
+		</trim>
+		<if test="selMode == 'Birth'">
+				(
+					SELECT a.UserCode AS "UserCode"
+						, 'Birth' AS "Type"
+						, a.BirthDiv AS "DateDiv"
+						, TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AS "Date"
+						, 'off' AS "offFlag"
+					FROM sys_object_user a
+					WHERE 
+				<if test='birthMode == "D"'>	
+					(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MMDD'))
+					OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') = (
+						SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MMDD') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD') AND DN_ID = 0
+					))
+				</if>
+				<if test='birthMode == "M"'>
+					(a.BirthDiv = 'S' and  TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'MM'))
+					OR (a.BirthDiv = 'L' AND TO_CHAR(TO_DATE(a.BirthDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') = (
+						SELECT TO_CHAR(TO_DATE(LunarDate,'YYYY-MM-DD HH24:MI:SS'), 'MM') 
+						FROM SYS_CALENDAR
+						WHERE SOLARDATE = TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YY-MM') AND DN_ID = 0
+					))
+				</if>
+				)
+		</if>
+		<if test="selMode == 'NewJoin'">
+				(
+					SELECT a.UserCode AS "UserCode"
+						, 'Enter' AS "Type"
+						, 'S' AS "DateDiv"
+						, TO_CHAR(TO_DATE(a.EnterDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+						, 'off' AS "offFlag"
+					FROM sys_object_user a
+					WHERE a.EnterDate IS NOT NULL AND LENGTH(a.EnterDate) > 0
+						AND a.EnterDate <![CDATA[>]]> TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') - NUMTODSINTERVAL(#{enterInterval}, 'DAY'), 'YYYYMMDD')
+				)
+		</if>
+		<if test="selMode == 'Condolence'">
+				(
+					SELECT EventOwner AS "UserCode"
+						, EventType AS "Type"
+						, 'S' AS "DateDiv"
+						, TO_CHAR(TO_DATE(EventDate,'YYYY-MM-DD HH24:MI:SS'), 'YY-MM-DD') AS "Date"
+						, 'off' AS "offFlag"
+					FROM board_message_event
+					WHERE EventDate IS NOT NULL
+					AND EventDate 
+						BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+						AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')
+					ORDER BY EventType, RegistDate DESC
+				)
+		</if>
+		<if test="selMode == 'Vacation'">
+				(
+					SELECT Apply.UR_Code AS "UserCode"
+							, Apply.VacFlag AS "Type"
+							, 'S' AS "DateDiv"
+							, Apply.VacDate AS "Date" 
+							, Apply.VacOffFlag AS "offFlag"	
+					FROM (
+						SELECT 
+							a.UR_Code, a.VacFlag, b.VacDate, b.VacDay, a.VacOffFlag
+						FROM vm_vacationinfo a
+					    JOIN vm_vacationinfo_day b on (b.UR_Code = a.UR_Code and a.VacationInfoID = b.VacationInfoID)
+						WHERE a.GUBUN = 'VACATION_APPLY'
+					    AND b.vacdate 
+					    	BETWEEN TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'), 'YYYY-MM-DD')
+							AND TO_CHAR(TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(1+#{addinterval}, 'DAY'), 'YYYY-MM-DD')							
+					) Apply
+				)
+		</if>
+			) notice
+			INNER JOIN sys_object_user ur ON notice."UserCode" = ur.UserCode
+			INNER JOIN sys_object_user_basegroup gr ON notice."UserCode" = gr.UserCode AND gr.JobType = 'Origin'
+			WHERE ur.IsUse = 'Y' AND ur.IsDisplay = 'Y' AND gr.CompanyCode = #{DN_Code}
+		)a	
+	 </select>
+	 
+	 <!-- 인라인 이미지 파일 조회 -->
+	<select id="selectExchFile" parameterType="cmap" resultType="cmap">
+	    SELECT 
+	    	FileID, SaveType, FileName, SavedName
+	    	, ServiceType, FilePath, Extention
+	    FROM sys_file
+	    WHERE MessageID = #{MessageID}
+	    AND NVL(IsDeleted, 'N') = 'N'
+	    AND SaveType = 'INLINE'
+		and f.ServiceType = 'Board'
+	</select>
+
+	<!-- 웹파트 동영상 게시판 조회 -->
+	<select id="selectMovieBoardList" parameterType="cmap" resultType="cmap">
+		/* webpart.board.selectMovieBoardList */
+		SELECT
+			T.MessageID AS "MessageID"
+			, T.Version AS "Version"
+			, T.FolderID  AS "FolderID"
+			, T.MenuID AS "MenuID"
+			, T.Subject AS "Subject"
+			, T.RegistDate AS "RegistDate"
+			, T.ReadCnt AS "ReadCnt"
+			, T.CreatorCode AS "CreatorCode"
+			, T.CreatorLevel AS "CreatorLevel"
+			, T.CreatorPosition AS "CreatorPosition"
+			, T.CreatorTitle AS "CreatorTitle"
+			, T.CreatorName AS "CreatorName"
+			, T.ServiceType AS "ServiceType"
+			, T.FilePath AS "FilePath"
+			, T.SavedName AS "SavedName"
+			, T.FullPath AS "FullPath"
+			, T.FileID AS "FileID"
+			, T.Extention AS "Extention"
+		FROM (
+		SELECT
+			BM.MessageID 
+			, BM.Version
+			, BM.FolderID 
+			, A.MenuID
+			, BM.Subject
+			, TO_CHAR(BM.RegistDate, 'YYYY.MM.DD') AS RegistDate
+			, BM.ReadCnt 
+			, BM.CreatorCode 
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorLevel) AS CreatorLevel
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorPosition) AS CreatorPosition
+			, Fn_BaseGetDictionary_S(#{lang},BM.CreatorTitle) AS CreatorTitle
+			, DECODE(BM.UsePubDeptName , 'Y', FN_BASEGETDICTIONARY_S(#{lang},BM.CreatorDept), FN_BASEGETDICTIONARY_S(#{lang},BM.CreatorName)) AS CreatorName
+			, SF.ServiceType
+			, SF.FilePath
+			, SF.SavedName
+			, REPLACE(ST.FilePath,'{0}',SF.CompanyCode)|| SF.FilePath|| SF.SavedName AS FullPath
+			, SF.FileID
+			, SF.Extention
+		FROM board_message BM
+		INNER JOIN sys_object_folder A on BM.FolderID= A.FolderID
+		INNER JOIN sys_file SF ON SF.ServiceType = 'Board' AND SF.ObjectID = BM.FolderID AND SF.ObjectType = 'FD' AND SF.MessageID = BM.MessageID AND SF.SaveType != 'INLINE' AND SF.Version = BM.Version AND NVL(SF.IsDeleted, 'N') = 'N'
+		INNER JOIN sys_storage ST ON ST.StorageID = SF.StorageID
+		WHERE 1=1
+		AND BM.DeleteDate IS NULL
+		AND BM.MsgType != 'S' 
+		AND (BM.UseSecurity != 'Y' OR (BM.UseSecurity = 'Y' AND BM.CreatorCode = #{userCode}))
+		AND (BM.ExpiredDate IS NULL OR BM.ExpiredDate >= TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS') ) 
+		AND (BM.ReservationDate IS NULL OR BM.ReservationDate <![CDATA[<]]> TO_DATE(#{localCurrentDate},'YYYY-MM-DD HH24:MI:SS'))
+		AND BM.MsgState IN ('C', 'A') 
+		AND BM.IsCurrent = 'Y'
+		AND BM.FolderID = #{folderID}
+		ORDER BY BM.RegistDate DESC	
+		) T
+		<![CDATA[  WHERE ROWNUM <= 1 ]]> 
+	</select>
+	<!-- 웹파트 앨범 게시판 조회 -->
+	<select id="selectAlbumBoardList" parameterType="cmap" resultType="cmap">
+	/* webpart.board.selectAlbumBoardList */
+	<![CDATA[ SELECT 
+		  T.MessageID AS "MessageID"
+		, T.FolderID AS "FolderID"
+		, T.MenuID As "MenuID"
+		, T.FolderPath AS "FolderPath"
+		, T.FileID AS "FileID"
+	FROM (
+		SELECT
+			  BM.MessageID
+			, BM.FolderID
+			, BM.MenuID
+			, BM.FolderPath
+			, (SELECT MAX(FileID) FROM sys_file WHERE ObjectType ='FD' AND ObjectID = BM.FolderID AND MessageID = BM.MessageID AND SaveType='IMAGE') AS FileID
+		FROM ( 
+			SELECT 
+				  BM.MessageID
+				, BM.Seq
+				, BM.Step
+				, BM.FolderID
+				, A.MenuID
+				, A.FolderPath
+				, (CASE IsTop WHEN 'N' THEN 'Z' ELSE (CASE WHEN SYSDATE BETWEEN TopStartDate AND TopEndDate THEN 'A' ELSE 'Z' END) END) AS ListTop
+			FROM BOARD_MESSAGE BM
+			JOIN SYS_OBJECT_FOLDER A on BM.FolderID= A.FolderID
+			LEFT OUTER JOIN BOARD_CATEGORY BC ON BM.CategoryID = BC.CategoryID AND BC.FolderID = BM.FolderID
+			LEFT OUTER JOIN BOARD_MESSAGE_ACL BMA ON BMA.MessageID = BM.MessageID AND BMA.Version = BM.Version
+			WHERE 1=1
+			AND BM.DeleteDate IS NULL
+			AND BM.MsgState IN ('C', 'A') 
+			AND BM.MsgType != 'S' 
+			AND UseSecurity != 'Y'
+			AND (ExpiredDate IS NULL OR ExpiredDate >= SYSDATE ) 
+			AND (ReservationDate IS NULL OR ReservationDate< SYSDATE)
+			AND BM.IsCurrent = 'Y'
+			AND BM.FolderID = #{folderId}
+		) BM
+		ORDER BY ListTop ASC, Seq DESC, Step ASC
+	) T
+	 WHERE ROWNUM <= 1 ]]> 
+	</select>
+</mapper>
+

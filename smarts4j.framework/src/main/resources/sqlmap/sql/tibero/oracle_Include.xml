@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="oracle.include">
+    <sql id="pagingHeader">
+		SELECT T.*
+		  FROM (SELECT ROWNUM AS RNUM, A.*
+	            FROM   (
+	</sql>
+
+	<sql id="pagingFooter">
+			) A
+			WHERE 1=1
+			<if test="rowStart != null and rowEnd != null">
+		        AND ROWNUM &lt;= #{rowEnd}
+		    </if>
+		) T
+		WHERE 1=1
+		<if test="rowStart != null and rowEnd != null">
+	   		AND T.RNUM &gt;= #{rowStart}
+	   	</if>
+	</sql>
+	
+	<sql id="listOrderBy">
+		 <if test="sortDirection.equalsIgnoreCase('asc')">
+			NULLS FIRST, ROWNUM   
+		 </if>
+		 <if test="sortDirection.equalsIgnoreCase('desc')">
+		    NULLS LAST, ROWNUM 
+		 </if>
+	</sql>
+	
+	 <sql id="pagingRow">
+		WHERE rnum BETWEEN #{rowStart} AND #{rowEnd}
+	</sql>
+	
+</mapper>

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.standardBrief">
+
+	<select id="getStandardBriefList" parameterType="cmap" resultType="cmap">	    
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	TO_CHAR(INFO.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			,	INFO.AccountID AS "AccountID"
+			,	INFO.AccountCode AS "AccountCode"
+			,	INFO.AccountName AS "AccountName"
+			,	INFO.StandardBriefName AS "StandardBriefName"
+			,	INFO.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',INFO.CompanyCode, #{companyCode})	AS "CompanyName"
+		FROM	(	SELECT	AC.RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	AC.CompanyCode
+						,	(	SELECT	LISTAGG(SB.StandardBriefName, ',') WITHIN GROUP (ORDER BY SB.StandardBriefID ASC)
+								FROM	ACT_STANDARD_BRIEF	SB
+								WHERE	SB.AccountID = AC.AccountID
+							)	AS StandardBriefName
+					FROM	ACT_ACCOUNT			AC
+		) INFO
+	    WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+					INFO.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,INFO.AccountID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>		
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getStandardBriefExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	INFO.AccountCode AS "AccountCode"
+			,	INFO.AccountName AS "AccountName"
+			,	INFO.StandardBriefName AS "StandardBriefName"
+			,	INFO.StandardBriefDesc AS "StandardBriefDesc"
+			,	FN_GETACTBASECODENAME('IsUse',INFO.IsUse, #{companyCode}) AS "IsUse"
+			,	FN_GETACTBASECODENAME('IsUse',INFO.IsUseSimp, #{companyCode}) AS "IsUseSimp"
+			,	INFO.RegistDate AS "RegistDate"
+			,	INFO.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode',INFO.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	FN_GETACTBASECODENAME('IsUse',INFO.IsFile, #{companyCode}) AS "IsFile"
+			,	FN_GETACTBASECODENAME('IsUse',INFO.IsDocLink, #{companyCode}) AS "IsDocLink"
+		FROM	(	SELECT	TO_CHAR(AC.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	SB.StandardBriefID
+						,	SB.StandardBriefName
+						,	SB.StandardBriefDesc
+						,	SB.IsUse
+						,	SB.IsUseSimp
+						,	AC.CompanyCode
+						,	SB.IsFile
+						,	SB.IsDocLink
+					FROM	ACT_ACCOUNT AC
+					JOIN	ACT_STANDARD_BRIEF SB
+							ON AC.AccountID = SB.AccountID
+		) INFO
+		WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL	 
+		<if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+					INFO.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		ORDER BY INFO.StandardBriefID
+	</select>
+	
+	<select id="getStandardBrieflistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	(	SELECT	AC.RegistDate AS RegistDate
+						,	AC.AccountID
+						,	AC.AccountCode
+						,	AC.AccountName
+						,	AC.TaxType
+						,	AC.CompanyCode
+						,	(	SELECT	LISTAGG(SB.StandardBriefName, ',') WITHIN GROUP (ORDER BY SB.StandardBriefID ASC)
+								FROM	ACT_STANDARD_BRIEF	SB
+								WHERE	SB.AccountID = AC.AccountID
+							)	AS StandardBriefName
+					FROM	ACT_ACCOUNT AC
+		) INFO
+	    WHERE	1=1 AND INFO.StandardBriefName IS NOT NULL 
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		INFO.CompanyCode = #{companyCode}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	INFO.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+					INFO.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'ACC'.toString()">
+		AND		INFO.AccountCode			LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'ACN'.toString()">
+		AND		INFO.AccountName			LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'SBN'.toString()">
+		AND		INFO.StandardBriefName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="getStandardBriefDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	SB.StandardBriefID AS "StandardBriefID"
+			,	SB.StandardBriefName AS "StandardBriefName"
+			,	SB.StandardBriefDesc AS "StandardBriefDesc"
+			,	SB.IsUse AS "IsUse"
+			,	SB.IsUseSimp AS "IsUseSimp"
+			,	AC.AccountID AS "AccountID"
+			,	AC.AccountName AS "AccountName"
+			,	SB.CtrlCode AS "CtrlCode"
+			,	SB.IsFile AS "IsFile"
+			,	SB.IsDocLink AS "IsDocLink"
+			,	AC.CompanyCode AS "CompanyCode"
+		FROM ACT_STANDARD_BRIEF	SB
+		JOIN ACT_ACCOUNT		AC
+			 ON	SB.AccountID	= AC.AccountID
+	    WHERE	SB.AccountID	= #{accountID}
+		ORDER BY SB.StandardBriefID
+	</select>
+	
+	<insert id="insertStandardBriefInfo" parameterType="cmap">
+	    INSERT INTO ACT_STANDARD_BRIEF (
+				AccountID
+			,	StandardBriefName
+			,	StandardBriefDesc
+			,	IsUse
+			,	IsUseSimp
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+			,	CtrlCode
+			,	IsFile
+			,	IsDocLink
+	    ) VALUES (
+				#{accountID}
+			,	#{standardBriefName}
+			,	#{standardBriefDesc}
+			,	#{isUse}
+			,	#{isUseSimp}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{ctrlCode}
+			,	#{isfile}
+			,	#{isdocLink}
+	    )
+ 	</insert>
+ 	
+	<update id="updateStandardBriefInfo" parameterType="cmap" >
+ 		UPDATE ACT_STANDARD_BRIEF
+ 			SET
+ 				IsUse				= #{isUse}
+ 			,	IsUseSimp			= #{isUseSimp}
+			,	StandardBriefName	= #{standardBriefName}
+			,	StandardBriefDesc	= #{standardBriefDesc}
+			,	CtrlCode			= #{ctrlCode}
+			,	IsFile				= #{isfile}
+			,	IsDocLink			= #{isdocLink}
+ 		WHERE	StandardBriefID		= #{standardBriefID}
+ 	</update>
+	
+	<delete id="deleteStandardBriefInfo">
+	    DELETE FROM ACT_STANDARD_BRIEF		
+		WHERE	StandardBriefID = #{standardBriefID}	
+	</delete>
+	
+	<delete id="deleteStandardBriefByAccountID">
+	    DELETE FROM ACT_STANDARD_BRIEF		
+		WHERE	AccountID = #{accountID}	
+	</delete>
+	
+	<select id="getStandardBriefAccountID" parameterType="cmap" resultType="java.lang.String">
+	    SELECT AC.AccountID AS "AccountID"
+	    FROM	ACT_ACCOUNT AC
+	    WHERE	AC.AccountCode = #{accountCode}
+	    <if test="companyCode != null and companyCode != ''">
+	    	AND AC.CompanyCode = #{companyCode}
+	    </if>
+	</select>
+	
+	<select id="chkStandardBriefAccountCode" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+	    FROM ACT_ACCOUNT AC
+	    WHERE AC.AccountCode = #{accountCode}
+	    <if test="companyCode != null and companyCode != ''">
+	    	AND AC.CompanyCode = #{companyCode}
+	    </if>
+	</select>
+	
+	<delete id="deleteStandardBriefByAccountIDExcel">
+	    DELETE FROM ACT_STANDARD_BRIEF		
+		WHERE	
+		<choose>
+			<when test="accountID != null">
+				<foreach collection="accountID" item="item" index="index" separator="," open="AccountID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>	
+	</delete>
+</mapper>

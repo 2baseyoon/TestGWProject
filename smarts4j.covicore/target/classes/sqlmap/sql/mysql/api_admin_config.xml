@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="api.admin.config">
+    <insert id="insertConfig" parameterType="cmap">
+    	INSERT INTO covi_smart4j.sys_api_config (DomainID, SystemType, Path, ServiceURL, MultiDisplayName, Descriptions, IsUse, ReqLimitPerDay, IsAnnoymous, RegistDate, RegisterCode, ModifyDate, ModifierCode)
+    	SELECT #{DomainID}, #{SystemType}, #{Path}, #{ServiceURL}, #{MultiDisplayName}, #{Descriptions}, #{IsUse}, #{ReqLimitPerDay}, #{IsAnnoymous}, CURRENT_TIMESTAMP(3), #{RegisterCode}, CURRENT_TIMESTAMP(3), #{ModifierCode}
+    	FROM DUAL
+    	WHERE NOT EXISTS (
+    		SELECT '1' FROM covi_smart4j.sys_api_config WHERE DomainID = #{DomainID} and Path = #{Path}
+    	)
+    </insert>
+    <update id="updateConfig" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_api_config 
+    	SET MultiDisplayName = #{MultiDisplayName}
+    		, Descriptions = #{Descriptions}
+    		, Path = #{Path}
+    		, ServiceURL = #{ServiceURL}
+    		, IsUse = #{IsUse}
+    		, ReqLimitPerDay = #{ReqLimitPerDay}
+    		, IsAnnoymous = #{IsAnnoymous}
+    		, ModifyDate = CURRENT_TIMESTAMP(3)
+    		, ModifierCode = #{ModifierCode} 
+    	WHERE ConfigID = #{ConfigID}
+    </update>
+    <update id="updateConfigIsUse" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_api_config 
+    	SET IsUse = #{IsUse}
+    		, ModifyDate = CURRENT_TIMESTAMP(3)
+    		, ModifierCode = #{ModifierCode} 
+    	WHERE ConfigID = #{ConfigID}
+    </update>
+    <select id="selectConfigListCnt" parameterType="cmap" resultType="Long">
+    	SELECT Count(1) as CNT
+    	FROM covi_smart4j.sys_api_config c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE 1=1
+    	<if test="SystemType != null and SystemType != ''">
+    		AND SystemType = #{SystemType}
+    	</if>
+    	<if test="DomainID != null and DomainID != 'ALL'">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    </select>
+    <select id="selectConfigList" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.ConfigID, c.SystemType, c.Path, c.ServiceURL, c.MultiDisplayName, c.Descriptions, c.IsUse, c.ReqLimitPerDay, c.IsAnnoymous, c.RegistDate, c.RegisterCode, c.ModifyDate, c.ModifierCode
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_config c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE 1=1
+    	<if test="SystemType != null and SystemType != ''">
+    		AND SystemType = #{SystemType}
+    	</if>
+    	<if test="DomainID != null and DomainID != 'ALL'">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    	    
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				ORDER BY c.ModifyDate desc	
+			</if>
+		</trim>
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+    <select id="selectConfigListAll" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.ConfigID, c.SystemType, c.Path, c.ServiceURL, c.MultiDisplayName, c.Descriptions, c.IsUse, ReqLimitPerDay, c.RegistDate, c.RegisterCode, c.ModifyDate, c.ModifierCode
+    	FROM covi_smart4j.sys_api_config c
+    	WHERE 1=1
+    	<if test="DomainID != null and DomainID != 'ALL'">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+		ORDER BY c.ModifyDate desc	
+    </select>
+    <select id="selectConfig" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.ConfigID, c.SystemType, c.Path, c.ServiceURL, c.MultiDisplayName, c.Descriptions, c.IsUse, c.ReqLimitPerDay, c.IsAnnoymous, c.RegistDate, c.RegisterCode, c.ModifyDate, c.ModifierCode
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_config c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE c.ConfigID = #{ConfigID}    
+    </select>
+    <delete id="deleteConfig" parameterType="cmap">
+    	DELETE FROM covi_smart4j.sys_api_config 
+    	WHERE ConfigID = #{ConfigID}
+    </delete>
+    
+    <!-- IP Security -->
+     <insert id="insertIPSecure" parameterType="cmap">
+    	INSERT INTO covi_smart4j.sys_api_ipsecure (DomainID, IP, ControlType, Descriptions, IsUse, RegistDate, RegisterCode, ModifyDate, ModifierCode)
+    	SELECT #{DomainID}, #{IP}, #{ControlType}, #{Descriptions}, #{IsUse}, CURRENT_TIMESTAMP(3), #{RegisterCode}, CURRENT_TIMESTAMP(3), #{ModifierCode}
+    	FROM DUAL
+    </insert>
+    <update id="updateIPSecure" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_api_ipsecure 
+    	SET Descriptions = #{Descriptions}
+    		, ControlType = #{ControlType}
+    		, IP = #{IP}
+    		, IsUse = #{IsUse}
+    		, ModifyDate = CURRENT_TIMESTAMP(3)
+    		, ModifierCode = #{ModifierCode} 
+    	WHERE SecID = #{SecID}
+    </update>
+    <update id="updateIPSecureIsUse" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_api_ipsecure 
+    	SET IsUse = #{IsUse}
+    		, ModifyDate = CURRENT_TIMESTAMP(3)
+    		, ModifierCode = #{ModifierCode} 
+    	WHERE SecID = #{SecID}
+    </update>
+    <select id="selectIPSecureListCnt" parameterType="cmap" resultType="Long">
+    	SELECT Count(1) as CNT
+    	FROM covi_smart4j.sys_api_ipsecure c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE 1=1
+    	<if test="DomainID != null and DomainID != 'ALL'">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    </select>
+    <select id="selectIPSecureList" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.SecID, c.IP, c.ControlType, c.Descriptions, c.IsUse, c.RegistDate, c.RegisterCode, c.ModifyDate, c.ModifierCode
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_ipsecure c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE 1=1
+    	<if test="DomainID != null and DomainID != 'ALL'">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    	    
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				ORDER BY c.ModifyDate desc	
+			</if>
+		</trim>
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+    <select id="selectIPSecure" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.SecID, c.IP, c.ControlType, c.Descriptions, c.IsUse, c.RegistDate, c.RegisterCode, c.ModifyDate, c.ModifierCode
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_ipsecure c
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE c.SecID = #{SecID}    
+    </select>
+    <delete id="deleteIPSecure" parameterType="cmap">
+    	DELETE FROM covi_smart4j.sys_api_ipsecure 
+    	WHERE SecID = #{SecID}
+    </delete>
+    <select id="selectIPSecureListForCache" parameterType="cmap" resultType="cmap">
+    	SELECT IP, ControlType
+    	FROM covi_smart4j.sys_api_ipsecure
+    	WHERE IsUse = 'Y'
+    </select>
+    
+    <!-- Token 관리 -->
+    <select id="selectTokenListCnt" parameterType="cmap" resultType="Long">
+    	SELECT COUNT('x') as CNT
+    	FROM covi_smart4j.sys_api_token tk
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = tk.DomainID
+    	WHERE 1=1
+    	AND tk.DomainID = #{DomainID}
+    	<trim prefix="AND">
+	    	<if test="IsActive != null and IsActive != ''">
+	    		tk.IsActive = #{IsActive}
+	    	</if>
+    	</trim>
+    </select>
+    
+    <select id="selectTokenList" parameterType="cmap" resultType="cmap">
+    	SELECT tk.TokenID, tk.DomainID, tk.Token, tk.IsActive, tk.Descriptions, tk.ModifyDate
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_token tk
+    	JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = tk.DomainID
+    	WHERE 1=1
+    	AND tk.DomainID = #{DomainID}
+    	<trim prefix="AND">
+	    	<if test="IsActive != null and IsActive != ''">
+	    		tk.IsActive = #{IsActive}
+	    	</if>
+    	</trim>
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+		</trim>
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+    <insert id="insertToken" parameterType="cmap">
+    	INSERT INTO covi_smart4j.sys_api_token (TokenID, DomainID, Token, IsActive, Descriptions, RegistDate, RegisterCode, ModifyDate, ModifierCode)
+    	VALUES (#{TokenID}, #{DomainID}, #{Token}, #{IsActive}, #{Descriptions}, current_timestamp(3), #{RegisterCode}, current_timestamp(3), #{RegisterCode})
+    </insert>
+    <update id="updateToken" parameterType="cmap">
+    	UPDATE covi_smart4j.sys_api_token 
+    	SET IsActive = #{IsActive}
+    		,Descriptions = #{Descriptions}
+    		,ModifyDate = CURRENT_TIMESTAMP(3)
+    		,ModifierCode = #{ModifierCode}
+    	WHERE TokenID = #{TokenID}
+    </update>
+    <delete id="deleteToken" parameterType="cmap">
+    	DELETE FROM covi_smart4j.sys_api_token 
+    	WHERE TokenID = #{TokenID}
+    </delete>
+    
+    <!-- Logs -->
+    <select id="selectRequestLogCnt" parameterType="cmap" resultType="Long">
+    	SELECT Count(1) as CNT
+    	FROM covi_smart4j.sys_api_requestlog c
+    	WHERE 1=1
+    	<if test="SystemType != null and SystemType != ''">
+    		AND c.SystemType = #{SystemType}
+    	</if>
+    	<if test="DomainID != null and DomainID != 'ALL' and DomainID != ''">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    	<if test="SearchKeyword != null and SearchKeyword != ''">
+    		<if test="SearchTarget != null and SearchTarget != '' and SearchTarget == 'PATH'">
+    			AND URL like CONCAT('%', #{SearchKeyword}, '%')
+    		</if>
+    		<if test="SearchTarget != null and SearchTarget != '' and SearchTarget == 'IP'">
+    			AND IP like CONCAT('%', #{SearchKeyword}, '%')
+    		</if>	
+    	</if>
+    	<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+    		AND ReqDay BETWEEN #{StartDate} AND #{EndDate}
+    	</if>
+    </select>
+    <select id="selectRequestLogList" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.LogID, c.SystemType, c.URL, c.Version, c.ReqDay, c.ReqTime, c.ResTime, c.ElapsedTTime, c.ElapsedATime, c.State, c.IP, c.Message
+    		, d.MultiDisplayName as CompanyName
+    	FROM covi_smart4j.sys_api_requestlog c
+    	LEFT OUTER JOIN covi_smart4j.sys_object_domain d
+    	ON d.DomainID = c.DomainID
+    	WHERE 1=1
+    	<if test="SystemType != null and SystemType != ''">
+    		AND c.SystemType = #{SystemType}
+    	</if>
+    	<if test="DomainID != null and DomainID != 'ALL' and DomainID != ''">
+    		AND c.DomainID = #{DomainID}
+    	</if>
+    	<if test="SearchKeyword != null and SearchKeyword != ''">
+    		<if test="SearchTarget != null and SearchTarget != '' and SearchTarget == 'PATH'">
+    			AND URL like CONCAT('%', #{SearchKeyword}, '%')
+    		</if>
+    		<if test="SearchTarget != null and SearchTarget != '' and SearchTarget == 'IP'">
+    			AND IP like CONCAT('%', #{SearchKeyword}, '%')
+    		</if>	
+    	</if>
+    	<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+    		AND ReqDay BETWEEN #{StartDate} AND #{EndDate}
+    	</if>
+    	    
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	${sortColumn} ${sortDirection}
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				ORDER BY c.ReqTime desc	
+			</if>
+		</trim>
+	   	<if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+    </select>
+    <select id="selectRequestLog" parameterType="cmap" resultType="cmap">
+    	SELECT c.DomainID, c.LogID, c.SystemType, c.URL, c.Version, c.ReqDay, c.ReqTime, c.ResTime, c.ElapsedTTime, c.ElapsedATime, c.State, c.IP, c.Message, c.ReqBody, c.ReqToken
+    	FROM covi_smart4j.sys_api_requestlog c
+    	WHERE c.LogID = #{LogID}    
+    </select>
+    
+    <select id="selectRequestStatList" parameterType="cmap" resultType="cmap">
+		SELECT m.ReqDay
+			<choose>
+				<when test="SearchType != null and SearchType == 'COUNT'">
+					, m.ReqCnt, m.ReqCnt, m.SuccessCnt, m.TotalFailCnt, m.ErrorCnt, m.LimitCnt, m.AuthErrorCnt
+				</when>
+				<otherwise>
+					, ROUND(m.AvgTotalTime, 1) as "AvgTotalTime" , ROUND(m.AvgApplicationTime, 1) as "AvgApplicationTime"
+				</otherwise>
+			</choose>
+		FROM (
+			SELECT Reqday
+				<choose>
+					<when test="SearchType != null and SearchType == 'COUNT'">
+						, COUNT(1) ReqCnt
+						, SUM(case when a.State = 'SUCCESS' then 1 ELSE 0 END) AS SuccessCnt
+						, SUM(case when a.State = 'SUCCESS' then 0 ELSE 1 END) AS TotalFailCnt
+						, SUM(case when a.State = 'FAIL' then 1 ELSE 0 END) AS ErrorCnt
+						, SUM(case when a.State = 'EXCEEDED_LIMIT' then 1 ELSE 0 END) AS LimitCnt
+						, SUM(case when a.State = 'AUTH_ERROR' then 1 ELSE 0 END) AS AuthErrorCnt
+					</when>
+					<otherwise>
+						, AVG(ElapsedTTime) AS AvgTotalTime
+						, AVG(ElapsedATime) AS AvgApplicationTime
+					</otherwise>
+				</choose>
+			FROM covi_smart4j.sys_api_requestlog a
+			WHERE 1=1
+	    	<if test="SystemType != null and SystemType != ''">
+	    		AND a.SystemType = #{SystemType}
+	    	</if>
+	    	<if test="DomainID != null and DomainID != 'ALL' and DomainID != ''">
+	    		AND a.DomainID = #{DomainID}
+	    	</if>
+    		<if test="SearchTarget != null and SearchTarget != ''">
+    			AND a.URL = #{SearchTarget}
+    		</if>
+	    	<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != ''">
+	    		AND a.ReqDay BETWEEN #{StartDate} AND #{EndDate}
+	    	</if>
+	    	GROUP BY reqday
+		) m
+		ORDER BY reqday
+    </select>
+</mapper>

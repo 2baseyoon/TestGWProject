@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.UserFolderList">
+    <!-- 사용자별 폴더 리스트 조회 -->
+	<select id="selectUserFolderList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT
+			0.1  AS FolderID
+			, 0 AS ParentsID
+			,''  AS OwnerID
+			,#{userdefinedfolder} AS FolDerName
+			,'M' AS FolDerMode
+			,'' AS RegDate
+		UNION ALL
+		SELECT
+				 FolderID
+				,CASE WHEN ParentsID = 0 THEN 0.1 ELSE ParentsID END AS ParentsID
+				,OwnerID
+				,FolDerName
+				,FolDerMode
+				,RegDate
+		FROM covi_approval4j.jwf_userfolder
+		WHERE OwnerID = #{userID}
+		AND FolDerMode = 'M'
+		#GROUP BY FolderID
+		ORDER BY FolderID,FolderName
+	    ]]>
+	</select>
+	
+	<!-- 사용자별 1레벨 폴더 리스트 조회 -->
+	<select id="selectUserFolder1LvList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT
+			0 AS FolderID
+			,0 AS ParentsID
+			,''  AS OwnerID
+			,'1차 폴더' AS FolDerName
+			,'M' AS FolDerMode
+		
+		UNION ALL
+		
+		SELECT
+				 FolderID
+				,ParentsID
+				,OwnerID
+				,FolDerName
+				,FolDerMode
+		FROM covi_approval4j.jwf_userfolder
+		WHERE OwnerID = #{userID}
+		AND ParentsID = 0
+		AND FolDerMode = 'M'
+		#GROUP BY FolderID
+		ORDER BY FolderID,FolderName
+	    ]]>
+	</select>
+
+	<insert id="insertJWF_TCInfoUserfolerlistdescription" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_userfolerlistdescription
+			(
+				 ProcessID
+				,FormInstID
+				,FormID
+				,FormName
+				,FormSubject
+				,IsFile
+				,FileExt
+				,IsComment
+				,ApproverCode
+				,ApproverName
+				,ApprovalStep
+				,ApproverSIPAddress
+				,IsReserved
+				,ReservedGubun
+				,ReservedTime
+				,Priority
+			    ,IsModify
+				,Reserved1
+				,Reserved2
+			)
+			SELECT
+					A.ProcessID
+					, C.FormInstID
+					, C.FormID
+					, C.FormName
+					, C.FormSubject
+					, C.IsFile
+					, C.FileExt
+					, C.IsComment
+					, C.ApproverCode
+					, C.ApproverName
+					, C.ApprovalStep
+					, C.ApproverSIPAddress
+					, C.IsReserved
+					, C.ReservedGubun
+					, C.ReservedTime
+					, C.Priority
+					, C.IsModify
+					, 'Y'
+					, C.Reserved2
+				FROM covi_approval4j.jwf_circulationbox AS A
+				INNER JOIN covi_approval4j.jwf_forminstance AS B ON A.FormInstID = B.FormInstID
+				INNER JOIN covi_approval4j.jwf_circulationboxDescription AS C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+				<if test="mode != null and mode == 'TCInfo'"> 	<!-- 개인결재함-참조함 -->
+					WHERE A.ReceiptID = #{userID}
+					AND A.ProcessID = #{ProcessID}
+					AND A.State = 'C'
+					AND B.DeletedDate IS NULL
+					AND A.ReceiptType = 'P'
+					AND A.DataState != 'D'
+					AND A.CirculationBoxID = #{CirculationBoxID}
+				</if>
+				<if test="mode != null and mode == 'DeptTCInfo'"> 	<!-- 부서결재함-참조함 -->
+				    WHERE A.ReceiptID =  #{deptID}
+				    AND A.ProcessID = #{ProcessID}
+					AND A.State = 'C'
+					AND B.DeletedDate IS NULL
+					AND A.ReceiptType = 'U'
+					AND A.DataState != 'D'
+					AND A.CirculationBoxID = #{CirculationBoxID}
+				</if>
+				AND NOT EXISTS (
+							SELECT
+									Ufld.ProcessID
+							FROM
+									covi_approval4j.jwf_userfolder AS Uf
+									INNER JOIN covi_approval4j.jwf_userfolderList AS Ufl
+										ON Uf.FolderID =Ufl.FolderID
+									INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS Ufld
+										ON Ufl.UserFolderListDescriptionID =  Ufld.UserFolderListDescriptionID
+							WHERE
+									Uf.OwnerID = #{userID}
+							AND
+									Uf.FolderID	= #{FolderID}
+							AND
+									Ufl.DeleteDate IS NULL
+							AND     A.ProcessID  = Ufld.ProcessID
+				)
+	</insert>
+
+	<insert id="insertJWF_TCInfoUserFolderList" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_userfolderList
+			(
+				FolderID
+				,FormName
+				,Subject
+				,InitiatorID
+				,InitiatorName
+				,InitiatorUnitID
+				,InitiatorUnitName
+				,UserFolderListDescriptionID
+				,LinkKey
+				,WFMode
+				,IsDeputy
+				,RegDate
+				,DeleteDate
+			)
+				SELECT
+					#{FolderID} FolderID
+					, C.FormName
+					, C.FormSubject
+					, B.InitiatorID
+					, B.InitiatorName
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, D.UserFolderListDescriptionID
+					, '' as LinkKey
+				    , '' as WFMode
+					, '' as IsDeputy
+					, now(3) as RegDate
+					,NULL as DeleteDate
+				FROM covi_approval4j.jwf_circulationbox AS A
+				INNER JOIN covi_approval4j.jwf_forminstance AS B ON A.FormInstID = B.FormInstID
+				INNER JOIN covi_approval4j.jwf_circulationboxDescription AS C ON A.CirculationBoxDescriptionID = C.CirculationBoxDescriptionID
+				INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS D ON B.FormInstID = D.FormInstID AND A.ProcessID = D.ProcessID AND D.Reserved1 ='Y'
+				<if test="mode != null and mode == 'TCInfo'"> 	<!-- 개인결재함-참조함 -->
+					WHERE A.ReceiptID = #{userID}
+					AND A.ProcessID = #{ProcessID}
+					AND A.State = 'C'
+					AND B.DeletedDate IS NULL
+					AND A.ReceiptType = 'P'
+					AND A.DataState != 'D'
+					AND A.CirculationBoxID = #{CirculationBoxID}
+				</if>
+				<if test="mode != null and mode == 'DeptTCInfo'"> 	<!-- 부서결재함-참조함 -->
+				    WHERE A.ReceiptID =  #{deptID}
+				    AND D.ProcessID = #{ProcessID}
+					AND A.State = 'C'
+					AND B.DeletedDate IS NULL
+					AND A.ReceiptType = 'U'
+					AND A.DataState != 'D'
+					AND A.CirculationBoxID = #{CirculationBoxID}
+				</if>
+	</insert>
+
+	<insert id="insertJWF_Userfolerlistdescription" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_userfolerlistdescription
+			(
+				 ProcessID
+				,FormInstID
+				,FormID
+				,FormName
+				,FormSubject
+				,IsFile
+				,FileExt
+				,IsComment
+				,ApproverCode
+				,ApproverName
+				,ApprovalStep
+				,ApproverSIPAddress
+				,IsReserved
+				,ReservedGubun
+				,ReservedTime
+				,Priority
+			    ,IsModify
+				,Reserved1
+				,Reserved2
+			)
+					SELECT
+						 temp.ProcessArchiveID
+						 ,temp.FormInstID
+						 ,temp.FormID
+						 ,temp.FormName
+						 ,temp.FormSubject
+						 ,temp.IsFile
+						 ,temp.FileExt
+						 ,temp.IsComment
+						 ,temp.ApproverCode
+						 ,temp.ApproverName
+						 ,temp.ApprovalStep
+						 ,temp.ApproverSIPAddress
+						 ,temp.IsReserved
+						 ,temp.ReservedGubun
+						 ,temp.ReservedTime
+						 ,temp.Priority
+						 ,temp.IsModify
+						 ,'Y'
+						 ,temp.Reserved2
+				FROM (
+						SELECT
+						    B.ProcessID AS ProcessArchiveID
+							, A.PerformerID
+							, A.WorkitemID AS WorkitemArchiveID
+							, A.SubKind
+							, A.UserCode
+							, A.UserName
+							, C.*
+							, B.InitiatorName
+							, B.InitiatorID
+							, B.InitiatorUnitID
+							, B.InitiatorUnitName
+							, B.EndDate
+						FROM covi_approval4j.jwf_workitem AS A
+						INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID AND B.ProcessState = 528
+						INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+						<if test="mode != null and mode == 'Complete'"> 	<!-- 개인결재함-완료함 -->
+						    WHERE A.UserCode = #{userID}
+					    	AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021')
+					    	AND A.PIBusinessState = '02_01'
+						</if>
+						<if test="mode != null and mode == 'DeptComplete'"> 	<!-- 부서결재함-완료함 -->
+						    WHERE A.UserCode = #{deptID}
+							AND A.SubKind = 'A'
+						</if>
+						<if test="mode != null and mode == 'SenderComplete'"> 	<!-- 부서결재함-발신함 -->
+						    WHERE A.UserCode = #{deptID}
+					    	AND A.SubKind = 'S'
+						</if>
+						<if test="mode != null and mode == 'ReceiveComplete'"> 	<!-- 부서결재함-수신처리함 -->
+						    WHERE A.UserCode = #{deptID}
+					    	AND A.SubKind = 'REQCMP'
+						</if>
+						AND A.ProcessID  = #{ProcessID}
+						AND A.WorkitemID  = #{WorkitemID}
+						AND A.Deleted IS NULL
+						AND A.PIDeleted IS NULL
+						AND NOT EXISTS (
+								SELECT
+										C.ProcessID
+								FROM
+										covi_approval4j.jwf_userfolder AS A
+										INNER JOIN covi_approval4j.jwf_userfolderList AS B
+											ON B.FolderID = A.FolderID
+										INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS C
+											ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+								WHERE
+										A.OwnerID = #{userID}
+								AND
+										A.FolderID	= #{FolderID}
+								AND
+										B.DeleteDate IS NULL
+								AND C.ProcessID = #{ProcessID}
+								<!-- AND A.ProcessArchiveID  = C.ProcessID -->
+						)
+				)temp
+	</insert>
+
+	<insert id="insertJWF_UserFolderList" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_userfolderList
+			(
+				FolderID
+				,FormName
+				,Subject
+				,InitiatorID
+				,InitiatorName
+				,InitiatorUnitID
+				,InitiatorUnitName
+				,UserFolderListDescriptionID
+				,LinkKey
+				,WFMode
+				,IsDeputy
+				,RegDate
+				,DeleteDate
+			)
+				SELECT
+					#{FolderID} as FolderID
+					, C.FormName
+					, C.FormSubject
+					, B.InitiatorID
+					, B.InitiatorName
+					, B.InitiatorUnitID
+					, B.InitiatorUnitName
+					, D.UserFolderListDescriptionID
+					, '' as LinkKey
+					, '' as WFMode
+					, '' as IsDeputy
+					, now(3) as RegDate
+					,NULL as DeleteDate
+				FROM covi_approval4j.jwf_workitem AS A
+				INNER JOIN covi_approval4j.jwf_process AS B ON B.ProcessID = A.ProcessID AND B.ProcessState = 528
+				INNER JOIN covi_approval4j.jwf_processdescription AS C ON B.ProcessDescriptionID = C.ProcessDescriptionID
+				INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS D ON C.FormInstID = D.FormInstID AND A.ProcessID = D.ProcessID AND D.Reserved1 ='Y'
+				<if test="mode != null and mode == 'Complete'"> 	<!-- 개인결재함-완료함 -->
+				    	WHERE A.UserCode = #{userID}
+					    AND A.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021')
+					    AND A.PIBusinessState = '02_01'
+				</if>
+				<if test="mode != null and mode == 'DeptComplete'"> 	<!-- 부서결재함-완료함 -->
+				    	WHERE A.UserCode = #{deptID}
+						AND A.SubKind = 'A'
+				</if>
+				<if test="mode != null and mode == 'SenderComplete'"> 	<!-- 부서결재함-발신함 -->
+				    	WHERE A.UserCode = #{deptID}
+				    	AND A.SubKind = 'S'
+				</if>
+				<if test="mode != null and mode == 'ReceiveComplete'"> 	<!-- 부서결재함-수신처리함 -->
+				    	WHERE A.UserCode = #{deptID}
+					    AND A.SubKind = 'REQCMP'
+				</if>
+				AND D.ProcessID  = #{ProcessID}
+				AND A.WorkitemID  = #{WorkitemID}
+				AND A.Deleted IS NULL
+				AND A.PIDeleted IS NULL
+				AND NOT EXISTS (
+							SELECT
+									C.ProcessID
+							FROM
+									covi_approval4j.jwf_userfolder AS A
+									INNER JOIN covi_approval4j.jwf_userfolderList AS B
+										ON B.FolderID = A.FolderID
+									INNER JOIN covi_approval4j.jwf_userfolerlistdescription AS C
+										ON C.UserFolderListDescriptionID = B.UserFolderListDescriptionID
+							WHERE
+									A.OwnerID = #{userID}
+							AND
+									A.FolderID	= #{FolderID}
+							AND
+									B.DeleteDate IS NULL
+							AND D.ProcessID  = C.ProcessID
+				)
+	</insert>
+
+	<insert id="updateJWF_Userfolerlistdescription" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_userfolerlistdescription
+		SET Reserved1 = ''
+		WHERE ProcessID = #{ProcessID}
+	</insert>
+
+	<insert id="insertUserFolder" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_userfolder
+			(
+				 FolderID
+				,ParentsID
+				,OwnerID
+				,FolDerName
+				,FolDerMode
+				,RegDate
+			)VALUES(
+				 0
+				,#{ParentsID}
+				,#{userID}
+				,#{FolDerName}
+				,#{FolDerMode}
+				,now(3)
+			);
+	</insert>
+	
+	<select id="selectDuplicateFolderCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(FolderID)
+		FROM covi_approval4j.jwf_userfolder
+		WHERE OwnerID = #{userID}
+		AND FolderName = #{FolDerName}
+		AND FolderMode = #{FolDerMode}
+	</select>
+</mapper>
+

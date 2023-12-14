@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.formstempinstbox">
+    <insert id="insertFromForminstanceW" parameterType="cmap">	
+		INSERT INTO jwf_formstempinstbox (
+			FormInstID,
+			FormID,
+			SchemaID,
+			FormPrefix,
+			FormInstTableName,
+			UserCode,
+			CreatedDate,
+			Subject,
+			Kind
+		)
+		SELECT 
+			#{FormInstID} AS "FormInstID",
+			FI.FormID,
+			FI.SchemaID,
+			F.FormPrefix,
+			'jwf_forminstance' AS "FormInstTableName",
+			InitiatorID AS "UserCode",
+			SYSDATE AS "CreatedDate",
+			FI.Subject,
+			'W' AS "Kind"
+		FROM jwf_forminstance FI
+		INNER JOIN jwf_forms F  ON FI.FormID = F.FormID
+		WHERE FormInstID = #{FormInstID}
+		<selectKey keyProperty="FormTempInstBoxID" resultType="Integer" order="AFTER">
+		     SELECT JWF_FORMSTEMPINSTBOX_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>	
+	
+    <insert id="insertFromForminstanceT" parameterType="cmap">	
+		INSERT INTO jwf_formstempinstbox (
+			FormInstID,
+			FormID,
+			SchemaID,
+			FormPrefix,
+			FormInstTableName,
+			UserCode,
+			CreatedDate,
+			Subject,
+			Kind
+		)
+		VALUES
+		(
+			#{FormInstID},
+			#{FormID},
+			#{SchemaID},
+			#{FormPrefix},
+			#{FormInstTableName},
+			#{UserCode},
+			SYSDATE,
+			#{Subject},
+			#{Kind}
+		)
+		<selectKey keyProperty="FormTempInstBoxID" resultType="Integer" order="AFTER">
+		    SELECT JWF_FORMSTEMPINSTBOX_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+    <update id="updateFromForminstanceT" parameterType="cmap">	
+		UPDATE jwf_formstempinstbox 
+		SET Subject = #{Subject}
+		WHERE 	FormTempInstBoxID = #{FormTempInstBoxID}
+	</update>	
+	
+    <delete id="deleteTemp" parameterType="cmap">
+        DELETE FROM jwf_formstempinstbox
+        WHERE FormTempInstBoxID = #{FormTempInstBoxID}
+    </delete>
+</mapper>

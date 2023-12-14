@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="devhelper.acl">    
+	<select id="selectdomain" parameterType="cmap" resultType="cmap">
+		SELECT DomainID AS "DomainID"
+        	, DisplayName AS "DisplayName"
+    	FROM SYS_OBJECT_DOMAIN WHERE IsUse = 'Y'
+    	ORDER BY SortKey
+	</select>
+	
+	<select id="selectdomainbycode" parameterType="cmap" resultType="java.lang.String">
+		SELECT DomainID AS "DomainID" 
+		FROM SYS_OBJECT_DOMAIN 
+		WHERE DomainCode = #{DomainCode}
+	</select>
+
+	<update id="updateModuleIsUse" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsUse */
+		UPDATE SYS_OBJECT_MODULE
+		SET
+		<choose>
+			<when test="IsUse.equalsIgnoreCase('Y')">
+			isuse = 'N'
+			</when>
+			<otherwise>
+			isuse = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = SYSDATE
+		WHERE moduleid = #{ModuleID}
+	</update>
+
+	<update id="updateModuleIsAdmin" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsAdmin */
+		UPDATE SYS_OBJECT_MODULE
+		SET
+		<choose>
+			<when test="IsAdmin.equalsIgnoreCase('Y')">
+			isAdmin = 'N'
+			</when>
+			<otherwise>
+			isAdmin = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = SYSDATE		
+		WHERE moduleid = #{ModuleID}
+	</update>
+
+	<update id="updateModuleIsAudit" parameterType="cmap" >
+		/* queryID = devhelper.acl.updateModuleIsAudit */
+		UPDATE SYS_OBJECT_MODULE
+		SET
+		<choose>
+			<when test="IsAudit.equalsIgnoreCase('Y')">
+			isAudit = 'N'
+			</when>
+			<otherwise>
+			isAudit = 'Y'
+			</otherwise>
+		</choose>
+				, MODIFIERCODE = #{regCode}
+				, MODIFYDATE = SYSDATE
+		WHERE moduleid = #{ModuleID}
+	</update>
+
+	<select id="selectModuleDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectModuleDataCnt */
+		SELECT	COUNT(1)
+		FROM 	sys_object_module
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'URL'">
+		AND UPPER(URL) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND UPPER(MODULEID) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleName'">
+		AND UPPER(ModuleName) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'AuditMethod'">
+		AND UPPER(AuditMethod) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'AuditClass'">
+		AND UPPER(AuditClass) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'BizSection'">
+		AND UPPER(bizSection) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+					<if test="moduleId != null and moduleId != ''">
+		AND UPPER(MODULEID) = UPPER(#{moduleId})
+					</if>
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectModuleDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectModuleDataList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT
+				ModuleID AS "ModuleID"
+				, ModuleName AS "ModuleName"
+				, AuditMethod AS "AuditMethod"
+				, AuditClass AS "AuditClass"
+				, URL AS "URL"
+				, BizSection AS "BizSection"
+				, IsUse AS "IsUse"
+				, IsAdmin AS "IsAdmin"
+				, IsAudit AS "IsAudit"
+				, Description AS "Description"
+				, RegisterCode AS "RegisterCode"
+				, TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI') AS "RegistDate"
+				, ModifierCode AS "ModifierCode"
+				, TO_CHAR(ModifyDate, 'YYYY-MM-DD HH24:MI') AS "ModifyDate"
+				, (	SELECT LISTAGG( (SELECT DisplayName FROM sys_object_menu WHERE MenuID = d.MenuID) , ',')  WITHIN GROUP(ORDER BY b.moduleid)
+					FROM sys_object_program_map b 	
+					JOIN sys_object_program c on b.PRGMID = c.PRGMID
+					JOIN sys_object_program_menu d on d.PRGMID = c.PRGMID
+			   		WHERE 	a.moduleid = b.moduleid) AS "AuditMenuNm"
+		FROM 	sys_object_module a
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'URL'">
+		AND UPPER(URL) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND UPPER(MODULEID) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleName'">
+		AND UPPER(ModuleName) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'AuditMethod'">
+		AND UPPER(AuditMethod) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'AuditClass'">
+		AND UPPER(AuditClass) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'BizSection'">
+		AND UPPER(bizSection) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'detail'">
+					<if test="moduleId != null and moduleId != ''">
+		AND UPPER(MODULEID) = UPPER(#{moduleId})
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY URL ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectPrgmDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmDataCnt */
+		SELECT	COUNT(1)
+		FROM 	SYS_OBJECT_PROGRAM
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmId) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'PrgmName'">
+		AND 	UPPER(prgmName) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+		AND 	UPPER(PRGMID) = UPPER(#{prgmId})
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectPrgmDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmDataList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	PRGMID AS "PrgmID"
+				, PRGMNAME AS "PrgmName"
+				, REGISTERCODE AS "RegisterCode"
+				, TO_CHAR(RegistDate, 'YYYY-MM-DD HH24:MI') AS "RegistDate"
+				, ModifierCode AS "ModifierCode"
+				, TO_CHAR(ModifyDate, 'YYYY-MM-DD HH24:MI') AS "ModifyDate"				
+		FROM 	SYS_OBJECT_PROGRAM
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmid) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'PrgmName'">
+		AND 	UPPER(prgmName) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'detail'">
+					<if test="prgmId != null and prgmId != ''">
+		AND UPPER(PRGMID) = UPPER(#{prgmId})
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY prgmId ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<insert id="insertModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertModuleData */
+		INSERT INTO SYS_OBJECT_MODULE	
+			(MODULEID, URL, MODULENAME, BIZSECTION, AUDITCLASS
+			, AUDITMETHOD, ISUSE, ISADMIN, ISAUDIT, ISBLOCK
+			, DESCRIPTION, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE )
+		values 
+			( #{moduleId}, #{url}, #{moduleName}, #{bizSection}, #{auditClass}
+			, #{auditMethod}, #{isUse}, #{isAdmin}, #{isAudit}, #{isBlock}
+			, #{description}, #{regCode}, SYSDATE, #{regCode}, SYSDATE )
+	</insert>
+
+	<insert id="insertPrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmData */
+		INSERT INTO SYS_OBJECT_PROGRAM
+			(PRGMID, PRGMNAME, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) 
+		VALUES
+			( #{prgmId}, #{prgmName}, #{regCode}, SYSDATE, #{regCode}, SYSDATE)
+	</insert>
+
+	<select id="selectPrgmMapDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmMapDataCnt */
+		SELECT	COUNT(1)
+		FROM 	SYS_OBJECT_PROGRAM_MAP
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+				<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmId) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND 	UPPER(moduleId) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+			<if test="searchType != null and searchType != ''">
+				<if test="searchType == 'pkChk'">
+		AND 	( UPPER(PRGMID) = UPPER(#{prgmId}) AND UPPER(MODULEID) = UPPER(#{moduleId}) )
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectPrgmMapDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmMapDataList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	PRGMID AS "PrgmID"
+				, MODULEID AS "ModuleID"
+				, REGISTERCODE AS "RegisterCode"
+				, TO_CHAR(REGISTDATE, 'YYYY-MM-DD HH24:MI') AS "RegistDate"
+				, MODIFIERCODE AS "ModifierCode"
+				, TO_CHAR(MODIFYDATE, 'YYYY-MM-DD HH24:MI') AS "ModifyDate"
+		FROM 	SYS_OBJECT_PROGRAM_MAP
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+				<choose>
+						<when test="searchType == 'PrgmID'">
+		AND 	UPPER(prgmid) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'ModuleID'">
+		AND 	UPPER(moduleId) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+		ORDER BY prgmid, moduleId ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<select id="selectPrgmMenuDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectPrgmMenuDataCnt */
+		SELECT 	COUNT(1)
+		FROM 	(
+				SELECT	(SELECT DISPLAYNAME FROM SYS_OBJECT_MENU WHERE MENUID = T1.MENUID) AS MENUNAME
+				FROM 	SYS_OBJECT_PROGRAM_MENU T1
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="searchText != null and searchText != ''">
+						<if test="searchType != null and searchType != ''">
+							<choose>
+								<when test="searchType == 'PrgmID'">
+				AND 	UPPER(T1.PRGMID) LIKE '%'||UPPER(#{searchText})||'%'
+								</when>
+								<when test="searchType == 'MenuID'">
+				AND 	UPPER(T1.MENUID) LIKE '%'||UPPER(#{searchText})||'%'
+								</when>
+							</choose>
+						</if>
+					</if>
+					<if test="searchType != null and searchType != ''">
+						<if test="searchType == 'pkChk'">
+				AND   	UPPER(T1.MENUID) = UPPER(#{menuId})
+            	AND   	UPPER(T1.PRGMID) = UPPER(#{prgmId})
+						</if>
+					</if>
+				</trim>
+				) T2
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<if test="searchType == 'MenuName'">
+		AND 	UPPER(MenuName) LIKE '%'||UPPER(#{searchText})||'%'
+					</if>
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectPrgmMenuDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectPrgmMenuDataList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT 	T2.MENUNAME AS "MenuName"
+				, T2.MENUID AS "MenuID"
+				, T2.PRGMID AS "PrgmID"
+				, T2.REGISTERCODE AS "RegisterCode"
+				, TO_CHAR(T2.REGISTDATE, 'YYYY-MM-DD HH24:MI') AS "RegistDate"
+				, T2.MODIFIERCODE AS "ModifierCode"
+				, TO_CHAR(T2.MODIFYDATE, 'YYYY-MM-DD HH24:MI') AS "ModifyDate"
+		FROM 	(
+				SELECT	(SELECT DISPLAYNAME FROM SYS_OBJECT_MENU WHERE MENUID = T1.MENUID) AS MENUNAME
+						, MENUID, PRGMID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE
+				FROM 	SYS_OBJECT_PROGRAM_MENU T1
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="searchText != null and searchText != ''">
+						<if test="searchType != null and searchType != ''">
+							<choose>
+								<when test="searchType == 'PrgmID'">
+				AND 	UPPER(prgmid) LIKE '%'||UPPER(#{searchText})||'%'
+								</when>
+								<when test="searchType == 'MenuID'">
+				AND 	UPPER(menuid) LIKE '%'||UPPER(#{searchText})||'%'
+								</when>
+							</choose>
+						</if>
+					</if>
+					<if test="searchType != null and searchType != ''">
+						 <if test="searchType == 'detail'">
+						 	<if test="menuId != null and menuId != ''">
+				AND UPPER(MENUID) = UPPER(#{menuId})
+						 	</if>
+						 </if>
+					</if>
+				</trim>
+				) T2
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<if test="searchType == 'MenuName'">
+		AND 	UPPER(MenuName) LIKE '%'||UPPER(#{searchText})||'%'
+					</if>
+				</if>
+			</if>
+		</trim>
+		ORDER BY PrgmID, MenuID ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<insert id="insertPrgmMapData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmMapData */
+		INSERT INTO SYS_OBJECT_PROGRAM_MAP
+			(PRGMID, MODULEID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) VALUES
+			(#{prgmId}, #{moduleId}, #{regCode}, SYSDATE, #{regCode}, SYSDATE)
+	</insert>
+
+	<select id="selectMenuDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID = devhelper.acl.selectMenuDataCnt */
+		SELECT	COUNT(1)
+		FROM 	SYS_OBJECT_MENU
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'MenuID'">
+		AND 	UPPER(MENUID) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'MenuName'">
+		AND 	UPPER(DISPLAYNAME) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+	</select>
+
+	<select id="selectMenuDataList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectMenuDataList */
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT	DISPLAYNAME AS "MenuName"
+				, MENUID AS "MenuID"
+				, BIZSECTION AS "BizSection"
+				, URL AS "URL"
+		FROM 	SYS_OBJECT_MENU
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				1=1
+			<if test="searchText != null and searchText != ''">
+				<if test="searchType != null and searchType != ''">
+					<choose>
+						<when test="searchType == 'MenuID'">
+		AND 	UPPER(MENUID) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+						<when test="searchType == 'MenuName'">
+		AND 	UPPER(DISPLAYNAME) LIKE '%'||UPPER(#{searchText})||'%'
+						</when>
+					</choose>
+				</if>
+			</if>
+		</trim>
+		ORDER BY MENUID ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+
+	<insert id="insertPrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.insertPrgmMenuData */
+		INSERT INTO SYS_OBJECT_PROGRAM_MENU
+			(MENUID, PRGMID, REGISTERCODE, REGISTDATE, MODIFIERCODE, MODIFYDATE) VALUES
+			(#{menuId}, #{prgmId}, #{regCode}, SYSDATE, #{regCode}, SYSDATE )
+	</insert>
+
+	<delete id="deleteModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.deleteModuleData */
+		DELETE FROM SYS_OBJECT_MODULE
+		WHERE MODULEID = #{ModuleID}
+	</delete>
+
+	<delete id="deletePrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmData */
+		DELETE FROM SYS_OBJECT_PROGRAM 
+		WHERE PRGMID = #{PrgmID}
+	</delete>
+
+	<delete id="deletePrgmMapData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmMapData */
+		DELETE FROM SYS_OBJECT_PROGRAM_MAP
+		WHERE 	1=1
+		<if test="delType == 'Module'">
+        AND   MODULEID = #{ModuleID}
+        </if>
+        <if test="delType == 'Prgm'">
+        AND   PRGMID = #{PrgmID}
+        </if>
+        <if test="delType == 'Map'">
+        AND PRGMID = #{PrgmID}
+        AND MODULEID = #{ModuleID}
+        </if>
+	</delete>
+
+	<delete id="deletePrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.deletePrgmMenuData */
+		DELETE FROM SYS_OBJECT_PROGRAM_MENU
+		WHERE MENUID = #{MenuID} AND PRGMID = #{PrgmID} 
+	</delete>
+
+	<update id="updateModuleData" parameterType="cmap">
+		/* queryID = devhelper.acl.updateModuleData */
+		UPDATE  SYS_OBJECT_MODULE
+		SET 	URL = #{url}
+				, MODULENAME = #{moduleName}
+		        , BIZSECTION = #{bizSection}
+		        , AUDITCLASS = #{auditClass}
+		        , AUDITMETHOD = #{auditMethod}
+		        , ISUSE = #{isUse}
+		        , ISADMIN = #{isAdmin}
+		        , ISAUDIT = #{isAudit}
+		        , DESCRIPTION = #{description}
+		        , MODIFIERCODE = #{modifiercode}
+		        , MODIFYDATE = SYSDATE
+		WHERE 	1=1
+		AND 	MODULEID = #{moduleId}
+	</update>
+
+	<update id="updatePrgmData" parameterType="cmap">
+		/* queryID = devhelper.acl.updatePrgmData */
+		UPDATE 	SYS_OBJECT_PROGRAM
+		SET 	PRGMNAME = #{prgmName}
+				, MODIFIERCODE = #{modifiercode}
+		        , MODIFYDATE = SYSDATE
+		WHERE	1=1
+		AND 	PRGMID = #{prgmId}
+	</update>
+	
+	<update id="updatePrgmMenuData" parameterType="cmap">
+		/* queryID = devhelper.acl.updatePrgmMenuData */
+		UPDATE 	SYS_OBJECT_PROGRAM_MENU
+		SET 	PRGMID = #{prgmId}
+				, MODIFIERCODE = #{modifiercode}
+		        , MODIFYDATE = SYSDATE
+		WHERE 	1=1
+		AND 	MENUID = #{menuId}
+	</update>
+
+	<select id="selectModulePrgmMapList" parameterType="cmap" resultType="cmap">
+		/* queryID = devhelper.acl.selectModulePrgmMapList */
+		SELECT 		T1.PRGMID AS "PrgmID"
+					, T2.PRGMNAME AS "PrgmName"
+		FROM 		SYS_OBJECT_PROGRAM_MAP T1
+			INNER JOIN SYS_OBJECT_PROGRAM T2 ON T2.PRGMID = T1.PRGMID
+		WHERE 		1=1
+		AND 		T1.MODULEID = #{moduleId} 
+	</select>
+	<select id="selectDeptListSelect" parameterType="cmap" resultType="cmap">
+		SELECT DomainID as Value, DisplayName AS Text  
+		FROM sys_object_domain WHERE IsUse = 'Y' ORDER BY SortKey
+	</select>	
+</mapper>

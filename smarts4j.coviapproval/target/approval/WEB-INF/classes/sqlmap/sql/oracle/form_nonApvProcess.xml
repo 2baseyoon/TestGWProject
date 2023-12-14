@@ -1,0 +1,836 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.nonApvProcess">
+      <!-- 양식 조회 -->
+    <select id="selectCirculationReadListData" parameterType="cmap" resultType="cmap">
+    	SELECT * FROM (
+			SELECT A.Kind  AS "Kind"	-- 구분
+				 , A.SenderID AS "SenderID"	-- 회람지정자 ID
+				 , A.SenderName AS "SenderName"	-- 회람지정자명
+				 , (CASE WHEN B.UserCode IS NOT NULL THEN '('|| B.DeptCode||') '|| B.UserCode
+				 		  	ELSE A.ReceiptID
+	              END)  AS "UserCode" -- 회람자ID
+				 , NVL(B.DeptName, '') AS "DeptName"
+				 , NVL(B.UserName, '') AS "UserName"
+				 , A.ReceiptName AS "ReceiptName"
+				 , A.ReceiptDate AS "ReceiptDate" -- 지정일자 (애매하지만 현재 방법 없음.)
+				 , NVL(B.ReceiptDate, A.ReadDate) AS "ReadDate" -- 확인일자
+				 , A.Comment_ AS "Comment"	-- 의견
+				 , A.CirculationBoxID AS "CirculationBoxID"
+				 , CASE WHEN NVL(B.DeptName, '') = '' THEN ReceiptName ELSE DeptName END AS "UserNameSortkey"
+				 , A.ReceiptType AS "ReceiptType"
+			FROM JWF_CirculationBox A
+			LEFT OUTER JOIN JWF_CirculationRead B ON A.CirculationBoxID = B.CirculationBoxID
+			WHERE A.DataState != 'D'
+			AND A.DeletedDate IS NULL
+			AND A.FormInstID = #{fiid}
+		)
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("SenderName")'>"SenderName"</when>
+				<when test='sortColumn.equalsIgnoreCase("ReceiptDate")'>"ReceiptDate"</when>
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>"UserNameSortkey"</when>
+				<when test='sortColumn.equalsIgnoreCase("ReadDate")'>"ReadDate"</when>
+				<otherwise>"CirculationBoxID"</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</select>
+    
+	<!-- 삭제버튼 클릭 시 상태값 변경 -->
+	<update id="updateCirculationReadData" parameterType="cmap">
+    UPDATE JWF_CirculationBox 
+    SET DataState = 'D'
+    	, ModID = #{ModID}
+    	, ModDate = SYSDATE
+    	, DeletedDate = SYSDATE
+	WHERE CirculationBoxID = #{CirculationBoxID}
+	</update>
+	
+	
+	<!-- 수신현황 -->
+	<select id="getParentProcessID1" parameterType="cmap" resultType="cmap">
+	    SELECT ParentProcessID AS "ParentProcessID"
+		FROM jwf_process
+		WHERE ProcessID = #{ProcessID}
+	</select>
+	
+	<select id="getParentProcessID2" parameterType="cmap" resultType="cmap">
+	    SELECT ParentProcessID AS "ParentProcessID"
+		FROM jwf_process
+		WHERE ProcessID = #{ProcessID}		
+	</select>
+	
+	<select id="selectReceiptReadListData" parameterType="cmap" resultType="cmap">
+	   <![CDATA[
+	      SELECT ProcessID AS "ProcessID"
+			 ,WorkItemID AS "WorkItemID"
+			 ,UserCode AS "UserCode"
+			 ,UserName AS "UserName"
+			 ,WorkItemState AS "WorkItemState"
+			 ,ProcessState AS "ProcessState"
+			 ,DocSubject AS "DocSubject"
+			 ,WorkItemFinished AS "WorkItemFinished"
+			 -- ,NVL(WorkItemFinished,'') AS WorkItemFinished
+			 ,BusinessState AS "BusinessState"
+			 ,DSCR
+			 ,ProcessStarted AS "ProcessStarted"
+			 ,ProcessFinished AS "ProcessFinished"
+			 -- ,NVL(ProcessFinished,'') AS ProcessFinished
+			 ,PerformerState AS "PerformerState"
+			 ,ChargeName AS "ChargeName"   -- 부서일 경우 담당자 추가  
+			 ,ActualKind AS "ActualKind"
+	 	FROM 
+		( 
+			  -- 진행
+			 (SELECT pr.ProcessID AS ProcessID
+					,wi.WorkItemID AS WorkItemID
+					,pf.UserCode AS UserCode
+					,pf.UserName AS UserName
+					,wi.State AS WorkItemState
+					,pr.ProcessState AS ProcessState
+					,pr.DocSubject AS DocSubject
+					,wi.Finished AS WorkItemFinished
+					,pr.BusinessState AS BusinessState
+					,wi.DSCR AS DSCR
+					,pr.startDate AS ProcessStarted
+					,pr.endDate AS ProcessFinished
+					,pf.State AS PerformerState
+					,CASE WHEN pf.SubKind IN ('R','REQCMP') THEN wi.Charge ELSE '' END AS ChargeName  -- 부서일경우 담당자 추가
+					,pf.ActualKind
+					FROM jwf_process pr 
+					INNER JOIN jwf_workitem wi ON pr.ProcessID = wi.ProcessID
+					LEFT OUTER JOIN jwf_workitem wi2 ON pr.ProcessID = wi2.ProcessID AND wi2.SubKind IN ('R','REQCMP') AND wi.ProcessID = wi2.ProcessID
+					INNER JOIN jwf_performer pf ON wi.PerformerID = pf.PerformerID
+					WHERE (pr.ParentProcessID = #{ProcessID1} or pr.ProcessID = #{ProcessID1}) 
+					AND pr.DeleteDate IS null 
+					AND (( pf.SubKind IN ('R','REQCMP','E','AD','AS','C','T008') AND pf.State IN ('1','2') AND pr.ProcessState = 288 )
+						  OR (pr.ProcessState = 528 AND wi.SubKind = wi2.SubKind OR (wi.SubKind = 'T006' AND wi2.SubKind IS NULL AND pr.DivisionKind <> 'D')) )
+						-- [2015-08-28] 수신자일때 반려되면 수신현황조회를 위해 추가
+			  )
+		) A 
+	   ]]>
+	   <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("ChargeName")'>ChargeName</when>
+				<when test='sortColumn.equalsIgnoreCase("stateName")'>WorkItemState</when>
+				<when test='sortColumn.equalsIgnoreCase("BusinessStateName")'>BusinessState</when>
+				<when test='sortColumn.equalsIgnoreCase("WorkItemFinished")'>WorkItemFinished</when>
+				<when test='sortColumn.equalsIgnoreCase("ProcessFinished")'>ProcessFinished</when>
+				<otherwise> UserName</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("DESC")'> DESC</when>
+				<otherwise> ASC</otherwise>
+			</choose>
+		</if>
+	</select>
+	
+	<!-- 변경이력조회 -->
+	<select id="selectHistoryListData" parameterType="cmap" resultType="cmap">
+        SELECT h.Revision AS "Revision"
+			    , TO_CHAR(h.ModDate,'YYYY-MM-DD HH24:MI:SS') AS "ModDate"
+			    , u.MultiDisplayName AS "UR_Name"
+			    , h.ModValue AS "ModValue"
+			    , h.FieldName AS "FieldName"
+    	FROM jwf_formhistory h 
+		LEFT JOIN sys_object_user u ON h.ModID = u.UserCode
+		WHERE h.FormInstID = #{formInstID}
+		ORDER BY h.Revision
+	</select>
+	
+	<select id="selectHistoryModifiedData" parameterType="cmap" resultType="cmap">
+       <![CDATA[
+		    SELECT
+		    	Revision AS "Revision"
+		    	, FieldName AS "FieldName"
+		    	, ModValue AS "ModValue"
+		    FROM jwf_formhistory
+			WHERE FormInstID = #{formInstID} AND Revision >= #{revision}
+			ORDER BY Revision desc
+		]]>
+	</select>
+	
+	<!-- 기존 등록된 회람자 조회 -->
+	<select id="SelectExistingCirculationList" parameterType="cmap" resultType="cmap">
+	      SELECT a.ReceiptDate AS "ReceiptDate"
+				, a.SenderName AS "SenderName"
+				, a.SenderID AS "SenderID"
+				, a.FormInstID AS "FormInstID"
+				, a.Subject AS "Subject"
+				, a.ReadDate AS "ReadDate"
+				, a.ProcessID AS "ProcessID"
+				, a.ReceiptID AS "ReceiptID"
+				, CASE WHEN a.ReceiptType = 'P' THEN B.UserName END "ReceiptName"
+				, a.Kind AS "Kind"
+				, a.Comment_ AS "Comment"
+				, a.ReceiptType AS "ReceiptType"
+				, b.DeptID AS "DeptID"
+				, CASE WHEN a.ReceiptType = 'P' THEN B.DeptName ELSE C.MultiDisplayName END "DeptName"
+		FROM JWF_CirculationBox a
+		LEFT OUTER JOIN (
+			  SELECT a.UserID AS UserID, a.UserCode AS UserCode, a.MultiDisplayName AS UserName, b.GroupID AS DeptID, b.GroupCode AS DeptCode, b.MultiDisplayName AS DeptName
+				FROM sys_object_user a
+				INNER JOIN sys_object_user_basegroup bg ON a.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+				INNER JOIN sys_object_group b ON bg.DeptCode = b.GroupCode	
+			) B ON a.ReceiptID = B.UserCode
+		LEFT OUTER JOIN sys_object_group c ON a.ReceiptID = c.GroupCode
+		WHERE Kind = #{kind}
+		AND a.FormInstID = #{fiid}
+		AND a.DataState != 'D'
+		AND a.DeletedDate is null
+	</select>
+	
+	<insert id ="InsertCirculationBoxDescription" parameterType="cmap" useGeneratedKeys="true" >
+	    INSERT INTO jwf_circulationboxdescription 
+		(
+			FormInstID,
+			FormID,
+			FormPrefix,
+			FormName,
+			FormSubject,
+			IsSecureDoc,
+			IsFile,
+			FileExt,
+			IsComment,
+			ApproverCode,
+			ApproverName,
+			ApprovalStep,
+			ApproverSIPAddress,
+			IsReserved,
+			ReservedGubun,
+			Priority,
+			IsModify,
+			Reserved1,
+			Reserved2
+		)
+		VALUES
+		(
+			#{FormInstID},
+			#{FormID},
+			#{FormPrefix},
+			#{FormName},
+			#{FormSubject},
+			#{IsSecureDoc},
+			#{IsFile},
+			#{FileExt},
+			#{IsComment},
+			#{ApproverCode},
+			#{ApproverName},
+			#{ApprovalStep},
+			#{ApproverSIPAddress},
+			#{IsReserved},
+			#{ReservedGubun},
+			#{Priority},
+			#{IsModify},
+			#{Reserved1},
+			#{Reserved2}
+		)
+		<selectKey keyProperty="CirculationBoxDescriptionID" resultType="Integer" order="AFTER">
+		    SELECT JWF_CIRCULATIONBOXDESC_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+
+	<insert id ="InsertCirculationBox" parameterType="cmap">
+	    INSERT INTO jwf_circulationbox 
+		(
+				CirculationBoxDescriptionID,
+				ProcessID,
+				FormInstID,
+				ReceiptID,
+				ReceiptType,
+				ReceiptName,
+				ReceiptDate,
+				Kind,
+				State,
+				ReadDate,
+				SenderID,
+				SenderName,
+				Subject,
+				Comment_,
+				DataState,
+				RegID,
+				RegDate
+		)
+		
+		VALUES
+		(
+			#{CirculationBoxDescriptionID},
+			#{ProcessID},
+			#{FormInstID},
+			#{ReceiptID},
+			#{ReceiptType},
+			#{ReceiptName},
+			SYSDATE,
+			#{Kind},
+			'C',
+			NULL,
+			#{SenderID},
+			#{SenderName},
+			#{Subject},
+			#{Comment},
+			'C',
+			#{RegID},
+			SYSDATE
+		)
+	</insert>
+	
+	<select id="selectSeriesListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT 
+			    GSF_L.FunctionCode AS "LFCode",
+			    GSF_L.FunctionName AS "LFName",
+			    GSF_M.FunctionCode AS "MFCode",
+			    GSF_M.FunctionName AS "MFName",
+			    GSF.FunctionCode AS "SFCode",
+			    GSF.FunctionName AS "SFName",
+			    GS.SeriesCode AS "SeriesCode",
+			    GS.SeriesName AS "SeriesName",
+			    GS.SeriesDescription AS "SeriesDescription",
+			    case when substr(GS.SFCode,1,1)='A' then GSF.functionname else GSF_L.functionname end AS "functionlevel1",
+                case when substr(GS.SFCode,1,1)='B' then GSF.functionname else GSF_M.functionname end AS "functionlevel2",
+			    case when substr(GS.SFCode,1,1)='C' then GSF.functionname else '' end AS "functionlevel3"			    		    
+			FROM GOV_SERIES GS
+			INNER JOIN GOV_SERIES_MAPPING GSM
+				ON GS.SeriesCode = GSM.SeriesCode AND GS.BASEYEAR  = GSM.BASEYEAR 
+			INNER JOIN GOV_SERIES_FUNC GSF
+				ON GS.SFCode = GSF.FunctionCode
+			INNER JOIN GOV_SERIES_FUNC GSF_M
+				ON GSF.ParentFunctionCode = GSF_M.FunctionCode
+			INNER JOIN GOV_SERIES_FUNC GSF_L
+				ON GSF_M.ParentFunctionCode = GSF_L.FunctionCode
+			WHERE GSM.DeptCode = #{DeptID}
+			AND GSM.JobType != 2
+			AND GS.BASEYEAR = #{baseYear}
+			<if test="existsGFile == 'true'">
+			  AND EXISTS 
+			  	(SELECT 1 from GOV_RECORD_GFILE GRG where GRG.RecordStatus IN ('1') AND GRG.SeriesCode = GS.SeriesCode AND GRG.TakeoverCheck <![CDATA[<>]]> '2' AND GRG.RecordDeptCode = #{DeptCode} AND GRG.PRODUCTYEAR = #{baseYear})
+			</if>
+			<if test="functioncode != null and functioncode != ''">
+				<choose>  
+					<when test = 'functionlevel == "1"'> AND GSF_L.FunctionCode= #{functioncode} </when>
+					<when test = 'functionlevel == "2"'> AND GSF_M.FunctionCode= #{functioncode} </when>
+					<when test = 'functionlevel == "3"'> AND GSF.FunctionCode= #{functioncode} </when>
+					<otherwise> AND GS.SFCode= #{functioncode}</otherwise>
+				</choose>
+			</if>				
+			ORDER BY GSF_L.FunctionCode, GSF_M.FunctionCode, GSF.FunctionCode, GS.SeriesCode
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectSeriesListDataCnt" resultType="java.lang.Long">
+		SELECT 
+			COUNT(GS.SeriesCode)
+		FROM GOV_SERIES GS
+		INNER JOIN GOV_SERIES_MAPPING GSM
+			ON GS.SeriesCode = GSM.SeriesCode AND GS.BASEYEAR  = GSM.BASEYEAR
+		INNER JOIN GOV_SERIES_FUNC GSF
+			ON GS.SFCode = GSF.FunctionCode
+		INNER JOIN GOV_SERIES_FUNC GSF_M
+			ON GSF.ParentFunctionCode = GSF_M.FunctionCode
+		INNER JOIN GOV_SERIES_FUNC GSF_L
+			ON GSF_M.ParentFunctionCode = GSF_L.FunctionCode
+		WHERE GSM.DeptCode = #{DeptID}
+		AND GSM.JobType != '2'
+		AND GS.BASEYEAR = #{baseYear}
+		<if test="existsGFile == 'true'">
+			  AND EXISTS 
+			  	(SELECT 1 from GOV_RECORD_GFILE GRG where GRG.RecordStatus IN ('1') AND GRG.SeriesCode = GS.SeriesCode AND GRG.TakeoverCheck <![CDATA[<>]]> '2'  AND GRG.RecordDeptCode = #{DeptCode} AND GRG.PRODUCTYEAR = #{baseYear} )
+		</if>
+		<if test="functioncode != null and functioncode != ''">
+			<choose>  
+				<when test = 'functionlevel == "1"'> AND GSF_L.FunctionCode= #{functioncode} </when>
+				<when test = 'functionlevel == "2"'> AND GSF_M.FunctionCode= #{functioncode} </when>
+				<when test = 'functionlevel == "3"'> AND GSF.FunctionCode= #{functioncode} </when>
+				<otherwise> AND GS.SFCode= #{functioncode}</otherwise>
+			</choose>
+		</if>			
+	</select>
+	
+	<select id="selectRecordListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT
+			    GRG.RecordClassNum AS "RecordClassNum",
+			    GRG.RecordDeptCode AS "RecordDeptCode",
+			    GRG.ProductYear AS "ProductYear",
+			    GRG.EndYear AS "EndYear",
+			    GRG.RecordSeq AS "RecordSeq",
+			    GRG.RecordCount AS "RecordCount",
+			    GRG.RecordSubject AS "RecordSubject",
+			    GRG.RecordType AS "RecordType",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'RecordType' AND Code = GRG.RecordType) AS "RecordTypeName",
+			    GRG.KeepPeriod AS "KeepPeriod",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepPeriod' AND Code = GRG.KeepPeriod) AS "KeepPeriodName",
+			    GRG.KeepMethod AS "KeepMethod",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepMethod' AND Code = GRG.KeepMethod) AS "KeepMethodName",
+			    GRG.KeepPlace AS "KeepPlace",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepPlace' AND Code = GRG.KeepPlace) AS "KeepPlaceName",
+			    GRG.WorkCharger AS "WorkCharger",
+			    GRG.RecordClass AS "RecordClass",
+			    CASE WHEN GRG.RecordClass = '1' THEN '신기록물' ELSE '구기록물' END AS "RecordClassName",
+			    GRG.RecordFileCode AS "RecordFileCode",
+			    GRG.SeriesPath AS "SeriesPath"
+			FROM GOV_RECORD_GFILE GRG
+			WHERE RecordStatus = '1'
+			AND GRG.TakeoverCheck <![CDATA[<>]]> '2'
+			AND SeriesCode = #{SeriesCode}
+			AND RecordDeptCode = #{DeptCode}
+			AND ProductYear = #{baseYear}
+			<if test="searchWord != null and searchWord != ''">
+				AND RecordSubject LIKE '%' || #{searchWord} || '%'
+			</if>
+			ORDER BY GRG.RecordClassNum ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectRecordListDataCnt" resultType="java.lang.Long">
+		SELECT
+		    COUNT(GRG.RecordClassNum)
+		FROM GOV_RECORD_GFILE GRG
+		WHERE RecordStatus = '1'
+		AND GRG.TakeoverCheck <![CDATA[<>]]> '2'
+		AND SeriesCode = #{SeriesCode}
+		AND RecordDeptCode = #{DeptCode}
+		AND ProductYear = #{baseYear}
+		<if test="searchWord != null and searchWord != ''">
+			AND RecordSubject LIKE '%' || #{searchWord} || '%'
+		</if>
+	</select>
+	
+	<select id="selectFavRecordListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+			SELECT
+			    GRG.RecordClassNum AS "RecordClassNum",
+			    GRG.RecordDeptCode AS "RecordDeptCode",
+			    GRG.ProductYear AS "ProductYear",
+			    GRG.EndYear AS "EndYear",
+			    GRG.RecordSeq AS "RecordSeq",
+			    GRG.RecordCount AS "RecordCount",
+			    GRG.RecordSubject AS "RecordSubject",
+			    GRG.RecordType AS "RecordType",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'RecordType' AND Code = GRG.RecordType) AS "RecordTypeName",
+			    GRG.KeepPeriod AS "KeepPeriod",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepPeriod' AND Code = GRG.KeepPeriod) AS "KeepPeriodName",
+			    GRG.KeepMethod AS "KeepMethod",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepMethod' AND Code = GRG.KeepMethod) AS "KeepMethodName",
+			    GRG.KeepPlace AS "KeepPlace",
+			    (SELECT CodeName FROM SYS_BASE_CODE WHERE CodeGroup = 'KeepPlace' AND Code = GRG.KeepPlace) AS "KeepPlaceName",
+			    GRG.WorkCharger AS "WorkCharger",
+			    GRG.RecordClass AS "RecordClass",
+			    CASE WHEN GRG.RecordClass = '1' THEN '신기록물' ELSE '구기록물' END AS "RecordClassName",
+			    GRG.RecordFileCode AS "RecordFileCode",
+			    GRG.SeriesPath AS "SeriesPath"
+			FROM GOV_RECORD_GFILE GRG
+			INNER JOIN GOV_RECORD_USER_GFILE GRUG
+			ON GRG.RecordClassNum = GRUG.RecordClassNum AND GRUG.UserCode = #{UserCode}
+			WHERE GRG.RecordStatus = '1'
+			AND GRG.TakeoverCheck <![CDATA[<>]]> '2'
+			AND GRG.RecordDeptCode = #{RecordDeptCode}
+			AND GRG.ProductYear = #{baseYear}
+			ORDER BY GRG.RecordClassNum ASC
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectFavRecordListDataCnt" resultType="java.lang.Long">
+		SELECT
+		    COUNT(GRUG.RecordClassNum)
+		FROM GOV_RECORD_GFILE GRG
+		INNER JOIN GOV_RECORD_USER_GFILE GRUG
+		ON GRG.RecordClassNum = GRUG.RecordClassNum AND GRUG.UserCode = #{UserCode}
+		WHERE GRG.RecordStatus = '1'
+		AND GRG.TakeoverCheck <![CDATA[<>]]> '2'
+		AND GRG.RecordDeptCode = #{RecordDeptCode}
+		AND GRG.ProductYear = #{baseYear}
+	</select>
+	
+	<insert id="insertRecordFav" parameterType="cmap">
+		INSERT INTO GOV_RECORD_USER_GFILE
+		(
+			RecordClassNum,
+			UserCode,
+			RegistDate
+		)
+		VALUES
+		(
+			#{RecordClassNum},
+			#{UserCode},
+			SYSDATE
+		)
+	</insert>
+	
+	<delete id="deleteRecordFav" parameterType="cmap">
+		DELETE FROM GOV_RECORD_USER_GFILE
+		WHERE UserCode = #{UserCode}
+		AND RecordClassNum = #{RecordClassNum}
+	</delete>
+	
+	<!-- 20210126 양식 조회(이관함) -->
+	<select id="selectCirculationReadListDataStore" parameterType="cmap" resultType="cmap">
+		SELECT A.Kind AS "Kind"	-- 구분
+			 , A.SenderID AS "SenderID"	-- 회람지정자 ID
+			 , A.SenderName AS "SenderName"	-- 회람지정자명
+			 , (CASE WHEN B.UserCode IS NOT NULL THEN '('|| B.DeptCode||') '|| B.UserCode
+			 		  	ELSE A.ReceiptID
+              END) AS "UserCode"  -- 회람자ID
+			 , NVL(B.DeptName, '') AS "DeptName"
+			 , NVL(B.UserName, '') AS "UserName"
+			 , A.ReceiptName as "ReceiptName"
+			 , A.ReceiptDate as "ReceiptDate" -- 지정일자 (애매하지만 현재 방법 없음.)
+			 , NVL(B.ReceiptDate, A.ReadDate) AS "ReadDate" -- 확인일자
+			 , A.Comment_ as "Comment"	-- 의견
+			 , A.CirculationBoxID as "CirculationBoxID"
+			 , A.ReceiptType AS "ReceiptType"
+		FROM JWF_CirculationBox A
+		LEFT OUTER JOIN JWF_CirculationRead B ON A.CirculationBoxID = B.CirculationBoxID
+		WHERE A.DataState != 'D'
+		AND A.DeletedDate IS NULL
+		AND A.FormInstID = #{fiid}
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("SenderName")'>SenderName</when>
+				<when test='sortColumn.equalsIgnoreCase("ReceiptDate")'>ReceiptDate</when>
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>NVL(B.DeptName, ReceiptName)</when>
+				<when test='sortColumn.equalsIgnoreCase("ReadDate")'>ReadDate</when>
+				<otherwise> CirculationBoxID</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</select>
+    
+	<!-- 20210126 삭제버튼 클릭 시 상태값 변경(이관함) -->
+	<update id="updateCirculationReadDataStore" parameterType="cmap">
+	    UPDATE JWF_CirculationBox 
+	    SET DataState = 'D'
+	    	, ModID = #{ModID}
+	    	, ModDate = SYSDATE
+	    	, DeletedDate = SYSDATE
+		WHERE CirculationBoxID = #{CirculationBoxID}
+	</update>
+	
+	<!-- 20210126 기존 등록된 회람자 조회 (이관함)-->
+	<select id="SelectExistingCirculationListStored" parameterType="cmap" resultType="cmap">
+	    SELECT a.ReceiptDate as "ReceiptDate"
+				, a.SenderName as "SenderName"
+				, a.SenderID as "SenderID"
+				, a.FormInstID as "FormInstID"
+				, a.Subject as "Subject"
+				, a.ReadDate as "ReadDate"
+				, a.ProcessID as "ProcessID"
+				, a.ReceiptID as "ReceiptID"
+				, CASE WHEN a.ReceiptType = 'P' THEN B.UserName END "ReceiptName"
+				, a.Kind as "Kind"
+				, a.Comment_ as "Comment"
+				, a.ReceiptType as "ReceiptType"
+				, b.DeptID as "DeptID"
+				, CASE WHEN a.ReceiptType = 'P' THEN B.DeptName ELSE C.MultiDisplayName END "DeptName"
+		FROM JWF_CirculationBox a
+			LEFT OUTER JOIN 
+			(
+			   select a.UserID AS UserID, a.UserCode AS UserCode, a.MultiDisplayName AS UserName, b.GroupID AS DeptID, b.GroupCode AS DeptCode, b.MultiDisplayName AS DeptName
+				from sys_object_user a
+				inner join sys_object_user_basegroup bg ON a.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+				inner join sys_object_group b ON bg.DeptCode = b.GroupCode	
+			) B ON a.ReceiptID = B.UserCode
+			LEFT OUTER JOIN sys_object_group c ON a.ReceiptID = c.GroupCode
+		WHERE Kind = #{kind}
+		AND a.FormInstID = #{fiid}
+		AND a.DataState != 'D'
+		AND a.DeletedDate is null
+	</select>
+	
+	<!-- 20210126 이관함 참조/회람 등록 추가 -->
+	<insert id ="InsertCirculationBoxDescriptionStored" parameterType="cmap" >
+	    INSERT INTO jwf_circulationboxdescription 
+		(
+			FormInstID,
+			FormID,
+			FormPrefix,
+			FormName,
+			FormSubject,
+			IsSecureDoc,
+			IsFile,
+			FileExt,
+			IsComment,
+			ApproverCode,
+			ApproverName,
+			ApprovalStep,
+			ApproverSIPAddress,
+			IsReserved,
+			ReservedGubun,
+			Priority,
+			IsModify,
+			Reserved1,
+			Reserved2
+		)
+		
+		VALUES
+		(
+			#{FormInstID},
+			#{FormID},
+			#{FormPrefix},
+			#{FormName},
+			#{FormSubject},
+			#{IsSecureDoc},
+			#{IsFile},
+			#{FileExt},
+			#{IsComment},
+			#{ApproverCode},
+			#{ApproverName},
+			#{ApprovalStep},
+			#{ApproverSIPAddress},
+			#{IsReserved},
+			#{ReservedGubun},
+			#{Priority},
+			#{IsModify},
+			#{Reserved1},
+			#{Reserved2}
+		)
+		<selectKey keyProperty="CirculationBoxDescriptionID" resultType="Integer" order="AFTER">
+		    SELECT JWF_CIRCULATIONBOXDESC_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+	<!-- 20210126 이관함 참조/회람 등록 추가 -->
+	<insert id ="InsertCirculationBoxStored" parameterType="cmap">
+	    INSERT INTO jwf_circulationbox 
+		(
+				CirculationBoxDescriptionID,
+				ProcessID,
+				FormInstID,
+				ReceiptID,
+				ReceiptType,
+				ReceiptName,
+				ReceiptDate,
+				Kind,
+				State,
+				ReadDate,
+				SenderID,
+				SenderName,
+				Subject,
+				Comment,
+				DataState,
+				RegID,
+				RegDate
+		)
+		
+		VALUES
+		(
+			#{CirculationBoxDescriptionID},
+			#{ProcessID},
+			#{FormInstID},
+			#{ReceiptID},
+			#{ReceiptType},
+			#{ReceiptName},
+			SYSDATE,
+			#{Kind},
+			'C',
+			NULL,
+			#{SenderID},
+			#{SenderName},
+			#{Subject},
+			#{Comment},
+			'C',
+			#{RegID},
+			SYSDATE
+		)
+	</insert>
+	
+	<!-- 20210126 이관문서 정보 조회 (이관함 목록에서 멀티로 등록 시)-->
+	<select id="SelectFormInfoStored" parameterType="cmap" resultType="cmap">
+	    SELECT
+			B.FormInstID as "FormInstID"
+			, B.ProcessID as "ProcessID"
+			, A.InitiatorID as "InitiatorID"
+			, B.FormID as "FormID"
+			, A.FormPrefix as "FormPrefix"
+			, A.FormName as "FormName"
+			, C.FormSubject as "FormSubject"
+			, C.IsSecureDoc as "IsSecureDoc"
+			, C.IsFile as "IsFile"
+			, B.DocNo as "DocNo"
+			, C.Reserved2 as "Reserved2"
+		FROM jwf_processarchive A 
+		INNER JOIN jwf_forminstance B ON A.ProcessArchiveID = B.ProcessID
+		INNER JOIN jwf_processdescriptionarchive C ON B.FormInstID = C.FormInstID
+		WHERE B.FormInstID = #{fiid}
+	</select>
+	
+	
+	<select id="selectExistingCirculationCnt" parameterType="cmap" resultType="int">
+	<![CDATA[
+		SELECT COUNT(*) AS CNT
+	    FROM jwf_circulationbox
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND Kind = #{Kind}
+	    AND DataState <> 'D'
+		AND DeletedDate is null
+	]]>
+	</select>
+	
+	<select id="selectExistingCirculationStoreCnt" parameterType="cmap" resultType="int">
+	<![CDATA[
+		SELECT COUNT(*) AS CNT
+	    FROM jwf_circulationbox
+	    WHERE FormInstID = #{FormInstID}
+	    AND ReceiptID = #{ReceiptID}
+	    AND Kind = #{Kind}
+	    AND DataState <> 'D'
+		AND DeletedDate is null
+	]]>
+	</select>
+	
+	<select id="selectCirculationAuth" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM JWF_CirculationBox 
+		WHERE CIRCULATIONBOXID = #{circulationBoxID}
+		AND SENDERID  = #{userID}
+	</select>
+	
+	<!-- 기록물 읽음 확인 -->
+	<select id="selectRecordDocReadCnt" resultType="cmap">
+		SELECT COUNT(1) AS CNT FROM GOV_RECORD_DOC_READER 
+		WHERE RecordDocumentID = #{RecordDocumentID}
+		AND UserCode = #{UserCode}
+	</select>
+	
+	<!-- 기록물 읽음 처리 -->
+	<insert id ="insertRecordDocRead" parameterType="cmap">
+	    INSERT INTO GOV_RECORD_DOC_READER 
+		(
+			RecordDocumentID,
+			UserCode,
+			UserName,
+			JobPosition,
+			JobPositionName,
+			JobTitle,
+			JobTitleName,
+			JobLevel,
+			JobLevelName,
+			DeptID,
+			DeptName,
+			ReadDate
+		)
+		VALUES
+		(
+			#{RecordDocumentID},
+			#{UserCode},
+			#{UserName},
+			#{JobPosition},
+			#{JobPositionName},
+			#{JobTitle},
+			#{JobTitleName},
+			#{JobLevel},
+			#{JobLevelName},
+			#{DeptID},
+			#{DeptName},
+			SYSDATE
+		)
+	</insert>
+	
+	<select id="selectRecordDocAuthData" parameterType="cmap" resultType="cmap">
+		SELECT
+			(SELECT SECURELEVEL FROM GOV_RECORD_DOC WHERE RecordDocumentID = #{RecordDocumentID}) AS "SECURELEVEL"
+			,(SELECT SECURITYLEVEL FROM SYS_OBJECT_USER WHERE UserCode = #{UserCode}) AS "SECURITYLEVEL"
+		FROM DUAL
+	</select>
+	
+	<select id="selectRecordDocReaderListDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+		    SELECT 
+				GRDR.RecordDocumentID,
+				OP.Display_Name AS "UserName",
+				OP.Person_Code AS "UserCode",
+				OP.EX_Unit_Name AS "DeptName",
+				OP.JobPosition_Z AS "PositionName",
+				OP.JobTitle_Z AS "TitleName",
+				OP.JobLevel_Z AS "LevelName",
+				TO_CHAR(GRDR.ReadDate, 'YYYY-MM-DD HH24:MI:SS') AS "ReadDate"
+			FROM GOV_RECORD_DOC_READER GRDR
+			INNER JOIN ORG_PERSON OP ON GRDR.UserCode = OP.Person_Code
+			WHERE OP.JobType = 'Origin'
+				AND GRDR.RecordDocumentID = #{recordDocumentID}
+		    <if test="searchType != '' and searchType != null and searchWord != '' and searchWord != null">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("UserName")'>OP.Display_Name</when>
+					<when test='searchType.equalsIgnoreCase("DeptName")'>OP.EX_Unit_Name</when>
+				</choose> 
+				LIKE '%'||#{searchWord}||'%'
+			</if>
+		) A
+	</select>
+	
+	<select id="selectRecordDocReaderListData" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader"/>
+		SELECT 
+		    A.RecordDocumentID AS "RecordDocumentID",
+		    A.UserName AS "UserName",
+		    A.UserCode AS "UserCode",
+		    A.DeptName AS "DeptName",
+		    A.PositionName AS "PositionName",
+		    A.TitleName AS "TitleName",
+		    A.LevelName AS "LevelName",
+		    A.ReadDate AS "ReadDate"
+		FROM (
+		    SELECT 
+				GRDR.RecordDocumentID,
+				OP.Display_Name AS UserName,
+				OP.Person_Code AS UserCode,
+				OP.EX_Unit_Name AS DeptName,
+				OP.JobPosition_Z AS PositionName,
+				OP.JobTitle_Z AS TitleName,
+				OP.JobLevel_Z AS LevelName,
+				TO_CHAR(GRDR.ReadDate, 'YYYY-MM-DD HH24:MI:SS') AS ReadDate
+			FROM GOV_RECORD_DOC_READER GRDR
+			INNER JOIN ORG_PERSON OP ON GRDR.UserCode = OP.Person_Code
+			WHERE OP.JobType = 'Origin'
+				AND GRDR.RecordDocumentID = #{recordDocumentID}
+		    <if test="searchType != '' and searchType != null and searchWord != '' and searchWord != null">
+				AND 
+				<choose>
+					<when test='searchType.equalsIgnoreCase("UserName")'>OP.Display_Name</when>
+					<when test='searchType.equalsIgnoreCase("DeptName")'>OP.EX_Unit_Name</when>
+				</choose> 
+				LIKE '%'||#{searchWord}||'%'
+			</if>
+		) A
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				, ReadDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("UserCode")'>UserCode</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("PositionName")'>PositionName</when>
+					<when test='sortColumn.equalsIgnoreCase("TitleName")'>TitleName</when>
+					<when test='sortColumn.equalsIgnoreCase("LevelName")'>LevelName</when>
+					<when test='sortColumn.equalsIgnoreCase("ReadDate")'>ReadDate</when>					
+					<otherwise>ReadDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<update id="selectTotalSearch" statementType="CALLABLE" parameterType="cmap">
+        CALL USP_SEARCH_WISE_QUEUESCHEDULE()
+    </update>		
+</mapper>

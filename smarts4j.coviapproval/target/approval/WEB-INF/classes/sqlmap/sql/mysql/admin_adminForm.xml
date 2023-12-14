@@ -1,0 +1,766 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.adminForm">
+    <select id="selectAdminFormList" parameterType="cmap" resultType="cmap">
+			SELECT A.* FROM
+			  (SELECT 
+				A.FormID 
+				,A.FormName
+				,A.IsUse 
+				,A.FormDesc
+				,A.RegDate AS RegDate
+				,A.FileName
+				,A.Revision
+				,A.SchemaID
+				,A.SortKey
+				,A.BodyType
+				,A.FormPrefix
+				,B.SchemaName
+				,A.FormID AS FORM_KEY
+				,C.FormClassID
+				,C.FormClassName
+				,A.CompanyCode
+				,A.EntCode
+                ,IF(A.AclAllYN ='Y', 
+                	covi_smart4j.fn_entname_s(CompanyCode), 
+                	covi_smart4j.fn_entname_s(Left((SELECT CONCAT(';',GROUP_CONCAT(DISTINCT(CompanyCode) SEPARATOR ';')) FROM covi_approval4j.jwf_forms_acl WHERE ObjectType ='FORM' AND TargetID = A.FormID ), 100)) )AS EntName
+                <if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+                	,CSTF.IsFree
+                	,CSTF.Price
+                </if>
+  			FROM covi_approval4j.jwf_forms A
+			INNER JOIN covi_approval4j.jwf_formsSchema B
+			ON A.SchemaID = B.SchemaID 
+			INNER JOIN covi_approval4j.jwf_formclass C
+			ON A.FormClassID = C.FormClassID
+			<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+				INNER JOIN (
+					SELECT si.IsFree, si.Price, sf.StoredFormID 
+					FROM covi_approval4j.jwf_store_forms sf 
+					JOIN covi_smart4j.sys_store_items si on sf.StoreItemID = si.StoreItemID
+				) CSTF on A.StoredFormID = CSTF.StoredFormID
+			</if>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+				<if test="IsUse != null and IsUse != '' and IsUse.length() gt 0">
+					AND A.IsUse = #{IsUse}		
+				</if>			
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND A.CompanyCode = #{EntCode}
+				</if>
+			</trim>
+		) A		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+					<otherwise>FormName</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')		
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					FormPrefix LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					FormClassName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>
+		</trim>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("Revision")'>Revision</when>
+					<when test='sortColumn.equalsIgnoreCase("SchemaName")'>SchemaName</when>
+					<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+					<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegDate")'>RegDate</when>
+					<when test='sortColumn.equalsIgnoreCase("IsFree")'>IsFree</when>
+					<otherwise>IsUse</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+				IsUse DESC
+		   </if>
+		</trim>
+	    <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>
+	</select>
+	
+    
+    <select id="selectAdminFormListCnt" resultType="java.lang.Long" parameterType="cmap">
+		SELECT COUNT(*) FROM
+			  (SELECT 
+					A.FormID 
+					,A.FormName
+					,A.FormPrefix
+					,C.FormClassName
+					,A.EntCode AS EntCode
+				FROM covi_approval4j.jwf_forms A
+				INNER JOIN covi_approval4j.jwf_formsSchema B
+				ON A.SchemaID = B.SchemaID 
+				INNER JOIN covi_approval4j.jwf_formclass C
+				ON A.FormClassID = C.FormClassID 
+				<if test='IsCstf != null and IsCstf.equalsIgnoreCase("Y") '>
+					INNER JOIN (
+						SELECT si.IsFree, si.Price, sf.StoredFormID 
+						FROM covi_approval4j.jwf_store_forms sf 
+						JOIN covi_smart4j.sys_store_items si on sf.StoreItemID = si.StoreItemID
+					) CSTF on A.StoredFormID = CSTF.StoredFormID
+				</if>
+				<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+					<if test="IsUse != null and IsUse != '' and IsUse.length() gt 0">
+						AND A.IsUse = #{IsUse}		
+					</if>
+					<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+						AND A.CompanyCode = #{EntCode}
+					</if>			
+				</trim>
+		) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+					<otherwise>FormName</otherwise>
+				</choose>  
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')
+			</if>		
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					FormPrefix LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					FormClassName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 	OR 
+					FormName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%')		   
+				)
+			</if>			
+		</trim>
+			
+	</select>
+	
+    
+    
+     <insert id="insertForms" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_forms(			
+			FormID
+			,FormClassID
+			,SchemaID
+			,IsUse
+			,Revision
+			,SortKey
+			,FormName
+			,FormPrefix
+			,FormDesc
+			,FileName
+			,BodyDefault
+			,ExtInfo
+			,AutoApprovalLine
+			,BodyType
+			,SubTableInfo
+			,RegID
+			,RegDate			
+			,FormHelperContext
+			,FormNoticeContext			
+			,Reserved1			
+			,CompanyCode
+			,AclAllYN
+			,FormIcon
+	)
+	VALUE
+	(
+			#{FormID}
+			,#{FormClassID}
+			,#{SchemaID}
+			,#{IsUse}
+			,#{Revision}
+			,#{SortKey}
+			,#{FormName}
+			,#{FormPrefix}
+			,#{FormDesc}
+			,#{FileName}
+			,#{BodyDefault}
+			,#{ExtInfo}
+			,#{AutoApprovalLine}
+			,#{BodyType}
+			,#{SubTableInfo}
+			,#{RegID}
+			,now(3)			
+			,#{FormHelperContext}
+			,#{FormNoticeContext}
+			,#{AuthDept}
+			,#{CompanyCode}
+			,#{AclAllYN}
+			,#{FormIcon}
+	)
+	]]>
+	<selectKey keyProperty="FormID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+	</selectKey>
+	
+	</insert>
+    
+    
+    
+    
+    <select id="selectFormClassListSelectData" resultType="cmap" >
+	    SELECT A.FormClassID AS optionValue , concat('[',B.DisplayName,'] ', A.FormClassName) as optionText
+		FROM covi_approval4j.jwf_formclass A
+		INNER JOIN covi_smart4j.sys_object_domain B ON A.EntCode = B.DomainCode
+    	WHERE (
+			(A.AclAllYN = 'Y'
+				and A.EntCode IN ('ORGROOT', #{entCode})
+			)
+			OR exists 
+			( 
+				select 1 from covi_approval4j.jwf_forms_acl jfa 
+				where jfa.TargetID = A.FormClassID and jfa.ObjectType = 'CLASS'
+				and jfa.CompanyCode  = #{entCode}
+			)
+		 )
+	    ORDER BY A.Sortkey
+	</select>
+    
+    
+    <select id="selectSchemaListSelectData" resultType="cmap" >
+	    SELECT 
+			A.SchemaID AS optionValue, 
+			CONCAT('[',B.DisplayName,'] ',A.SchemaName) as optionText , 
+			A.SchemaDesc
+	    FROM covi_approval4j.jwf_formsschema A
+		inner join covi_smart4j.sys_object_domain B on A.DomainID = B.DomainID
+		<choose>
+            <when test='isSaaS == "Y"'>
+                where B.DomainCode = #{entCode}
+            </when>
+             <otherwise>
+                where B.DomainCode IN ('ORGROOT', #{entCode})
+             </otherwise>  
+        </choose>
+		ORDER BY A.DomainID ASC, A.SchemaName ASC
+	</select>
+    
+    
+     <!-- 도메인 선택시 해당 도메인의 부서를 가져옴 -->
+    <select id="selectDeptList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			DomainID AS DN_ID
+			,DomainCode AS DN_Code
+			,DisplayName
+			,SortKey
+			,SortPath
+			,IsUse
+		FROM covi_smart4j.sys_object_domain
+	 	WHERE IsUse = 'Y'
+		<if test="assignedDomain != null and assignedDomain.size() > 0" ><!-- for SaaS -->
+           	AND DomainID IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+	</select>
+	
+    
+    <!-- 사업장별 -->
+    <select id="selectRegionList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			GroupID AS GR_ID
+			,GroupCode AS GR_Code
+			,CompanyCode AS DN_Code
+			,GroupType
+			,GroupPath
+			,DisplayName
+			,SortKey
+			,SortPath
+			,IsUse
+			,IsDisplay
+		FROM covi_smart4j.sys_object_group
+		WHERE  GroupType in ('Region')
+		AND IsUse = 'Y'
+		AND IsDisplay = 'Y'
+		<if test="assignedDomain != null and assignedDomain.size() > 0" ><!-- for SaaS -->
+           	AND CompanyCode IN 
+            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            	#{item}
+    		</foreach>
+        </if>
+		ORDER BY SortPath asc
+	</select>
+	
+    
+    
+    <select id="selectAdminFormData" resultType="cmap">
+		<![CDATA[
+		SELECT FormID
+				,FormClassID
+				,SchemaID
+				,IsUse
+				,Revision
+				,SortKey
+				,FormName
+				,FormPrefix
+				,FormDesc
+				,FileName
+				,BodyDefault
+				,if(AclAllYN ='Y', IF(#{isSaaS}='Y', CompanyCode, 'WF'), (SELECT GROUP_CONCAT(DISTINCT(CompanyCode) SEPARATOR ';') FROM covi_approval4j.jwf_forms_acl WHERE ObjectType ='FORM' AND TargetID = FormID) ) AS EntCode
+				,ExtInfo
+				,AutoApprovalLine
+				,BodyType
+				,SubTableInfo
+				,RegID
+				,RegDate
+				,ModID
+				,ModDate
+				,FormHelperContext
+				,FormNoticeContext
+				,Reserved1
+				,Reserved2
+				,Reserved3
+				,Reserved4
+				,Reserved5
+				,CompanyCode
+				,FormIcon
+				FROM covi_approval4j.jwf_forms
+				WHERE FormID = 	#{FormID}		
+		  ]]>	
+	</select>
+	
+    <update id="updateAdminFormData" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_forms
+		SET	
+			FormID             = #{FormID}
+			,FormClassID       = #{FormClassID}
+			,SchemaID          = #{SchemaID}
+			,IsUse             = #{IsUse}
+			,Revision          = #{Revision}
+			,SortKey           = #{SortKey}
+			,FormName          = #{FormName}
+			,FormPrefix        = #{FormPrefix}
+			,FormDesc          = #{FormDesc}
+			,FileName          = #{FileName}
+			,BodyDefault       = #{BodyDefault}
+			,ExtInfo           = #{ExtInfo}
+			,AutoApprovalLine  = #{AutoApprovalLine}
+			,BodyType          = #{BodyType}
+			,SubTableInfo      = #{SubTableInfo}			
+			,ModID             = #{ModID}
+			,ModDate           = now(3)
+			<if test="IsEditFormHelper != null and IsEditFormHelper == 'Y'.toString()">
+				,FormHelperContext = #{FormHelperContext}
+			</if>
+			<if test="IsEditFormNotice != null and IsEditFormNotice == 'Y'.toString()">
+				,FormNoticeContext = #{FormNoticeContext}	
+			</if>			
+			,Reserved1 = #{AuthDept}
+			,AclAllYN = #{AclAllYN}		
+			<if test='isSaaS == null or isSaaS != "Y"'>
+				,CompanyCode   = #{CompanyCode}
+			</if>	
+			,FormIcon   = #{FormIcon}
+		WHERE
+			FormID = 	#{FormID}
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_processUP" parameterType="cmap">
+	UPDATE covi_approval4j.jwf_process AS P
+		JOIN  covi_approval4j.jwf_forminstance AS FI
+		ON P.FormInstID = FI.FormInstID
+	SET ProcessState = 545
+		,DeleteDate = now(3)	
+	WHERE FI.FormID = #{FormID};
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_processArchiveUP" parameterType="cmap">
+	UPDATE covi_approval4j.jwf_process AS P
+	JOIN  covi_approval4j.jwf_forminstance AS FI
+	ON P.FormInstID = FI.FormInstID
+	SET	DeleteDate = now(3)	
+	WHERE FI.FormID = #{FormID};
+	</update>
+	
+    <update id="deleteAdminFormData_jwf_workitemarchiveUP" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_workitem AS W
+		JOIN   (
+			SELECT P.ProcessID
+			FROM covi_approval4j.jwf_process AS P
+			JOIN  covi_approval4j.jwf_forminstance AS FI
+			ON P.FormInstID = FI.FormInstID
+			WHERE FI.FormID = #{FormID}
+		) X
+		ON W.ProcessID =X.ProcessID
+		SET PIDeleted = now(3)  
+	</update>
+	
+	
+	<delete id="deleteAdminFormData_jwf_formhistory" parameterType="cmap">
+	DELETE H
+	FROM covi_approval4j.jwf_formhistory AS H
+			JOIN covi_approval4j.jwf_forminstance AS FI
+	 			ON  H.FormInstID = FI.FormInstID
+		WHERE FI.FormID = #{FormID};
+	</delete>
+	
+	<delete id="deleteAdminFormData_jwf_forminstance" parameterType="cmap">
+	DELETE FI
+	FROM covi_approval4j.jwf_forminstance AS FI
+	WHERE FI.FormID = #{FormID};
+	</delete>
+
+	<delete id="deleteAdminFormData_jwf_formstempinstbox" parameterType="cmap">
+	DELETE 
+	FROM covi_approval4j.jwf_formstempinstbox
+	WHERE FormID = #{FormID};
+	</delete>
+	
+	<delete id="deleteAdminFormData_jwf_forms" parameterType="cmap">
+	DELETE
+	FROM covi_approval4j.jwf_forms
+	WHERE FormID = #{FormID};
+	</delete>
+	
+	
+	<update id="CreateSubTableInfoSql" parameterType="cmap">
+	    <![CDATA[
+	     DROP TABLE IF EXISTS covi_approval4j.${MainTableName};
+	     CREATE TABLE covi_approval4j.`${MainTableName}`(
+	    		`FormInstID` VARCHAR(50) NOT NULL,
+	    
+	    ]]>
+	     <foreach collection="SubMasterTableArray"  item="field" index="index">
+	        <choose>
+	            <when  test="field.FieldLength== null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 `${field.FieldName}`  
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         MEDIUMTEXT 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  NULL 
+	                  <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </when>
+	            
+	            <otherwise>
+	                   `${field.FieldName}` ${field.FieldType}(${field.FieldLength})  NULL 
+	                   <if test=" !field.FieldDefault.equals('') ">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </otherwise>
+	        </choose>
+	        ,
+	     </foreach>
+	    		
+	    <![CDATA[
+	    		PRIMARY KEY (`FormInstID`)
+	      )
+   		 COLLATE='utf8_general_ci'
+   		 ENGINE=InnoDB;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable1Sql" parameterType="cmap">
+		<![CDATA[
+	     DROP TABLE IF EXISTS covi_approval4j.${SubTable1Name};
+	     CREATE TABLE covi_approval4j.`${SubTable1Name}`(
+	    		`FormInstID` VARCHAR(50) NOT NULL,
+	    		`ROWSEQ` SMALLINT(6) NOT NULL,
+	    ]]>
+	    <foreach collection="SubTable1Array"  item="field" index="index">
+	        <choose>
+	            <when  test="field.FieldLength == null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 `${field.FieldName}`  
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         MEDIUMTEXT 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  NULL 
+	                  <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </when>
+	            
+	            <otherwise>
+	                   `${field.FieldName}` ${field.FieldType}(${field.FieldLength})  NULL 
+	                   <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		CONSTRAINT pk_FormInstID PRIMARY KEY (FormInstID,ROWSEQ)
+	      )
+   		 COLLATE='utf8_general_ci'
+   		 ENGINE=InnoDB;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable2Sql" parameterType="cmap">
+		<![CDATA[
+	     DROP TABLE IF EXISTS covi_approval4j.${SubTable2Name};
+	     CREATE TABLE covi_approval4j.`${SubTable2Name}`(
+	    		`FormInstID` VARCHAR(50) NOT NULL,
+	    		`ROWSEQ` SMALLINT(6) NOT NULL,
+	    ]]>
+	    <foreach collection="SubTable2Array"  item="field" index="index">
+	          <choose>
+	            <when  test="field.FieldLength == null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 `${field.FieldName}`  
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         MEDIUMTEXT 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  NULL 
+	                  <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </when>
+	            
+	            <otherwise>
+	                   `${field.FieldName}` ${field.FieldType}(${field.FieldLength})  NULL 
+	                   <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		CONSTRAINT pk_FormInstID PRIMARY KEY (FormInstID,ROWSEQ)
+	      )
+   		 COLLATE='utf8_general_ci'
+   		 ENGINE=InnoDB;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable3Sql" parameterType="cmap">
+		<![CDATA[
+	     DROP TABLE IF EXISTS covi_approval4j.${SubTable3Name};
+	     CREATE TABLE covi_approval4j.`${SubTable3Name}`(
+	    		`FormInstID` VARCHAR(50) NOT NULL,
+	    		`ROWSEQ` SMALLINT(6) NOT NULL,
+	    ]]>
+	    <foreach collection="SubTable3Array"  item="field" index="index">
+	          <choose>
+	            <when  test="field.FieldLength == null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 `${field.FieldName}`  
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         MEDIUMTEXT 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  NULL 
+	                  <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </when>
+	            
+	            <otherwise>
+	                   `${field.FieldName}` ${field.FieldType}(${field.FieldLength})  NULL 
+	                   <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		CONSTRAINT pk_FormInstID PRIMARY KEY (FormInstID,ROWSEQ)
+	      )
+   		 COLLATE='utf8_general_ci'
+   		 ENGINE=InnoDB;
+	    ]]>
+	</update>
+	
+	<update id="CreateSubTable4Sql" parameterType="cmap">
+		<![CDATA[
+	     DROP TABLE IF EXISTS covi_approval4j.${SubTable4Name};
+	     CREATE TABLE covi_approval4j.`${SubTable4Name}`(
+	    		`FormInstID` VARCHAR(50) NOT NULL,
+	    		`ROWSEQ` SMALLINT(6) NOT NULL,
+	    ]]>
+	    <foreach collection="SubTable3Array"  item="field" index="index">
+	           <choose>
+	            <when  test="field.FieldLength == null or field.FieldLength.equals('0') or field.FieldLength.equals('')" >
+	                 `${field.FieldName}`  
+	                 <choose>
+	                     <when test="field.FieldType.equalsIgnoreCase('text')">
+	                         MEDIUMTEXT 
+	                     </when>
+	                      <otherwise>
+	                          ${field.FieldType} 
+	                      </otherwise>  
+	                 </choose>
+	                  NULL 
+	                  <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </when>
+	            
+	            <otherwise>
+	                   `${field.FieldName}` ${field.FieldType}(${field.FieldLength})  NULL 
+	                   <if test="!field.FieldDefault.equals('')">
+	                      DEFAULT '${field.FieldDefault}'
+	                  </if>
+	            </otherwise>
+	        </choose>
+	        ,
+	    </foreach>
+	    <![CDATA[
+	    		CONSTRAINT pk_FormInstID PRIMARY KEY (FormInstID,ROWSEQ)
+	      )
+   		 COLLATE='utf8_general_ci'
+   		 ENGINE=InnoDB;
+	    ]]>
+	</update>
+	
+	<select id="checkDuplidationTableName" parameterType="cmap" resultType="int">
+	    SELECT COUNT(*) FROM information_schema.tables
+		WHERE TABLE_SCHEMA = 'covi_approval4j'
+		AND TABLE_NAME = #{tableName}
+	 </select>
+	
+	<select id="addFormDuplicateCheck" parameterType="cmap" resultType="int">
+	    SELECT count(*) FROM covi_approval4j.jwf_forms
+		WHERE FormPrefix = #{Formprefix}
+		AND Revision = #{Revision}
+		<if test='isSaaS != null and isSaaS == "Y"'>
+			AND CompanyCode = #{CompanyCode}
+		</if>
+	 </select>	 
+	
+	<select id="selectFormsLegacyCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) FROM covi_approval4j.jwf_formslegacy A
+		WHERE FormID = #{FormID}
+	 </select>
+	
+	<insert id="insertFormsLegacy" parameterType="cmap">
+		<![CDATA[
+		INSERT INTO covi_approval4j.jwf_formslegacy(			
+			FormID
+			,LegacySystem
+			,LegacyForm
+			,LegacyURL
+			,IsUse
+		)
+		VALUE
+		(
+			#{FormID}
+			,'Approval'
+			,#{FormPrefix}
+			,NULL
+			,#{UseOtherLegacyForm}
+		)
+		]]>
+	</insert>
+	
+	<update id="updateFormsLegacy" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_formslegacy
+		SET IsUse = #{UseOtherLegacyForm}
+		WHERE FormID = #{FormID}
+	</update>
+	
+	<delete id="deleteFormsLegacy" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_formslegacy WHERE FormID = #{FormID}
+	</delete>
+	
+	
+	<delete id="deleteFormsAcl" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_forms_acl
+		WHERE ObjectType = 'FORM' AND TargetID = #{FormID}
+		AND ID NOT IN 
+		<foreach item="item" index="index" collection="list" open="(" close=")" separator=" ">
+			SELECT ID FROM covi_approval4j.jwf_forms_acl
+			WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+			AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+			AND GroupType = #{item.GroupType}
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</delete>
+	
+	<insert id="insertFormsAcl" parameterType="java.util.List">
+		INSERT INTO covi_approval4j.jwf_forms_acl
+			(ObjectType,TargetID,CompanyCode,GroupCode,GroupType,RegisterCode)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.ObjectType}
+				,#{item.TargetID}
+				,#{item.CompanyCode}
+				,#{item.GroupCode}
+				,#{item.GroupType}
+				,#{item.RegisterCode}
+			FROM DUAL
+			WHERE NOT EXISTS(
+				SELECT 1 FROM covi_approval4j.jwf_forms_acl
+				WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+				AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+				AND GroupType = #{item.GroupType}
+			)
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteAllFormsAcl" parameterType="cmap">
+		DELETE FROM covi_approval4j.jwf_forms_acl
+		WHERE ObjectType = #{ObjectType}
+		AND TargetID = #{FormID}
+	</delete>
+	
+	<select id="selectFormsAclSelect" resultType="cmap">
+		SELECT
+			'group' AS itemType
+			,gr.GroupID
+			,gr.MultiDisplayName AS DN
+			,cn.MultiDisplayName AS ETNM
+			,gr.CompanyCode
+			,gr.GroupCode
+			,gr.GroupType
+		FROM covi_smart4j.sys_object_group AS gr
+		LEFT JOIN covi_smart4j.sys_object_group AS cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		INNER JOIN covi_approval4j.jwf_forms_acl jfa ON gr.GroupCode = jfa.GroupCode AND gr.GroupType = jfa.GroupType AND jfa.ObjectType = 'FORM'
+		WHERE 1=1
+		AND gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+		AND gr.GroupType IN ('Dept','Company')
+		AND jfa.TargetID = #{FormID}
+	</select>
+	
+	<select id="getAutoFormSeq" resultType="String">
+		SELECT NEXTVAL(covi_approval4j.JWF_AUTOFORM_SEQ) AS "AutoFormSeq"
+	</select>
+	
+</mapper>
+

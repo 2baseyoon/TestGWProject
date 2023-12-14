@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="webpart.meeting">
+	<select id="selectMeetingRoom" parameterType="cmap" resultType="cmap">
+	/* webpart.meeting.selectMeetingRoom */
+	SELECT 
+		DISTINCT(A.FolderID) AS FOLDERID, 
+		IFNULL(Fn_BaseGetDictionary_S(#{lang}, A.MultiDisplayName), '') AS DISPLAYNAME,
+		A.SortPath AS SORTPATH
+	FROM covi_smart4j.sys_object_folder A
+	JOIN covi_smart4j.sys_object_acl B ON B.ObjectID = A.FolderID
+	WHERE A.objectType = 'Resource' AND
+		A.domainId = #{domainId} AND
+		A.folderType = 'Resource.MeetingRoom' AND 
+		A.IsUse = 'Y' AND
+		A.deleteDate IS NULL AND 
+		B.ObjectType = 'FD' AND
+		(B.SubjectCode = #{domainCode} OR B.SubjectCode = #{userCode})
+		ORDER BY SortPath ASC
+	</select>
+	
+	<select id="selectMeetingReservation" parameterType="cmap" resultType="cmap">
+	SELECT StartDate, StartTime, EndDate, EndTime FROM
+	(
+		SELECT eventID 
+		FROM covi_smart4j.event_resource_booking
+		WHERE 
+		ResourceID = #{folderId} AND 
+		ApprovalState = 'Approval'
+	) AS A
+	JOIN event_date B ON A.eventID = B.eventID
+	WHERE StartDate = #{viewDate} AND EndDate = #{viewDate}
+	</select>
+</mapper>

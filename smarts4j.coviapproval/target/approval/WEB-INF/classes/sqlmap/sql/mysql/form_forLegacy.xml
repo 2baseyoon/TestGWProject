@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.forLegacy">
+    <select id="selectLegacyForm"  parameterType="cmap" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM covi_approval4j.jwf_formsLegacy FL
+        INNER JOIN covi_approval4j.jwf_forms F ON FL.FormID = F.FormID
+        WHERE FL.LegacyForm = #{legacyFormID}
+        <if test='isSaaS != null and isSaaS == "Y" and DN_Code != null and DN_Code != "" '>
+			AND ( F.CompanyCode = #{DN_Code} OR F.CompanyCode = 'ORGROOT' )  
+		</if>
+        AND FL.IsUse = 'Y'
+    </select>
+    <select id="selectLegacyFormInfo" parameterType="cmap" resultType="cmap">
+        SELECT
+        	CASE WHEN FI.CompletedDate IS NULL THEN 'PROCESS' ELSE 'COMPLETE' END AS `Mode`
+        	, F.FormPrefix
+		FROM covi_approval4j.jwf_process P
+		LEFT JOIN covi_approval4j.jwf_forminstance FI ON P.FormInstID = FI.FormInstID
+		LEFT JOIN covi_approval4j.jwf_forms F ON FI.FormID = F.FormID
+		WHERE P.ProcessID = #{processID};
+    </select>
+    <select id="selectFormInstID" parameterType="cmap" resultType="java.lang.String">
+        SELECT FormInstID
+		FROM covi_approval4j.jwf_process
+		WHERE ProcessID = #{processID}
+    </select>
+    <select id="selectFormInstID_archive" parameterType="cmap" resultType="java.lang.String">
+        SELECT FormInstID
+		FROM covi_approval4j.jwf_process
+		WHERE ProcessID = #{processID}
+    </select>
+    <select id="selectBodyContext" parameterType="cmap" resultType="java.lang.String">
+        SELECT BodyContext
+		FROM covi_approval4j.jwf_forminstance
+		WHERE FormInstID = #{FormInstID}
+    </select>
+    <update id="updateModifyProcessDesc" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_processdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </update>
+    <insert id="updateModifyCirculationDesc" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_circulationboxdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </insert>
+    <update id="updateModifyProcessDesc_archive" parameterType="cmap">
+        UPDATE covi_approval4j.jwf_processdescription
+        SET
+        	IsModify = 'Y'
+        WHERE
+        	FormInstID = #{FormInstID}
+    </update>
+    <select id="selectJobFunctionData" parameterType="cmap" resultType="cmap">
+    	  SELECT GROUP_CONCAT(CONCAT(JobFunctionCode, '@', JobFunctionName) SEPARATOR '^') AS JobFunctionData
+		  FROM covi_approval4j.jwf_jobfunction
+		  WHERE 
+		  <choose>
+			<when test="JobFunctionCode != null and JobFunctionCode.size() > 0">
+				<foreach collection="JobFunctionCode" item="item" index="index" separator="," open="JobFunctionCode IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose> 
+		  <!-- JobFunctionCode like CONCAT('%', #{JobFunctionCode}, '%')  -->
+          <if test="CompanyCode != null and CompanyCode != ''">
+             AND EntCode = #{CompanyCode}
+          </if>
+    </select>
+    <select id="selectLogonID"  parameterType="cmap" resultType="cmap">
+        SELECT LogonID, DeptCode
+		FROM covi_smart4j.sys_object_user a
+			inner join covi_smart4j.sys_object_user_basegroup b
+				on a.usercode = b.usercode
+		WHERE a.IsUse = 'Y'
+		<choose>
+             <when test="deptId != null and deptId != '' and deptId.length() gt 0 ">
+                AND b.DeptCode = #{deptId}
+             </when>
+             <otherwise>
+				AND b.JobType = 'Origin'
+			</otherwise>
+        </choose>
+        <choose>
+             <when test="empNo != null and empNo != '' and empNo.length() gt 0 ">
+                AND empno = #{empNo}
+             </when>
+             <when test="logonId != null and logonId != '' and logonId.length() gt 0 ">
+             	AND logonId = #{logonId}
+             </when>
+             <when test="empNo != null and empNo != '' and empNo.length() gt 0 and logonId != null and logonId != '' and logonId.length() gt 0 ">
+             	AND empno = #{empNo} AND logonId = #{logonId}
+             </when>
+             <when test="usercode != null and usercode != ''">
+                AND a.UserCode = #{usercode}
+             </when>
+        </choose>
+    </select>
+    
+   	<!-- Teams 연동  -->
+	<resultMap type="cmap" id="legacyConfigResult">
+ 	    <result property="DomainContext" column="DomainContext" jdbcType="CLOB" javaType="java.lang.String" />
+ 	</resultMap>
+	<select id="getDomain"  parameterType="cmap" resultType="cmap" resultMap="legacyConfigResult">
+        SELECT 
+        	B.DomainContext AS "DomainContext" 
+       	FROM ( SELECT 
+       			CASE WHEN A.apvCount > 0 THEN (SELECT DOMAINDATACONTEXT FROM covi_approval4j.jwf_domaindata WHERE ProcessID = #{piid}) END AS DomainContext 
+       			FROM (SELECT COUNT(*) AS apvCount FROM covi_approval4j.jwf_process WHERE ProcessID = #{piid} and ProcessState = 288) as A ) as B
+		WHERE DomainContext IS NOT NULL
+	</select>
+    
+    <select id="selectDraftLegacySystemCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT 
+			COUNT(*)
+		FROM (
+			SELECT	A.LegacyID
+			FROM covi_approval4j.jwf_draft_legacy_target A
+			LEFT JOIN covi_smart4j.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+			LEFT JOIN covi_smart4j.sys_object_user C ON A.ModifierCode = C.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("SystemCode")'>A.SystemCode</when>
+						<when test='SearchType.equalsIgnoreCase("DataTableName")'>A.DataTableName</when>
+						<when test='SearchType.equalsIgnoreCase("MultiTableName")'>A.MultiTableName</when>
+						<when test='SearchType.equalsIgnoreCase("FormPrefix")'>A.FormPrefix</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			like CONCAT('%',#{SearchText},'%')
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.SystemCode LIKE CONCAT('%',#{icoSearch},'%')	OR 
+						A.DataTableName LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.MultiTableName LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.FormPrefix LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.Description LIKE CONCAT('%',#{icoSearch},'%')
+					)
+				</if>
+			</trim>	
+		) A
+	</select>
+	
+    <select id="selectDraftLegacySystemList" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.*
+		FROM (
+			SELECT	A.LegacyID
+					,A.SystemCode
+					,A.DatasourceSeq
+					,A.DataTableName
+					,A.DataTableKeyName
+					,A.SubjectKeyName
+					,A.EmpnoKeyName
+					,A.DeptKeyName
+					,A.MultiTableName
+					,A.MultiTableKeyName
+					,A.FormPrefix
+					,A.Description
+					,A.ModifyDate
+					,A.ModifierCode
+					,B.ConnectionPoolName 
+					,C.MultiDisplayName AS "ModifierName"
+			FROM covi_approval4j.jwf_draft_legacy_target A
+			LEFT JOIN covi_smart4j.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+			LEFT JOIN covi_smart4j.sys_object_user C ON A.ModifierCode = C.UserCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("SystemCode")'>A.SystemCode</when>
+						<when test='SearchType.equalsIgnoreCase("DataTableName")'>A.DataTableName</when>
+						<when test='SearchType.equalsIgnoreCase("MultiTableName")'>A.MultiTableName</when>
+						<when test='SearchType.equalsIgnoreCase("FormPrefix")'>A.FormPrefix</when>
+						<when test='SearchType.equalsIgnoreCase("Description")'>A.Description</when>
+	           		</choose>
+           			like CONCAT('%',#{SearchText},'%')
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.SystemCode LIKE CONCAT('%',#{icoSearch},'%')	OR 
+						A.DataTableName LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.MultiTableName LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.FormPrefix LIKE CONCAT('%',#{icoSearch},'%')	OR
+						A.Description LIKE CONCAT('%',#{icoSearch},'%')
+					)
+				</if>
+			</trim>	
+		) A
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+	    			<when test='sortColumn.equalsIgnoreCase("SystemCode")'>SystemCode</when>
+					<when test='sortColumn.equalsIgnoreCase("ConnectionPoolName")'>ConnectionPoolName</when>
+					<when test='sortColumn.equalsIgnoreCase("DataTableName")'>DataTableName</when>
+					<when test='sortColumn.equalsIgnoreCase("DataTableKeyName")'>DataTableKeyName</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiTableName")'>MultiTableName</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiTableKeyName")'>MultiTableKeyName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+					<otherwise>ModifyDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				ModifyDate DESC
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+   		</if>
+	</select>
+	
+	<select id="selectDraftLegacySystem" resultType="cmap">
+		<![CDATA[
+		SELECT	A.LegacyID
+				,A.SystemCode
+				,A.DatasourceSeq
+				,A.DataTableName
+				,A.DataTableKeyName
+				,A.SubjectKeyName
+				,A.EmpnoKeyName
+				,A.DeptKeyName
+				,A.MultiTableName
+				,A.MultiTableKeyName
+				,A.FormPrefix
+				,A.Description
+				,A.ModifyDate
+				,A.ModifierCode
+				,B.ConnectionPoolName
+				,C.MultiDisplayName AS "ModifierName"
+		FROM covi_approval4j.jwf_draft_legacy_target A
+		LEFT JOIN covi_smart4j.sys_datasource B ON A.DatasourceSeq = B.DatasourceSeq
+		LEFT JOIN covi_smart4j.sys_object_user C ON A.ModifierCode = C.UserCode
+		WHERE A.LegacyID = 	#{LegacyID}		
+		]]>	
+	</select>
+	
+	<insert id="insertDraftLegacySystem" parameterType="cmap" >         
+		INSERT INTO covi_approval4j.jwf_draft_legacy_target (
+			SystemCode
+			,DatasourceSeq
+			,DataTableName
+			,DataTableKeyName
+			,SubjectKeyName
+			,EmpnoKeyName
+			,DeptKeyName
+			,MultiTableName
+			,MultiTableKeyName
+			,FormPrefix
+			,Description
+			,ModifyDate
+			,ModifierCode
+		)
+		SELECT 
+			#{SystemCode}
+			,#{DatasourceSeq}
+			,#{DataTableName}
+			,#{DataTableKeyName}
+			,#{SubjectKeyName}
+			,#{EmpnoKeyName}
+			,#{DeptKeyName}
+			,#{MultiTableName}
+			,#{MultiTableKeyName}
+			,#{FormPrefix}
+			,#{Description}
+			,now(3)
+			,#{ModifierCode}
+		FROM dual
+	</insert>
+	
+  	<update id="updateDraftLegacySystem" parameterType="cmap">
+  	    UPDATE covi_approval4j.jwf_draft_legacy_target
+		SET
+			SystemCode = #{SystemCode}
+			,DatasourceSeq = #{DatasourceSeq}
+			,DataTableName = #{DataTableName}
+			,DataTableKeyName = #{DataTableKeyName}
+			,SubjectKeyName = #{SubjectKeyName}
+			,EmpnoKeyName = #{EmpnoKeyName}
+			,DeptKeyName = #{DeptKeyName}
+			,MultiTableName = #{MultiTableName}
+			,MultiTableKeyName = #{MultiTableKeyName}
+			,FormPrefix = #{FormPrefix}
+			,Description = #{Description}
+			,ModifyDate = now(3)
+			,ModifierCode = #{ModifierCode}
+		WHERE LegacyID=#{LegacyID}
+  	</update>
+  	
+  	<delete id="deleteDraftLegacySystem" parameterType="cmap" >
+      	DELETE 
+    	FROM covi_approval4j.jwf_draft_legacy_target
+  		WHERE LegacyID = #{LegacyID}		
+	</delete>
+	
+	<select id="selectDraftLegacyList" parameterType="cmap" resultType="cmap">
+		SELECT LegacyID
+			, SystemCode
+			, LEGACYKEY
+			, EMPNO
+			, DEPT_ID
+			, FORM_PREFIX
+			, SUBJECT
+			, BODY_CONTEXT
+			, STATE
+			, DATA_TYPE
+			, PROCESS_ID
+		FROM covi_approval4j.jwf_draft_legacy_list
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="Key != null and Key != '' and Key.length() gt 0">
+				AND LegacyKey = #{Key}
+			</if>
+			<if test="SystemCode != null and SystemCode != '' and SystemCode.length() gt 0">
+				AND SystemCode = #{SystemCode}
+			</if>
+		</trim>	
+		ORDER BY LegacyID DESC
+		LIMIT 10
+	</select>
+	
+	<select id="selectDraftSampleList" parameterType="cmap" resultType="cmap">
+		SELECT InstanceID
+			, SUBJECT
+			, BT_PERSON
+			, BT_PERSON_EMPNO
+			, BT_DEPT
+			, BT_DEPT_CODE
+			, BT_AREA
+			, BT_PERPOSE
+			, BT_S_DATE
+			, BT_E_DATE
+		FROM covi_approval4j.jwf_draft_legacy_target_sampledata
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="Key != null and Key != '' and Key.length() gt 0">
+				AND InstanceID = #{Key}
+			</if>
+		</trim>	
+		ORDER BY InstanceID DESC
+		LIMIT 10
+	</select>
+	
+	<select id="selectDraftLegacyTarget" parameterType="cmap" resultType="cmap">
+		SELECT LegacyID
+			, SystemCode
+			, DatasourceSeq
+			, DataTableName
+			, DataTableKeyName
+			, SubjectKeyName
+			, EmpnoKeyName
+			, DeptKeyName
+			, MultiTableName
+			, MultiTableKeyName
+			, FormPrefix
+			, Description
+			, ModifyDate
+			, ModifierCode
+		FROM covi_approval4j.jwf_draft_legacy_target
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="SystemCode != null and SystemCode != '' and SystemCode.length() gt 0">
+				AND SystemCode = #{SystemCode}
+			</if>
+		</trim>	
+	</select>
+	
+	<select id="selectUserInfoDetail" parameterType="cmap" resultType="cmap">
+		SELECT 
+			A.UserCode, A.DisplayName AS "UserName", B.DeptCode, B.DeptName, B.CompanyCode, B.CompanyCode, C.GroupPath,
+			B.JobPositionCode, B.MultiJobPositionName,
+			B.JobTitleCode, B.MultiJobTitleName,
+			B.JobLevelCode, B.MultiJobLevelName, A.MailAddress
+		FROM covi_smart4j.sys_object_user A
+		INNER JOIN covi_smart4j.sys_object_user_basegroup B
+			ON A.UserCode = B.UserCode
+		INNER JOIN covi_smart4j.sys_object_group C
+			ON B.DeptCode = C.GroupCode and C.GroupType ='Dept'
+		<choose>
+             <when test="UserCode != null and UserCode != ''">
+                WHERE B.UserCode = #{UserCode}
+             </when>
+             <otherwise>
+				WHERE A.EMPNO = #{empNo} 
+             </otherwise>
+        </choose>
+		<choose>
+             <when test="DeptCode != null and DeptCode != '' and DeptCode.length() gt 0">
+                AND B.DeptCode = #{DeptCode}
+             </when>
+             <otherwise>
+	             AND b.JobType = 'Origin'
+             </otherwise>
+        </choose>
+	</select>
+	
+	<select id="selectDeptInfoDetail" parameterType="cmap" resultType="cmap">
+		SELECT GroupCode AS "DeptCode", MultiDisplayName AS "DeptName"
+		FROM covi_smart4j.sys_object_group 
+		WHERE GroupType ='Dept' and GroupCode = #{DeptCode}
+	</select>
+	
+	<select id="selectSchemaContext" parameterType="cmap" resultType="cmap">
+		SELECT 
+			CASE WHEN A.CompanyCode = #{entCode} THEN 1
+			WHEN A.CompanyCode = 'ORGROOT' THEN 2
+			ELSE 3 END AS Companysort, b.SchemaContext AS SchemaContext
+		FROM covi_approval4j.jwf_forms A 
+		INNER JOIN covi_approval4j.jwf_formsschema B on A.SchemaID = B.SchemaID
+		<choose>
+             <when test="FormInstID != null and FormInstID != ''">
+				INNER JOIN covi_approval4j.jwf_forminstance C ON A.FORMID = C.FORMID
+                WHERE C.FormInstID = #{FormInstID}
+             </when>
+             <otherwise>
+				WHERE A.FormPrefix = #{formPrefix}
+             </otherwise>
+        </choose>
+		ORDER BY CompanySort, Revision desc
+		LIMIT 1
+	</select>
+	
+	<select id="selectFormTempInstBoxID" parameterType="cmap" resultType="cmap">
+		SELECT B.FormTempInstBoxID 
+		FROM covi_approval4j.jwf_forminstance A
+		INNER JOIN covi_approval4j.jwf_formstempinstbox B on A.FormInstID = B.FormInstID 
+		WHERE A.FormInstID = #{FormInstID}
+	</select>
+	
+	<select id="selectCancelData" parameterType="cmap" resultType="cmap">
+		SELECT max(A.TaskID) AS TaskID, A.State
+		FROM covi_approval4j.jwf_workitem A
+		INNER JOIN covi_approval4j.jwf_performer B ON A.PerformerID = B.PerformerID 
+		INNER JOIN (
+			SELECT w.Name, p.subkind, w.WorkItemID
+			FROM covi_approval4j.jwf_workitem w 
+			INNER JOIN covi_approval4j.jwf_performer p ON  w.PerformerID = p.PerformerID 
+			WHERE w.ProcessID = #{ProcessID} AND w.State = '288' 
+		) C ON A.WorkItemID = C.WorkItemID AND A.Name = C.name AND B.SubKind = C.SubKind 
+	</select>
+	
+	<select id="selectOrgDeptInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			gr.CompanyCode
+			,gr.GroupCode
+			,gr.GroupType
+			,gr.GroupCode AS AN
+			,gr.MultiDisplayName AS DN
+			,cn.CompanyCode AS ETID
+			,gr.GroupPath
+			,(SELECT COUNT(0) FROM covi_smart4j.sys_object_group AS self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y' AND self.IsDisplay = 'Y') AS hasChild
+		FROM covi_smart4j.sys_object_group AS gr
+		LEFT JOIN covi_smart4j.sys_object_group AS cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		WHERE gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+	    AND (gr.MemberOf != 'NOUSE' OR gr.MemberOf is null)
+	    AND (gr.MemberOf != 'NOUNIT' OR gr.MemberOf is null)
+	  	AND gr.GroupType IN ('Dept','Company')
+	  	AND gr.CompanyCode = #{entCode}
+		AND gr.GroupCode = #{deptCode}
+	</select>
+</mapper>
+

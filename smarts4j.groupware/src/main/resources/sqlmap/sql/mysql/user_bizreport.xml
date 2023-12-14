@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.bizreport">
+	<select id="selectMyProject" parameterType="cmap" resultType="cmap">
+		SELECT	  c.CU_ID As ProjectCode
+				, c.CommunityName AS ProjectName
+		FROM covi_smart4j.community AS c
+		LEFT JOIN covi_smart4j.community_member AS cm ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{userCode} AND MemberLevel IN (8,9,5)
+		WHERE 1=1 
+		AND c.Gubun = 'T'
+		AND IFNULL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		AND c.DN_ID = #{domainID}
+	</select>
+	
+	<select id="selectFolderReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT	  '' AS TaskID
+				, A.FolderID
+				, '' AS ProjectCode
+				, A.DisplayName
+				, A.Description
+				, A.State
+				, A.State As FolderState
+				, A.Progress
+				, '' AS StartDate
+				, '' AS EndDate
+				, R.ReportID
+				, R.TaskGubunCode
+		  FROM covi_smart4j.task_folder A
+		  INNER JOIN covi_smart4j.report R ON R.TaskFolderID = A.FolderID AND R.TaskGubunCode='Task'
+		  WHERE 1=1
+		  AND	A.OwnerCode = #{userCode}
+		  AND	R.RegisterCode = #{userCode}
+		  AND	(R.RegistDate BETWEEN #{reportDate} AND DATE_ADD(#{reportDate},INTERVAL 1 DAY))	
+	</select>
+	
+	<select id="selectTaskReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT	  A.TaskID
+				, A.FolderID
+				, '' AS ProjectCode
+				, A.Subject
+				, A.Description
+				, A.State
+				, A.State As TaskState
+				, A.Progress
+				, A.StartDate
+				, A.EndDate
+				, R.ReportID
+				, IFNULL(R.TaskGubunCode,'Task') AS TaskGubunCode
+				, TF.DisplayName AS FolderName
+		FROM covi_smart4j.task A 
+		INNER JOIN covi_smart4j.task_performer B ON A.TaskID = B.TaskID AND B.PerformerCode = #{userCode}
+		LEFT OUTER JOIN covi_smart4j.report R
+		ON (
+			R.TaskID = A.TaskID
+			AND R.TaskGubunCode='Task'
+			AND R.RegisterCode = #{userCode} 
+			AND	(R.RegistDate BETWEEN #{reportDate} AND DATE_ADD(#{reportDate}, INTERVAL 1 DAY))
+		)
+		LEFT JOIN covi_smart4j.task_folder TF ON TF.DELETEDATE IS NULL AND A.FOLDERID = TF.FOLDERID
+		WHERE 1=1
+		AND	(A.StartDate <![CDATA[<=]]> #{reportDate} AND A.EndDate <![CDATA[>=]]> DATE_ADD(#{reportDate},INTERVAL 1 DAY))	
+	</select>
+	
+	<select id="selectProjectTaskReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT  DISTINCT 
+				  A.AT_ID
+				, '' AS FolderID
+				, A.CU_ID
+				, A.ATName
+				, A.StartDate
+				, A.EndDate
+				, A.State
+				, A.State AS TaskState
+				, A.Progress
+				, R.ReportID
+				, IFNULL(R.TaskGubunCode,'TF') AS TaskGubunCode
+				, CU.CommunityName
+		FROM covi_smart4j.tf_activity A 
+		INNER JOIN covi_smart4j.tf_activity_performer B  ON A.AT_ID = B.AT_ID AND B.PerformerCode = #{userCode}
+		LEFT OUTER JOIN covi_smart4j.report R
+		ON (
+			R.ProjectCode = A.CU_ID
+			AND R.TaskID = A.AT_ID
+			AND R.TaskGubunCode = 'TF'
+			AND R.RegisterCode = #{userCode} 
+			AND	(R.RegistDate BETWEEN #{reportDate} AND DATE_ADD(#{reportDate}, INTERVAL 1 DAY))	
+		)
+		LEFT JOIN COMMUNITY CU ON CU.GUBUN = 'T' AND A.CU_ID = CU.CU_ID
+		WHERE 1=1
+		AND	(A.StartDate <![CDATA[<=]]> #{reportDate} AND A.EndDate <![CDATA[>=]]> DATE_ADD(#{reportDate},INTERVAL 1 DAY))	
+	</select>
+	
+	<select id="selectGReportDailyList" parameterType="cmap" resultType="cmap">
+		SELECT ReportID
+			  ,TaskID
+			  ,ProjectCode
+			  ,TaskFolderID
+			  ,TaskGubunCode
+			  ,TaskName
+			  ,TaskDate
+			  ,TaskHour
+			  ,TaskStatus
+			  ,TaskStatus as TaskState
+			  ,TaskPercent
+			  ,TaskEtc
+			  ,TaskMemberCode
+			  ,TaskMemberDeptCode
+			  ,RegisterCode
+			  ,RegistDate
+		FROM covi_smart4j.report R 
+		WHERE R.TaskGubunCode='G' 
+		AND	R.RegisterCode = #{userCode} 
+		AND	DATE_FORMAT(R.TaskDate, '%Y-%m-%d') = #{reportDate}
+	</select>
+	
+	<insert id="insertTaskReport" parameterType="cmap">
+		INSERT INTO covi_smart4j.report
+			(TaskID,ProjectCode,TaskFolderID,TaskGubunCode,TaskName,TaskDate,TaskHour,TaskStatus,TaskPercent,TaskEtc,TaskMemberCode,TaskMemberDeptCode,RegisterCode,RegistDate)
+		VALUES 
+			(
+			 #{TaskCode}, #{PjtCode}, #{TaskFolderCode}, #{TaskGubunCode}, #{TaskName}, 
+			<choose>
+				<when test="TaskDate != null and TaskDate != ''">
+					 #{TaskDate}, 
+				</when>
+				<otherwise>
+					now(3),
+				</otherwise>
+			</choose>			 
+			 #{TaskHour}, #{TaskStatusCode}, #{TaskPercent}, #{TaskEtc}, #{TaskMemCode}, #{TaskMemDeptCode}, #{RegisterCode}, now(3)
+			)
+	</insert>
+	
+	<update id="updateTaskReport" parameterType="cmap">
+		UPDATE covi_smart4j.report
+		SET TaskGubunCode = #{TaskGubunCode}
+			<choose>
+				<when test="TaskDate != null and TaskDate != ''">
+					,TaskDate = #{TaskDate}
+				</when>
+				<otherwise>
+					,TaskDate = now(3)
+				</otherwise>
+			</choose>			
+			,TaskHour = #{TaskHour}
+			,TaskStatus = #{TaskStatusCode}
+			,TaskPercent = #{TaskPercent}
+			,TaskEtc = #{TaskEtc}
+			,RegisterCode = #{RegisterCode}
+		WHERE ReportID = #{ReportCode}  
+	</update>	
+	
+	<delete id="deleteTaskReport" parameterType="cmap">
+		DELETE FROM covi_smart4j.report
+		WHERE 1=1 AND ReportID = #{ReportCode}  
+	</delete>
+	
+	<select id="selectTaskReportWeeklyList" parameterType="cmap" resultType="cmap">
+		SELECT	  A.ReportID
+				, A.TaskID
+				, A.TaskName
+				, A.TaskStatus AS TaskState
+				, A.TaskStatus AS TaskStateName
+				, A.TaskPercent
+				, A.TaskHour
+				, TaskDate
+				, A.TaskEtc
+				, A.TaskGubunCode
+				, A.ProjectCode
+				, A.TaskFolderID
+		FROM covi_smart4j.report A
+		WHERE 1=1
+		AND A.RegisterCode = #{userCode}
+		AND A.TaskDate BETWEEN #{startDate} AND #{endDate}
+		<if test="projectCode != null and projectCode != ''">
+			AND A.ProjectCode = #{projectCode}
+		</if>
+		<if test="taskGubunCode != null and taskGubunCode != ''">
+			AND A.TaskGubunCode = #{taskGubunCode}
+		</if>
+		ORDER BY TaskDate, ReportID
+	</select>
+	
+	<insert id="insertProjectTaskReportWeekly" parameterType="cmap">
+		INSERT INTO 
+			covi_smart4j.report_week
+			(
+			<if test="ProjectCode != null and ProjectCode != ''">
+				ProjectCode,
+			</if>  			 
+			TaskFolderID, TaskGubunCode, StartDate, EndDate, WeekEtc, NextPlan, RegisterCode, RegistDate,RegisterDeptCode)
+		VALUES 
+			(
+			<if test="ProjectCode != null and ProjectCode != ''">
+				#{ProjectCode},
+			</if> 			
+			#{TaskFolderID},#{TaskGubunCode},#{StartDate}, #{EndDate}, #{WeekEtc}, #{NextPlan}, #{RegisterCode}, now(3),#{RegisterDeptCode})
+	</insert>	
+	
+	<update id="updateProjectTaskReportWeekly" parameterType="cmap">
+		UPDATE 
+			covi_smart4j.report_week
+		SET 
+			WeekEtc = #{WeekEtc}, NextPlan = #{NextPlan}
+		WHERE 
+			ReportWeekID = #{ReportID}
+	</update>
+	
+	<select id="selectReportWeeklyRegistered" parameterType="cmap" resultType="cmap">
+		SELECT *
+		FROM covi_smart4j.report_week 
+		WHERE 1=1
+		<if test="projectCode != null and projectCode != ''">
+			AND ProjectCode = #{projectCode}
+		</if> 		
+		<if test="TaskGubunCode != null and TaskGubunCode != ''">
+			AND TaskGubunCode =#{TaskGubunCode}
+		</if>
+		AND StartDate = #{StartDate}
+		AND EndDate = #{EndDate}
+		AND RegisterCode = #{RegisterCode}
+	</select>
+	
+	<select id="selectTaskReportWeeklyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  A.ReportID
+				, A.ProjectCode
+				, DATE_FORMAT(A.StartDate, "%Y-%m-%d") AS StartDate
+				, DATE_FORMAT(A.EndDate, "%Y-%m-%d") AS EndDate
+				, DATE_FORMAT(A.RegistDate, "%Y-%m-%d") AS RegistDate
+				, A.RegisterCode
+				, A.RegisterDeptCode
+				, A.TaskGubunCode
+				, A.ProjectCode
+				, A.TaskFolderID
+	 	FROM covi_smart4j.report_week A 
+ 		where 1=1  
+		<if test="projectCode != null and projectCode != ''">
+			AND A.ProjectCode = #{projectCode}
+		</if> 		
+		<if test="taskGubunCode != null and taskGubunCode != ''">
+			AND A.TaskGubunCode = #{taskGubunCode}
+		</if> 		
+		<if test="memCode != null and memCode != ''">
+			<![CDATA[ 
+				AND A.RegisterCode = #{userCode}
+			]]>
+		</if>
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[ 
+				AND A.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND A.EndDate <= #{endDate}
+			]]>
+		</if>
+		ORDER BY A.StartDate DESC
+	</select>	
+	
+	<select id="selectTaskReportWeeklyListAllCnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+	 	FROM covi_smart4j.report_week A 
+	 		where 1=1  
+		<if test="projectCode != null and projectCode != ''">
+			AND A.PrjCode = #{projectCode}
+		</if>
+		<if test="memCode != null and memCode != ''">
+			<![CDATA[ 
+				AND A.RegisterCode = #{memCode}
+			]]>
+		</if>
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[ 
+				AND A.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND A.EndDate <= #{endDate}
+			]]>
+		</if>
+	</select>
+	
+	<select id="selectTaskReportWeeklyView" parameterType="cmap" resultType="cmap">
+		SELECT	  A.ReportWeekID
+				, A.ProjectCode
+				, DATE_FORMAT(A.StartDate, "%Y-%m-%d") AS StartDate
+				, DATE_FORMAT(A.EndDate, "%Y-%m-%d") AS EndDate
+				, DATE_FORMAT(A.RegistDate, "%Y-%m-%d") AS RegistDate
+				, A.RegisterCode
+				, A.RegisterDeptCode
+	 	FROM covi_smart4j.report_week A 
+		WHERE ReportWeekID = #{RepIDX}
+	</select>
+	
+	<select id="selectFolderReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  R.ReportID
+				, R.TaskID
+				, R.ProjectCode
+				, TF.DisplayName
+				, R.TaskName
+				, DATE_FORMAT(TaskDate, "%Y-%m-%d") AS TaskDate
+				, R.TaskStatus AS TaskState
+				, R.TaskStatus AS TaskStateName
+				, R.TaskPercent
+				, R.TaskEtc
+				, R.TaskMemberCode
+				, R.TaskMemberDeptCode
+				, R.TaskHour
+				, R.TaskGubunCode
+				, CTE.MultiDisplayName AS DeptName
+				, U.MultiDisplayName AS UserName
+				, CTE.SortPath
+				, U.SortKey
+		FROM covi_smart4j.report R 
+		INNER JOIN covi_smart4j.task_folder TF ON R.TaskFolderID = TF.FolderID
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE  E.GroupPath LIKE CONCAT('%', #{deptCode}, '%')
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN covi_smart4j.sys_object_user U ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND	TaskGubunCode = 'Task'
+		AND	TaskID IS NULL
+		AND	(R.TaskDate BETWEEN #{startDate} AND DATE_ADD(#{endDate}, INTERVAL 1 DAY))  
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectTaskReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  R.ReportID
+				, R.TaskID
+				, R.ProjectCode
+				, TF.Subject
+				, R.TaskName
+				, DATE_FORMAT(TaskDate, "%Y-%m-%d") AS TaskDate
+				, R.TaskStatus AS TaskState
+				, R.TaskStatus AS TaskStateName
+				, R.TaskPercent
+				, R.TaskEtc
+				, R.TaskMemberCode
+				, R.TaskMemberDeptCode
+				, R.TaskHour
+				, R.TaskGubunCode
+				, CTE.MultiDisplayName AS DeptName
+				, U.MultiDisplayName AS UserName
+				, CTE.SortPath
+				, U.SortKey
+		FROM covi_smart4j.report R 
+		INNER JOIN covi_smart4j.task TF 
+		ON R.TaskID = TF.TaskID
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE E.GroupPath LIKE CONCAT('%', #{deptCode}, '%')
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN covi_smart4j.sys_object_user U  ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND	TaskGubunCode = 'Task'
+		AND	(R.TaskDate BETWEEN #{startDate} AND DATE_ADD(#{endDate}, INTERVAL 1 DAY))  
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID
+	</select>
+	
+	<select id="selectProjectTaskReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  R.ReportID
+				, R.TaskID
+				, R.ProjectCode
+				, C.CommunityName
+				, R.TaskName
+				, DATE_FORMAT(TaskDate, "%Y-%m-%d") AS TaskDate
+				, R.TaskStatus AS TaskState
+				, R.TaskStatus AS TaskStateName
+				, R.TaskPercent
+				, R.TaskEtc
+				, R.TaskMemberCode
+				, R.TaskMemberDeptCode
+				, R.TaskHour
+				, R.TaskGubunCode
+				, CTE.MultiDisplayName AS DeptName
+				, U.MultiDisplayName AS UserName
+				, CTE.SortPath
+				, U.SortKey
+		FROM covi_smart4j.report R 
+		INNER JOIN covi_smart4j.community C ON R.ProjectCode = C.CU_ID
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE E.GroupPath LIKE CONCAT('%', #{deptCode}, '%')
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN covi_smart4j.sys_object_user U  ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND	R.TaskGubunCode = 'TF'
+		AND	(R.TaskDate BETWEEN #{startDate} AND DATE_ADD(#{endDate}, INTERVAL 1 DAY))  
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID		
+	</select>
+	
+	<select id="selectGReportDailyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  R.ReportID
+				, R.TaskID
+				, R.ProjectCode
+				, R.TaskName
+				, DATE_FORMAT(TaskDate,"%Y-%m-%d") AS TaskDate
+				, R.TaskStatus AS TaskState
+				, R.TaskStatus AS TaskStateName
+				, R.TaskPercent
+				, R.TaskEtc
+				, R.TaskMemberCode
+				, R.TaskMemberDeptCode
+				, R.TaskHour
+				, R.TaskGubunCode
+				, CTE.MultiDisplayName AS DeptName
+				, U.MultiDisplayName AS UserName
+				, CTE.SortPath
+				, U.SortKey
+		FROM covi_smart4j.report R 
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE E.GroupPath LIKE CONCAT('%',#{deptCode},'%')
+			ORDER BY SortPath
+		) CTE ON R.TaskMemberDeptCode = CTE.GroupCode
+		LEFT JOIN covi_smart4j.sys_object_user U  ON U.UserCode = R.TaskMemberCode
+		WHERE 1=1
+		AND	R.TaskGubunCode = 'G'
+		AND	(R.TaskDate BETWEEN #{startDate} AND DATE_ADD(#{endDate}, INTERVAL 1 DAY))  
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportID		
+	</select>
+	
+	<select id="selectReportWeeklyListAll" parameterType="cmap" resultType="cmap">
+		SELECT	  R.ReportWeekID
+				, R.ProjectCode
+				, R.StartDate
+				, R.EndDate
+				, R.WeekEtc
+				, R.NextPlan
+				, R.RegisterDeptCode
+				, R.RegisterCode
+				, R.TaskGubunCode
+				, CTE.MultiDisplayName As DeptName
+				, U.MultiDisplayName AS UserName
+				, CTE.SortPath
+				, U.SortKey
+		FROM covi_smart4j.report_week R 
+		INNER JOIN (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE E.GroupPath LIKE CONCAT('%', #{deptCode}, '%')
+			ORDER BY SortPath
+		) CTE ON R.RegisterDeptCode = CTE.GroupCode
+		LEFT JOIN covi_smart4j.sys_object_user U ON U.UserCode = r.RegisterCode
+		WHERE 1=1
+		<if test="startDate != null and startDate != ''">
+			<![CDATA[ 
+				AND R.StartDate >= #{startDate}
+			]]>
+		</if>
+		<if test="endDate != null and endDate != ''">
+			<![CDATA[
+				AND R.EndDate <= #{endDate}
+			]]>
+		</if>
+		ORDER BY CTE.SortPath, U.SortKey, R.ReportWeekID
+	</select>
+	
+	<select id="selectMyTeamMembers" parameterType="cmap" resultType="cmap">
+		SELECT	  CTE.GroupCode AS DeptCode
+				, CTE.MultiDisplayName AS DeptName
+				, CTE.SortPath AS DeptSortPath
+				, GM.JobType
+				, U.UserCode
+				, U.MultiDisplayName AS UserName
+				, U.SortKey AS UserSortPath
+		FROM (
+			SELECT GroupCode, MultiDisplayName, SortPath 
+			FROM covi_smart4j.sys_object_group E 
+			WHERE E.GroupPath LIKE CONCAT('%', #{deptCode}, '%')
+			ORDER BY SortPath
+		) CTE
+		INNER JOIN covi_smart4j.sys_object_user_basegroup GM ON CTE.GroupCode = GM.DeptCode
+		LEFT JOIN covi_smart4j.sys_object_user U ON GM.UserCode = U.UserCode AND U.IsUse = 'Y' AND U.IsDisplay = 'Y'
+		WHERE GM.JobType = 'Origin'
+		ORDER BY CTE.SortPath, U.SortKey
+	</select>	
+</mapper>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monitorErrorLog">
+    <select id="selectMonitorErrorLogList" parameterType="cmap" resultType="cmap">
+        <include refid="oracle.include.pagingHeader"/>
+	  	SELECT  ServerIP AS "ServerIP"
+				, ErrorKind AS "ErrorKind"
+				, ErrorTime AS "ErrorTime"
+				, ErrorMessage AS "ErrorMessage"
+				, ErrorStackTrace AS "ErrorStackTrace"
+				, ProcessInsID AS "ProcessInsID"
+				, B.FormInstID AS "FormInstID"
+				, ErrorID AS "ErrorID"
+		FROM jwf_error A
+		INNER JOIN jwf_process B ON A.ProcessInsID = B.ProcessID
+		WHERE 1=1
+  		AND DeleteTime IS NULL		  		
+		<if test="txtSDate != null and txtSDate != '' and txtSDate.length() gt 0">
+			 <![CDATA[
+			 	AND ErrorTime >=#{txtSDate} AND ErrorTime <= TO_CHAR(ADD_MONTHS(#{txtSDate} ,'0')+1, 'YYYY-MM-DD')	
+			 ]]>		
+		</if>
+		<if test="search != null and search != '' and search.length() gt 0">
+			<!-- AND ErrorMessage LIKE '%'||REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1')||'%' -->
+			AND ErrorMessage LIKE '%'||#{search}||'%'
+		</if>
+		<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+			AND ErrorMessage LIKE '%'||#{icoSearch}||'%' 
+		</if>
+		AND EXISTS (
+			select 'x' from jwf_forminstance fi
+			where fi.forminstid = b.forminstid
+			<if test="EntCode != null and EntCode != ''">
+				and fi.EntCode = #{EntCode}
+			</if>
+		)
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("ServerIP")'>ServerIP</when>
+					<when test='sortColumn.equalsIgnoreCase("ProcessInsID")'>ProcessInsID</when>
+					<otherwise>ErrorTime</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				ErrorTime DESC
+		   </if>
+		</trim>
+        <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+    <select id="selectMonitorErrorLogLisCnt" resultType="java.lang.Long">
+		  SELECT  COUNT(*)
+		  FROM jwf_error A
+		  INNER JOIN jwf_process B ON A.ProcessInsID = B.ProcessID
+		  WHERE 1=1
+		  AND DeleteTime IS NULL		  		
+			<if test="txtSDate != null and txtSDate != '' and txtSDate.length() gt 0">
+				 <![CDATA[
+				 	AND ErrorTime >=#{txtSDate} AND ErrorTime <= TO_CHAR(ADD_MONTHS(#{txtSDate} ,'0')+1, 'YYYY-MM-DD')	
+				 ]]>		
+			</if>
+			<if test="search != null and search != '' and search.length() gt 0">
+				<!-- AND ErrorMessage LIKE '%'||REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1')||'%' -->
+				AND ErrorMessage LIKE '%'||#{search}||'%'
+			</if>
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND ErrorMessage LIKE '%'||#{icoSearch}||'%' 
+			</if>
+			AND EXISTS (
+				select 'x' from jwf_forminstance fi
+				where fi.forminstid = B.forminstid
+				<if test="EntCode != null and EntCode != ''">
+					and fi.EntCode = #{EntCode}
+				</if>
+			)
+	</select>
+	
+	<update id="deleteErrorLog" parameterType="cmap">
+		update jwf_error
+		set DeleteTime = SYSDATE
+		where errorid = #{errorID}
+	</update>
+</mapper>
+

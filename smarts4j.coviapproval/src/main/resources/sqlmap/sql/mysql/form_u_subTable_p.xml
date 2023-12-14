@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.subtable">
+     <select id="selectColumnNames" parameterType="cmap" resultType="cmap">
+		SELECT GROUP_CONCAT(COLUMN_NAME) AS ColumnName 
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_NAME = #{tableName}
+		AND TABLE_SCHEMA = 'covi_approval4j'
+	</select>
+	
+    <select id="selectData" parameterType="cmap" resultType="cmap">
+		SELECT ${columns}
+		FROM covi_approval4j.${tableName} 
+		WHERE FormInstID=#{formInstID}
+	</select>
+	
+    <insert id="insertOneData" parameterType="cmap">
+		INSERT INTO covi_approval4j.${tableName} 
+	    <foreach collection="insertData" item="item" separator="," open="(" close=")">
+	    	${item.key}
+	    </foreach>
+		VALUES
+	    <foreach collection="insertData" item="item" separator="," open="(" close=")">
+	    	#{item.value}
+	    </foreach>
+    </insert>
+    
+    <insert id="insertSelectData" parameterType="cmap">
+		INSERT INTO covi_approval4j.${tableName}
+		SELECT #{newFormInstID} AS ${columns}
+		FROM covi_approval4j.${tableName}
+		WHERE FormInstID = #{formInstID};
+    </insert>
+    
+    <delete id="deleteData" parameterType="cmap">
+		DELETE FROM covi_approval4j.${tableName} 
+		WHERE FormInstID= #{formInstID};
+	</delete>
+	
+</mapper>

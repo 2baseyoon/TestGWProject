@@ -1,0 +1,2956 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.tf">
+	<select id="selectUserJoinTF" parameterType="cmap" resultType="cmap">
+		SELECT A.optionValue AS "optionValue"
+			 , A.TF
+			 , A.optionText AS "optionText"
+			 , A.FilePath AS "FilePath"
+			 , A.RegRequestDate AS "RegRequestDate"
+		FROM (
+			SELECT	DISTINCT c.CU_ID AS optionValue
+					, CONCAT(NVL('['||Fn_GetSelDictionary(#{lang},'TFMemberLevel_',cm.MemberLevel)||0, '] '), '') AS TF
+					, NVL(FN_GETSELDICTIONARY(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS optionText
+					, NVL(ci.FilePath, '') AS FilePath
+					, c.RegRequestDate
+			FROM COMMUNITY_MEMBER cm
+			INNER JOIN COMMUNITY c ON c.CU_ID = cm.CU_ID
+			LEFT OUTER JOIN COMMUNITY_IMAGE ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			WHERE cm.UR_Code = #{UR_CODE}
+			AND c.Gubun = 'T'
+			AND cm.MemberStatus = 'R'
+			AND c.RegStatus IN ('R', 'X')
+			ORDER BY c.RegRequestDate ASC
+		)A
+		WHERE 1=1
+		<if test="LIMIT != null and LIMIT != ''">
+			AND ROUNUM = #{LIMIT}
+		</if>
+	</select>
+	
+	<select id="selectUserTempTFGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			 <include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	  A.CU_ID
+				, A.TF_DN_ID
+				, A.SearchTitle AS "SearchTitle"
+				, A.CommunityName AS "CommunityName"
+				, A.CreatorCode AS "CreatorCode"
+				, A.TF_MajorDept AS "TF_MajorDept"
+				, A.RegistDate AS "RegistDate"
+				, A.TF_Period AS "TF_Period"
+				, A.TF_PM AS "TF_PM"
+				, A.TF_Admin AS "TF_Admin"
+				, A.TF_AdminCount AS "TF_AdminCount"
+				, A.TF_Member AS "TF_Member"
+				, A.TF_MemberCount AS "TF_MemberCount"
+		FROM (
+			SELECT	  tt.CU_ID
+					, tt.DN_ID AS TF_DN_ID
+					, tt.SearchTitle
+					, NVL(Fn_GetSelDictionary(#{lang}, CONCAT('CU_', tt.CU_ID), tt.DN_ID), tt.CommunityName) AS CommunityName
+					, tt.CreatorCode
+					, tt.TF_MajorDept
+					, TO_CHAR(tt.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+					, tt.TF_StartDate || '~' || tt.TF_EndDate AS TF_Period
+					, tt.TF_PM
+					, tt.TF_Admin
+					, tt.TF_AdminCount
+					, tt.TF_Member
+					, tt.TF_MemberCount
+			FROM TF_TEMP tt
+			WHERE 1=1
+			AND tt.DN_ID = #{DN_ID}
+			AND tt.CreatorCode = #{UR_Code}
+			<choose>
+				<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+					AND (
+						tt.CommunityName LIKE '%'||#{searchWord}||'%'
+						OR tt.SearchTitle LIKE'%'||#{searchWord}||'%'
+					)
+				</when>
+				<when test ="searchType =='C'.toString()">
+					AND tt.CommunityName LIKE '%'||#{searchWord}||'%'
+				</when>
+				<when test ="searchType =='O'.toString()">
+					AND tt.SearchTitle LIKE '%'||#{searchWord}||'%'
+				</when>
+			</choose>
+		) A
+		<trim prefix="ORDER BY" prefixOverrides=",">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("SearchTitle")'>SearchTitle</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_MajorDept")'>TF_MajorDept</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_AdminCount")'>TO_NUMBER(TF_AdminCount)</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_MemberCount")'>TO_NUMBER(TF_MemberCount)</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectUserTempTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM TF_TEMP tt
+		WHERE 1=1
+		AND tt.DN_ID = #{DN_ID}
+		AND tt.CreatorCode = #{UR_Code}
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					tt.CommunityName LIKE '%'||#{searchWord}||'%'
+					OR tt.SearchTitle LIKE '%'||#{searchWord}||'%'
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND tt.CommunityName LIKE '%'||#{searchWord}||'%'
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND tt.SearchTitle LIKE '%'||#{searchWord}||'%'
+			</when>
+		</choose>
+	</select>
+	
+	<delete id="deleteTempTFTeamRoom" parameterType="cmap">
+		DELETE FROM TF_TEMP
+		WHERE CU_ID = #{CU_ID}
+	</delete>
+	
+	<delete id="deleteTempTFFile" parameterType="cmap">
+		DELETE FROM sys_file
+		WHERE ServiceType = 'Community'
+		AND ObjectType= 'TF' 
+		AND MessageID = #{CU_ID}
+	</delete>
+	
+	<select id="selectUserTFGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	A.CU_ID
+				, A.MN_ID
+				, A.CategoryID AS "CategoryID"
+				, A.CU_Code AS "CU_Code"
+				, A.DN_ID
+				, A.SearchTitle AS "SearchTitle"
+				, A.CommunityName AS "CommunityName"
+				, A.AppStatus AS "AppStatus"
+				, A.AppStatusName AS "AppStatusName"
+				, A.RegRequestDate AS "RegRequestDate"
+				, A.RegProcessDate AS "RegProcessDate"
+				, A.MemberCount AS "MemberCount"
+				, A.MsgCount AS "MsgCount"
+				, A.VisitCount AS "VisitCount"
+				, A.Point AS "Point"
+				, A.Grade AS "Grade"
+				, A.OperatorCode AS "OperatorCode"
+				, A.OperatorName AS "OperatorName"
+				, A.TF_DN_ID
+				, A.TF_DomainName AS "TF_DomainName"
+				, A.TF_DeptCode AS "TF_DeptCode"
+				, A.DomainCode AS "DomainCode"
+				, A.GroupCode AS "GroupCode"
+				, A.CreatorCode AS "CreatorCode"
+				, A.CreatorName AS "CreatorName"
+				, A.Description AS "Description"
+				, A.DescriptionEditor AS "DescriptionEditor"
+				, A.FilePath AS "FilePath"
+				, A.TF_Period AS "TF_Period"
+				, A.DisplayName AS "DisplayName"
+				, A.UserCode AS "UserCode"
+				, A.MailAddress AS "MailAddress"
+				, A.CuAppDetail AS "CuAppDetail"
+				, A.CommunityJoin AS "CommunityJoin"
+				, A.CommunityType AS "CommunityType"
+				, A.TF_Member AS "TF_Member"
+				, A.TF_Admin AS "TF_Admin"
+				, A.TF_PM
+				, A.MEMBER_CNT
+				, A.TF_PM_CODE
+				, A.TF_PM_MAIL
+		FROM (
+			SELECT A.*
+				 , (
+					CASE A.AppStatus
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				 , TF_Member
+				 , TF_Admin
+				 , TF_PM
+				 , MEMBER_CNT
+				 , TF_PM_CODE
+				 , TF_PM_MAIL
+			FROM(
+				SELECT	c.CU_ID
+						, c.MN_ID
+						, c.CategoryID
+						, c.CU_Code
+						, c.DN_ID
+						, c.SearchTitle
+						, NVL(Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+						, c.AppStatus
+						, c.RegRequestDate AS RegRequestDate
+						, c.RegProcessDate AS RegProcessDate
+						, c.MemberCount
+						, c.MsgCount
+						, c.VisitCount
+						, c.Point
+						, c.Grade
+						, c.OperatorCode
+						, c.OperatorName
+						, c.TF_DN_ID
+						, sod.DisplayName AS TF_DomainName
+						, sogg.MultiDisplayName AS TF_DeptCode
+						, sod.DomainCode
+						, sog.GroupCode
+						, c.CreatorCode
+						, c.CreatorName
+						, cd.Description
+						, cd.DescriptionEditor
+						, ci.FilePath
+						, c.TF_StartDate || '~' || c.TF_EndDate AS TF_Period
+						, sou.DisplayName
+						, sou.UserCode
+						, sou.MailAddress
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+				FROM community c
+				LEFT JOIN sys_object_group sog  ON sog.GroupCode = c.CU_Code
+				LEFT JOIN sys_object_user sou  ON  sou.UserCode = c.OperatorCode
+				LEFT JOIN community_detail cd  ON cd.CU_ID = c.CU_ID
+				LEFT JOIN community_image ci  ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+				LEFT JOIN sys_object_domain sod  ON sod.DomainID = c.TF_DN_ID
+				LEFT JOIN sys_object_group sogg  ON sogg.GroupCode = c.TF_MajorDeptCode
+				WHERE 1=1
+				AND c.Gubun = 'T'
+				AND NVL(c.Secret, 'N') != 'Y'
+				AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+				AND c.DN_ID = #{DN_ID}
+				<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+					AND c.MN_ID = #{MN_ID}
+				</if>
+				<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+					AND c.AppStatus = #{AppStatus}
+				</if>
+				<if test="searchWord != null and searchWord != ''">
+					<choose>
+						<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+							AND (
+								c.CommunityName LIKE '%'||#{searchWord}||'%'
+								OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+							)
+						</when>
+						<when test ="searchType =='C'.toString()">
+							AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+						</when>
+						<when test ="searchType =='O'.toString()">
+							AND cd.Description LIKE '%'||#{searchWord}||'%'
+						</when>
+					</choose>
+				</if>
+			) A
+			LEFT OUTER JOIN (
+				SELECT	  CU_ID
+						, MAX(LEVEL0) AS TF_Member
+						, MAX(LEVEL8) AS TF_Admin
+						, MAX(LEVEL9) AS TF_PM
+						, SUM(MEMBERCNT) AS MEMBER_CNT
+						, MAX(MEMBERCODELIST) AS TF_PM_CODE
+						, MAX(MEMEBERMAILlIST) AS TF_PM_MAIL
+				FROM (
+					SELECT	  CU_ID
+							, CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0
+							, CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8
+							, CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+							, MEMBERCNT
+							, CASE WHEN MemberLevel=9 THEN MEMBERCODELIST ELSE '' END AS MEMBERCODELIST
+							, CASE WHEN MemberLevel=9 THEN MEMEBERMAILlIST ELSE '' END AS MEMEBERMAILlIST
+					FROM (
+						SELECT	  CU_ID
+								, M.MemberLevel
+								, LISTAGG(Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERLIST
+								, LISTAGG(UR.UserCode, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERCODELIST
+								, LISTAGG(UR.MAILADDRESS, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMEBERMAILlIST
+								, SUM(DECODE(M.UR_Code, #{UR_Code}, 1, 0)) MEMBERCNT
+						FROM community_member M
+						LEFT OUTER JOIN sys_object_user UR ON M.UR_Code = UR.UserCode
+						WHERE  MemberStatus='R' AND DetailStatus = 'RV'
+						GROUP BY CU_ID, MemberLevel
+					) A
+				) AA GROUP BY CU_ID
+			) mem ON mem.CU_ID = A.CU_ID
+		) A
+		WHERE 1=1
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+			<if test="viewType == 'list' ">
+				AND MEMBER_CNT <![CDATA[>]]> 0
+			</if>
+		</if>
+		<if test="SearchStatus != null and SearchStatus != '' and SearchStatus !='TFDetailState'">
+			AND A.AppStatus = #{SearchStatus}
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			<choose>
+				<when test ="searchType =='P'.toString()">
+					AND TF_PM LIKE '%'||#{searchWord}||'%'
+				</when>
+				<when test ="searchType =='M'.toString()">
+					AND TF_Member LIKE '%'||#{searchWord}||'%'
+				</when>
+			</choose>
+		</if>
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				RegRequestDate ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>TO_NUMBER(MemberCount)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectUserTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM (
+			SELECT c.*
+			FROM community c
+			LEFT JOIN sys_object_group sog  ON sog.GroupCode = c.CU_Code
+			LEFT JOIN sys_object_user sou  ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN community_detail cd  ON cd.CU_ID = c.CU_ID
+			LEFT JOIN community_image ci  ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+			WHERE 1=1
+			AND c.Gubun = 'T'
+			AND NVL(c.Secret, 'N') != 'Y'
+			AND c.DN_ID = #{DN_ID}
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+			<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+				AND c.MN_ID = #{MN_ID}
+			</if>
+			<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+				AND c.AppStatus = #{AppStatus}
+			</if>
+			<if test="searchWord != null and searchWord != ''">
+				<choose>
+					<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+						AND (
+							c.CommunityName LIKE '%'||#{searchWord}||'%'
+							OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+						)
+					</when>
+					<when test ="searchType =='C'.toString()">
+						AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test ="searchType =='O'.toString()">
+						AND cd.Description LIKE '%'||#{searchWord}||'%'
+					</when>
+				</choose>
+			</if>
+		) A LEFT OUTER JOIN (
+			SELECT	  CU_ID
+					, MAX(LEVEL0) AS TF_Member
+					, MAX(LEVEL8) AS TF_Admin
+					, MAX(LEVEL9) AS TF_PM
+					, SUM(MEMBERCNT) AS MEMBER_CNT
+					, MAX(MEMBERCODELIST) AS TF_PM_CODE
+					, MAX(MEMEBERMAILlIST) AS TF_PM_MAIL
+			FROM (
+				SELECT	  CU_ID
+						, CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0
+						, CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8
+						, CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+						, MEMBERCNT
+						, CASE WHEN MemberLevel=9 THEN MEMBERCODELIST ELSE '' END AS MEMBERCODELIST
+						, CASE WHEN MemberLevel=9 THEN MEMEBERMAILlIST ELSE '' END AS MEMEBERMAILlIST
+				FROM (
+					SELECT 
+						CU_ID, M.MemberLevel
+						, LISTAGG(Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERLIST
+						, LISTAGG(UR.UserCode, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERCODELIST
+						, LISTAGG(UR.MAILADDRESS, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMEBERMAILlIST
+						, SUM(DECODE(M.UR_Code, #{UR_Code}, 1, 0)) MEMBERCNT
+					FROM community_member M
+					LEFT OUTER JOIN sys_object_user UR ON M.UR_Code = UR.UserCode
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV'
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) mem ON mem.CU_ID = A.CU_ID
+		WHERE 1=1
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+			<if test="viewType == 'list'">
+				AND mem.MEMBER_CNT <![CDATA[>]]> 0
+			</if>
+		</if>
+		<if test="searchWord != null and searchWord != ''">
+			<choose>
+				<when test ="searchType =='P'.toString()">
+					AND TF_PM LIKE '%'||#{searchWord}||'%'
+				</when>
+				<when test ="searchType =='M'.toString()">
+					AND TF_Member LIKE '%'||#{searchWord}||'%'
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="selectUserMyTFGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			 <include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	A.CU_ID
+				, A.MN_ID
+				, A.CategoryID AS "CategoryID"
+				, A.CU_Code AS "CU_Code"
+				, A.DN_ID
+				, A.SearchTitle AS "SearchTitle"
+				, A.CommunityName AS "CommunityName"
+				, A.AppStatus AS "AppStatus"
+				, A.AppStatusName AS "AppStatusName"
+				, A.RegRequestDate AS "RegRequestDate"
+				, A.RegProcessDate AS "RegProcessDate"
+				, A.MemberCount AS "MemberCount"
+				, A.MsgCount AS "MsgCount"
+				, A.VisitCount AS "VisitCount"
+				, A.Point AS "Point"
+				, A.Grade AS "Grade"
+				, A.SearchSummary AS "SearchSummary"
+				, A.OperatorCode AS "OperatorCode"
+				, A.OperatorName AS "OperatorName"
+				, A.DomainCode AS "DomainCode"
+				, A.GroupCode AS "GroupCode"
+				, A.CreatorCode AS "CreatorCode"
+				, A.CreatorName AS "CreatorName"
+				, A.Description AS "Description"
+				, A.DescriptionEditor AS "DescriptionEditor"
+				, A.FilePath AS "FilePath"
+				, A.UR_Code AS "UR_Code"
+				, A.TF_Period AS "TF_Period"
+				, A.DisplayName AS "DisplayName"
+				, A.UserCode AS "UserCode"
+				, A.MailAddress AS "MailAddress"
+				, A.CuAppDetail AS "CuAppDetail"
+				, A.CommunityJoin AS "CommunityJoin"
+				, A.CommunityType AS "CommunityType"
+				, A.TF_Member AS "TF_Member"
+				, A.TF_Admin AS "TF_Admin"
+				, A.TF_PM
+				, A.TF_AVGProgress AS "TF_AVGProgress"
+				, A.TF_WProgress AS "TF_WProgress"
+		FROM (
+			SELECT A.*
+				 , (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				 , TF_Member
+				 , TF_Admin
+				 , TF_PM
+				 , NVL(TF_AVGProgress, 0) AS TF_AVGProgress
+				 , NVL(TF_WProgress, 0) AS TF_WProgress
+			FROM(
+				SELECT	c.CU_ID
+						, c.MN_ID
+						, c.CategoryID
+						, c.CU_Code
+						, c.DN_ID
+						, c.SearchTitle
+						, NVL(Fn_GetSelDictionary(#{lang}, CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+						, c.AppStatus
+						, c.RegRequestDate AS RegRequestDate
+						, c.RegProcessDate AS RegProcessDate
+						, c.MemberCount
+						, c.MsgCount
+						, c.VisitCount
+						, c.Point
+						, c.Grade
+						, c.SearchSummary
+						, c.OperatorCode
+						, c.OperatorName
+						, sog.CompanyCode AS DomainCode
+						, sog.GroupCode
+						, c.CreatorCode
+						, c.CreatorName
+						, cd.Description
+						, cd.DescriptionEditor
+						, ci.FilePath
+						, cm.UR_Code
+						, c.TF_StartDate || '~' || c.TF_EndDate AS TF_Period
+						, sou.DisplayName
+						, sou.UserCode
+						, sou.MailAddress
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+						, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+				FROM community c
+				LEFT JOIN sys_object_group sog ON sog.GroupCode = c.CU_Code
+				LEFT JOIN sys_object_user sou ON  sou.UserCode = c.OperatorCode
+				LEFT JOIN community_detail cd ON cd.CU_ID = c.CU_ID
+				LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+				LEFT JOIN community_member cm ON cm.CU_ID = c.CU_ID
+				WHERE 1=1
+				AND cm.UR_Code = #{UR_Code}
+				AND MemberLevel IN (#{PMLevel}, #{AdminLevel}, #{MemberLevel})
+				AND c.Gubun = 'T'
+				AND NVL(c.Secret, 'N') != 'Y'
+				AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+				AND c.DN_ID = #{DN_ID}
+				<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+					AND c.MN_ID = #{MN_ID}
+				</if>
+				<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+					AND c.AppStatus = #{AppStatus}
+				</if>
+				<choose>
+					<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+						AND (
+							c.CommunityName LIKE '%'||#{searchWord}||'%'
+							OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+						)
+					</when>
+					<when test ="searchType =='C'.toString()">
+						AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test ="searchType =='O'.toString()">
+						AND cd.Description LIKE '%'||#{searchWord}||'%'
+					</when>
+				</choose>
+				) A
+				LEFT OUTER JOIN (
+					SELECT CU_ID, MAX(LEVEL0) AS TF_Member,MAX(LEVEL8) AS TF_Admin,MAX(LEVEL9) AS TF_PM
+					FROM (
+						SELECT CU_ID,
+								 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+								 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+								 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+						FROM (
+							SELECT CU_ID, M.MemberLevel, LISTAGG(Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), '@') WITHIN GROUP(Order By M.MemberLevel) AS MEMBERLIST
+							FROM community_member M
+							LEFT OUTER JOIN sys_object_user UR ON M.UR_Code = UR.UserCode
+							WHERE  MemberStatus='R' AND DetailStatus = 'RV'
+							GROUP BY CU_ID, MemberLevel
+						) A
+					) AA GROUP BY CU_ID
+				) mem ON mem.CU_ID = A.CU_ID
+			LEFT OUTER JOIN (
+				SELECT  C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+						, CAST( AVG(A.Progress) AS INT) AS TF_AVGProgress
+						, CAST( SUM(A.Weight * A.Progress/100) AS INT) AS TF_WProgress
+				FROM community C
+				INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+				WHERE 1=1
+				AND	A.CU_ID = A.CU_ID
+				AND A.MemberOf IS NULL
+				AND	C.TF_STATE = 'RA'
+				GROUP BY C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+			) pro ON pro.CU_ID = A.CU_ID
+		) A
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				RegRequestDate ASC
+		 	</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>TO_NUMBER(MemberCount)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectUserMyTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM community c 
+		LEFT JOIN sys_object_group sog ON sog.GroupCode = c.CU_Code
+		LEFT JOIN sys_object_user sou ON  sou.UserCode = c.OperatorCode
+		LEFT JOIN community_detail cd ON cd.CU_ID = c.CU_ID  
+		LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID  AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		LEFT JOIN community_member cm ON cm.CU_ID = c.CU_ID AND cm.UR_Code = #{UR_Code} AND MemberLevel IN (#{PMLevel}, #{AdminLevel}, #{MemberLevel})
+		WHERE 1=1
+		AND c.Gubun = 'T'
+		AND NVL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		AND c.DN_ID = #{DN_ID}
+		<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+			AND c.MN_ID = #{MN_ID}
+		</if>
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+			AND c.AppStatus = #{AppStatus}
+		</if>
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					c.CommunityName LIKE '%'||#{searchWord}||'%'
+					OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND cd.Description LIKE '%'||#{searchWord}||'%'
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectUserAdminTFGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	A.CU_ID
+				, A.MN_ID
+				, A.CategoryID AS "CategoryID"
+				, A.CU_Code AS "CU_Code"
+				, A.DN_ID
+				, A.SearchTitle AS "SearchTitle"
+				, A.CommunityName AS "CommunityName"
+				, A.AppStatus AS "AppStatus"
+				, A.AppStatusName AS "AppStatusName"
+				, A.RegRequestDate AS "RegRequestDate"
+				, A.RegProcessDate AS "RegProcessDate"
+				, A.MemberCount AS "MemberCount"
+				, A.MsgCount AS "MsgCount"
+				, A.VisitCount AS "VisitCount"
+				, A.Point AS "Point"
+				, A.Grade AS "Grade"
+				, A.SearchSummary AS "SearchSummary"
+				, A.OperatorCode AS "OperatorCode"
+				, A.OperatorName AS "OperatorName"
+				, A.DomainCode AS "DomainCode"
+				, A.GroupCode AS "GroupCode"
+				, A.CreatorCode AS "CreatorCode"
+				, A.CreatorName AS "CreatorName"
+				, A.Description AS "Description"
+				, A.DescriptionEditor AS "DescriptionEditor"
+				, A.FilePath AS "FilePath"
+				, A.TF_Period AS "TF_Period"
+				, A.CuAppDetail AS "CuAppDetail"
+				, A.CommunityJoin AS "CommunityJoin"
+				, A.CommunityType AS "CommunityType"
+				, A.TF_Member AS "TF_Member"
+				, A.TF_Admin AS "TF_Admin"
+				, A.TF_PM
+		FROM (
+			SELECT A.*
+				 , (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				 , TF_Member
+				 , TF_Admin
+				 , TF_PM
+			FROM(
+				SELECT c.CU_ID
+					 , c.MN_ID
+					 , c.CategoryID
+					 , c.CU_Code
+					 , c.DN_ID
+					 , c.SearchTitle
+					 , NVL(Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+					 , c.AppStatus
+					 , c.RegRequestDate AS RegRequestDate
+					 , c.RegProcessDate AS RegProcessDate
+					 , c.MemberCount
+					 , c.MsgCount
+					 , c.VisitCount
+					 , c.Point
+					 , c.Grade
+					 , c.SearchSummary
+					 , c.OperatorCode
+					 , c.OperatorName
+					 , sog.CompanyCode AS DomainCode
+					 , sog.GroupCode
+					 , c.CreatorCode
+					 , c.CreatorName
+					 , cd.Description
+					 , cd.DescriptionEditor
+					 , ci.FilePath
+					 , c.TF_StartDate || '~' || c.TF_EndDate AS TF_Period
+					 , Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CuAppDetail', c.AppStatus)) AS CuAppDetail
+					 , Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityJoin', c.JoinOption)) AS CommunityJoin
+					 , Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'CommunityType', c.CommunityType)) AS CommunityType
+				FROM community c 
+				LEFT JOIN sys_object_group sog  ON sog.GroupCode = c.CU_Code
+				LEFT JOIN sys_object_user sou  ON  sou.UserCode = c.OperatorCode
+				LEFT JOIN community_detail cd  ON cd.CU_ID = c.CU_ID
+				LEFT JOIN community_image ci  ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+				WHERE 1=1 
+				AND c.Gubun = 'T'
+				AND NVL(c.Secret, 'N') != 'Y'
+				AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+				AND c.DN_ID = #{DN_ID}
+				<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+					AND c.MN_ID = #{MN_ID}
+				</if>
+				<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+					AND c.AppStatus = #{AppStatus}
+				</if>
+				<choose>
+					<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+						AND (
+							c.CommunityName LIKE '%'||#{searchWord}||'%'
+							OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+						)
+					</when>
+					<when test ="searchType =='C'.toString()">
+						AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+					</when>
+					<when test ="searchType =='O'.toString()">
+						AND cd.Description LIKE '%'||#{searchWord}||'%'
+					</when>
+				</choose>
+				<choose>
+					<when test ="kind =='1'.toString()">
+						AND c.AppStatus = 'RA' 
+					</when>
+					<when test ="kind =='2'.toString()">
+						AND c.AppStatus IN (SELECT Code FROM sys_base_code sbc WHERE CodeGroup ='CuAppDetail2' AND Reserved1 = '+' AND IsUse = 'Y'
+											AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'CuAppDetail2' AND DomainID = c.DN_ID)) 
+					</when>
+					<when test ="kind =='3'.toString()">
+						AND c.TF_EndDate <![CDATA[<]]> TO_CHAR(SYSDATE, 'YYYY.MM.DD')
+					</when>
+				</choose>
+			) A
+			LEFT OUTER JOIN (
+				SELECT CU_ID, MAX(LEVEL0) AS TF_Member, MAX(LEVEL8) AS TF_Admin, MAX(LEVEL9) AS TF_PM
+				FROM (
+					SELECT	CU_ID,
+							 CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0,
+							 CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8,
+							 CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+					FROM (
+						SELECT CU_ID, M.MemberLevel, LISTAGG(Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), '@') WITHIN GROUP(ORDER BY M.MemberLevel) AS MEMBERLIST
+						FROM community_member M
+						LEFT OUTER JOIN sys_object_user UR	ON M.UR_Code = UR.UserCode
+						WHERE MemberStatus='R' AND DetailStatus = 'RV' 
+						GROUP BY CU_ID, MemberLevel
+					) A
+				) AA GROUP BY CU_ID
+			) mem ON mem.CU_ID = A.CU_ID
+		)A
+		<trim prefix="ORDER BY"  prefixOverrides =","> 
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection =='' ">
+				RegRequestDate ASC
+		 	</if>
+		 	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("TF_PM")'>TF_PM</when>
+					<when test='sortColumn.equalsIgnoreCase("TF_Period")'>TF_Period</when>
+					<when test='sortColumn.equalsIgnoreCase("MemberCount")'>TO_NUMBER(MemberCount)</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<otherwise>CommunityName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+		 	</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectUserAdminTFGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM community c 
+		LEFT JOIN sys_object_group sog  ON sog.GroupCode = c.CU_Code
+		LEFT JOIN sys_object_user sou  ON  sou.UserCode = c.OperatorCode
+		LEFT JOIN community_detail cd  ON cd.CU_ID = c.CU_ID
+		WHERE 1=1 
+		AND c.Gubun = 'T'
+		AND NVL(c.Secret, 'N') != 'Y'
+		AND c.DN_ID = #{DN_ID}
+		<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'">
+			AND c.MN_ID = #{MN_ID}
+		</if>
+		<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'">
+			AND c.AppStatus = #{AppStatus}
+		</if>
+		<choose>
+			<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+				AND (
+					c.CommunityName LIKE '%'||#{searchWord}||'%'
+					OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+				)
+			</when>
+			<when test ="searchType =='C'.toString()">
+				AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+			</when>
+			<when test ="searchType =='O'.toString()">
+				AND cd.Description LIKE '%'||#{searchWord}||'%'
+			</when>
+		</choose>
+		<choose>
+			<when test ="kind =='1'.toString()">
+				AND c.AppStatus = 'RA' 
+			</when>
+			<when test ="kind =='2'.toString()">
+				AND c.AppStatus IN (SELECT Code FROM sys_base_code sbc WHERE CodeGroup = 'CuAppDetail2' AND Reserved1 = '+' AND IsUse = 'Y'
+									AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'CuAppDetail2' AND DomainID = c.DN_ID))
+			</when>
+			<when test ="kind =='3'.toString()">
+				AND c.TF_EndDate <![CDATA[<]]> TO_CHAR(SYSDATE, 'YYYY.MM.DD')
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectMemberGrade" parameterType="cmap" resultType="String">
+		SELECT MemberLevel AS "MemberLevel"
+		FROM community_member 
+		WHERE CU_ID = #{CU_ID}
+		AND UR_Code = #{UR_Code}
+	</select>
+	
+	<select id="selectDeleteACL" parameterType="cmap" resultType="cmap">
+		SELECT NVL(A.CU_ID, B.CU_ID) AS "CU_ID"
+			 , NVL(A.CommunityName, B.CommunityName) AS "CommunityName"
+			 , Register AS "Register"
+			 , MemberLevel AS "MemberLevel"
+		FROM ( 
+			SELECT	  CommunityName
+					, CreatorCode AS Register
+					,AppStatus
+					, CU_ID
+			FROM community
+			WHERE CU_ID = #{CU_ID} <!-- AND AppStatus IN ('RA', 'TD') -->
+		) A
+		RIGHT OUTER JOIN
+		(
+			SELECT	 c.CommunityName
+					, cm.MemberLevel
+					, C.CU_ID
+			FROM community c 
+			INNER JOIN community_member cm	ON cm.CU_ID = c.CU_ID
+			WHERE C.CU_ID = #{CU_ID} AND UR_Code = #{UR_Code}
+		) B ON A.CU_ID = B.CU_ID
+	</select>
+	
+	<update id="deleteTFTeamRoom" parameterType="cmap">
+		UPDATE community
+		SET   AppStatus = 'UF'
+			, RegStatus = 'U'
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="checkTFNameCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community 
+		WHERE CommunityName = #{DisplayName}
+	</select>
+	
+	<select id="checkTFCodeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community 
+		WHERE CU_Code = #{CU_Code}
+	</select>
+	
+	<select id="selectTempSaveTFTeamRoom" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM TF_TEMP 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="tempSaveTFTeamRoom" parameterType="cmap" >
+		INSERT INTO TF_TEMP (
+			 CU_Code
+			,DN_ID
+			,MN_ID
+			,Gubun
+			,CommunityType
+			,CommunityName
+			,JoinOption
+			,LimitFileSize
+			,UsedFileSize
+			,SearchTitle
+			,CreatorCode
+			<if test="openType != null and openType != ''">
+				,Reserved1
+			</if>
+			<if test="security != null and security != ''">
+				,Reserved2
+			</if>
+			,DefaultBoardType
+			,Secret
+			,TF_DN_ID
+			,TF_MajorDeptCode
+			,TF_MajorDept
+			,TF_PM
+			,TF_PMCode
+			,TF_PMCount
+			,TF_Admin
+			,TF_AdminCode
+			,TF_AdminCount
+			,TF_Member
+			,TF_MemberCode
+			,TF_MemberCount
+			,TF_StartDate
+			,TF_EndDate
+			,TF_Cost
+			,TF_Benefit
+			,TF_Risk
+			,TF_DocLinks
+			,TF_CollaboLinks
+			,RegistDate
+		) VALUES (
+			 #{txtTFCode}
+			,#{DN_ID}
+			,(SELECT MenuID FROM sys_object_menu WHERE MenuType = 'Top' AND BizSection = 'TF' AND DomainID = #{DN_ID})
+			,'T'
+			,'C'
+			,#{txtTFName}
+			,'M'
+			,'300'
+			,0
+			,#{txtContent}
+			,#{txtOperator}
+			<if test="openType != null and openType != ''">
+				,#{openType}
+			</if>
+			<if test="security != null and security != ''">
+				,#{security}
+			</if>
+			,'TF'
+			,'Y'
+			,#{Category}
+			,#{txtMajorDeptCode}
+			,#{txtMajorDept}
+			,#{txtPM}
+			,#{txtPMCode}
+			,#{txtPMCount}
+			,#{txtAdmin}
+			,#{txtAdminCode}
+			,#{txtAdminCount}
+			,#{txtMember}
+			,#{txtMemberCode}
+			,#{txtMemberCount}
+			,#{txtStart}
+			,#{txtEnd}
+			,''
+			,''
+			,''
+			,#{txtDocLinks}
+			,#{txtCollaboLinks}
+			,SYSDATE
+		)
+		<selectKey resultType="java.lang.Long" keyProperty="CU_ID" order="AFTER">
+			SELECT NVL(MAX(CU_ID), 0) FROM TF_TEMP
+		</selectKey>
+	</insert>
+	
+	<update id="updateTempSaveTFTeamRoom" parameterType="cmap">
+		UPDATE TF_TEMP				 
+		SET  CU_Code				 = #{txtTFCode}
+			,DN_ID					 = #{DN_ID}
+			,MN_ID					 = #{MN_ID}
+			,CommunityType			 = 'C'
+			,CommunityName			 = #{txtTFName}
+			,JoinOption				 = 'M'
+			,LimitFileSize			 = '300'
+			,SearchTitle			 = #{txtContent}
+			,CreatorCode			 = #{txtOperator}
+			<if test="openType != null and openType != ''">
+				,Reserved1			 = #{openType}
+			</if>
+			<if test="security != null and security != ''">
+				,Reserved2			 = #{security}
+			</if>
+			,DefaultBoardType		 = 'TF'
+			,Secret					 = 'Y'
+			,TF_DN_ID				 = #{Category}
+			,TF_MajorDeptCode		 = #{txtMajorDeptCode}
+			,TF_MajorDept			 = #{txtMajorDept}
+			,TF_PM					 = #{txtPM}
+			,TF_PMCode				 = #{txtPMCode}
+			,TF_PMCount				 = #{txtPMCount}
+			,TF_Admin				 = #{txtAdmin}
+			,TF_AdminCode			 = #{txtAdminCode}
+			,TF_AdminCount			 = #{txtAdminCount}
+			,TF_Member				 = #{txtMember}
+			,TF_MemberCode			 = #{txtMemberCode}
+			,TF_MemberCount			 = #{txtMemberCount}
+			,TF_StartDate			 = #{txtStart}
+			,TF_EndDate				 = #{txtEnd}
+			,TF_Cost				 = ''
+			,TF_Benefit				 = ''
+			,TF_Risk				 = ''
+			,TF_DocLinks			 = #{txtDocLinks}
+			,TF_CollaboLinks		 = #{txtCollaboLinks}
+			,RegistDate				 = SYSDATE
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<insert id="createTFInfomation" parameterType="cmap" >
+		INSERT INTO community (
+			  CU_Code
+			 , CategoryID
+			 , DN_ID
+			 , MN_ID
+			 , Gubun
+			 , CommunityType
+			 , CommunityName
+			 , JoinOption
+			 , RegStatus
+			 , AppStatus
+			 , DefaultMemberLevel
+			 , RegProcessDate
+			 , LimitFileSize
+			 , SearchTitle
+			 , SearchSummary
+			 , CreatorCode
+			 , CreatorName
+			 , CreatorLevel
+			 , CreatorPosition
+			 , CreatorTitle
+			 , CreatorDept
+			 , OperatorCode
+			 , OperatorName
+			 , DefaultBoardType
+			 , RegRequestDate
+			 <if test="IsUseMessenger = 'Y'">
+				, Reserved1
+			 </if>
+			 ,TF_DN_ID
+			 ,TF_MajorDeptCode
+			 ,TF_MajorDept
+			 ,TF_StartDate
+			 ,TF_EndDate
+			 ,TF_DocLinks
+			 ,TF_CollaboLinks
+		) VALUES (
+			   #{txtTFCode}
+			 , 0
+			 , #{DN_ID}
+			 , (SELECT MenuID FROM sys_object_menu WHERE MenuType = 'Top' AND BizSection = 'TF' AND DomainID = #{DN_ID})
+			 , 'T'
+			 , 'P'
+			 , #{txtTFName}
+			 , 'M'
+			 , 'P'
+			 , 'RA'
+			 , '4'
+			 , SYSDATE
+			 , '300'
+			 , ''
+			 , ''
+			 , #{txtOperator}
+			 , (SELECT MultiDisplayName FROM sys_object_user  WHERE UserCode = #{txtOperator})
+			 , (SELECT MultiJobLevelName FROM sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiJobPositionName FROM sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiJobTitleName FROM sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , (SELECT MultiDeptName FROM sys_object_user_basegroup  WHERE UserCode = #{txtOperator} AND jobType='Origin')
+			 , #{txtOperator}
+			 , (SELECT MultiDisplayName FROM sys_object_user  WHERE UserCode = #{txtOperator})
+			 , 'TF'
+			 , SYSDATE
+			 <if test="IsUseMessenger = 'Y'">
+	 			, #{RoomID}
+	 		 </if>
+			 , #{Category}
+			 , #{txtMajorDeptCode}
+			 , #{txtMajorDept}
+			 , #{txtStart}
+			 , #{txtEnd}
+			 , #{txtDocLinks}
+			 , #{txtCollaboLinks}
+		)
+		<selectKey resultType="java.lang.Long" keyProperty="CU_ID" order="AFTER">
+			SELECT NVL(MAX(CU_ID), 0) FROM COMMUNITY
+		</selectKey>
+	</insert>
+	
+	<insert id="createTFDetailInfomation" parameterType="cmap" >
+		INSERT INTO community_detail(
+			  CU_ID
+			, Keyword
+			, Description
+			, DescriptionEditor
+			, DescriptionOption
+			, Provision
+			, ProvisionEditor
+			, ProvisionOption
+		) VALUES (
+			  #{CU_ID}
+			, ''
+			, #{txtContent}
+			, #{txtContentEditer}
+			, #{ContentOption}
+			, ''
+			, ''
+			, ''
+		)
+	</insert>
+	
+	<update id="updateTFStatus" parameterType="cmap">
+		UPDATE community
+		SET RegStatus = #{RegStatus}
+		  , AppStatus = #{AppStatus}
+		  , ProcesserCode = #{txtOperator}
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectTFInfo" parameterType="cmap" resultType="cmap">
+		SELECT  c.CU_ID
+			  , c.CU_Code AS "CU_Code"
+			  , NVL(c.CategoryID,'') AS "CategoryID"
+			  , c.DN_ID
+			  , c.CommunityType AS "CommunityType"
+			  , sod.DomainID AS "DomainID"
+			  , sod.DomainCode AS "DomainCode"
+			  , sod.DomainURL AS "DomainURL"
+			  , sod.DisplayName AS "DisplayName"
+			  , sod.MultiDisplayName AS "MultiDisplayName"
+			  , sod.ShortName AS "ShortName"
+			  , sod.MultiShortName AS "MultiShortName"
+			  , sod.MemberOf AS "MemberOf"
+			  , sod.DomainPath AS "DomainPath"
+			  , sod.SortKey AS "SortKey"
+			  , sod.SortPath AS "SortPath"
+			  , sod.IsUse AS "IsUse"
+			  , sod.ServiceUser AS "ServiceUser"
+			  , sod.ServiceStart AS "ServiceStart"
+			  , sod.ServiceEnd AS "ServiceEnd"
+			  , sod.Description AS "Description"
+			  , sod.RegistDate AS "RegistDate"
+			  , sod.DeleteDate AS "DeleteDate"
+			  , sod.MenuSyncTime AS "MenuSyncTime"
+			  , c.CommunityName AS "CommunityName"
+			  , c.OperatorCode AS "OperatorCode"
+			  , c.DefaultBoardType AS "DefaultBoardType"
+		FROM community c
+		INNER JOIN sys_object_domain sod  ON sod.DomainID = c.DN_ID
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<insert id="createObjectGroup" parameterType="cmap">
+		INSERT INTO SYS_OBJECT_GROUP
+		(
+			GroupCode,
+			CompanyCode,
+			GroupType,
+			MemberOf,
+			OUName,
+			DisplayName,
+			MultiDisplayName,
+			ShortName,
+			MultiShortName,
+			Approvable,
+			Receivable,
+			ApprovalUnitCode,
+			ReceiptUnitCode,
+			SortKey,
+			IsUse,
+			IsDisplay,
+			IsMail,
+			IsHR,
+			RegistDate,
+			Description,
+			GROUPPATH,
+			SORTPATH
+		) VALUES (
+			#{CU_Code},
+			#{DomainCode},
+			'Community',
+			#{DN_ID} || '_' ||'Community',
+			#{CommunityName},
+			#{CommunityName},
+			#{CommunityName},
+			#{CommunityName},
+			#{CommunityName},
+			1,
+			1,
+			#{CU_Code},
+			#{CU_Code},
+			((SELECT SortKey FROM (SELECT NVL(MAX(SortKey), '0') AS SortKey FROM sys_object_group WHERE GroupType = 'Community' AND MemberOf = CONCAT(CONCAT(#{DN_ID},'_'),'Community')) B) + 1),
+			'Y',
+			'Y',
+			'Y',
+			'Y',
+			SYSDATE,
+			'',
+			' ',
+			' '
+		)
+	</insert>
+	
+	<select id="selectComObjectPath" parameterType="cmap" resultType="String">
+		SELECT FN_COMOBJECTPATHCREATE_S('',#{CU_Code},'GR') FROM dual
+	</select>
+	
+	<select id="selectSortPath" parameterType="cmap" resultType="String">
+		SELECT FN_COMSORTPATHCREATE_S('', #{CU_Code}, 'GR') FROM dual
+	</select>
+	
+	<update id="updateObjectGroup" parameterType="cmap">
+		UPDATE SYS_OBJECT_GROUP
+		SET GroupPath = #{comObjectPath}
+		  , SortPath = #{sortPath}
+		  , OUPath = #{CommunityName}
+		WHERE 1=1
+		AND GroupCode = #{CU_Code}
+	</update>
+		 
+	<update id="updateTFGroupCode" parameterType="cmap" >
+		UPDATE sys_object_group
+		SET IsDisplay = #{IsDisplay}
+		  , IsUse = #{IsUse}
+		WHERE GroupCode IN (SELECT CU_Code FROM community WHERE CU_ID = #{CU_ID})
+	</update>
+	 
+	 <update id="updateCommunityGroupCode" parameterType="cmap" >
+		UPDATE SYS_OBJECT_GROUP
+		SET IsDisplay = #{IsDisplay}
+		  , IsUse = #{IsUse}
+		WHERE GroupCode IN (SELECT CU_Code FROM COMMUNITY WHERE CU_ID = #{CU_ID})
+	 </update>
+	 
+	<select id="selectCommunityHomeCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM COMMUNITY A 
+		INNER JOIN SYS_OBJECT_DOMAIN B ON A.DN_ID = B.DomainID 
+		WHERE A.CU_ID NOT IN (SELECT CU_ID FROM COMMUNITY_HOME WHERE CU_ID = #{CU_ID})
+		AND RegStatus = 'R'
+	</select>
+	
+	<insert id="createCommunityHome" parameterType="cmap">
+		INSERT INTO COMMUNITY_HOME
+		(	 LayoutID
+			,CU_ID
+			,CommunityTheme
+			,IsUse
+			,RegisterCode
+		)
+		SELECT A.* FROM (
+			SELECT	LayoutID
+					,#{CU_ID}
+					,CommunityTheme
+					,IsUse
+					,#{userID}
+			FROM COMMUNITY_HOME_DEFAULT
+			ORDER BY CU_ID ASC
+		) A
+		WHERE ROWNUM = 1
+	</insert>
+	
+	<select id="selectTFACLCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM sys_object_acl
+		WHERE 1=1
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</select>
+	
+	<update id="updateTFACL" parameterType="cmap">
+		UPDATE SYS_OBJECT_ACL
+		SET ObjectID = #{ObjectID}
+		  , ObjectType = #{ObjectType}
+		  , SubjectCode = #{SubjectCode}
+		  , SubjectType = #{SubjectType}
+		  , AclList = #{AclList}
+		  , Security = #{Security}
+		  , CREATE_ = #{Create}
+		  , DELETE_ = #{Delete}
+		  , MODIFY_ = #{Modify}
+		  , EXECUTE = #{Execute}
+		  , VIEW_ = #{View}
+		  , READ = #{Read}
+		  , ModifierCode = #{userCode}
+		  , ModifyDate = SYSDATE
+		WHERE 1=1 
+		AND ObjectID = #{ObjectID}
+		AND ObjectType = #{ObjectType}
+		AND SubjectCode = #{SubjectCode}
+		AND SubjectType = #{SubjectType}
+	</update>
+	
+	<insert id="createTFACL" parameterType="cmap">
+		INSERT INTO SYS_OBJECT_ACL (
+			  ObjectID
+			, ObjectType
+			, SubjectCode
+			, SubjectType
+			, AclList
+			, Security
+			, CREATE_
+			, DELETE_
+			, MODIFY_
+			, EXECUTE
+			, VIEW_
+			, READ
+			, RegisterCode
+			, RegistDate
+		)VALUES(
+			  #{ObjectID}
+			, #{ObjectType}
+			, #{SubjectCode}
+			, #{SubjectType}
+			, #{AclList}
+			, #{Security}
+			, #{Create}
+			, #{Delete}
+			, #{Modify}
+			, #{Execute}
+			, #{View}
+			, #{Read}
+			, #{userCode}
+			, SYSDATE
+		)
+	</insert>
+	
+	<select id="selectTFGradeList" parameterType="cmap" resultType="cmap">
+		SELECT CodeID AS "CodeID"
+			, CodeName AS "CodeName"
+			, Code AS "Code"
+		FROM sys_base_code sbc
+		WHERE 1=1
+		AND BizSection = 'TF'
+		AND CodeGroup = 'TFMemberLevel'
+		AND Code != 'TFMemberLevel'
+		AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TFMemberLevel' AND DomainID = #{domainID})
+	</select>
+	
+	<insert id="createTFFolder" parameterType="cmap">
+		INSERT INTO SYS_OBJECT_FOLDER(
+			 DomainID
+			,MenuID
+			,ObjectType
+			,FolderType
+			,DisplayName
+			,MultiDisplayName
+			,MemberOf
+			,FolderPath
+			,SortKey
+			,SortPath
+			,IsInherited
+			,IsShared
+			,IsUse
+			,IsDisplay
+			,IsURL
+			,URL
+			,Description
+			,OwnerCode
+			,RegisterCode
+			,RegistDate
+			,SecurityLevel
+			,Reserved2
+			,Reserved5
+		)VALUES(
+			 #{DN_ID}
+			,#{MenuID}
+			,'Community'
+			,#{FolderType}
+			,#{CommunityName}
+			,#{CommunityName}
+			,#{MemberOf}
+			,''
+			,#{SortKey}
+			,#{SortPath}
+			,#{IsInherited}
+			,'N'
+			,'Y'
+			,'Y'
+			,'N'
+			,''
+			,''
+			,#{userID}
+			,#{userID}
+			,SYSDATE
+			,#{SecurityLevel}
+			,#{Reserved2}
+			,'project'
+		)
+		<selectKey resultType="java.lang.Long" keyProperty="FolderID" order="AFTER">
+			SELECT SYS_OBJECT_FOLDER_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<select id="tfFolderList" parameterType="cmap" resultType="cmap">
+		SELECT  FolderType AS "FolderType"
+			  , DisplayName AS "FolderName"
+			  , SortKey AS "SortKey"
+		FROM community_board_default
+		WHERE IsUse = 'Y'
+		AND DN_ID = #{DN_ID}
+		AND CommunityType = #{DefaultBoardType}
+	</select>
+	
+	<select id="selectTFScheduleMenu" parameterType="cmap" resultType="String">
+		SELECT (SELECT SortPath FROM SYS_OBJECT_FOLDER WHERE FolderID = #{MemberOf})||(SUBSTR('000000000000000', 0, 15 - LENGTH(#{CU_ID}))||#{CU_ID})||';' FROM dual
+	</select>
+	
+	<select id="selectTFMenuTopCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community_menu_top
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		AND FD_ID = #{FolderID}
+	</select>
+	
+	<insert id="createTFMenuTop" parameterType="cmap">
+		INSERT INTO community_menu_top(CU_ID, FD_ID, SortKey)
+		VALUES (#{CU_ID}, #{FolderID}, 0)
+	</insert>
+	
+	<update id="updateMemberLS" parameterType="cmap">
+		UPDATE community_member
+		SET	  MemberStatus	= 'U'
+			, DetailStatus	= 'LS'
+			, MemberLevel	= 0
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectTFMemberCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community_member
+		WHERE CU_ID = #{CU_ID}
+		AND UR_CODE = #{userID}
+	</select>
+	
+	<update id="updateTFMemberCount" parameterType="cmap">
+		UPDATE community
+		SET MemberCount = (SELECT COUNT(*) FROM community_member WHERE CU_ID = #{CU_ID})
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<select id="selectBaseGroupMember" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM sys_object_group_member
+		WHERE 1=1
+		AND GroupCode = #{CU_Code}
+		AND UserCode = #{userID}
+	</select>
+	
+	<insert id="insertBaseGroupMember" parameterType="cmap">
+		INSERT INTO sys_object_group_member
+		(
+			GroupCode,
+			UserCode,
+			SortKey,
+			Role,
+			IsUse,
+			IsHR,
+			MemberStatus,
+			JoinDate
+		) VALUES (
+			#{CU_Code},
+			#{userID},
+			100,
+			'member',
+			'Y',
+			'N',
+			'A',
+			SYSDATE
+		)
+	</insert>
+	
+	<delete id="deleteBaseGroupMember" parameterType="cmap">
+		DELETE FROM sys_object_group_member
+		WHERE GroupCode = #{CU_Code}
+	</delete>
+	
+	<insert id="createTFMember" parameterType="cmap">
+		INSERT INTO community_member (
+			  CU_ID
+			, UR_CODE
+			, NickName
+			, MemberStatus
+			, DetailStatus
+			, MemberLevel
+			, RegMessage
+			, IsAgree
+		)VALUES(
+			  #{CU_ID}
+			, #{userID}
+			, (SELECT DisplayName FROM sys_object_user  WHERE UserCode = #{userID})
+			, 'R'
+			, 'RV'
+			, #{MemberLevel}
+			, ''
+			, 'Y'
+		) 
+	</insert>
+	
+	<update id="updateTFMember" parameterType="cmap">
+		UPDATE community_member
+		SET MemberLevel = #{MemberLevel}, MemberStatus = 'R', DetailStatus = 'RV', IsAgree = 'Y'
+		WHERE CU_ID = #{CU_ID}
+		AND UR_Code = #{userID}
+	</update> 
+	
+	<select id="tfCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM sys_base_dictionary
+		WHERE 1=1
+		AND DicCode = CONCAT('CU_', #{CU_ID})
+		AND DomainID = #{DN_ID} 
+	</select>
+	
+	<update id="updateTFNameDictionary" parameterType="cmap">
+		UPDATE sys_base_dictionary 
+		SET	KoShort = #{DIC_Code_ko} 
+			, KoFull = #{DIC_Code_ko} 
+			, EnShort = #{DIC_Code_en}
+			, EnFull = #{DIC_Code_en}
+			, JaShort = #{DIC_Code_ja}
+			, JaFull = #{DIC_Code_ja}
+			, ZhShort = #{DIC_Code_zh}
+			, ZhFull = #{DIC_Code_zh}
+			, ModifierCode = #{userID}
+			, ModifyDate = SYSDATE
+		WHERE 1=1
+		AND DicCode = CONCAT('CU_', #{CU_ID})
+		AND DomainID = #{DN_ID} 
+	</update>
+	
+	<insert id="createTFNameDictionary" parameterType="cmap" >
+		INSERT INTO sys_base_dictionary (
+			  DomainID
+			, DicCode
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, IsUse
+			, IsCaching
+			, RegisterCode
+			, RegistDate
+		)VALUES(
+			  #{DN_ID}
+			, 'CU_'||#{CU_ID}
+			, #{DIC_Code_ko}
+			, #{DIC_Code_ko}
+			, #{DIC_Code_en}
+			, #{DIC_Code_en}
+			, #{DIC_Code_ja}
+			, #{DIC_Code_ja}
+			, #{DIC_Code_zh}
+			, #{DIC_Code_zh}
+			, 'Y'
+			, 'Y'
+			, #{userID}
+			, SYSDATE
+		 )
+	</insert>
+	
+	<insert id="createTFFolderDictionary" parameterType="cmap">
+		INSERT INTO sys_base_dictionary(
+			  DicCode
+			, DomainID
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, DicSection
+			, IsUse
+			, IsCaching
+			, Description
+		)
+		SELECT 
+			CONCAT('CUFD_',(SELECT MAX(DicID)+1 FROM SYS_BASE_DICTIONARY)) AS DicCode
+			, #{DN_ID}
+			, KoShort
+			, KoFull
+			, EnShort
+			, EnFull
+			, JaShort
+			, JaFull
+			, ZhShort
+			, ZhFull
+			, 'CUFD'
+			, IsUse
+			, IsCaching
+			, Description
+		 FROM sys_base_dictionary
+		 WHERE DicCode = #{DIC_Code}
+	</insert>
+	
+	<insert id="createTFWebPortal" parameterType="cmap">
+		INSERT INTO PORTAL (
+			  LayoutID
+			, CompanyCode
+			, DisplayName
+			, MultiDisplayName
+			, PortalType
+			, SortKey
+			, IsUse
+			, RegisterCode
+			, RegistDate
+			, BizSection
+			, PortalTag
+			, LayoutSizeTag
+		)VALUES(
+			  (SELECT LayoutID FROM PORTAL_LAYOUT WHERE 1=1 AND Reserved1 = 'Y' AND IsCommunity = 'Y' AND ROWNUM = 1)
+			, (SELECT CU_Code FROM COMMUNITY WHERE CU_ID = #{CU_ID})
+			, #{CommunityName}
+			, #{CommunityName}
+			, 'Community'
+			, '1'
+			, 'Y'
+			, #{userID}
+			, SYSDATE
+			, 'Community'
+			, #{PortalTag}
+			, #{LayoutSizeTag}
+		)
+		<selectKey resultType="java.lang.Long" keyProperty="PortalID" order="AFTER">
+			SELECT PORTAL_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<select id="tfDefaultPortalList" parameterType="cmap" resultType="cmap">
+		SELECT	  BizSection AS "BizSection"
+				, Range AS "Range"
+				, DisplayName AS "DisplayName"
+				, HtmlFilePath AS "HtmlFilePath"
+				, JsFilePath AS "JsFilePath"
+				, JsModuleName AS "JsModuleName"
+				, IsUse AS "IsUse"
+				, Reserved1  AS "Reserved1"
+				, Reserved2 AS "LayoutDivNumber"
+				, MinHeight AS "MinHeight"
+				, Preview AS "Preview"
+				, DataJSON AS "DataJSON"
+				, ExtentionJSON AS "DataJSON"
+				, ScriptMethod	AS "ScriptMethod"
+		FROM COMMUNITY_PORTAL_WEBPART_DEFAU
+		WHERE 1=1
+		AND IsUse ='Y'
+		AND RESERVED3 = 'Y'
+		ORDER BY Reserved ASC
+	</select>
+	
+	<insert id="createTFWebPart" parameterType="cmap">
+		INSERT INTO PORTAL_WEBPART (
+			  CompanyCode
+			, BizSection
+			, Range
+			, DisplayName
+			, MultiDisplayName
+			, HtmlFilePath
+			, JsFilePath
+			, JsModuleName
+			, IsUse
+			, Reserved1
+			, RegisterCode
+			, RegistDate
+			, Preview
+			, MinHeight
+			, DataJSON
+			, ExtentionJSON
+			, ScriptMethod
+		)VALUES(
+			  (SELECT CU_Code FROM COMMUNITY WHERE CU_ID = #{CU_ID} )					
+			, #{BizSection}
+			, #{Range}
+			, #{DisplayName}
+			, #{DisplayName}
+			, #{HtmlFilePath}
+			, #{JsFilePath}
+			, #{JsModuleName}
+			, #{IsUse}
+			, #{Reserved1}
+			, #{userID}
+			, SYSDATE
+			, #{Preview}
+			, #{MinHeight}
+			, #{DataJSON}
+			, #{ExtentionJSON}
+			, #{ScriptMethod}
+		)
+		<selectKey resultType="java.lang.Long" keyProperty="WebpartID" order="AFTER">
+			SELECT PORTAL_WEBPART_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+	
+	<insert id="createTFLayout" parameterType="cmap">
+		INSERT INTO PORTAL_LAYOUT_WEBPART (
+			  PortalID
+			, WebpartID
+			, LayoutDivNumber
+			, LayoutDivSort
+			, WebpartOrder
+			, RegistDate
+		)VALUES(
+			  #{PortalID}
+			, #{WebpartID}
+			, NVL(#{LayoutDivNumber},'0')
+			, '0'
+			, '-1'
+			, SYSDATE
+		)
+	</insert>
+	
+	<select id="sendMessagingListAdmin" parameterType="cmap" resultType="cmap">
+		SELECT sms.UserCode AS "UserCode"
+			 , sbc.Code AS "Code"
+			 , NVL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS "CommunityName"
+			 , NVL(#{CU_ID}, '') AS "CU_ID"
+		FROM community c
+		INNER JOIN sys_messaging_setting sms  ON sms.UserCode = #{musercode}
+		INNER JOIN sys_base_code sbc ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' AND DomainID = c.DN_ID)
+	</select>
+	
+	<!-- 커뮤니티 관리자 -->
+	<select id="sendMessagingCommunityOperator" parameterType="cmap" resultType="cmap">
+		SELECT sms.UserCode AS "UserCode"
+			 , sbc.Code AS "Code"
+			 , NVL(Fn_GetSelDictionary(#{lang},CONCAT('CU_',c.CU_ID), c.DN_ID), c.CommunityName) AS "CommunityName"
+			 , NVL(#{CU_ID}, '') AS "CU_ID"
+		FROM community c
+		INNER JOIN community_member cm ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		INNER JOIN sys_messaging_setting sms ON cm.UR_Code = sms.UserCode
+		INNER JOIN sys_base_code sbc ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' AND DomainID = c.DN_ID)
+	</select>
+	
+	<!-- 가입된 커뮤니티 가입자	-->
+	<select id="sendMessagingList" parameterType="cmap" resultType="cmap">
+		SELECT  sms.UserCode AS "UserCode"
+			  , sbc.Code AS "Code"
+			  , (SELECT NVL(FN_GETSELDICTIONARY(#{lang}, CONCAT('CU_',CU_ID), DN_ID),CommunityName) FROM COMMUNITY WHERE CU_ID = #{CU_ID}) AS "CommunityName"
+			  , NVL(#{CU_ID}, '') AS "CU_ID" 
+		FROM community c
+		INNER JOIN community_member cm ON c.CU_ID = cm.CU_ID AND cm.UR_Code = #{UR_Code}
+		INNER JOIN sys_messaging_setting sms ON cm.UR_Code = sms.UserCode  
+		INNER JOIN SYS_BASE_CODE sbc ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1 
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sms.MediaType like '%TODOLIST%'
+		AND sbc.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' AND DomainID = c.DN_ID)
+	</select>
+	
+	<select id="sendMessagingSettingCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM community c
+		INNER JOIN community_member cm  ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		INNER JOIN sys_messaging_setting sms  ON cm.UR_Code = sms.UserCode
+		INNER JOIN sys_base_code sbc  ON sbc.BizSection = 'TF' AND sbc.CodeGroup = 'TodoMsgType' AND sbc.Code = sms.ServiceType
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND sbc.IsUse = 'Y'
+		AND sbc.Code = #{Code}
+		AND sbc.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' AND DomainID = c.DN_ID)
+	</select>
+	
+	<select id="getTFName" parameterType="cmap" resultType="String">
+		SELECT CommunityName AS "CommunityName"
+		FROM community
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="sendMessagingSettingUserCode" parameterType="cmap" resultType="String">
+		SELECT cm.UR_Code AS "UserCode"
+		FROM community c 
+		INNER JOIN community_member cm  ON c.CU_ID = cm.CU_ID AND cm.MemberLevel = 9
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectTFTempSaveData" parameterType="cmap" resultType="cmap">
+		SELECT CU_ID
+			 , CU_Code AS "CU_Code"
+			 , DN_ID AS "DN_ID"
+			 , MN_ID AS "MN_ID"
+			 , Gubun AS "Gubun"
+			 , CommunityType AS "CommunityType"
+			 , CommunityName AS "CommunityName"
+			 , JoinOption AS "JoinOption"
+			 , LimitFileSize AS "LimitFileSize"
+			 , UsedFileSize AS "UsedFileSize"
+			 , SearchTitle AS "SearchTitle"
+			 , CreatorCode AS "CreatorCode"
+			 , DefaultBoardType AS "DefaultBoardType"
+			 , Secret AS "Secret"
+			 , Reserved1 AS "Reserved1"
+			 , TF_DN_ID AS "TF_DN_ID"
+			 , TF_MajorDeptCode AS "TF_MajorDeptCode"
+			 , TF_MajorDept AS "TF_MajorDept"
+			 , TF_PM AS "TF_PM"
+			 , TF_PMCode AS "TF_PMCode"
+			 , TF_PMCount AS "TF_PMCount"
+			 , TF_Admin AS "TF_Admin"
+			 , TF_AdminCode AS "TF_AdminCode"
+			 , TF_AdminCount AS "TF_AdminCount"
+			 , TF_Member AS "TF_Member"
+			 , TF_MemberCode AS "TF_MemberCode"
+			 , TF_MemberCount AS "TF_MemberCount"
+			 , TF_StartDate AS "TF_StartDate"
+			 , TF_EndDate AS "TF_EndDate"
+			 , TF_Cost AS "TF_Cost"
+			 , TF_Benefit AS "TF_Benefit"
+			 , TF_Risk AS "TF_Risk"
+			 , TF_DocLinks AS "TF_DocLinks"
+			 , TF_CollaboLinks AS "TF_CollaboLinks"
+		FROM TF_TEMP 
+		WHERE CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectTFDetailInfo" parameterType="cmap" resultType="cmap">
+		SELECT COM.CU_ID
+			 , COM.CU_Code AS "CU_Code"
+			 , COM.CategoryID AS "CategoryID"
+			 , COM.DN_ID
+			 , COM.MN_ID
+			 , COM.CommunityType AS "CommunityType"
+			 , COM.CommunityName AS "CommunityName"
+			 , COM.JoinOption AS "JoinOption"
+			 , COM.RegStatus AS "RegStatus"
+			 , COM.AppStatus AS "AppStatus"
+			 , COM.ClosingMsg AS "ClosingMsg"
+			 , COM.LastNumber AS "LastNumber"
+			 , COM.DefaultMemberLevel AS "DefaultMemberLevel"
+			 , COM.RegRequestDate AS "RegRequestDate"
+			 , COM.RegProcessDate AS "RegProcessDate"
+			 , COM.UnRegRequestDate AS "UnRegRequestDate"
+			 , COM.UnRegProcessDate AS "UnRegProcessDate"
+			 , COM.LimitFileSize AS "LimitFileSize"
+			 , COM.UsedFileSize AS "UsedFileSize"
+			 , COM.MemberCount AS "MemberCount"
+			 , COM.MsgCount AS "MsgCount"
+			 , COM.ReplyCount AS "ReplyCount"
+			 , COM.OneMsgCount AS "OneMsgCount"
+			 , COM.VisitCount AS "VisitCount"
+			 , COM.ViewCount AS "ViewCount"
+			 , COM.MeetingUserCount AS "MeetingUserCount"
+			 , COM.MeetingPaRate AS "MeetingPaRate"
+			 , COM.Point AS "Point"
+			 , COM.Grade AS "Grade"
+			 , COM.SearchTitle AS "SearchTitle"
+			 , COM.SearchSummary AS "SearchSummary"
+			 , COM.CreatorCode AS "CreatorCode"
+			 , COM.CreatorName AS "CreatorName"
+			 , COM.CreatorLevel AS "CreatorLevel"
+			 , COM.CreatorPosition AS "CreatorPosition"
+			 , COM.CreatorTitle AS "CreatorTitle"
+			 , COM.CreatorDept AS "CreatorDept"
+			 , COM.OperatorCode AS "OperatorCode"
+			 , COM.OperatorName AS "OperatorName"
+			 , COM.ProcesserCode AS "ProcesserCode"
+			 , COM.MenuSyncTime AS "MenuSyncTime"
+			 , COM.Reserved1 AS "Reserved1"
+			 , COM.Reserved2 AS "Reserved2"
+			 , COM.DefaultBoardType AS "DefaultBoardType"
+			 , COM.Secret AS "Secret"
+			 , COM.Gubun AS "Gubun"
+			 , COM.TF_STATE
+			 , COM.TF_DN_ID
+			 , COM.TF_MajorDeptCode AS "TF_MajorDeptCode"
+			 , COM.TF_MajorDept AS "TF_MajorDept"
+			 , COM.TF_StartDate AS "TF_StartDate"
+			 , COM.TF_EndDate AS "TF_EndDate"
+			 , COM.TF_Cost AS "TF_Cost"
+			 , COM.TF_Benefit AS "TF_Benefit"
+			 , COM.TF_Risk AS "TF_Risk"
+			 , COM.TF_DocLinks AS "TF_DocLinks"
+			 , COM_D.Keyword AS "Keyword"
+			 , COM_D.Description AS "Description"
+			 , COM_D.DescriptionEditor AS "DescriptionEditor"
+			 , COM_D.DescriptionOption AS "DescriptionOption"
+			 , COM_D.Provision AS "Provision"
+			 , COM_D.ProvisionEditor AS "ProvisionEditor"
+			 , COM_D.ProvisionOption AS "ProvisionOption"
+			 , CASE COM.AppStatus
+					WHEN 'RA' THEN '대기'
+					WHEN 'RV' THEN '진행'
+					WHEN 'RW' THEN '중지'
+					WHEN 'RC' THEN '완료'
+					WHEN 'RD' THEN '승인거부'
+				END AS "AppStatusName"
+			 , (SELECT DisplayName FROM sys_object_group  WHERE GroupCode = (SELECT DomainCode FROM sys_object_domain WHERE DomainID = COM.TF_DN_ID)) AS "TF_DomainName"
+			 , TF_Viewer AS "TF_Viewer"
+			 , TF_Member AS "TF_Member"
+			 , TF_Admin AS "TF_Admin"
+			 , TF_PM
+			 , TF_PM_CODE
+			 , TF_PM_MAIL
+			 , MEMBER_CNT
+			 , TF_CollaboLinks AS "TF_CollaboLinks"
+			 , (SELECT CodeName FROM sys_base_code WHERE CodeGroup = 'ProjectRoomType' AND Code = COM.TF_DN_ID) AS "TF_GUBUN"
+		FROM COMMUNITY COM 
+		LEFT OUTER JOIN (
+			SELECT	  CU_ID, MAX(LEVEL0) AS TF_Viewer
+					, MAX(LEVEL1) AS TF_Member
+					, MAX(LEVEL8) AS TF_Admin
+					, MAX(LEVEL9) AS TF_PM
+					, MAX(MEMBERCODELIST) AS TF_PM_CODE
+					, MAX(MEMEBERMAILIST) AS TF_PM_MAIL
+					, SUM(MEMBERCNT) AS MEMBER_CNT
+			FROM (
+				SELECT	  CU_ID
+						, CASE WHEN MemberLevel=4 THEN MEMBERLIST ELSE '' END AS LEVEL0
+						, CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL1
+						, CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8
+						, CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+						, MEMBERCNT
+						, CASE WHEN MemberLevel=9 THEN MEMBERCODELIST ELSE '' END AS MEMBERCODELIST
+						, CASE WHEN MemberLevel=9 THEN MEMEBERMAILIST ELSE '' END AS MEMEBERMAILIST
+				FROM (
+					SELECT
+						  CU_ID
+						, M.MemberLevel
+						, LISTAGG(M.UR_Code||'|'||Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName),'@') WITHIN GROUP(ORDER BY M.UR_CODE) AS MEMBERLIST
+						, LISTAGG(UR.UserCode, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERCODELIST
+						, LISTAGG(UR.MAILADDRESS, '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMEBERMAILIST
+						, SUM(DECODE(M.UR_Code,#{UR_Code},1,0)) MEMBERCNT
+					FROM community_member M
+					LEFT OUTER JOIN sys_object_user UR	ON M.UR_Code = UR.UserCode
+					WHERE  MemberStatus='R' AND DetailStatus = 'RV' AND M.CU_ID = #{CU_ID}
+					GROUP BY CU_ID, MemberLevel
+				) A
+			) AA GROUP BY CU_ID
+		) MEM ON MEM.CU_ID = COM.CU_ID
+		LEFT OUTER JOIN COMMUNITY_Detail COM_D  ON COM_D.CU_ID = COM.CU_ID
+		WHERE COM.CU_ID = #{CU_ID}
+		AND COM.DN_ID = #{DN_ID}
+	</select>
+	
+	<update id="updateTFInfomation" parameterType="cmap">
+		UPDATE community
+		SET CategoryID = #{Category}
+		  , TF_DN_ID = #{Category}
+		  , TF_MajorDeptCode = #{txtMajorDeptCode}
+		  , TF_MajorDept = #{txtMajorDept}
+		  , TF_StartDate = #{txtStart}
+		  , TF_EndDate	= #{txtEnd}
+		  , TF_DocLinks = #{txtDocLinks}
+		  , TF_CollaboLinks = #{txtCollaboLinks}
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<update id="updateTFDetailInfomation" parameterType="cmap">
+		UPDATE community_detail
+		SET Description = #{txtContent}
+		  , DescriptionEditor = #{txtContentEditer}
+		  , DescriptionOption = #{ContentOption}
+		WHERE CU_ID = #{CU_ID}
+	</update>
+	
+	<update id="updateTFTeamRoomStatus" parameterType="cmap">
+		UPDATE community
+		SET RegStatus = #{RegStatus}, 
+			AppStatus = #{AppStatus}, 
+			<if test='DateFieldName.equalsIgnoreCase("RegProcessDate")'>RegProcessDate = SYSDATE,</if>
+			<if test='DateFieldName.equalsIgnoreCase("UnRegProcessDate")'>UnRegProcessDate = SYSDATE,</if>
+			ProcesserCode = #{ProcesserCode}
+		WHERE 1=1
+		<if test='CU_IDArr != null and CU_IDArr.length != 0'>
+			AND CU_ID IN  
+			<foreach collection="CU_IDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+	</update>
+	
+	<update id="updateTFTeamRoomDisplayStatus" parameterType="cmap">
+		UPDATE sys_object_group
+		SET 
+		<if test="IsUse != null and IsUse != ''">
+			IsUse = #{IsUse},
+		</if>
+			IsDisplay = #{IsDisplay}
+		WHERE GroupCode IN (
+			SELECT CU_Code
+			FROM community
+			WHERE 1=1
+			<if test='CU_IDArr != null and CU_IDArr.length != 0'>
+				AND CU_ID IN  
+				<foreach collection="CU_IDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		)
+	</update>
+	
+	<select id="selectCommunityBoardLeft" parameterType="cmap" resultType="cmap">
+		SELECT A.SortPath AS "SortPath"
+			 , A.FolderName AS "FolderName"
+			 , A.DisplayName AS "DisplayName"
+			 , A.FolderID AS "FolderID"
+			 , A.itemType AS "itemType"
+			 , A.FolderType AS "FolderType"
+			 , A.type AS "type"
+			 , A.MenuID AS "MenuID"
+		FROM (
+			SELECT Fn_ComSortPathCreate_S(FolderID,'','FC') AS SortPath
+				 , NVL(Fn_BaseGetDictionary_S(#{lang},MultiDisplayName), DisplayName) AS FolderName
+				 , NVL(Fn_BaseGetDictionary_S(#{lang},MultiDisplayName), DisplayName) AS DisplayName
+				 , FolderID
+				 , FolderType AS itemType
+				 , FolderType
+				 , FolderType AS type
+				 , MenuID 
+			FROM sys_object_folder
+			<if test="IsAdmin == null">
+				<if test='aclDataArr != null and aclDataArr.length != 0'>
+				INNER JOIN SYS_OBJECT_USER_ACL ACL ON SOF.FolderID = ACL.ObjectID AND ACL.UserCode = #{userCode} AND ACL.jobSeq = #{jobSeq} AND ACL.ServiceType = #{bizSection} AND ACL.ObjectType = #{objectType}
+				</if>
+			</if>
+			WHERE MenuID  = #{CU_ID}
+			AND DeleteDate IS NULL
+		) A
+		ORDER BY A.SortPath ASC
+	</select>
+	
+	<!-- 특정 업무 정보 조회 -->
+	<select id="selectTaskData" parameterType="cmap" resultType="cmap">
+		SELECT  a.AT_ID
+			  , a.CU_ID
+			  , c.CommunityName AS "CommunityName"
+			  , a.ATName AS "ATName"
+			  , a.Gubun AS "Gubun"
+			  , a.State AS "TaskState"
+			  , a.State AS "TaskStateCode"
+			  , a.StartDate AS "StartDate"
+			  , a.EndDate AS "EndDate"
+			  , TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+			  , a.RegisterCode AS "RegisterCode"
+			  , a.UpdateDate AS "UpdateDate"
+			  , b.MultiDisplayName AS "RegisterName"
+			  , a.Progress AS "Progress"
+			  , a.Weight AS "Weight"
+			  , a.MemberOf AS "MemberOf"
+			  , a.SortKey AS "SortKey"
+			  , a.SortPath AS "SortPath"
+			  , a.Member AS "Member"
+			  , a.UpdaterCode AS "UpdaterCode"
+			  , a.ReservedStr1 AS "CompleteDate"
+			  , a.ReservedStr2 AS "Description"
+			  , a.ReservedInt AS "ReservedInt"
+			  , a.ATPath AS "ATPath"
+			  , (SELECT ATName FROM tf_activity rr WHERE rr.AT_ID = a.MemberOf) AS "MEM_ATName"
+		FROM tf_activity a
+		LEFT JOIN sys_object_user b ON a.RegisterCode = b.UserCode
+		LEFT JOIN community c ON a.CU_ID = c.CU_ID
+		WHERE a.CU_ID = #{CU_ID}
+		AND a.AT_ID = #{AT_ID}
+	</select>
+	
+	<!-- 수행자 정보 조회  -->
+	<select id="selectTaskPerformerList" parameterType="cmap" resultType="cmap">
+		SELECT a.PerformerCode AS "Code"
+			 , 'UR' AS "Type"
+			 , Fn_BaseGetDictionary_S(#{lang},b.MultiDisplayName) AS "Name"
+			 , Fn_BaseGetDictionary_S(#{lang},c.MultiDeptName) AS "DeptName"
+		FROM tf_activity_performer a 
+		LEFT JOIN sys_object_user b  ON a.PerformerCode = b.UserCode 
+		LEFT JOIN sys_object_user_basegroup c  ON a.PerformerCode = c.UserCode AND c.JobType = 'Origin'
+		WHERE a.AT_ID = #{AT_ID}
+		AND b.IsUse = 'Y'
+		AND b.IsDisplay = 'Y'
+		ORDER BY a.SortKey
+	</select>
+	
+	<!-- 업무 정보 추가 -->
+	<insert id="insertTaskData" parameterType="cmap">
+		INSERT INTO tf_activity
+		(
+			 CU_ID
+			,Gubun
+			,ATName
+			<if test="StartDate != null and StartDate != ''">,StartDate </if>
+			<if test="EndDate != null and EndDate != ''">,EndDate </if>
+			,Weight
+			,Progress
+			,Budget
+			,State
+			<if test="MemberOf != null and MemberOf != ''">,MemberOf </if>
+			,SortKey
+			,RegistDate
+			,RegisterCode
+			,UpdateDate
+			,UpdaterCode
+			<if test="CompleteDate != null and CompleteDate != ''">,Reservedstr1</if>
+			<if test="Description != null and Description != ''">,Reservedstr2</if>
+		) VALUES (
+			 #{CU_ID}
+			,#{Gubun}
+			,#{ATName}
+			<if test="StartDate != null and StartDate != ''">,#{StartDate} </if> 
+			<if test="EndDate != null and EndDate != ''">,#{EndDate} </if>
+			,#{Weight}
+			,#{Progress}
+			,0
+			,#{State}
+			<if test="MemberOf != null and MemberOf != ''">,#{MemberOf} </if>
+			,#{SortKeyValue}
+			,SYSDATE
+			,#{RegisterCode}
+			,SYSDATE
+			,#{RegisterCode}
+			<if test="CompleteDate != null and CompleteDate != ''">,#{CompleteDate}</if>
+			<if test="Description != null and Description != ''">,#{Description}</if>
+		)
+		<selectKey keyProperty="AT_ID" resultType="long" order="AFTER">
+			SELECT TF_ACTIVITY_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+		
+	<!-- 업무 정보 수정 -->
+	<update id="updateTaskData" parameterType="cmap">
+		UPDATE tf_activity
+		SET	  ATName = #{ATName}
+			, State = #{State}
+			, Weight = #{Weight}
+			, SortKey = #{SortkeyValue}
+		<if test="StartDate != null and StartDate != ''">
+			, StartDate = #{StartDate}
+		</if>
+		<if test="EndDate != null and EndDate != ''">
+			, EndDate = #{EndDate}
+		</if>
+		<if test="MemberOf != null and MemberOf != ''">
+			, MemberOf = #{MemberOf}
+		</if>
+		<if test="Progress != null"><!-- 진도율 없을 경우 참고 -->
+			, Progress = #{Progress}
+		</if>
+			, UpdateDate = SYSDATE
+			, UpdaterCode = #{UpdaterCode}
+		<choose>
+			<when test="State == 'Complete'">
+				<choose>
+				<when test="CompleteDate != null and CompleteDate != ''">
+					, Reservedstr1 = #{CompleteDate}
+				</when>
+				<otherwise>
+					, Reservedstr1 = TO_CHAR(SYSDATE, 'YYYY-MM-DD')
+				</otherwise>
+				</choose>
+			</when>
+			<otherwise>
+				, Reservedstr1 = NULL
+			</otherwise>
+		</choose>
+			, Reservedstr2 = #{Description}
+		WHERE AT_ID = #{AT_ID}
+	</update>
+	
+	<!-- Activity SortPath 경로정보 업데이트 -->
+	<update id="updateTaskSortPath" parameterType="cmap">
+		UPDATE tf_activity 
+		SET SortPath = Fn_ComSortPathCreate_S(AT_ID, CU_ID, 'Activity'),
+			ATPath = #{ATPath}
+		WHERE AT_ID = #{AT_ID}
+	</update>
+	
+	<select id="selectActivityFullPath" parameterType="cmap" resultType="String">
+		SELECT Fn_ActivityFullPath(#{AT_ID}) FROM DUAL
+	</select>
+	
+	<delete id="deleteTaskData" parameterType="cmap">
+		DELETE FROM tf_activity
+		WHERE CU_ID = #{CU_ID}
+		and AT_ID = #{AT_ID} 
+	</delete>
+	
+	<!-- 수행자 정보 추가 -->
+	<insert id="insertTaskPerformerData" parameterType="cmap">
+		BEGIN
+			<foreach collection="arrPerformer" item="performerData" index="index">
+				INSERT INTO tf_activity_performer(AT_ID,PerformerCode,SortKey)
+				SELECT #{AT_ID}, USERCODE, #{index}
+				FROM SYS_OBJECT_USER
+				WHERE LOWER(LOGONID) = LOWER(#{performerData.PerformerCode});
+			</foreach>
+		END;
+	</insert>
+	
+	<!-- 수행자 정보 삭제 -->
+	<delete id="deleteTaskPerformerData" parameterType="cmap">
+		DELETE FROM tf_activity_performer
+		WHERE AT_ID = #{AT_ID} 
+	</delete>
+	
+	<!-- 중복 작업명칭 체크 -->
+	<select id="checkDuplicationTask" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) 
+		FROM tf_activity 
+		WHERE ATName = #{ATName}
+		AND CU_ID = #{CU_ID}
+		<if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+			AND AT_ID != #{AT_ID} 
+		</if>
+	</select>
+	
+	<!-- 중복 정렬값 체크 -->
+	<select id="checkSumTaskWeight" parameterType="cmap" resultType="java.lang.Long">
+		SELECT SUM(WEIGHT) AS "SumWeight"
+		FROM tf_activity 
+		WHERE 1=1
+		AND CU_ID = #{CU_ID}
+		<if test="isModify!=null and isModify.equalsIgnoreCase('Y')">
+			AND AT_ID = #{AT_ID} 
+		</if>
+		<if test="MemberOf != null and MemberOf != ''">
+			and MemberOf = #{MemberOf}
+		</if>
+		<if test="MemberOf != null and MemberOf.equalsIgnoreCase('')">
+			and ( MemberOf IS NULL )
+		</if>
+	</select>
+	
+	<select id="selectLevelTaskList" parameterType="cmap" resultType="cmap">
+		SELECT AT_ID
+			 , ATName AS "ATName"
+		FROM tf_activity 
+		WHERE 1=1
+		and CU_ID = #{CU_ID}
+		<if test="MemberOf != null and MemberOf != ''">
+			and MemberOf = #{MemberOf}
+		</if>
+		<if test="MemberOf != null and MemberOf.equalsIgnoreCase('')">
+			and ( MemberOf IS NULL )
+		</if>
+		ORDER BY SortPath
+	</select>
+	
+	<select id="selectTaskGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingHeader" />
+		</if>
+		SELECT	A.AT_ID
+			  , A.CU_ID
+			  , A.CommunityName AS "CommunityName"
+			  , A.ATName AS "ATName"
+			  , A.Gubun AS "Gubun"
+			  , A.TaskState AS "TaskState"
+			  , A.TaskStateCode AS "TaskStateCode"
+			  , A.StartDate AS "StartDate"
+			  , A.EndDate AS "EndDate"
+			  , A.RegistDate AS "RegistDate"
+			  , A.RegisterCode AS "RegisterCode"
+			  , A.UpdateDate AS "UpdateDate"
+			  , A.RegisterName AS "RegisterName"
+			  , A.Progress AS "Progress"
+			  , A.Weight AS "Weight"
+			  , A.MemberOf AS "MemberOf"
+			  , A.SortKey AS "SortKey"
+			  , A.SortPath AS "SortPath"
+			  , A.Member AS "Member"
+			  , A.UpdaterCode AS "UpdaterCode"
+			  , A.ReservedStr1 AS "CompleteDate"
+			  , A.ReservedStr2 AS "ReservedStr2"
+			  , A.ReservedInt AS "ReservedInt"
+			  , A.ATPath AS "ATPath"
+			  , A.isOwner AS "isOwner"
+		FROM(
+			SELECT  a.AT_ID
+				  , a.CU_ID
+				  , c.CommunityName
+				  , a.ATName
+				  , a.Gubun
+				  , a.State AS TaskState
+				  , a.State AS TaskStateCode
+				  , a.StartDate
+				  , a.EndDate
+				  , TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+				  , a.RegisterCode
+				  , a.UpdateDate
+				  , b.MultiDisplayName AS RegisterName
+				  , a.Progress
+				  , a.Weight
+				  , a.MemberOf
+				  , a.SortKey
+				  , a.SortPath
+				  , a.Member
+				  , a.UpdaterCode
+				  , a.ReservedStr1
+				  , a.ReservedStr2
+				  , a.ReservedInt
+				  , a.ATPath
+				  , CASE WHEN (SELECT COUNT(1) FROM TF_ACTIVITY_PERFORMER WHERE AT_ID = a.AT_ID AND PerformerCode = #{UR_Code}) > 0 OR a.RegisterCode = #{UR_Code} THEN 'Y'
+						 ELSE 'N'
+						 END AS isOwner
+			FROM tf_activity a
+			LEFT JOIN sys_object_user b ON a.RegisterCode = b.UserCode
+			LEFT JOIN community c ON a.CU_ID = c.CU_ID
+			WHERE 1=1
+			AND a.CU_ID = #{CU_ID}
+		) A
+		<trim prefix="WHERE" prefixOverrides ="AND|OR">
+			<if test="simpleSchTxt != null and simpleSchTxt != ''">
+				AND ATNAME LIKE '%'||#{simpleSchTxt}||'%'
+			</if>
+		</trim>
+		<trim prefix="ORDER BY" prefixOverrides = ",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				SortPath ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ATName")'>ATName</when>
+					<when test='sortColumn.equalsIgnoreCase("Progress")'>Progress</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectTaskGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM tf_activity
+		WHERE 1=1 
+		AND CU_ID = #{CU_ID}
+		<if test="simpleSchTxt != null and simpleSchTxt != ''">
+			AND ATNAME LIKE '%'||#{simpleSchTxt}||'%'
+		</if>
+	</select>
+	
+	<select id="selectMyTaskGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingHeader"/>
+		</if>
+		SELECT	A.AT_ID
+			  , A.CU_ID
+			  , A.CommunityName AS "CommunityName"
+			  , A.ATName AS "ATName"
+			  , A.Gubun AS "Gubun"
+			  , A.TaskState AS "TaskState"
+			  , A.TaskStateCode AS "TaskStateCode"
+			  , A.StartDate AS "StartDate"
+			  , A.EndDate AS "EndDate"
+			  , A.RegistDate AS "RegistDate"
+			  , A.RegisterCode AS "RegisterCode"
+			  , A.UpdateDate AS "UpdateDate"
+			  , A.RegisterName AS "RegisterName"
+			  , A.Progress AS "Progress"
+			  , A.Weight AS "Weight"
+			  , A.MemberOf AS "MemberOf"
+			  , A.SortKey AS "SortKey"
+			  , A.SortPath AS "SortPath"
+			  , A.Member AS "Member"
+			  , A.UpdaterCode AS "UpdaterCode"
+			  , A.ReservedStr1 AS "ReservedStr1"
+			  , A.ReservedStr2 AS "ReservedStr2"
+			  , A.ReservedInt AS "ReservedInt"
+			  , A.ATPath AS "ATPath"
+		FROM (
+			SELECT	  a.AT_ID
+					, a.CU_ID
+					, c.CommunityName
+					, a.ATName
+					, a.Gubun
+					, a.State AS TaskState
+					, a.State AS TaskStateCode
+					, a.StartDate
+					, a.EndDate
+					, TO_CHAR(a.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS RegistDate
+					, a.RegisterCode
+					, a.UpdateDate
+					, b.MultiDisplayName AS RegisterName
+					, a.Progress
+					, a.Weight
+					, a.MemberOf
+					, a.SortKey
+					, a.SortPath
+					, a.Member
+					, a.UpdaterCode
+					, a.ReservedStr1
+					, a.ReservedStr2
+					, a.ReservedInt
+					, a.ATPath
+			FROM tf_activity a
+			INNER JOIN tf_activity_performer PF ON a.AT_ID = PF.AT_ID
+			LEFT JOIN sys_object_user b ON a.RegisterCode = b.UserCode 
+			LEFT JOIN community c ON a.CU_ID = c.CU_ID
+			WHERE 1=1
+			AND a.CU_ID = #{CU_ID}
+			AND PF.PerformerCode = #{UR_Code}
+		) A
+		<trim prefix="ORDER BY" prefixOverrides = ",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				SortPath ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("ATName")'>ATName</when>
+					<when test='sortColumn.equalsIgnoreCase("Progress")'>Progress</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDate")'>StartDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDate")'>EndDate</when>
+					<otherwise>RegistDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="selectMyTaskGridListCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM tf_activity A
+		INNER JOIN tf_activity_performer PF
+		ON A.AT_ID = PF.AT_ID
+		WHERE 1=1
+		AND A.CU_ID = #{CU_ID}
+		AND PF.PerformerCode = #{UR_Code}
+	</select>
+	
+	<select id="selectActivityMinMaxDate" parameterType="cmap" resultType="cmap">
+		SELECT MIN(StartDate) AS "MinDate"
+			 , MAX(EndDate) AS "MaxDate"
+		FROM TF_ACTIVITY 
+		WHERE CU_ID = #{CU_ID}
+		GROUP BY CU_ID
+	</select>
+	
+	<insert id="createTT_CalTable" parameterType="cmap">
+		CREATE TABLE tt_CalTable ( SolarDate char(10), OrderWeekInMonth int, SEQ int)
+	</insert>
+	 
+	<insert id="insertTT_CalTable" parameterType="cmap">
+		<if test="DateType == 'M'.toString()">
+			INSERT INTO tt_CalTable (SolarDate, OrderWeekInMonth, SEQ)
+			SELECT COM.SolarDate
+				 , tt.OrderWeekInMonth
+				 , tt.SEQ 
+			FROM SYS_CALENDAR COM 
+			INNER JOIN(
+				SELECT A.*, ROWNUM as SEQ 
+				FROM(
+					SELECT TO_CHAR(TO_DATE(SolarDate, 'YYYY-MM-DD'),'YYYY-MM') as BaseDate, OrderWeekInMonth
+					FROM SYS_CALENDAR 
+					WHERE SolarDate BETWEEN CONCAT(#{SDate},'-01', 'YYYY-MM-DD') AND TO_DATE(#{SDate}||'-01', 'YYYY-MM-DD')+(INTERVAL '3' MONTH)-(INTERVAL '1' DAY)
+					GROUP BY TO_CHAR(TO_DATE(SolarDate, 'YYYY-MM-DD'),'YYYY-MM'), OrderWeekInMonth
+				) A
+				ORDER BY A.BaseDate, A.OrderWeekInMonth
+			) tt ON TO_CHAR(TO_DATE(COM.SolarDate, 'YYYY-MM-DD'), 'YYYY-MM') = tt.BaseDate AND tt.OrderWeekInMonth = COM.OrderWeekInMonth
+		</if>
+		<if test="DateType == 'D'.toString() "> 
+			INSERT INTO tt_CalTable (SolarDate, OrderWeekInMonth, SEQ)
+			SELECT A.*, ROWNUM as SEQ
+			FROM(
+				SELECT SolarDate as BaseDate, OrderWeekInMonth
+				FROM SYS_CALENDAR 
+				WHERE SolarDate BETWEEN CONCAT(#{SDate},'-01') AND TO_DATE(#{SDate}||'-01', 'YYYY-MM-DD')+(INTERVAL '1' MONTH)-(INTERVAL '1' DAY) 
+			) A
+			ORDER BY A.BaseDate, A.OrderWeekInMonth
+		</if>
+	</insert>
+	
+	<update id="dropTT_CalTable" parameterType="cmap">
+		BEGIN
+			EXECUTE IMMEDIATE 'DROP TABLE tt_CalTable';
+		EXCEPTION
+			WHEN OTHERS THEN
+			IF SQLCODE != -942 THEN
+			RAISE;
+			END IF;
+		END;
+	</update>
+	
+	<select id="selecttt_CalTableMaxMin" parameterType="cmap" resultType="cmap">
+		SELECT Max(SEQ) AS "MaxSEQ"
+			 , MIN(SEQ) AS "MinSEQ"
+		FROM tt_CalTable
+	</select>
+	
+	<select id="selecttt_CalTable" parameterType="cmap" resultType="cmap">
+		<if test="DateType=='M'.toString()">
+			SELECT TO_CHAR(TO_DATE(SolarDate, 'YYYY-MM-DD'), 'YYYY-MM') AS "SolarDate"
+				 , MAX(OrderWeekInMonth) AS "OrderWeekInMonth"
+				 , MAX(SEQ) AS "SEQ"
+			FROM tt_CalTable 
+			GROUP BY TO_CHAR(TO_DATE(SolarDate, 'YYYY-MM-DD'), 'YYYY-MM')
+			ORDER BY SEQ
+		</if>
+		<if test="DateType=='D'.toString()">
+			SELECT * FROM tt_CalTable 
+			ORDER BY SEQ
+		</if>
+	</select>
+	
+	<select id="selectTFActivityProgress" parameterType="cmap" resultType="cmap">
+		SELECT B.AT_ID
+			 , B.Member AS "Member"
+			 , B.TaskState AS "TaskState"
+			 , B.TaskStateCode AS "TaskStateCode"
+			 , B.MemberOf AS "MemberOf"
+			 , B.Gubun AS "Gubun"
+			 , B.SortKey AS "SortKey"
+			 , B.ParentName AS "ParentName"
+			 , B.ATName AS "ATName"
+			 , B.TF_Period AS "TF_Period"
+			 , B.StartDate AS "StartDate"
+			 , B.EndDate AS "EndDate"
+			 , B.Progress AS "Progress"
+			 , B.Sortpath AS "Sortpath"
+			 , B.StartPoint AS "StartPoint"
+			 , B.EndPoint AS "EndPoint"
+			 , NVL(CAST(CAST(EndPoint-StartPoint+1 AS NUMBER(5,2))*CAST(Progress AS NUMBER(5,2))/100+StartPoint-1 AS INT), 0) AS "ProgressPoint"
+			 , #{MaxSEQ} AS "MaxSEQ"
+		FROM
+		(
+			SELECT ACT.AT_ID
+				 , Member
+				 , ACT.State AS TaskState
+				 , ACT.State AS TaskStateCode
+				 , ACT.MemberOf
+				 , CASE WHEN Gubun = 'T' THEN 'Task' ELSE CASE WHEN Gubun = 'A' THEN 'Activity' END END AS Gubun
+				 , SortKey
+				 , ParentName
+				 , ATName
+				 , ABS(TRUNC(TO_DATE(StartDate, 'YYYY-MM-DD') - TO_DATE(EndDate, 'YYYY-MM-DD'))) AS TF_Period
+				 , CONCAT(StartDate,'('||TO_CHAR(TO_DATE(StartDate, 'YYYY-MM-DD'), 'Dy', 'NLS_DATE_LANGUAGE=ENGLISH')||')') AS StartDate
+				 , CONCAT(EndDate,'('||TO_CHAR(TO_DATE(EndDate, 'YYYY-MM-DD'), 'Dy', 'NLS_DATE_LANGUAGE=ENGLISH')||')') AS EndDate
+				 , Progress
+				 , Sortpath
+				 , NVL(CASE WHEN SP.SEQ is null AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') AND StartDate <![CDATA[<]]> CONCAT(#{SDate},'-01') THEN TO_NUMBER(#{MinSEQ}) ELSE SP.SEQ END,0) AS StartPoint
+			<if test="DateType=='M'.toString() "> 
+				 , NVL(CASE WHEN EP.SEQ is null AND StartDate <![CDATA[<=]]> TO_DATE(#{SDate}||'-01', 'YYYY-MM-DD')+(INTERVAL '3' MONTH)-(INTERVAL '1' DAY) AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') THEN TO_NUMBER(#{MaxSEQ}) ELSE EP.SEQ END,0) AS EndPoint
+			</if>
+			<if test="DateType=='D'.toString() "> 
+				 , NVL(CASE WHEN EP.SEQ is null AND StartDate <![CDATA[<=]]> TO_DATE(#{SDate}||'-01', 'YYYY-MM-DD')+(INTERVAL '1' MONTH)-(INTERVAL '1' DAY) AND EndDate <![CDATA[>=]]> CONCAT(#{SDate},'-01') THEN TO_NUMBER(#{MaxSEQ}) ELSE EP.SEQ END,0) AS EndPoint
+			</if>
+			FROM TF_ACTIVITY ACT
+			LEFT OUTER JOIN(
+				SELECT * FROM tt_CalTable
+			) SP ON ACT.StartDate = SP.SolarDate
+			LEFT OUTER JOIN(
+				SELECT * FROM tt_CalTable
+			) EP ON ACT.EndDate = EP.SolarDate
+			LEFT OUTER JOIN(
+				SELECT AT_ID
+					 , ATName AS ParentName 
+				FROM TF_ACTIVITY
+			) PR ON PR.AT_ID = ACT.MemberOf
+			WHERE CU_ID = #{CU_ID}
+		) B WHERE B.StartPoint IS NOT NULL OR B.EndPoint IS NOT NULL
+		ORDER BY B.SortPath
+	</select>
+	
+	<select id="selectTFPrintInfo" parameterType="cmap" resultType="cmap">
+		SELECT CommunityName AS "CommunityName"
+			 , AppStatus AS "AppStatus"
+			 , DN.MultiDisplayName AS "MultiDisplayName"
+			 , TF_MajorDeptCode AS "TF_MajorDeptCode"
+			 , SearchTitle AS "SearchTitle"
+			 , TF_StartDate AS "TF_StartDate"
+			 , TF_EndDate AS "TF_EndDate"
+			 , ABS(TRUNC(MONTHS_BETWEEN(TF_StartDate, TF_EndDate)))+1 AS "TF_Date"
+			 , TF_Cost AS "TF_Cost"
+			 , TF_Benefit AS "TF_Benefit"
+			 , TF_Risk AS "TF_Risk"
+			 , COMD.Description AS "Description"
+			 , COMD.DescriptionEditor AS "DescriptionEditor"
+		FROM COMMUNITY COM 
+		LEFT OUTER JOIN sys_object_domain DN ON COM.TF_DN_ID = DN.DomainID
+		LEFT OUTER JOIN community_detail COMD ON COMd.CU_ID = COM.CU_ID
+		WHERE COM.CU_ID = #{CU_ID}
+	</select>
+	
+	<select id="selectTFPrintTaskList" parameterType="cmap" resultType="cmap">
+		SELECT ACT.AT_ID
+			 , TASK.ATName AS "ParentName"
+			 , ACT.ATName AS "ATName"
+			 , ACT.StartDate AS "StartDate"
+			 , ACT.EndDate AS "EndDate"
+			 , ABS(TRUNC(MONTHS_BETWEEN(ACT.StartDate, ACT.EndDate)))+1 AS "AT_Date"
+			 , CONCAT(NVL(ACT.Progress,'0'),'%') AS "Progress"
+			 , ACT.Weight AS "Weight"
+			 , ACT.Budget AS "Budget"
+			 , ACT.SortPath AS "SortPath"
+			 ,(SELECT  LISTAGG(SUBSTR(FileName, 1, INSTR(FileName,'.')-1), ',') WITHIN GROUP(ORDER BY MessageID)  FROM sys_file  WHERE MessageID = ACT.AT_ID AND ServiceType = 'TF' AND ObjectType = 'TFAT' AND ObjectID = #{CU_ID} ) AS "FileName" 
+		FROM TF_ACTIVITY ACT  
+		LEFT OUTER JOIN TF_ACTIVITY TASK ON ACT.MemberOf = TASK.AT_ID 
+		WHERE ACT.CU_ID = #{CU_ID}
+		ORDER BY ACT.ATPATH
+	</select>
+	
+	<select id="selectTFPrintTaskMemberList" parameterType="cmap" resultType="cmap">
+		SELECT	  ACT.AT_ID
+				, ACT.ATName AS "ATName"
+				, M.PerformerCode AS "PerformerCode"
+				, UR.MultiDisplayName AS "MultiDisplayName"
+		FROM TF_ACTIVITY ACT
+		LEFT OUTER JOIN community C ON C.CU_ID = ACT.CU_ID
+		LEFT OUTER JOIN tf_activity_performer M ON ACT.AT_ID = M.AT_ID
+		LEFT OUTER JOIN sys_object_user UR ON M.PerformerCode = UR.UserCode
+		WHERE ACT.CU_ID = #{CU_ID}
+		AND C.DN_ID = #{DN_ID}
+		ORDER BY ACT.SortPath
+	</select>
+	
+	<select id="TFLeftUserInfo" parameterType="cmap" resultType="cmap">
+		SELECT  cm.NickName AS "NickName"
+				, Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'TFMemberLevel', cm.MemberLevel)) AS "MemberLevel"
+				, cm.UR_Code AS "UR_Code"
+				, NVL(sou.DisplayName,'') AS "DisplayName"
+				, sou.PhotoPath AS "PhotoPath"
+				, '' AS "GroupCode"
+				, cm.MemberLevel AS "MemberlevelCode"
+		FROM community_member cm 
+		INNER JOIN community c  ON c.CU_ID = cm.CU_ID
+		INNER JOIN sys_object_user sou  ON sou.UserCode = cm.UR_Code 
+		WHERE cm.CU_ID = #{communityID}
+		AND cm.UR_Code = #{UR_Code}
+		AND cm.DetailStatus IN ('RV','RA')
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="TFLeftUserInfoAdmin" parameterType="cmap" resultType="cmap">
+		SELECT DisplayName AS "NickName"
+			 , Fn_BaseGetDictionary_S(#{lang}, Fn_GetBaseMultiCodeName(c.DN_ID, 'TFMemberLevel', 9)) AS "MemberLevel"
+			 , UserCode AS "UR_Code"
+			 , NVL(DisplayName,'') AS "DisplayName"
+			 , PhotoPath AS "PhotoPath"
+			 , '' AS "GroupCode"
+			 , cm.MemberLevel AS "MemberlevelCode"
+		FROM sys_object_user sou
+		INNER JOIN community_member cm ON sou.UserCode = cm.UR_Code
+		LEFT JOIN community c ON c.CU_ID = cm.CU_ID 
+		WHERE UserCode = #{UR_Code}
+		AND ROWNUM = 1
+	</select>
+	
+	<select id="selectTFMemberList" parameterType="cmap" resultType="cmap">
+		SELECT cm.UR_Code AS "UserCode"
+			 , cm.NickName AS "NickName"
+		FROM community c 
+		INNER JOIN community_member cm  ON c.CU_ID = cm.CU_ID
+		WHERE 1=1
+		AND c.CU_ID = #{CU_ID}
+		AND cm.DetailStatus IN ('RV','RA')
+	</select>
+	
+	<select id="selectMaxTaskSortKey" parameterType="cmap" resultType="java.lang.Long">
+		SELECT NVL(max(SortKey),0) AS "MaxSortKey"
+		FROM tf_activity 
+		WHERE CU_ID = #{CU_ID}
+		AND MemberOf is null
+	</select>
+	
+	<select id="selectProjectProgress" parameterType="cmap" resultType="cmap">
+		SELECT	  C.CU_ID
+				, C.CommunityName AS "CommunityName"
+				, C.TF_StartDate AS "TF_StartDate"
+				, C.TF_EndDate AS "TF_EndDate"
+				, C.TF_MajorDept AS "TF_MajorDept"
+				, ABS(TRUNC(MONTHS_BETWEEN(C.TF_StartDate, C.TF_EndDate)))+1 AS "TF_TERM"
+				, CAST(AVG(A.Progress) AS INT) AS "TF_AVGProgress"
+				, CAST(SUM(A.Weight * A.Progress/100) AS INT) AS "TF_WProgress"
+		FROM community C
+		INNER JOIN tf_activity A ON C.CU_ID = A.CU_ID
+		WHERE 1=1
+		AND	A.CU_ID = #{CU_ID}
+		AND A.MemberOf IS NULL
+		AND	C.TF_STATE = 'RA'
+		AND C.DN_ID = #{DN_ID}
+		GROUP BY C.CU_ID, C.CommunityName, C.TF_StartDate, C.TF_EndDate, C.TF_MajorDept
+	</select>
+	
+	<update id="updateActvityProgress" statementType="CALLABLE" parameterType="cmap">
+		CALL Fn_ActvityProgressUpdate(#{CU_ID}, #{AT_ID}, #{useProgressOption})
+	</update>
+	
+	<select id="selectUserMailList" parameterType="cmap" resultType="cmap">
+		SELECT	  MailAddress AS "UserCode"
+				, MultiDisplayName AS "DN"
+				, Fn_BaseGetDictionary_S(#{lang},MultiDisplayName) AS "UserName"
+				, Fn_BaseGetDictionary_S(#{lang},MultiDisplayName) AS "label"
+				, MailAddress AS "MailAddress"
+				, MailAddress AS "value"
+		FROM sys_object_user
+		WHERE MailAddress IS NOT NULL
+		<foreach collection="userCode" item="item" open="AND UserCode IN (" close=")" separator="," index="index">
+			#{item}
+		</foreach>
+	</select>
+	
+	<select id="selectUserTFGridListGroupCount" parameterType="cmap" resultType="cmap">
+		SELECT	  AppStatus AS "AppStatus"
+				, COUNT(1) AS "Cnt"
+		FROM community c 
+			LEFT JOIN sys_object_group sog ON sog.GroupCode = c.CU_Code
+			LEFT JOIN sys_object_user sou ON  sou.UserCode = c.OperatorCode
+			LEFT JOIN community_detail cd ON cd.CU_ID = c.CU_ID 
+			LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+		WHERE 1=1 
+		AND c.Gubun = 'T'
+		AND NVL(c.Secret, 'N') != 'Y'
+		AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+		GROUP BY AppStatus
+	</select>
+	
+	<select id="selectUserTFLeftGridList" parameterType="cmap" resultType="cmap">
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingHeader"/>
+		</if>
+		SELECT	  A.CU_ID
+				, A.MN_ID
+				, A.CategoryID AS "CategoryID"
+				, A.CU_Code AS "CU_Code"
+				, A.DN_ID
+				, A.SearchTitle AS "SearchTitle"
+				, A.CommunityName AS "CommunityName"
+				, A.AppStatus AS "AppStatus"
+				, A.AppStatusName AS "AppStatusName"
+				, A.RegRequestDate AS "RegRequestDate"
+				, A.RegProcessDate AS "RegProcessDate"
+				, A.MemberCount AS "MemberCount"
+				, A.MsgCount AS "MsgCount"
+				, A.VisitCount AS "VisitCount"
+				, A.Point AS "Point"
+				, A.Grade AS "Grade"
+				, A.OperatorCode AS "OperatorCode"
+				, A.OperatorName AS "OperatorName"
+				, A.TF_DN_ID
+				, A.TF_DomainName AS "TF_DomainName"
+				, A.TF_DeptCode AS "TF_DeptCode"
+				, A.DomainCode AS "DomainCode"
+				, A.GroupCode AS "GroupCode"
+				, A.CreatorCode AS "CreatorCode"
+				, A.CreatorName AS "CreatorName"
+				, A.Description AS "Description"
+				, A.DescriptionEditor AS "DescriptionEditor"
+				, A.FilePath AS "FilePath"
+				, A.TF_Period AS "TF_Period"
+				, A.DisplayName AS "DisplayName"
+				, A.UserCode AS "UserCode"
+				, A.MailAddress AS "MailAddress"
+				, A.CuAppDetail AS "CuAppDetail"
+				, A.CommunityJoin AS "CommunityJoin"
+				, A.CommunityType AS "CommunityType"
+				, A.TF_Member AS "TF_Member"
+				, A.TF_Admin AS "TF_Admin"
+				, A.TF_PM
+		FROM (
+			SELECT A.*
+				 , (
+					CASE A.AppStatus 
+						WHEN 'RA' THEN '대기'
+						WHEN 'RV' THEN '진행'
+						WHEN 'RW' THEN '중지'
+						WHEN 'RC' THEN '완료'
+						WHEN 'RD' THEN '승인거부'
+					END
+				  ) AS AppStatusName
+				 , TF_Member
+				 , TF_Admin
+				 , TF_PM
+			FROM(
+				SELECT	  c.CU_ID
+						, c.MN_ID
+						, c.CategoryID
+						, c.CU_Code
+						, c.DN_ID
+						, c.SearchTitle
+						, NVL(Fn_GetSelDictionary(#{lang}, CONCAT('CU_', c.CU_ID), c.DN_ID), c.CommunityName) AS CommunityName
+						, c.AppStatus
+						, c.RegRequestDate AS RegRequestDate
+						, c.RegProcessDate AS RegProcessDate
+						, c.MemberCount
+						, c.MsgCount
+						, c.VisitCount
+						, c.Point
+						, c.Grade
+						, c.OperatorCode
+						, c.OperatorName
+						, c.TF_DN_ID
+						, sod.DisplayName AS TF_DomainName
+						, sogg.MultiDisplayName AS TF_DeptCode
+						, sod.DomainCode
+						, sog.GroupCode
+						, c.CreatorCode
+						, c.CreatorName
+						, cd.Description
+						, cd.DescriptionEditor
+						, ci.FilePath
+						, c.TF_StartDate || '~' || c.TF_EndDate AS TF_Period
+						, sou.DisplayName
+						, sou.UserCode
+						, sou.MailAddress
+						, Fn_BaseGetDictionary_S (#{lang}, (SELECT MultiCodeName FROM sys_base_code  WHERE BizSection = 'Community' AND CodeGroup = 'CuAppDetail' AND IsUse = 'Y' AND Code = c.AppStatus)) AS CuAppDetail
+						, Fn_BaseGetDictionary_S (#{lang}, (SELECT MultiCodeName FROM sys_base_code  WHERE BizSection = 'Community' AND CodeGroup = 'CommunityJoin' AND IsUse = 'Y' AND Code = c.JoinOption)) AS CommunityJoin
+						, Fn_BaseGetDictionary_S (#{lang}, (SELECT MultiCodeName FROM sys_base_code  WHERE BizSection = 'Community' AND CodeGroup = 'CommunityType' AND IsUse = 'Y' AND Code = c.CommunityType)) AS CommunityType
+				FROM community c
+				LEFT JOIN sys_object_group sog ON sog.GroupCode = c.CU_Code
+				LEFT JOIN sys_object_user sou ON  sou.UserCode = c.OperatorCode
+				LEFT JOIN community_detail cd ON cd.CU_ID = c.CU_ID
+				LEFT JOIN community_image ci ON ci.CU_ID = c.CU_ID AND ci.IsCurrent = 'Y' AND ci.FileType = 'S'
+				LEFT JOIN sys_object_domain sod ON sod.DomainID = c.TF_DN_ID
+				LEFT JOIN sys_object_group sogg ON sogg.GroupCode = c.TF_MajorDeptCode
+				WHERE 1=1
+				AND c.Gubun = 'T'
+				AND NVL(c.Secret, 'N') != 'Y'
+				AND c.AppStatus IN ('RA', 'RV', 'RW', 'RC', 'RD')
+				AND c.DN_ID = #{DN_ID}
+				<if test="MN_ID != null and MN_ID != '' and MN_ID != 'null' and MN_ID != '0'"> 
+					AND c.MN_ID = #{MN_ID}
+				</if>
+				<if test="AppStatus != null and AppStatus != '' and AppStatus != 'TFDetailState'"> 
+					AND c.AppStatus = #{AppStatus}
+				</if>
+				<if test="searchWord != null and searchWord != ''"> 
+					<choose>
+						<when test ="searchType =='A'.toString() or searchType == null or searchType == ''">
+							AND (
+								c.CommunityName LIKE '%'||#{searchWord}||'%'
+								OR c.SearchTitle LIKE '%'||#{searchWord}||'%'
+							)
+						</when>
+						<when test ="searchType =='C'.toString()">
+							AND c.CommunityName LIKE '%'||#{searchWord}||'%'
+						</when>
+						<when test ="searchType =='O'.toString()">
+							AND cd.Description LIKE '%'||#{searchWord}||'%'
+						</when>
+					</choose>
+				</if>
+			) A
+			JOIN (
+				SELECT CU_ID, MAX(LEVEL0) AS TF_Member,MAX(LEVEL8) AS TF_Admin,MAX(LEVEL9) AS TF_PM
+				FROM (
+					SELECT	  CU_ID
+							, CASE WHEN MemberLevel=5 THEN MEMBERLIST ELSE '' END AS LEVEL0
+							, CASE WHEN MemberLevel=8 THEN MEMBERLIST ELSE '' END AS LEVEL8
+							, CASE WHEN MemberLevel=9 THEN MEMBERLIST ELSE '' END AS LEVEL9
+					FROM (
+						SELECT CU_ID, M.MemberLevel, LISTAGG(Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName), '@') WITHIN GROUP(ORDER BY MemberLevel) AS MEMBERLIST
+						FROM community_member M
+						LEFT OUTER JOIN sys_object_user UR ON M.UR_Code = UR.UserCode
+						WHERE  MemberStatus='R' AND DetailStatus = 'RV'
+						AND M.UR_Code = #{UR_Code}
+						GROUP BY CU_ID, MemberLevel
+					) A
+				) AA GROUP BY CU_ID
+			) mem ON mem.CU_ID = A.CU_ID
+		) A
+		<trim prefix="ORDER BY" prefixOverrides = ",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection ==''">
+				RegRequestDate ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !=''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CommunityName")'>CommunityName</when>
+					<when test='sortColumn.equalsIgnoreCase("AppStatusName")'>AppStatusName</when>
+					<when test='sortColumn.equalsIgnoreCase("DisplayName")'>DisplayName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegRequestDate")'>RegRequestDate</when>
+					<when test='sortColumn.equalsIgnoreCase("RegProcessDate")'>RegProcessDate</when>
+					<otherwise>CU_ID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			<include refid="oracle.include.pagingFooter"/>
+		</if>
+	</select>
+	
+	<select id="getUserEmailInfo" parameterType="cmap" resultType="cmap">
+		SELECT	  MailAddress AS "MailAddress"
+				, Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName) AS "UserName"
+		FROM sys_object_user
+		WHERE 1=1
+		<foreach collection="userList" item="user" index="i" separator="," open="AND UserCode IN (" close=")">
+			#{user}
+		</foreach>
+	</select>
+</mapper>

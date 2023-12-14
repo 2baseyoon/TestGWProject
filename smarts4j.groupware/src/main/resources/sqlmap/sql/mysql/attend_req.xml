@@ -1,0 +1,1001 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.req">
+	<!-- 요청 테이블 -->
+	<insert id="insertAttendRequest" parameterType="cmap">
+		INSERT INTO covi_smart4j.attendance_request (
+			CompanyCode, ReqTitle, ReqType, ReqStatus, ReqMethod, ReqDate, ReqData, ReqGubun, ProcessID, UR_Code, Comment, InterfaceKeyID, RegisterCode, RegistDate, ModifyerCode, ModifyDate
+		) VALUES
+		<choose>
+			<when test="ReqTargetList != null and ReqTargetList.size > 0">
+				<foreach collection="ReqTargetList" item="reqTarget" separator=",">
+					(#{CompanyCode}, #{reqTarget.ReqTitle}, #{ReqType}, #{ReqStatus}, #{ReqMethod}, now(), REPLACE(#{reqTarget.ReqDataStr},'\\',''), #{ReqGubun}, #{ProcessId}, #{reqTarget.UserCode}, #{Comment}, #{InterfaceKeyID}, #{RegisterCode}, now(), #{RegisterCode}, now())
+				</foreach>
+			</when>
+			<otherwise>
+				(#{CompanyCode}, #{ReqTitle}, #{ReqType}, #{ReqStatus}, #{ReqMethod}, now(), REPLACE(#{ReqDataStr},'\\',''), #{ReqGubun}, #{ProcessId}, #{UserCode}, #{Comment}, #{InterfaceKeyID}, #{UserCode}, now(), #{UserCode}, now())
+			</otherwise>
+		</choose>
+		<selectKey keyProperty="ReqSeq" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	<select id="getExistAttendExtensionHoliday" parameterType="cmap" resultType= "java.lang.Long">	
+		<![CDATA[SELECT COUNT(ExHoSeq) ExHoSeq
+		  FROM covi_smart4j.attendance_mng_ExtensionHoliday
+		 WHERE JobStsName =  #{JobStsName} 
+		   AND IFNULL(ApprovalSts,'') <> 'N']]>
+		 <foreach collection="ReqData" item="item" index="index" separator="OR" open=" AND (" close=")">
+			 (UserCode = #{item.UserCode} AND JOBDATE = #{item.WorkDate} AND DATE_FORMAT(str_to_date(StartTime, '%Y-%m-%d %H:%i:%s'), '%H%i') = #{item.StartTime})
+		 </foreach>
+	</select>
+
+	<select id="getWorkDateTime" parameterType="cmap"   resultType= "cmap">	
+		SELECT DATE_FORMAT(str_to_date(concat(DATE_FORMAT(#{JobDate},'%Y%m%d'),  #{StartTime}),'%Y%m%d%H%i'),'%Y-%m-%d %H:%i') oAttDayStartTime
+		 		,DATE_FORMAT(case when #{NextDayYn}  ='Y' then DATE_ADD(str_to_date(concat(DATE_FORMAT(#{JobDate},'%Y%m%d'), #{EndTime}),'%Y%m%d%H%i'), INTERVAL 1 DAY)
+				 ELSE case when  #{EndTime} = '2400' then DATE_ADD(str_to_date(concat(DATE_FORMAT(#{JobDate},'%Y%m%d'), '0000'),'%Y%m%d%H%i'), INTERVAL 1 DAY)  
+				 ELSE str_to_date(concat(DATE_FORMAT(#{JobDate},'%Y%m%d'), #{EndTime}),'%Y%m%d%H%i') END END,'%Y-%m-%d %H:%i') oAttDayEndTime
+	</select>
+	
+	<select id="getExtensionWorkDateTime" parameterType="cmap" resultType= "cmap">
+		SELECT 
+			DATE_FORMAT(STR_TO_DATE(CONCAT(DATE_FORMAT(AttDayEndTime ,'%Y%m%d'),  #{StartTime}), '%Y%m%d%H%i'),'%Y-%m-%d %H:%i') oAttDayStartTime,
+			DATE_FORMAT(STR_TO_DATE(CONCAT(DATE_FORMAT(AttDayEndTime ,'%Y%m%d'),  #{EndTime}), '%Y%m%d%H%i'),'%Y-%m-%d %H:%i') oAttDayEndTime
+		FROM covi_smart4j.attendance_mng_job amj
+		WHERE amj.UserCode = #{UserCode} AND amj.JobDate = DATE_FORMAT(#{JobDate},'%Y%m%d')
+	</select>
+	
+	<select id="getWorkTimeCheck" parameterType="cmap"   resultType= "String">
+		SELECT fn_attend_workTimeCheck(#{UserCode},#{JobDate}, #{StartTime}, #{EndTime}, #{CompanyCode}, #{orgProcessId}) 		 
+	</select>
+	
+	<insert id="setAttModifyHistory" parameterType="cmap" > 
+		INSERT INTO covi_smart4j.attendance_modify_history
+		(
+			TargetDate,
+			BeforeAttTime,
+			AttTime,
+			Division,
+			ReqType,
+			<if test="BillName != null and BillName != ''">
+			BillName,
+			</if>
+			Etc,
+			UserCode,
+			CompanyCode,
+			RegisterCode,
+			RegistDate
+		)
+		SELECT TargetDate,				
+		       <if test="Division != null and Division != '' and Division == 'StartSts'">			  
+		       AttStartTime AS BeforeAttTime,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'EndSts'">
+		       AttEndTime AS BeforeAttTime,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'StartSts'">
+		       #{oAttDayStartTime} AS AttTime,
+		       </if>
+		       <if test="Division != null and Division != '' and Division == 'EndSts'">
+		       #{oAttDayEndTime} AS AttTime,
+		       </if>
+		       #{Division},
+		       #{HisReqType},
+		       <if test="BillName != null and BillName != ''">
+		       #{BillName},
+		       </if>
+		       #{Etc} AS Etc,
+		       UserCode,
+		       CompanyCode,
+		       #{RegisterCode} AS RegisterCode,
+		       NOW(3) AS RegistDate
+		  FROM covi_smart4j.attendance_commuting_mst 
+		 WHERE UserCode = #{UserCode}
+		   AND TargetDate = #{WorkDate}
+	</insert>
+	
+	<!-- 출퇴근 마스터 -->
+	<insert id="insertAttendCommutingMst" statementType="CALLABLE" parameterType= "cmap"  >
+	 	{CALL covi_smart4j.sp_attend_setCommuteByRequest(#{UserCode}, #{CompanyCode}, #{WorkDate}, #{ReqType}, #{ReqGubun}, #{oAttDayStartTime}, #{oAttDayEndTime}, #{AcTime}, #{IdleTime}, #{Etc}, #{BillName}, #{ProcessId}, #{FormInstId}, #{ExHoSeq}, #{oStartAddr}, #{oStartChannel}, #{oEndAddr}, #{oEndChannel})}
+	</insert>
+	
+	<!-- 출퇴근 마스터 전자결재 휴가용-->
+	<delete id="insertAttendCommutingMstVcation" statementType="CALLABLE" parameterType= "cmap" >
+	 	{CALL covi_smart4j.sp_attend_setCommuteByAppVac(#{UserCode},  #{ReqType}, #{ReqGubun}, #{ProcessId})}
+	</delete>
+
+	<!-- 연장 휴일 근무 삭제-->
+	<delete id="deleteAttendExtensionholiday" statementType="CALLABLE" parameterType= "cmap" >
+		{CALL covi_smart4j.sp_attend_setCommuteByApproval(#{UserCode},#{ReqType}, #{ReqGubun}, #{orgProcessId})}
+	</delete>
+
+	<select id="getExistAttendJobHistory" parameterType="cmap"  resultType= "java.lang.Long">	
+		SELECT COUNT(JobStsSeq) JobStsSeq
+		  FROM covi_smart4j.attendance_mng_job_history
+		 WHERE 1=1
+		 <foreach collection="ReqData" item="item" index="index" separator="OR" open=" AND  (" close=")">
+			 (UserCode = #{item.UserCode} AND JobDate = #{item.WorkDate}  AND  #{item.StartTime} BETWEEN StartTime and EndTime) 
+		 </foreach>
+	</select>
+	
+	<!-- 근무상태 -->
+	<insert id="insertAttendJobHistory" parameterType="cmap">	
+		INSERT INTO covi_smart4j.attendance_mng_job_history
+		(
+			  JobStsSeq, UserCode, JobDate, JobStsName, Etc, StartTime, EndTime
+			, BillName, ProcessId, FormId, FormPath
+			, CompanyCode, RegisterCode, RegistDate, ModifyerCode, ModifyDate
+		) VALUES (
+			  #{JobStsSeq}, #{UserCode}, #{JobDate}, #{JobStsName}, #{Etc}, #{StartTime}, #{EndTime}
+			, #{BillName}, #{ProcessId}, #{FormId}, #{FormPath}
+			, #{CompanyCode}, #{RegisterCode}, NOW(), #{RegisterCode}, NOW()
+		)
+	</insert>
+	
+	<delete id="deleteAttendJobHistory" parameterType="cmap">	
+		DELETE FROM covi_smart4j.attendance_mng_job_history 
+		WHERE 
+		<choose>
+			<when test='orgProcessId != null and orgProcessId != ""'>
+			ProcessId = #{orgProcessId}
+		    </when> 
+        	<otherwise>
+			JobStsHisSeq = #{JobStsHisSeq}
+            </otherwise>
+		</choose>    
+	</delete> 
+
+	<select id="getVacationInfo" parameterType="cmap" resultType= "cmap">
+		/* attend.req.getVacationInfo */
+			SELECT
+		CAST(IFNULL(PVACDAY,0.0)+IFNULL(EVACDAY,0.0) AS FLOAT )AS VacDay
+		, CAST(IFNULL(PUseVacDay,0.0)+IFNULL(EUseVacDay,0.0) AS FLOAT ) AS UseDays
+		, CAST((IFNULL(PVACDAY,0.0)+IFNULL(EVACDAY,0.0))-(IFNULL(PUseVacDay,0.0)+IFNULL(EUseVacDay,0.0)) AS FLOAT ) AS ATot
+		<!--, CAST(IFNULL(RVACDAY,0.0) AS FLOAT ) AS RewardVacDay
+		, CAST(IFNULL(RVACDAY,0.0) AS FLOAT ) AS RewardUseDays
+		, CAST(IFNULL(RVACDAY,0.0)-IFNULL(0,0.0) AS FLOAT ) AS RewardATot-->
+		, CAST(IFNULL(NUseVacDay,0.0) AS FLOAT ) AS DaysNext
+		, CAST(IFNULL(DayReq,0.0) AS FLOAT ) AS DaysReq
+		, CAST(IFNULL(DayScan,0.0) AS FLOAT ) AS DayScan
+		,(SELECT case when Reserved1 = '+' then IF(IFNULL(Reserved3,1)='',1,IFNULL(Reserved3,1)) ELSE 0 end
+			FROM covi_smart4j.SYS_BASE_CODE bc  WHERE 	 bc.DomainID =(SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode}	) AND  CodeGroup = 'VACATION_TYPE'   	AND IsUse ='Y' AND Code =#{VacFlag}) UnitDay
+		FROM (
+				select UserCode
+				, EnterDate
+				, MultiDisplayName
+				, RetireDate
+				, SortKey
+				, TargetYear
+				, Sdate
+				, Edate
+				, PVACDAY
+				, EVACDAY
+				, RVACDAY
+				, (
+					SELECT  SUM(VacDay) AS PUseVacDay
+					FROM
+						(SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+								, A.Code as GroupCode
+								, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+							WHERE A.CodeID = B.ReservedInt
+							AND B.IsUse = 'Y'
+							AND B.DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+							AND B.Reserved1 = '+'
+							<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+							AND A.Code = 'PUBLIC'
+						)  C
+						LEFT JOIN covi_smart4j.VM_VACATIONINFO VI ON  VI.VacFlag = C.Code
+					WHERE VI.UR_Code = T.UserCode
+					AND STR_TO_DATE(VI.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VI.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS PUseVacDay
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND Code = 'EXTRA'
+									AND CodeGroup = 'VACATION_KIND'
+							) A,
+							covi_smart4j.sys_base_code B
+							WHERE A.CodeID = B.ReservedInt
+							AND B.IsUse = 'Y'
+							AND B.DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+							AND B.Reserved1 = '+'
+							<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+				)  C
+				LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+				ON  VE.VacFlag = C.Code
+				WHERE  VE.UR_Code = T.UserCode
+				AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+				AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS EUseVacDay
+				,(
+				SELECT SUM(VacDay)
+				FROM  (SELECT B.Code
+						, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+								Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+							ELSE
+								B.CodeName
+							END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+									AND B.IsUse = 'Y'
+									AND B.DomainID = #{domainID}
+									AND B.Reserved1 = '+'
+									AND B.Reserved2 = '1'
+							)  C
+							LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+						WHERE  VE.UR_Code = T.UserCode
+						AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+						AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS NUseVacDay
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+								AND B.IsUse = 'Y'
+								AND B.DomainID = #{domainID}
+								AND B.Reserved1 = '+'
+								<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+							)  C
+							LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+					WHERE  VE.UR_Code = T.UserCode
+					AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS DayReq
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+								AND B.IsUse = 'Y'
+								AND B.DomainID = #{domainID}
+								AND B.Reserved1 = '+'
+								<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+						)  C
+						LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN IN('VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+					WHERE  VE.UR_Code = T.UserCode
+					AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS DayScan
+				FROM
+				(select U.UserCode
+						, EnterDate
+						, MultiDisplayName
+						, RetireDate
+						, SortKey
+						, TargetYear
+						, Sdate
+						, Edate
+						, (SELECT IFNULL(SUM(VacDay), 0) AS PVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN
+							WHERE VacKind = 'PUBLIC'
+							AND UR_Code = U.UserCode
+							AND YEAR = U.TargetYear
+						) AS PVACDAY
+						, (SELECT IFNULL(SUM(VacDay), 0) AS RVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN
+							WHERE VacKind = 'VACATION_REWARD'
+							AND UR_Code = U.UserCode
+							AND UseStartDate  <![CDATA[>=]]>  U.Sdate
+							AND UseEndDate  <![CDATA[<=]]>  U.Edate
+						) AS RVACDAY
+						, (SELECT IFNULL(SUM(VacDay), 0) AS EVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN V
+							, (select BA.Code, BA.ReservedInt, BA.CodeGroup, BB.Code as VacKindCode, BA.Reserved1
+                              from
+                                  (select *
+                                  from covi_smart4j.sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+                                  and CodeGroup = 'VACATION_TYPE') BA,
+
+                                  (select *
+                                  from covi_smart4j.sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = '0'
+                                  and CodeGroup = 'VACATION_KIND') BB
+                              where BA.ReservedInt = BB.CodeID
+                                AND BA.Reserved1 = '+'
+                                AND BB.Code = 'EXTRA'
+                          ) B
+							WHERE V.VacKind  <![CDATA[<>]]>  'PUBLIC'
+							AND V.VacKind = B.Code
+							AND V.UR_Code = U.UserCode
+							AND V.UseStartDate  <![CDATA[>=]]>  U.Sdate
+							AND V.UseEndDate  <![CDATA[<=]]>  U.Edate
+						) AS EVACDAY
+					From
+						(select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+								,TargetYear
+								,CASE WHEN  CreateMethod = 'J' THEN
+										STR_TO_DATE(CONCAT(TargetYear,DATE_FORMAT(STR_TO_DATE(EnterDate,'%Y-%m-%d'),'%m%d')),'%Y%m%d')
+									ELSE STR_TO_DATE(CONCAT(TargetYear,'0101'),'%Y%m%d')
+									END as Sdate
+								,CASE WHEN  CreateMethod = 'J' THEN
+										DATE_ADD(DATE_ADD(STR_TO_DATE(CONCAT(TargetYear,DATE_FORMAT(STR_TO_DATE(EnterDate,'%Y-%m-%d'),'%m%d')),'%Y%m%d'), INTERVAL 1 YEAR), INTERVAL -1 DAY )
+									ELSE STR_TO_DATE(CONCAT(TargetYear,'1231'),'%Y%m%d')
+									END as Edate
+							from(
+								select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey, CreateMethod
+									,CASE WHEN  CFG.CreateMethod = 'J' THEN
+										CASE WHEN STR_TO_DATE(CONCAT(#{VacYear},DATE_FORMAT(STR_TO_DATE(REPLACE(EnterDate,'-',''),'%Y%m%d'),'%m%d')),'%Y%m%d')  <![CDATA[<=]]>  STR_TO_DATE(CONCAT(#{VacYear},DATE_FORMAT(NOW(3),'%m%d')),'%Y%m%d') THEN
+											YEAR(STR_TO_DATE(CONCAT(#{VacYear},'0101'),'%Y%m%d'))
+										ELSE
+											YEAR(DATE_ADD(STR_TO_DATE(CONCAT(#{VacYear},'0101'),'%Y%m%d'), INTERVAL -1 YEAR )) END
+									ELSE
+										YEAR(STR_TO_DATE(CONCAT(#{VacYear},'0101'),'%Y%m%d'))
+									END AS TargetYear
+								from covi_smart4j.sys_object_user U
+									, covi_smart4j.vm_config CFG
+								where U.UserCode = #{UserCode}
+								and CFG.CompanyCode = #{CompanyCode}
+							) a
+						) U
+				)T
+		) U
+	</select>
+
+	<select id="getVacationInfoV2" parameterType="cmap" resultType= "cmap">
+		/* attend.req.getVacationInfoV2 */
+		SELECT
+		CAST(IFNULL(PVACDAY,0.0)+IFNULL(EVACDAY,0.0) AS FLOAT )AS VacDay
+		, CAST(IFNULL(PUseVacDay,0.0)+IFNULL(EUseVacDay,0.0) AS FLOAT ) AS UseDays
+		, CAST((IFNULL(PVACDAY,0.0)+IFNULL(EVACDAY,0.0))-(IFNULL(PUseVacDay,0.0)+IFNULL(EUseVacDay,0.0)) AS FLOAT ) AS ATot
+		<!--, CAST(IFNULL(RVACDAY,0.0) AS FLOAT ) AS RewardVacDay
+		, CAST(IFNULL(RVACDAY,0.0) AS FLOAT ) AS RewardUseDays
+		, CAST(IFNULL(RVACDAY,0.0)-IFNULL(0,0.0) AS FLOAT ) AS RewardATot-->
+		, CAST(IFNULL(NUseVacDay,0.0) AS FLOAT ) AS DaysNext
+		, CAST(IFNULL(DayReq,0.0) AS FLOAT ) AS DaysReq
+		, CAST(IFNULL(DayScan,0.0) AS FLOAT ) AS DayScan
+		,(SELECT case when Reserved1 = '+' then IF(IFNULL(Reserved3,1)='',1,IFNULL(Reserved3,1)) ELSE 0 end
+			FROM covi_smart4j.SYS_BASE_CODE bc  WHERE 	 bc.DomainID =(SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode}	) AND  CodeGroup = 'VACATION_TYPE'   	AND IsUse ='Y' AND Code =#{VacFlag}) UnitDay
+		FROM (
+				select UserCode
+				, EnterDate
+				, MultiDisplayName
+				, RetireDate
+				, SortKey
+				, TargetYear
+				, Sdate
+				, Edate
+				, PVACDAY
+				, EVACDAY
+				, RVACDAY
+				, (
+					SELECT  SUM(VacDay) AS PUseVacDay
+					FROM
+						(SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+								, A.Code as GroupCode
+								, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+							WHERE A.CodeID = B.ReservedInt
+							AND B.IsUse = 'Y'
+							AND B.DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+							AND B.Reserved1 = '+'
+							<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+							AND A.Code = 'PUBLIC'
+						)  C
+						LEFT JOIN covi_smart4j.VM_VACATIONINFO VI ON  VI.VacFlag = C.Code
+					WHERE VI.UR_Code = T.UserCode
+					AND STR_TO_DATE(VI.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VI.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS PUseVacDay
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND Code = 'EXTRA'
+									AND CodeGroup = 'VACATION_KIND'
+							) A,
+							covi_smart4j.sys_base_code B
+							WHERE A.CodeID = B.ReservedInt
+							AND B.IsUse = 'Y'
+							AND B.DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+							AND B.Reserved1 = '+'
+							<!--AND (B.Reserved2 is null or B.Reserved2 = '')-->
+				)  C
+				LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+				ON  VE.VacFlag = C.Code
+				WHERE  VE.UR_Code = T.UserCode
+				AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+				AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS EUseVacDay
+				,(
+				SELECT SUM(VacDay)
+				FROM  (SELECT B.Code
+						, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+								Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+							ELSE
+								B.CodeName
+							END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+									AND B.IsUse = 'Y'
+									AND B.DomainID = #{domainID}
+									AND B.Reserved1 = '+'
+									AND B.Reserved2 = '1'
+							)  C
+							LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+						WHERE  VE.UR_Code = T.UserCode
+						AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+						AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS NUseVacDay
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+								AND B.IsUse = 'Y'
+								AND B.DomainID = #{domainID}
+								AND B.Reserved1 = '+'
+								<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+							)  C
+							LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+					WHERE  VE.UR_Code = T.UserCode
+					AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS DayReq
+				,(
+					SELECT SUM(VacDay)
+					FROM  (SELECT B.Code
+							, CASE WHEN Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName) is not null THEN
+									Fn_BaseGetDictionary_S(#{lang}, B.MultiCodeName)
+								ELSE
+									B.CodeName
+								END   AS CodeName
+							, A.Code as GroupCode
+							, B.Reserved1
+							FROM (select *
+									from covi_smart4j.sys_base_code
+									WHERE IsUse = 'Y'
+									AND DomainID = 0
+									AND CodeGroup = 'VACATION_KIND'
+								) A,
+								covi_smart4j.sys_base_code B
+								WHERE A.CodeID = B.ReservedInt
+								AND B.IsUse = 'Y'
+								AND B.DomainID = #{domainID}
+								AND B.Reserved1 = '+'
+								<!--AND (B.Reserved2 is null or B.Reserved2 ='')-->
+						)  C
+						LEFT JOIN covi_smart4j.VM_VACATIONINFO VE
+							ON  VE.VacFlag = C.Code AND VE.GUBUN IN('VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+					WHERE  VE.UR_Code = T.UserCode
+					AND STR_TO_DATE(VE.Sdate,'%Y-%m-%d') <![CDATA[>=]]> T.Sdate
+					AND STR_TO_DATE(VE.Edate,'%Y-%m-%d') <![CDATA[<=]]> T.Edate
+				) AS DayScan
+				FROM
+				(select U.UserCode
+						, EnterDate
+						, MultiDisplayName
+						, RetireDate
+						, SortKey
+						, TargetYear
+						, Sdate
+						, Edate
+						, (SELECT IFNULL(SUM(VacDay), 0) AS PVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN
+							WHERE VacKind = 'PUBLIC'
+							AND UR_Code = U.UserCode
+							AND YEAR = U.TargetYear
+						) AS PVACDAY
+						, (SELECT IFNULL(SUM(VacDay), 0) AS RVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN
+							WHERE VacKind = 'VACATION_REWARD'
+							AND UR_Code = U.UserCode
+							AND UseStartDate  <![CDATA[>=]]>  U.Sdate
+							AND UseEndDate  <![CDATA[<=]]>  U.Edate
+						) AS RVACDAY
+						, (SELECT IFNULL(SUM(V.VacDay), 0) AS EVACDAY
+							FROM covi_smart4j.VM_VACATIONPLAN V
+							, (select BA.Code, BA.ReservedInt, BA.CodeGroup, BB.Code as VacKindCode, BA.Reserved1
+                              from
+                                  (select *
+                                  from covi_smart4j.sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = (SELECT DomainID FROM  covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+                                  and CodeGroup = 'VACATION_TYPE') BA,
+
+                                  (select *
+                                  from covi_smart4j.sys_base_code
+                                  where IsUse = 'Y'
+                                  and DomainID = '0'
+                                  and CodeGroup = 'VACATION_KIND') BB
+                              where BA.ReservedInt = BB.CodeID
+                                AND BA.Reserved1 = '+'
+                                AND BB.Code = 'EXTRA'
+                          ) B
+							WHERE V.VacKind  <![CDATA[<>]]>  'PUBLIC'
+							AND V.VacKind = B.Code
+							AND V.UR_Code = U.UserCode
+							AND V.UseStartDate  <![CDATA[>=]]>  U.Sdate
+							AND V.UseEndDate  <![CDATA[<=]]>  U.Edate
+						) AS EVACDAY
+					From
+						(select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+								,TargetYear
+								,STR_TO_DATE(CONCAT(TargetYear,DATE_FORMAT(STR_TO_DATE(EnterDate,'%Y-%m-%d'),'%m%d')),'%Y%m%d') as Sdate
+								,DATE_ADD(DATE_ADD(STR_TO_DATE(CONCAT(TargetYear,DATE_FORMAT(STR_TO_DATE(EnterDate,'%Y-%m-%d'),'%m%d')),'%Y%m%d'), INTERVAL 1 YEAR), INTERVAL -1 DAY ) as Edate
+							from(
+								select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey
+									, CASE WHEN STR_TO_DATE(CONCAT(#{VacYear},DATE_FORMAT(STR_TO_DATE(REPLACE(EnterDate,'-',''),'%Y%m%d'),'%m%d')),'%Y%m%d')  <![CDATA[<=]]>  STR_TO_DATE(CONCAT(#{VacYear},DATE_FORMAT(NOW(3),'%m%d')),'%Y%m%d') THEN
+											YEAR(STR_TO_DATE(CONCAT(#{VacYear},'0101'),'%Y%m%d'))
+										ELSE
+											YEAR(DATE_ADD(STR_TO_DATE(CONCAT(#{VacYear},'0101'),'%Y%m%d'), INTERVAL -1 YEAR )) END AS TargetYear
+								from covi_smart4j.sys_object_user
+								where UserCode = #{UserCode}
+							) a
+						) U
+				)T
+		) U
+	</select>
+	
+	<select id="getExistAttendVacation" parameterType="cmap"   resultType= "java.lang.Long">	
+		SELECT IFNULL(SUM(VacDay),0) as CntVacDay
+		  FROM covi_smart4j.vm_vacationinfo
+		 WHERE 1=1
+		 AND UR_Code IN
+		 <foreach collection="ReqData" item="item" index="index" open="(" close=")" separator=",">
+			 #{item.UserCode}
+		 </foreach>
+		 <foreach collection="ReqData" item="item" index="index" separator="or" open="AND (" close=")">
+			  #{item.WorkDate} BETWEEN Sdate AND eDate
+		 </foreach>
+	</select>
+	
+	<insert id="insertVacationInfo" parameterType="cmap">
+		INSERT 
+		  INTO covi_smart4j.vm_vacationinfo (VacYear, UR_Code, UR_Name, 
+		  									 VacFlag, Sdate, Edate, VacDay, 
+		  									 Reason, APPDATE, ENDDATE, WorkItemID, 
+		  									 ProcessID, GUBUN, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag
+		  						   			)
+		(SELECT #{VacYear}, #{UserCode}, #{UrName},
+	    		#{VacFlag}, #{SDate}, #{EDate}, IF(IFNULL(Reserved3, 1) = '', 1, IFNULL(Reserved3, 1)),
+	    		#{Reason}, #{AppDate}, #{EndDate}, #{WorkItemID},
+	    		#{ProcessId}, #{Gubun}, #{DeputyName}, #{DeputyCode}, #{VacOffFlag}
+	       FROM covi_smart4j.sys_base_code 
+	       WHERE DomainID = (SELECT DomainID FROM covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode}) 
+	       AND CodeGroup = 'VACATION_TYPE' AND Code = #{VacFlag})
+
+		<selectKey keyProperty="vacationInfoID" resultType="Integer" order="AFTER">
+			SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<insert id="insertVacationInfoApp" parameterType="cmap">
+		INSERT 
+		  INTO covi_smart4j.vm_vacationinfo (VacYear, UR_Code, UR_Name, 
+		  									 VacFlag, Sdate, Edate, VacDay, 
+		  									 Reason, APPDATE, ENDDATE, WorkItemID, 
+		  									 ProcessID, GUBUN, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag
+		  						   			)
+		VALUES (#{VacYear}, #{UserCode}, #{UrName},
+	    		#{VacFlag}, #{SDate}, #{EDate}, #{VacDay},
+	    		#{Reason}, #{AppDate}, #{EndDate}, #{WorkItemId},
+	    		#{ProcessId}, #{Gubun}, #{DeputyName}, #{DeputyCode}, #{VacOffFlag})
+		<selectKey keyProperty="VacationInfoID" resultType="Integer" order="AFTER">
+		    SELECT LAST_INSERT_ID();
+		</selectKey>
+	</insert>
+	
+	<select id="selectFormInstData" parameterType="cmap" resultType="cmap">
+		  SELECT FormInstID			,Subject			,BodyContext
+			FROM covi_approval4j.jwf_forminstance
+		   WHERE FormInstID = #{FormInstID}
+	</select>
+	
+	<update id= "usp_form_UpdateBodyContext" parameterType="cmap" >
+       <![CDATA[
+        UPDATE covi_approval4j.jwf_forminstance
+		SET BodyContext = #{BODYCONTEXT}
+		WHERE FormInstID = #{FIID}
+	   ]]>
+    </update>
+
+	<!-- 휴일대체근무 처리 -->
+	<!-- job 정보 -->
+	<select id="selectAttendMngJobInfo" parameterType="cmap" resultType="cmap">
+		SELECT SchSeq
+			, WorkSts
+			, date_format(AttDayStartTime, '%H%i%s') as AttDayStartTime
+			, date_format(AttDayEndTime, '%H%i%s') as AttDayEndTime
+			, ifnull(NextDayYn, 'N') as NextDayYn
+			, ifnull(ConfmYn, 'N') as ConfmYn
+			, AttDayAC
+			, AttDayIdle
+			, WorkTime
+			, WorkCode
+			, UnitTerm
+			, WorkApplyDate
+			, MaxWorkTime
+			, MaxWorkCode
+			, MaxUnitTerm
+			, MaxWorkApplyDate
+			, AssYn
+			, AssSeq
+			, WorkZone
+			, WorkAddr
+			, WorkPointX
+			, WorkPointY
+			, AllowRadius
+			, StartZone
+			, StartAddr
+			, StartPointX
+			, StartPointY
+			, EndZone
+			, EndAddr
+			, EndPointX
+			, EndPointY
+			, Etc
+		FROM covi_smart4j.attendance_mng_job b
+		WHERE JobDate = #{SelectDate}
+			AND UserCode = #{UserCode}
+			AND CompanyCode = #{CompanyCode}
+	</select>
+
+	<!-- job 수정 -->
+	<update id="updateAttendMngJob" parameterType="cmap" >
+		UPDATE covi_smart4j.attendance_mng_job
+		SET SchSeq = #{SchSeq}
+			, UserCode = #{UserCode}
+			, JobDate = #{JobDate}
+			, CompanyCode = #{CompanyCode}
+			, WorkSts = #{WorkSts}
+		<choose>
+			<when test='WorkSts eq "OFF" or WorkSts eq "HOL"'>
+				, AttDayStartTime = null
+				, AttDayEndTime = null
+			</when>
+			<otherwise>
+				, AttDayStartTime = STR_TO_DATE(CONCAT(#{JobDate}, #{AttDayStartTime}),'%Y-%m-%d %H%i%s')
+				, AttDayEndTime = STR_TO_DATE(CONCAT(#{JobDate}, #{AttDayEndTime}),'%Y-%m-%d %H%i%s')
+			</otherwise>
+		</choose>
+			, NextDayYn = #{NextDayYn}
+			, ConfmYn = #{ConfmYn}
+			, AttDayAC = #{AttDayAC}
+			, AttDayIdle = #{AttDayIdle}
+			, WorkTime = #{WorkTime}
+			, WorkCode = #{WorkCode}
+			, UnitTerm = #{UnitTerm}
+			, WorkApplyDate = #{WorkApplyDate}
+			, MaxWorkTime = #{MaxWorkTime}
+			, MaxWorkCode = #{MaxWorkCode}
+			, MaxUnitTerm = #{MaxUnitTerm}
+			, MaxWorkApplyDate = #{MaxWorkApplyDate}
+			, AssYn = #{AssYn}
+			, AssSeq = #{AssSeq}
+			, WorkZone = #{WorkZone}
+			, WorkAddr = #{WorkAddr}
+			, WorkPointX = #{WorkPointX}
+			, WorkPointY = #{WorkPointY}
+			, AllowRadius = #{AllowRadius}
+			, StartZone = #{StartZone}
+			, StartAddr = #{StartAddr}
+			, StartPointX = #{StartPointX}
+			, StartPointY = #{StartPointY}
+			, EndZone = #{EndZone}
+			, EndAddr = #{EndAddr}
+			, EndPointX = #{EndPointX}
+			, EndPointY = #{EndPointY}
+			, Etc = #{Etc}
+			, ModifyerCode = 'SYSTEM'
+			, ModifyDate = now()
+		WHERE JobDate = #{JobDate}
+			AND UserCode = #{UserCode}
+			AND CompanyCode = #{CompanyCode}
+	</update>
+
+	<select id="selectVacationProcess" parameterType="cmap" resultType="java.lang.Long">
+		  SELECT count('x') as count
+			FROM covi_smart4j.vm_vacationinfo_process
+		   WHERE FormInstID = #{FormInstID}
+	</select>
+	
+	<insert id="insertVacationProcess" parameterType="cmap">	
+		INSERT INTO covi_smart4j.vm_vacationinfo_process (VacYear, UR_Code, UR_Name, 
+		  									 Gubun, VacFlag, Sdate, Edate, VacDay, 
+		  									 Reason, APPDATE, WorkItemID, FormInstID, 
+		  									 ProcessID, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag,
+		  									 StartTime, EndTime
+		  						   			)
+	    VALUES (#{VacYear}, #{UserCode}, #{UrName},
+	    		#{Gubun}, #{VacFlag}, #{SDate}, #{EDate}, #{VacDay},
+	    		#{Reason}, #{AppDate}, #{WorkItemId}, #{FormInstID},
+	    		#{ProcessId}, #{DeputyName}, #{DeputyCode}, #{VacOffFlag},
+	    		#{STime}, #{ETime}
+	    	   )
+	</insert> 
+	<delete id="deleteVacationProcess" parameterType="cmap">	
+		DELETE FROM covi_smart4j.vm_vacationinfo_process WHERE FormInstID = #{FormInstID}
+	</delete>
+	
+	<insert id="insertVacationInfoDayApp" parameterType="cmap">
+		INSERT INTO covi_smart4j.vm_vacationinfo_day
+		( UR_Code, VacFlag, VacOffFlag, VacDate, Gubun, StartTime, EndTime, VacDay , VacationInfoID)
+		SELECT #{UserCode}, #{VacFlag}, #{VacOffFlag}, SolarDate, #{Gubun}, #{STime}, #{ETime}, truncate(#{VacDay}/count(SolarDate) over(),3), #{VacationInfoID}
+		FROM covi_smart4j.sys_calendar sc 
+		WHERE SolarDate BETWEEN #{SDate} AND #{EDate}
+		AND SolarDate NOT IN (SELECT TB.dayList
+								FROM (SELECT  AD.dayList
+											, AD.WeekNum
+											, AMJ.JobDate
+											, AMJ.WorkSts
+											, HOL.HolidayStart
+											, CASE WHEN (AMJ.WorkSts = 'ON') THEN 'O'
+												   WHEN AMJ.WorkSts IS NULL AND HOL.HolidayStart IS NOT NULL THEN 'H'
+												   WHEN AMJ.WorkSts IS NULL AND HOL.HolidayStart IS NULL AND (AD.WeekNum = '5' OR AD.WeekNum = '6') THEN 'H'
+												   WHEN (AMJ.WorkSts = 'HOL' OR WorkSts = 'OFF') THEN 'H' 
+												   ELSE 'O' END AS HolidayFlag
+									FROM  (SELECT dayList, weekd AS WeekNum
+										   FROM covi_smart4j.attendance_daylist
+										   WHERE dayList BETWEEN #{SDate} AND #{EDate}) AD
+										   LEFT JOIN
+										  (SELECT DATE_FORMAT(JobDate, '%Y-%m-%d') AS JobDate, WorkSts
+										   FROM covi_smart4j.attendance_mng_job
+										   WHERE UserCode = #{UserCode}) AMJ ON AD.dayList = AMJ.JobDate
+										  LEFT JOIN 
+										  (SELECT DATE_FORMAT(HolidayStart, '%Y-%m-%d') as HolidayStart, HolidayName	
+										   FROM covi_smart4j.attendance_mng_holiday_schedule
+										   WHERE CompanyCode = #{CompanyCode}
+										   AND DATE_FORMAT(HolidayStart,'%Y') BETWEEN DATE_FORMAT(#{SDate}, '%Y') AND DATE_FORMAT(#{EDate}, '%Y')) HOL ON AD.dayList = HOL.HolidayStart) TB
+								WHERE TB.HolidayFlag = 'H')
+		GROUP BY SolarDate
+	</insert>
+	
+	<delete id="deleteVacationInfoDayApp" parameterType="cmap">
+		DELETE FROM covi_smart4j.vm_vacationinfo_day 
+		WHERE
+		UR_Code = #{UserCode}
+		AND VacFlag = #{VacFlag}
+		AND VacOffFlag = #{VacOffFlag}
+		AND VacDate between #{SDate} and #{EDate}
+		<if test="STime != null and STime != ''">
+		AND StartTime = #{STime}
+		</if>
+		<if test="ETime != null and ETime != ''">
+		AND EndTime = #{ETime}
+		</if>
+	</delete>
+
+	<delete id="deleteVacationInfoDayAppById" parameterType="cmap">
+		delete from covi_smart4j.vm_vacationinfo_day
+		where VACATIONINFOID=#{processId}
+	</delete>
+	
+	<select id="getUsedVacList" parameterType="cmap" resultType="cmap">
+		SELECT	  A.UserCode
+				, A.DisplayName
+				, C.DeptName
+				, A.VacDay
+				, A.UseDays
+				, A.ATot
+		FROM (
+			SELECT	  IFNULL(SUM(A.VACDAY), 0) AS VacDay
+					, FORMAT(SUM(A.DAYSREQ) + SUM(A.DAYSCAN), 1) AS UseDays
+					, IFNULL(SUM(A.VACDAY) - (SUM(A.DAYSREQ) + SUM(A.DAYSCAN)) - SUM(A.DAYSNEXT), 0) AS ATot
+					, A.UserCode
+					, covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) AS DisplayName
+			FROM (
+				<foreach collection="UserCodeList" item="UserCode" separator=" UNION ALL ">
+					SELECT	  FORMAT(IFNULL(VacDay, 0), 1) AS VACDAY
+							, 0 AS DAYSREQ
+							, 0 AS DAYSCAN
+							, 0 AS DAYSNEXT
+							, #{UserCode} AS UserCode
+					FROM covi_smart4j.VM_VACATIONPLAN
+					WHERE YEAR = #{VacYear}
+					AND UR_Code = #{UserCode}
+					
+					UNION ALL
+					
+					SELECT	  0 AS VACDAY
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND (Reserved2 IS NULL OR Reserved2 = '') THEN VacDay END), 0) AS DAYSREQ
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') AND (Reserved2 IS NULL OR Reserved2 = '') THEN VacDay END), 0) AS DAYSCAN
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND Reserved2 = '1' THEN VacDay END), 0) AS DAYSNEXT
+							, #{UserCode} AS UserCode
+					FROM covi_smart4j.VM_VACATIONINFO vi 
+					JOIN covi_smart4j.SYS_BASE_CODE bc
+					ON (
+						bc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+						AND CodeGroup = 'VACATION_TYPE'
+						AND IsUse = 'Y'
+						AND Reserved1 = '+'
+						AND VacFlag = bc.Code
+					)
+					WHERE vi.VacYear = #{VacYear}
+					AND vi.UR_Code = #{UserCode}
+				</foreach>
+			) A
+			JOIN covi_smart4j.sys_object_user B ON A.UserCode = B.UserCode
+			GROUP BY A.UserCode, B.MultiDisplayName
+		) A
+		JOIN covi_smart4j.sys_object_user_basegroup C ON C.UserCode = A.UserCode AND C.JobType = 'Origin'
+		WHERE A.ATot <![CDATA[<=]]> 0
+		<trim prefix="ORDER BY" prefixOverrides=",">
+			<if test="sortColumn == null or sortColumn == '' or sortDirection == null or sortDirection == ''">
+				DisplayName ASC
+			</if>
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("Atot")'>Atot</when>
+					<otherwise>DisplayName</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null and pageOffset >= 0">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getUsedVacListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(0)
+		FROM (
+			SELECT	  IFNULL(SUM(VACDAY), 0) AS VacDay
+					, FORMAT(SUM(DAYSREQ) + SUM(DAYSCAN), 1) AS UseDays
+					, IFNULL(SUM(VACDAY) - (SUM(DAYSREQ) + SUM(DAYSCAN)) - SUM(DAYSNEXT), 0) AS ATot
+					, UserCode
+			FROM (
+				<foreach collection="UserCodeList" item="UserCode" separator=" UNION ALL ">
+					SELECT	  FORMAT(IFNULL(VacDay, 0), 1) AS VACDAY
+							, 0 AS DAYSREQ
+							, 0 AS DAYSCAN
+							, 0 AS DAYSNEXT
+							, #{UserCode} AS UserCode
+					FROM covi_smart4j.VM_VACATIONPLAN
+					WHERE YEAR = #{VacYear}
+					AND UR_Code = #{UserCode}
+					
+					UNION ALL
+					
+					SELECT	  0 AS VACDAY
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND (Reserved2 IS NULL OR Reserved2 = '') THEN VacDay END), 0) AS DAYSREQ
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') AND (Reserved2 IS NULL OR Reserved2 = '') THEN VacDay END), 0) AS DAYSCAN
+							, IFNULL(SUM(CASE WHEN GUBUN IN ('VACATION_APPLY', 'VACATION_PUBLIC') AND Reserved2 = '1' THEN VacDay END), 0) AS DAYSNEXT
+							, #{UserCode} AS UserCode
+					FROM covi_smart4j.VM_VACATIONINFO vi 
+					JOIN covi_smart4j.SYS_BASE_CODE bc
+					ON (
+						bc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_object_domain WHERE DomainCode = #{CompanyCode})
+						AND CodeGroup = 'VACATION_TYPE'
+						AND IsUse = 'Y'
+						AND Reserved1 = '+'
+						AND VacFlag = bc.Code
+					)
+					WHERE vi.VacYear = #{VacYear}
+					AND vi.UR_Code = #{UserCode}
+				</foreach>
+			) A
+			GROUP BY UserCode
+		) A
+		WHERE A.ATot <![CDATA[<=]]> 0
+	</select>
+	
+	<update id= "updateApprovalCommuteStatus" parameterType="cmap" >
+		/* attend.req.updateApprovalCommuteStatus */
+		UPDATE covi_smart4j.attendance_commuting_mst
+		SET
+		<if test='CommuteType == "S"'>StartSts = #{Status}</if>
+		<if test='CommuteType == "E"'>EndSts = #{Status}</if>
+	    WHERE UserCode = #{UserCode} AND TargetDate = #{TargetDate}
+    </update>
+    
+    <select id= "selectRequestList" parameterType="cmap" resultType="cmap">
+	    /* attend.req.selectRequestList */
+	    SELECT ReqType, ReqData
+	    FROM covi_smart4j.attendance_request
+	    WHERE ReqSeq = #{ReqSeq}
+	</select>
+</mapper>

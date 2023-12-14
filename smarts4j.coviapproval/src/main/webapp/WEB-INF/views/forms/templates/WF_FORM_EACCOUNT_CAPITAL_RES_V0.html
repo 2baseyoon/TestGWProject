@@ -1,0 +1,313 @@
+<input type="hidden" data-type="mField" id="trLen" value="{{ doc.BodyContext.trLen }}">
+<input type="hidden" data-type="mField" id="RealPayDate" value="{{ doc.BodyContext.RealPayDate }}">
+<input type="hidden" data-type="mField" id="TotalPayAmount" value="{{ doc.BodyContext.TotalPayAmount }}">
+<input type="hidden" data-type="mField" id="StandardBriefID" value="{{ doc.BodyContext.StandardBriefID }}">
+<input type="hidden" data-type="mField" id="expAppListIDs" value="{{ doc.BodyContext.expAppListIDs }}">
+<input type="hidden" data-type="mField" id="ERPKey" value="{{ doc.BodyContext.ERPKey }}">
+<input type="hidden" data-type="mField" id="OpenMode" value="{{ doc.BodyContext.OpenMode }}">
+<input type="hidden" data-type="mField" id="CompanyCode" value="{{ doc.BodyContext.CompanyCode }}">
+
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 15%">
+        <col style="width: 35%">
+        <col style="width: 15%">
+        <col style="width: 35%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>지출일자</th>			
+			<td><input type="text" data-type="mField" id="real_pay_date" value="{{ doc.BodyContext.real_pay_date }}" style="width:98%;" data-pattern="date" readonly="readonly"></td>
+			<th>합계금액</th>			
+			<td><input type="text" data-type="mField" id="total_pay_amount" value="{{ doc.BodyContext.total_pay_amount }}" data-pattern="currency" readonly="readonly" style="width:80%;"></td>
+		</tr>
+	</tbody>
+</table>
+
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0">
+    <colgroup>
+        <col style="width: 16.5%">
+        <col style="width: 16.5%">
+        <col style="width: 16.5%">
+        <col style="width: 16.5%">
+        <col style="width: 16.5%">
+        <col style="width: 17.5%">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>법인카드</th>
+			<th>자동이체</th>
+			<th>일반이체</th>
+			<th>현금인출</th>
+			<th>계좌간이체</th>
+			<th>지출총계</th>
+		</tr>
+		<tr class="multi-sum">
+			<td><input type="text" data-type="mField" id="corpcard_sum" value="{{ doc.BodyContext.corpcard_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="auto_sum" value="{{ doc.BodyContext.auto_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="normal_sum" value="{{ doc.BodyContext.normal_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="cash_sum" value="{{ doc.BodyContext.cash_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="account_sum" value="{{ doc.BodyContext.account_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+			<td><input type="text" data-type="mField" id="total_sum" value="{{ doc.BodyContext.total_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+		</tr>
+	</tbody>
+</table>
+
+<p style="font-weight: bold; margin-top: 15px;">거래처 지급 내역</p>
+<table class="table_3 multi-row-table RowSumTable tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblExpenceInfo">
+    <colgroup>
+        <col style="width: 12.5%">
+        <col style="width: 12.5%">
+        <col style="width: 12.5%">
+        <col style="width: 12.5%">
+        <col style="width: 12.5%">
+        <col style="width: 15%">
+        <col style="width: 12.5%">
+        <col style="width: 10%">
+    </colgroup>
+	<tbody name="contentArea">
+		<tr>
+			<th>지출형태</th>
+			<th>기안자</th>
+			<th>표준적요</th>
+			<th>증빙건수</th>
+			<th>거래처</th>
+			<th>내역(적요)</th>
+			<th>지출액</th>
+			<th>연관문서</th>
+		</tr>
+		<tr class="multi-row-control" align="right" style="display: none;">
+            <td>
+                <input type="button" value="+추가" class="multi-row-add usa">
+                <input type="button" value="-삭제" class="multi-row-del usa">
+            </td>
+        </tr>
+		<tr class="multi-row-template">
+			<td>
+				<select data-type="rField" data-node-name="pay_method_name" name="pay_method_name" data-element-type="sel_d_t" style="width: 99%" onchange='setAmount();'></select>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='register_name' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='register_id'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='standard_brief_name' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='standard_brief_code'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='list_cnt' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='vendor_name' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='vendor_no'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='usage_comment' style='width: 95%;'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='amount_sum' class="sum-table-cell" data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='button' class='AXButton' name='list_doc' value='세부내역 보기' onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='rField' name='exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+		</tr>
+		<tr>
+			<th colspan="6">합계</th>
+			<td>
+				<input type="text" class="sum-table-colsum" id="vendor_sum" data-type="mField" value="{{ doc.BodyContext.vendor_sum }}"data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+			<th></th>
+		</tr>
+	</tbody>
+</table>
+
+<p style="font-weight: bold; margin-top: 15px;">지출 보고 내역</p>
+<table class="table_3 multi-row-table RowSumTable tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblReportInfo">
+    <colgroup>
+        <col style="width: 17.5%">
+        <col style="width: 17.5%">
+        <col style="width: 20%">
+        <col style="width: 17.5%">
+        <col style="width: 17.5%">
+        <col style="width: 10%">
+    </colgroup>
+	<tbody name="contentArea">
+		<tr>
+			<th>지출형태</th>
+			<th>기안자</th>
+			<th>제목</th>
+			<th>표준적요</th>
+			<th>지출총액</th>
+			<th>세부내역</th>
+		</tr>
+		<tr class="multi-row-control" align="right" style="display: none;">
+            <td>
+                <input type="button" value="+추가" class="multi-row-add usa">
+                <input type="button" value="-삭제" class="multi-row-del usa">
+            </td>
+        </tr>
+		<tr class="multi-row-template">
+			<td>
+				<input type='text' data-type='rField' name='pay_method_name_rep' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='pay_method_code_rep'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='register_name_rep' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='register_id_rep'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='subject_rep' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='standard_brief_name_rep' readonly='readonly' style='width: 98%;'>
+				<input type='hidden' data-type='rField' name='standard_brief_code_rep'>
+			</td>
+			<td>
+				<input type='text' data-type='rField' name='amount_sum_rep' class="sum-table-cell" data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+			<td>
+				<input type='button' class='AXButton' name='apv_doc_rep' value='결재문서 보기' onclick='javascript: apvLinkOpen(this);'>
+				<input type='hidden' data-type='rField' name='process_id_rep'>
+			</td>
+		</tr>
+		<tr>
+			<th colspan="4">합계</th>
+			<td>
+				<input type="text" class="sum-table-colsum" id="report_sum" data-type="mField" value="{{ doc.BodyContext.report_sum }}"data-pattern='currency' readonly='readonly' style='width: 98%;'>
+			</td>
+			<th></th>
+		</tr>
+	</tbody>
+</table>
+
+<p style="font-weight: bold; margin-top: 15px;">직원 경비 내역</p>
+<table class="table_3 tableStyle linePlus mt10" cellpadding="0" cellspacing="0" id="tblEmployeeInfo">
+    <colgroup>
+        <col style="width: auto">
+    </colgroup>
+	<tbody>
+		<tr>
+			<th>일반 경비신청</th>
+			<th>프로젝트 경비신청</th>
+			<th>접대비 신청</th>
+			<th>국내출장 경비신청</th>
+			<th>해외출장 경비신청</th>
+			<th>합계</th>
+		</tr>
+		<tr>
+			<td>
+				<input type="text" data-type="mField" id="normal_employee" value="{{ doc.BodyContext.normal_employee }}" style="width:98%; cursor:pointer;" data-pattern="currency" readonly="readonly" onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='mField' value="{{ doc.BodyContext.normal_exp_app_list_ids }}" id='normal_exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+			<td>
+				<input type="text" data-type="mField" id="project_employee" value="{{ doc.BodyContext.project_employee }}" style="width:98%; cursor:pointer;" data-pattern="currency" readonly="readonly" onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='mField' value="{{ doc.BodyContext.project_exp_app_list_ids }}" id='project_exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+			<td>
+				<input type="text" data-type="mField" id="entertain_employee" value="{{ doc.BodyContext.entertain_employee }}" style="width:98%; cursor:pointer;" data-pattern="currency" readonly="readonly" onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='mField' value="{{ doc.BodyContext.entertain_exp_app_list_ids }}" id='entertain_exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+			<td>
+				<input type="text" data-type="mField" id="biztrip_employee" value="{{ doc.BodyContext.biztrip_employee }}" style="width:98%; cursor:pointer;" data-pattern="currency" readonly="readonly" onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='mField' value="{{ doc.BodyContext.biztrip_exp_app_list_ids }}" id='biztrip_exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+			<td>
+				<input type="text" data-type="mField" id="oversea_employee" value="{{ doc.BodyContext.oversea_employee }}" style="width:98%; cursor:pointer;" data-pattern="currency" readonly="readonly" onclick='javascript: expAppListOpen(this);'>
+				<input type='hidden' data-type='mField' value="{{ doc.BodyContext.oversea_exp_app_list_ids }}" id='oversea_exp_app_list_ids' tag='expAppListIDs'>
+			</td>
+			<td><input type="text" data-type="mField" id="employee_sum" value="{{ doc.BodyContext.employee_sum }}" style="width:98%;" data-pattern="currency" readonly="readonly"></td>
+		</tr>
+	</tbody>
+</table>
+
+<p style="font-weight: bold; margin-top: 15px;">추가 항목</p>
+<table class="tableStyle linePlus mt10 multi-row-table RowSumTable" id="tblAddInfo">
+    <colgroup>
+        <col style="width:15%" />
+        <col style="width:15%" />
+        <col style="width:15%" />
+        <col style="width:25%" />
+        <col style="width:15%" />
+        <col style="width:15%" />
+    </colgroup>
+    
+    <tr class="multi-row-control" align="right" data-mode="writeOnly">
+		<td colspan="6" style="border:none;">
+			<input type="button" value="+추가" class="multi-row-add usa">
+			<input type="button" value="-삭제" class="multi-row-del-auto usa">
+		</td>
+	</tr>
+	
+    <tr>
+    	<th>지출형태</th>
+    	<th>담당자</th>
+    	<th>표준적요</th>
+    	<th>내역</th>
+    	<th>거래처</th>
+    	<th>지출액</th>
+    </tr>
+    
+    <tr class="multi-row-template">
+    	<td><select data-type="rField" data-node-name="pay_method_add" name="pay_method_add" data-element-type="sel_d_t" style="width: 99%" onchange='setAmount();'></select></td>
+    	<td>
+    		<input type="text" data-type="rField" name="register_name_add" data-binding="pre" readonly="readonly" style="width:75%;border:0px;">
+    		<input type="hidden" data-type="rField" name="register_id_add">
+    		<span data-mode="writeOnly">
+    			<a onclick="OpenWinEmployee(this)">
+    				<img alt="search" style="vertical-align: middle; cursor:pointer;" src="/HtmlSite/smarts4j_n/covicore/resources/images/covision/btn_org.gif" width="25" height="21">
+    			</a>
+             </span>
+    	</td>
+    	<td>
+    		<input type="text" data-type="rField" name="standard_brief_name_add" data-binding="pre" readonly="readonly" style="width:80%;border:0px;">
+    		<input type="hidden" data-type="rField" name="standard_brief_id_add">
+    		<button type="button" class="btnSearchType01" onclick="callStandardBriefPopup(this)" data-mode="writeOnly"></button>
+    	</td>
+    	<td><input type="text" data-type="rField" name="usage_comment_add" style="width:99%;" ></td>
+    	<td>    	
+    		<input type="text" data-type="rField" name="vendor_name_add" data-binding="pre" readonly="readonly" style="width:80%;border:0px;">
+    		<input type="hidden" data-type="rField" name="vendor_no_add">
+    		<button type="button" class="btnSearchType01" onclick="callVendorPopup(this)" data-mode="writeOnly"></button>
+    	</td>
+    	<td><input type="text" data-type="rField" name="pay_amount_add" class="sum-table-cell" style="width:99%;" data-pattern='currency' onblur='setAmount();'></td>
+    </tr>
+	<tr>
+		<th colspan="5">합계</th>
+		<td>
+			<input type="text" id="add_sum" class="sum-table-colsum" data-type="mField" value="{{ doc.BodyContext.add_sum }}" data-pattern='currency' readonly='readonly' style='width: 98%;'>
+		</td>
+	</tr>
+</table>
+
+
+<table class="tableStyle linePlus mt10 multi-row-table RowSumTable" id="tblAccountInfo">
+    <colgroup>
+        <col style="width:20%" />
+        <col style="width:40%" />
+        <col style="width:20%" />
+        <col style="width:20%" />
+    </colgroup>
+    
+    <tr class="multi-row-control" align="right" data-mode="writeOnly">
+		<td colspan="7" style="border:none;">
+			<input type="button" value="+추가" class="multi-row-add usa">
+			<input type="button" value="-삭제" class="multi-row-del-auto usa">
+		</td>
+	</tr>
+	
+    <tr>
+    	<th>지출형태</th>
+    	<th>내역</th>
+    	<th>입금액</th>
+    	<th>출금액</th>
+    </tr>
+    <tr class="multi-row-template">
+    	<td><select data-type="rField" data-node-name="pay_method_acc" name="pay_method_acc" data-element-type="sel_d_t" style="width: 99%"></select></td>
+    	<td><input type="text" data-type="rField" name="usage_comment_acc" style="width:99%;" ></td>
+    	<td><input type="text" data-type="rField" name="deposit_amount_acc" style="width:99%;" data-pattern='currency' onblur='setSame(this, "withdraw_amount_acc");'></td>
+    	<td><input type="text" data-type="rField" name="withdraw_amount_acc" style="width:99%;" data-pattern='currency' onblur='setSame(this, "deposit_amount_acc");'></td>
+    </tr>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

@@ -1,0 +1,501 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="groupware.privacy">
+	<select id="selectUserPrivacySetting" parameterType="cmap" resultType="cmap">
+		SELECT A.UserID, A.UserCode, A.MailAddress, A.BirthDiv, A.IsBirthLeapMonth,
+			   A.BirthDate, A.ExternalMailAddress, A.Mobile, A.Fax, A.PhoneNumberInter,
+		       A.IPPhone, A.PhoneNumber, A.PhotoFileID AS updateFileId, A.MultiDisplayName,
+			   B.MultiCompanyName, B.MultiDeptName, B.MultiJobPositionName, B.MultiJobTitleName,
+			   C.Mail, D.AbsenseUseYN, D.AbsenseDuty
+			   , IF(D.AbsenseTermStart, DATE_FORMAT(D.AbsenseTermStart, '%Y.%m.%d'), '') AS AbsenseTermStart
+			   , IF(D.AbsenseTermEnd, DATE_FORMAT(D.AbsenseTermEnd, '%Y.%m.%d'), '') AS AbsenseTermEnd
+			   , D.AbsenseReason, D.AbsenseType,
+			   IF (D.AbsenseDuty IS NULL, '', CONCAT(D.AbsenseDuty,';',(SELECT DisplayName 
+																		  FROM covi_smart4j.sys_object_user E 
+																		 WHERE D.AbsenseDuty = E.UserCode))) AS absenseDutyText,
+			   PhotoPath AS updateFilePath	
+			   , ChargeBusiness AS ChargeBusiness
+			   , D.PushAllowYN
+			   , D.PushAllowWeek
+			   , D.PushAllowStartTime
+			   , D.PushAllowEndTime
+		  FROM covi_smart4j.sys_object_user A
+		  JOIN covi_smart4j.sys_object_user_basegroup B
+		    ON A.UserCode = B.UserCode
+		  LEFT JOIN covi_smart4j.sys_object_user_google C
+		    ON A.UserCode = C.UserCode
+		  LEFT JOIN covi_smart4j.sys_object_user_info D
+		    ON A.UserCode = D.UserCode    
+		 WHERE B.UserCode = #{userCode}
+		   AND B.Seq = #{seq}
+	</select>
+	
+	<select id="selectUserBaseGroupAll" parameterType="cmap" resultType="cmap">
+	    SELECT Seq
+	    	,UserCode 
+	    	,Fn_BaseGetDictionary_S(#{lang}, MultiCompanyName) AS CompanyName
+	    	,Fn_BaseGetDictionary_S(#{lang}, MultiDeptName) AS DeptName
+	    	,Fn_BaseGetDictionary_S(#{lang}, MultiJobLevelName) AS JobLevelName
+	    	,CompanyCode
+	    	,DeptCode
+	    	,JobLevelCode
+	    FROM sys_object_user_basegroup
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	   	<![CDATA[
+	   	ORDER BY  JobType <> 'Origin'
+	   	]]>
+	</select>
+	
+	<select id="selectUserGroupName" parameterType="cmap" resultType="cmap">
+		SELECT Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS DeptName
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS JobLevelName
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS JobPositionName
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS JobTitleName
+			    ,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS CompanyName
+		FROM covi_smart4j.sys_object_user SOU
+		LEFT JOIN covi_smart4j.sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+		WHERE SOUBG.Seq = #{seq}
+	</select>	
+	
+	<select id="selectUserBaseGroup" parameterType="cmap" resultType="cmap">
+	    SELECT  (SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUB.DeptCode) AS GroupPath
+	    ,Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiDeptName) AS DeptName
+	    ,Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiJobLevelName) AS JobLevelName
+	    ,Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiJobPositionName) AS JobPositionName
+	    ,Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiJobTitleName) AS JobTitleName
+	    ,FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiCompanyName) AS CompanyName
+		, (SELECT DomainID FROM sys_object_domain WHERE DomainCode = SOUB.CompanyCode) AS DomainID
+	    ,SOUB.CompanyCode AS CompanyCode
+	    ,SOUB.JobLevelCode 
+	    ,SOUB.JobPositionCode
+	    ,SOUB.JobTitleCode
+	    ,SOUB.DeptCode
+		,covi_smart4j.sys_getFullPath(SOUB.DeptCode)	AS	GroupFullName
+		,covi_smart4j.Fn_GetApprvalDeptInfo_S(SOUB.DeptCode,'CODE') AS ApprovalParentGR_Code
+		,covi_smart4j.Fn_GetApprvalDeptInfo_S(SOUB.DeptCode,'NAME') AS ApprovalParentGR_Name
+		,SOUB.MultiJobPositionName AS UR_MultiJobPositionName
+		,SOUB.MultiJobTitleName AS UR_MultiJobTitleName
+		,SOUB.MultiJobLevelName AS UR_MultiJobLevelName
+		,SOUB.MultiDeptName AS GR_MultiName
+		FROM sys_object_user_basegroup AS SOUB
+		WHERE 1=1 
+		AND SOUB.Seq = #{seq}
+	</select>
+	
+	<update id="updateUserInfo" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user
+		SET 	 BirthDiv = #{birthDiv}
+			   , BirthDate = #{birthDate}
+			   , ExternalMailAddress = #{externalMailAddress}
+			   , Mobile = #{mobile}
+			   , Fax = #{fax}
+			   , PhoneNumberInter = #{phoneNumberInter}
+			   , PhoneNumber = #{phoneNumber}
+			   , chargeBusiness = #{chargeBusiness}
+			   <if test="languageCode != null and languageCode != '' ">
+			   , languageCode = #{languageCode}
+			   </if>	
+			   <if test="timeZoneCode != null and timeZoneCode != '' ">
+			   , TimeZoneCode = #{timeZoneCode}
+			   </if>
+			   <if test='isBirthLeapMonth != null and isBirthLeapMonth !=""'>
+			   , IsBirthLeapMonth = #{isBirthLeapMonth}
+			   </if>
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- 부재설정 수정 -->
+	<update id="updateUserAbsense" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user_info
+		   SET AbsenseUseYN = #{absenseUseYn},
+		   
+			<if test='absenseUseYn != null and absenseUseYn !="" and absenseUseYn =="Y"'>
+		   	   AbsenseDuty = #{absenseDuty},
+		   	   AbsenseTermStart = #{absenseTermStart},
+		   	   AbsenseTermEnd = #{absenseTermEnd},
+		   	   AbsenseReason = #{absenseReason},
+		   	   AbsenseType = #{absenseType}
+			</if>
+			
+			<if test='absenseUseYn != null and absenseUseYn !="" and absenseUseYn =="N"'>
+		   	   AbsenseDuty = NULL,
+		   	   AbsenseTermStart = NULL,
+		   	   AbsenseTermEnd = NULL,
+		   	   AbsenseReason = NULL,
+		   	   AbsenseType = NULL
+			</if>
+			
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- PUSH알림설정 수정 -->
+	<update id="updateUserPush" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user_info
+		   SET PushAllowYN = #{pushAllowYN},
+		   	   PushAllowWeek = #{pushAllowWeek},
+		   	   PushAllowStartTime = #{pushAllowStartTime},
+		   	   PushAllowEndTime = #{pushAllowEndTime}
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<!-- 테마 변경 정보 저장 -->
+	<update id="updateThemeType" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user_info
+		   SET ThemeType = #{themeType}
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<select id="selectUserLoginPassword" parameterType="cmap" resultType="cmap">
+		SELECT LogonPassword,
+			   REPLACE(BirthDate, '.', '') AS BirthDate, 
+			   REPLACE(Mobile, '-', '') AS Mobile
+		  FROM covi_smart4j.sys_object_user A
+		 WHERE UserCode = #{userCode}	  
+	</select>
+		
+	<update id="updateUserPassword" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user
+		  <!--  SET LogonPassword = #{loginPassword} -->
+		  		SET LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{loginPassword},512)))
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<select id="selectUserMessagingSetting" parameterType="cmap" resultType="cmap">
+		  SELECT A.CodeID
+					, A.BizSection
+					, A.CodeGroup
+					, A.Code
+					, A.CodeName
+					, A.MultiCodeName
+					, A.Reserved1 AS EnableMedia --  예비1: 모든 발송 가능 매체 
+					, A.Reserved2 AS EditableMedia --  예비2: 사용자가 설정 가능한 매체 
+					, A.Reserved3 AS DefaultMedia --  예비3: 초기설정값 
+					, A.Description
+					, DATE_FORMAT(A.ModifyDate,'%Y-%m-%d') AS ModifyDate
+					, B.CodeName AS parentCodeName
+					, B.MultiCodeName AS parentMultiCodeName
+					, IFNULL(C.MediaType, A.Reserved3) AS MediaType
+					, IFNULL(D.DisplayName,'Default') AS ModifyName
+		  FROM covi_smart4j.sys_base_code A
+		  LEFT JOIN (SELECT Code, CodeName, MultiCodeName
+		  			    FROM covi_smart4j.sys_base_code sbc
+		  			    WHERE codeGroup = 'TodoCategory' AND IsUse = 'Y' 
+		  			    AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoCategory' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		  			    ORDER BY SortKey ASC
+		  			) B ON A.BizSection = B.Code
+		  LEFT JOIN (SELECT ServiceType, MediaType , ModifierCode
+		  			    FROM covi_smart4j.sys_messaging_setting 
+		  			    WHERE UserCode = #{userCode}	) C  ON A.Code = C.ServiceType
+		  LEFT JOIN sys_object_user D ON C.ModifierCode = D.UserCode
+		  LEFT JOIN sys_object_user_basegroup E ON E.UserCode = D.UserCode AND E.JobType = 'Origin'
+		  WHERE A.codeGroup = 'TodoMsgType'
+		  AND A.IsUse = 'Y'
+		  AND A.ReservedInt = 1
+		  AND B.CodeName IS NOT NULL
+		  AND A.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = A.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = #{domainID}, 0, 1) LIMIT 1 )
+		  ORDER BY A.BizSection, A.SortKey ASC
+
+	</select>
+	
+	<update id="updateUserMessagingSetting" parameterType="cmap">
+		INSERT 
+		  INTO covi_smart4j.sys_messaging_setting (UserCode, ServiceType, MediaType, RegisterCode, 
+		  										   ModifierCode
+		  										  )
+	    VALUES (#{settingVO.serviceTypes[0].userCode}, #{settingVO.serviceTypes[0].serviceType}, #{settingVO.serviceTypes[0].mediaType}, #{settingVO.serviceTypes[0].userCode},
+	    		#{settingVO.serviceTypes[0].userCode}
+	    	   )
+			ON DUPLICATE KEY 
+		UPDATE MediaType = #{settingVO.serviceTypes[0].mediaType},
+			   ModifierCode = #{settingVO.serviceTypes[0].userCode},
+			   ModifiedDate = now(3)
+	</update>
+	
+	<update id="updateUserMessagingSettings" parameterType="cmap">
+		DELETE 
+		  FROM covi_smart4j.sys_messaging_setting
+		 WHERE UserCode = #{settingVO.userCode}
+		 <if test='settingVO.reqTr != null and settingVO.reqTr !="" and settingVO.reqTr =="body"'>
+   		 	AND ServiceType IN (
+	   		 						SELECT Code
+									FROM covi_smart4j.sys_base_code sbc
+									LEFT JOIN covi_smart4j.sys_object_user_basegroup soub ON soub.UserCode = #{settingVO.userCode} AND soub.JobType = 'Origin'
+									LEFT JOIN covi_smart4j.sys_object_domain sod ON sod.DomainCode = soub.CompanyCode 
+									WHERE CodeGroup = 'TodoMsgType'
+									AND BizSection = #{settingVO.serviceType}
+									AND sbc.DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TodoMsgType' ORDER BY IF(DomainID = sod.DomainID, 0, 1) LIMIT 1 )
+								)
+		 </if>
+		;
+		INSERT
+		  INTO covi_smart4j.sys_messaging_setting (UserCode, ServiceType, MediaType, RegisterCode, 
+		  										   ModifierCode
+		  										  )
+	    VALUES 
+        <foreach collection="settingVO.serviceTypes" item="item" open="(" separator="),(" close=")">
+        	#{item.userCode}, #{item.serviceType}, #{item.mediaType}, #{item.userCode},
+    		#{item.userCode}
+        </foreach>
+	</update>
+	
+	<delete id="deleteUserMessagingSetting" parameterType="cmap">
+		DELETE 
+		  FROM covi_smart4j.sys_messaging_setting
+		 WHERE UserCode = #{settingVO.userCode}
+	</delete>
+	
+	<select id="selectConnectionLogList" parameterType="cmap" resultType="cmap">
+		SELECT CONCAT(Year, '-', Month, '-', Day) AS days,
+	 		   DATE_FORMAT(MIN(LogonDate),'%Y-%m-%d %H:%i') AS LogonDate, 
+	 		   DATE_FORMAT(MAX(LogoutDate),'%Y-%m-%d %H:%i') AS LogoutDate, 
+			   LogonID
+		  FROM covi_smart4j.log_connect
+		 WHERE LogonID = #{userId}
+		 <if test='startDate != null and startDate !=""'>
+	  	   AND LogonDate <![CDATA[>=]]> #{startDate}  	   
+		 </if>
+		 <if test='endDate != null and endDate !=""'>
+		   AND LogonDate <![CDATA[<=]]> #{endDate}
+		 </if>
+		 GROUP BY Year, Month, Day
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortDirection != null'>
+					<choose>
+					<when test='sortColumn.equalsIgnoreCase("LogonDate")'>LogonDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LogoutDate")'>LogoutDate</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<otherwise>days</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	     <if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	 </if>
+	</select>
+	
+	<select id="selectConnectionLogListCnt" resultType="java.lang.Long">
+		SELECT COUNT(*) AS cnt
+		  FROM (
+		  SELECT Year, Month, Day	
+		  FROM covi_smart4j.log_connect
+		 WHERE LogonID = #{userId}
+		 <if test='startDate != null and startDate !=""'>
+	  	   AND LogonDate <![CDATA[>=]]> #{startDate}  	   
+		 </if>
+		 <if test='endDate != null and endDate !=""'>
+		   AND LogonDate <![CDATA[<=]]> #{endDate}
+		 </if>
+		 GROUP BY Year, Month, Day	
+		 ) AS A
+		 WHERE 1=1		   		  		 
+	</select>
+	
+	<update id="updateTopMenuManage" parameterType="cmap">
+	    UPDATE covi_smart4j.sys_object_user_info SET
+	    	TopMenuConf = #{topMenuConf}
+	    WHERE 1=1
+	    AND UserCode = #{userCode}
+	</update>	
+	
+	<select id="selectAnniversaryList" parameterType="cmap" resultType="cmap">
+		SELECT	AnniID AS MessageID, 
+<!-- 				DATE_FORMAT(AnniDate,'%Y.%m.%d') AS AnniDate,  -->
+				REPLACE(AnniDate, '-', '.') AS AnniDate,
+				AnniDateType,
+				IF(AnniDateType = 'S','양력', IF(IsLeapMonth = 'Y','음력/윤달', '음력')) AS AnniDateTypeText,
+				Subject, Priority,
+				(CASE
+					WHEN AnniDateType = 'S' THEN (
+						CASE
+							WHEN DATEDIFF(AnniDate, now()) = 0 THEN 'D-Day'
+							WHEN DATEDIFF(AnniDate, now()) <![CDATA[>]]> 0 THEN CONCAT('D', (-1 * DATEDIFF(AnniDate, now())))
+							ELSE CONCAT('D+', (-1 * DATEDIFF(AnniDate, now())))
+						END)
+					ELSE (
+						CASE
+							WHEN DATEDIFF((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), now()) = 0 THEN 'D-Day'
+							WHEN DATEDIFF((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), now()) <![CDATA[>]]> 0 THEN CONCAT('D', (-1 * DATEDIFF((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), now())))
+							ELSE CONCAT('D+', (-1 * DATEDIFF((SELECT SolarDate FROM sys_calendar sc WHERE LunarDate = AnniDate AND sc.IsLeapMonth = soua.IsLeapMonth), now())))
+						END)
+				END) AS dDay,
+<!-- 				(CASE	WHEN DATEDIFF(AnniDate, now()) = 0 THEN 'D-Day' -->
+<!-- 						WHEN DATEDIFF(AnniDate, now()) <![CDATA[>]]> 0 THEN CONCAT('D', (-1 * DATEDIFF(AnniDate, now()))) -->
+<!-- 						ELSE CONCAT('D+', (-1 * DATEDIFF(AnniDate, now()))) -->
+<!-- 				END) AS dDay, -->
+				(CASE	WHEN Priority = 1 THEN '매우 높음'
+						WHEN Priority = 2 THEN '높음'
+						WHEN Priority = 3 THEN '보통'
+						WHEN Priority = 4 THEN '낮음'
+						ELSE '매우 낮음' 
+				END) AS PriorityText, 
+				DATEDIFF(AnniDate, AlarmDate) AS alarmDay,
+				AlarmYN,
+				Description,
+				IsLeapMonth
+		FROM covi_smart4j.sys_object_user_anniversary soua
+		WHERE UserCode = #{userId}
+		<if test='messageId != null and messageId !=""'>
+			AND AnniID = #{messageId}
+		</if>
+		<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+			<choose>
+				<when test='schTypeSel == "subject"'>
+					AND Subject LIKE CONCAT('%', #{schTxt}, '%')
+				</when>
+				<otherwise>
+					AND Description LIKE CONCAT('%', #{schTxt}, '%')
+				</otherwise>
+			</choose>
+		</if>
+		<trim prefix='ORDER BY'>
+			<if test='sortColumn != null and sortColumn != "" and sortDirection != null and sortDirection != ""'>
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("AnniDateTypeText")'>AnniDateTypeText</when>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("PriorityText")'>PriorityText</when>
+					<when test='sortColumn.equalsIgnoreCase("alarmDay")'>alarmDay</when>
+					<otherwise>AnniDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="selectAnniversaryListCnt" resultType="java.lang.Long">
+		SELECT COUNT(AnniID) AS cnt
+		  FROM covi_smart4j.sys_object_user_anniversary
+		 WHERE UserCode = #{userId}
+		 <if test='messageId != null and messageId !=""'>
+		 	AND AnniID = #{messageId}
+		 </if>		 
+		 <if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+			<choose>
+				<when test='schTypeSel == "subject"'>
+				   AND Subject LIKE CONCAT('%', #{schTxt}, '%')
+	            </when>
+	            <otherwise>
+	               AND Description LIKE CONCAT('%', #{schTxt}, '%')
+	            </otherwise>
+			</choose>
+		 </if>		 		 
+	</select>
+	
+	<insert id="insertAnniversary" parameterType="cmap">	
+		INSERT INTO covi_smart4j.sys_object_user_anniversary (
+			UserCode, Subject, Description, 
+			AlarmDate, 
+			AnniDate, AnniDateType, Priority, AlarmYN
+			<if test='isLeapMonth != null and isLeapMonth !=""'>,isLeapMonth</if>
+		)
+	    VALUES (
+	    	#{urCode}, #{subject}, #{description},
+			<choose>
+				<when test='alarmYn == "Y"'>
+				    DATE_SUB(#{anniDate}, INTERVAL #{alramPeriod} DAY),
+	         	</when>
+	         	<otherwise>
+					'',
+	         	</otherwise>
+	    	</choose>	    
+			#{anniDate}, #{anniDateType}, #{priority}, #{alarmYn}
+			<if test='isLeapMonth != null and isLeapMonth !=""'>,#{isLeapMonth}</if>
+		)
+	</insert>
+	
+	<update id="updateAnniversary" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user_anniversary
+		   SET Subject = #{subject},
+		   	   Description = #{description},
+			   <choose>
+			   	<when test='alarmYn == "Y"'>
+					AlarmDate = DATE_SUB(#{anniDate}, INTERVAL #{alramPeriod} DAY),
+	         	</when>
+	           <otherwise>
+					AlarmDate = '',
+	           </otherwise>
+	    	   </choose>
+		   	   AnniDate = #{anniDate},
+		   	   AnniDateType = #{anniDateType},
+		   	   Priority = #{priority},
+		   	   AlarmYN = #{alarmYn}
+		   	   <if test='isLeapMonth != null and isLeapMonth !=""'>,isLeapMonth = #{isLeapMonth}</if>
+		 WHERE AnniID = #{messageId}
+	</update>
+	
+	<delete id="deleteAnniversary" parameterType="cmap">
+		DELETE 
+		  FROM covi_smart4j.sys_object_user_anniversary
+		 WHERE AnniID IN
+         <foreach collection="messageIdArr" item="messageId" open="(" close=")" separator=",">
+         	#{messageId}
+         </foreach>
+	</delete>
+	
+	<insert id="insertAnniversaryByExcel" parameterType="cmap">
+		INSERT 
+		  INTO covi_smart4j.sys_object_user_anniversary (UserCode, Subject, Description, 
+		  										   AlarmDate, 
+		  										   AnniDate, AnniDateType, Priority, AlarmYN
+			  						   			  )
+	    VALUES 
+        <foreach collection="dataList" item="item" open="(" separator="),(" close=")">
+        	#{urCode}, #{item.subject}, #{item.description}, 
+			<choose>
+				<when test='item.alarmYn == "Y"'>
+				    DATE_SUB(#{item.anniDate}, INTERVAL #{item.alarmPeriod} DAY),
+	         	</when>
+	         	<otherwise>
+					'',
+	         	</otherwise>
+	    	</choose>
+    		#{item.anniDate}, #{item.anniDateType}, #{item.priority}, #{item.alarmYn}
+        </foreach>
+	</insert>
+	
+	<update id="updateUserPhotoPath" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user
+		   SET PhotoPath = #{photoPath}
+		 WHERE UserCode = #{userCode}
+	</update>	
+	
+	<select id="selectSSOValue" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT SettingValue
+			FROM sso_config sso
+			WHERE Code = #{Code}
+			AND DomainID = (SELECT DomainID FROM covi_smart4j.sso_config WHERE Code = sso.Code ORDER BY IF(DomainID = #{DomainID}, 0, 1) LIMIT 1 )
+		]]>
+	</select>
+	<select id="selectTokenInForMation" parameterType="cmap" resultType="cmap">
+	   <![CDATA[ 
+	  	 	SELECT   TOKEN
+			       , UserID AS LogonID
+			       , UserName
+			       , UserCode
+			       , EMPNO AS UR_EmpNo
+			       , MAXAGE
+			       , MODIFIERDATE
+			FROM sso_token_his 
+			WHERE TOKEN = #{key}
+			ORDER BY MODIFIERDATE DESC 
+	 	]]>  								  
+	</select>
+	
+	<delete id="removeGmail" parameterType="cmap" >
+	    DELETE FROM sys_object_user_google WHERE UserCode = #{UR_CODE}
+	</delete>
+	
+</mapper>

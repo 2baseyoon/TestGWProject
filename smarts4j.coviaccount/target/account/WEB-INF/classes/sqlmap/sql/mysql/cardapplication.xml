@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.cardApplication">
+
+	<select id="getCardApplicationList" parameterType="cmap" resultType="cmap">
+		SELECT	ACA.CardApplicationID
+			,	ACA.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACA.CompanyCode, #{companyCode})	AS CompanyName
+			,	ACA.CardNo
+			,	ACA.CardCompany
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardCompany', ACA.CardCompany, #{companyCode})	AS CardCompanyName
+			,	ACA.RegisterID
+			,	USR.DisplayName	AS RegisterName
+			,	ACA.RegistDate	AS RegistDate
+			,	ACA.IsUse
+		FROM	covi_account4j_si.act_card_application	ACA
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE CONCAT('%',#{cardNo},'%') 
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACA.CardApplicationID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>CardCompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getCardApplicationExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	ACA.CardNo
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardCompany', ACA.CardCompany, #{companyCode}) AS CardCompanyName
+			,	USR.DisplayName		AS RegisterName
+			,	ACA.RegistDate		AS RegistDate
+			,	ACA.IsUse
+		FROM	covi_account4j_si.act_card_application	ACA
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+		ORDER BY ACA.CardApplicationID
+	</select>
+	
+	<select id="getCardApplicationListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_card_application	ACA
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+	</select>
+	
+	<select id="getCardApplicationDetail" parameterType="cmap" resultType="cmap">
+		SELECT	ACA.CardApplicationID
+			,	ACA.CardNo
+			,	covi_account4j_si.Fn_GetBaseCodeName('CardCompany', ACA.CardCompany, #{companyCode}) AS CardCompanyName
+			,	USR.DisplayName	AS RegisterName
+			,	ACA.IsUse
+			,	ACA.ApplicationReason
+		FROM	covi_account4j_si.act_card_application	ACA
+		LEFT OUTER JOIN
+				covi_smart4j.sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		AND		ACA.CardApplicationID = #{cardApplicationID}
+	</select>
+	
+	<update id="updateCardApplicationUseYN" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_card_application
+ 			SET
+ 				IsUse		= #{isUse}
+ 			,	ModifierID	= #{UR_Code}
+			,	ModifyDate	= NOW(3)
+ 		WHERE	CardApplicationID = #{cardApplicationID}
+ 	</update>
+ 	
+</mapper>
+

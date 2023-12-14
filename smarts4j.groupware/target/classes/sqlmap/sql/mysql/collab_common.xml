@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="collab.common">
+
+
+	<!-- 프로젝트목록 리스트-->
+	<select id="getUserProject"  parameterType="cmap" resultType="cmap">
+	/* collab.common.getUserProject */
+		SELECT PrjSeq, PrjName, PrjPersonalName, PrjStatus, ProgRate, IsClose,  DATE_FORMAT(CloseDate ,'%Y-%m-%d %H:%i') CloseDate , PrjColor, Remark, StartDate, EndDate, RegisterCode,  DATE_FORMAT(RegisteDate ,'%Y-%m-%d %H:%i') RegisteDate 
+						,(SELECT GROUP_CONCAT(CONCAT(ctm.UserCode,'^',covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName),'^',sou.PhotoPath)  SEPARATOR '|') 
+							FROM covi_smart4j.collab_project_manager ctm 
+						   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+							WHERE ctm.PrjSeq = p.PrjSeq) MmUser
+						,(SELECT covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName)
+							FROM covi_smart4j.collab_project_member ctm 
+						   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+							WHERE ctm.PrjSeq = p.PrjSeq
+							LIMIT 1) TmUser
+						,(SELECT count(ctm.userCode) 
+							FROM covi_smart4j.collab_project_member ctm 
+						   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+							WHERE ctm.PrjSeq = p.PrjSeq) TmUserCnt
+						,IsMember
+						,IsManager 
+						,IsRegister	
+						,IsViewer
+						,IsFav
+		FROM   (
+			SELECT distinct cp.PrjSeq, cp.PrjName, cppn.PrjPersonalName, cp.PrjStatus, cp.ProgRate, cp.IsClose, cp.CloseDate, cp.PrjColor, cp.Remark, cp.StartDate, cp.EndDate, cp.RegisterCode, cp.RegisteDate
+					, case when cpm.PrjSeq IS NOT NULL then 'Y' ELSE 'N' end IsMember
+					, case when cpn.PrjSeq IS NOT NULL then 'Y' ELSE 'N' end  IsManager
+					, case when cpr.PrjSeq IS NOT NULL then 'Y' ELSE 'N' end  IsRegister			  
+					, case when cpv.PrjSeq IS NOT NULL then 'Y' ELSE 'N' end  IsViewer
+					, IFNULL((SELECT COUNT(*) FROM covi_smart4j.collab_project_favorite WHERE cp.PrjSeq = PrjSeq AND UserCode = #{USERID}),0) IsFav
+				  FROM collab_project cp
+			LEFT  JOIN collab_project_member cpm ON cp.PrjSeq = cpm.PrjSeq AND cpm.UserCode = #{USERID}
+			LEFT  JOIN collab_project_manager cpn ON cp.PrjSeq = cpn.PrjSeq AND cpn.UserCode = #{USERID}
+			LEFT  JOIN collab_project cpr ON cp.PrjSeq = cpr.PrjSeq AND cpr.RegisterCode = #{USERID}
+			LEFT  JOIN collab_project_viewer cpv ON cp.PrjSeq = cpv.PrjSeq AND cpv.UserCode = #{USERID}
+			LEFT  JOIN collab_project_personalname cppn ON cp.PrjSeq = cppn.PrjSeq AND cppn.RegisterCode = #{USERID}
+			 WHERE 1=1 
+			 <if test='isSaaS == "Y"'>
+			 	 AND cp.CompanyCode = #{CompanyCode}
+			 </if>
+			 <if test='inClose == null or inClose == ""'>
+			   AND cp.IsClose='N'
+			 </if>
+			 <if test='inClose != null and inClose != ""'>
+			   AND cp.IsClose= #{inClose}
+			 </if>			 
+			 <if test='isAdmin == null or isAdmin == ""'>
+			   AND (cpm.PrjSeq IS NOT NULL OR  cpn.PrjSeq IS NOT NULL OR   cpr.PrjSeq IS NOT NULL 
+			   	<if test='includeViewer == "Y"'>
+			   	OR   cpv.PrjSeq IS NOT NULL 
+			   	</if>
+			   )
+			 </if>
+			  <if test='onlyMember == "Y"'>
+			   AND (cpm.PrjSeq IS NOT NULL )
+			 </if>
+			 <if test='seValue != null and seValue != ""'>
+			   AND (cp.PrjName like concat('%', #{seValue}, '%')
+			   	or cp.Remark like concat('%', #{seValue}, '%'))
+			 </if>
+			 <if test="prjStatus != null and prjStatus.length != 0">
+				AND cp.PrjStatus  in 
+	        	<foreach collection="prjStatus" item="item" index="index" separator="," open="(" close=")">
+	                    #{item}
+	            </foreach>
+		  	 </if>
+				) p   
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+		ORDER BY RegisteDate desc
+		   LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+		<if test='menulist == "Y"'>
+		ORDER BY CONCAT(IFNULL(PrjPersonalName, ''), PrjName) asc;
+		</if>
+	</select>
+	
+	<!-- 프로젝트목록 리스트-->
+	<select id="getUserProjectCnt"  parameterType="cmap" resultType="java.lang.Long">
+	/* collab.common.getUserProjectCnt */
+		SELECT COUNT(PrjSeq)
+		FROM   (
+			SELECT distinct cp.PrjSeq, cp.PrjName, cp.PrjStatus, cp.ProgRate, cp.CloseDate, cp.PrjColor, cp.Remark, cp.StartDate, cp.EndDate, cp.RegisterCode, cp.RegisteDate
+			  FROM collab_project cp
+		LEFT  JOIN collab_project_member cpm ON cp.PrjSeq = cpm.PrjSeq AND cpm.UserCode = #{USERID}
+		LEFT  JOIN collab_project_manager cpn ON cp.PrjSeq = cpn.PrjSeq AND cpn.UserCode = #{USERID}
+		LEFT  JOIN collab_project cpr ON cp.PrjSeq = cpr.PrjSeq AND cpr.RegisterCode = #{USERID}
+		LEFT  JOIN collab_project_viewer cpv ON cp.PrjSeq = cpv.PrjSeq AND cpv.UserCode = #{USERID}
+			 WHERE 1=1 
+			 <if test='isSaaS == "Y"'>
+			 	 AND cp.CompanyCode = #{CompanyCode}
+			 </if>
+			 <if test='inClose == null or inClose == ""'>
+			   AND cp.IsClose='N'
+			 </if>
+			 <if test='inClose != null and inClose != ""'>
+			   AND cp.IsClose= #{inClose}
+			 </if>
+			 <if test='isAdmin == null or isAdmin == ""'>
+			   AND (cpm.PrjSeq IS NOT NULL OR  cpn.PrjSeq IS NOT NULL OR   cpr.PrjSeq IS NOT NULL 
+			   	<if test='includeViewer == "Y"'>
+			   	OR   cpv.PrjSeq IS NOT NULL 
+			   	</if>
+			   )
+			 </if>
+			 <if test='seValue != null and seValue != ""'>
+			   AND (cp.PrjName like concat('%', #{seValue}, '%')
+			   	or cp.Remark like concat('%', #{seValue}, '%'))
+			 </if>
+			 <if test="prjStatus != null and prjStatus.length != 0">
+				AND cp.PrjStatus  in 
+	        	<foreach collection="prjStatus" item="item" index="index" separator="," open="(" close=")">
+	                    #{item}
+	            </foreach>
+		  	 </if>
+				) p   
+		<if test="(pageSize != null and pageSize >= 0) and (pageOffset != null and pageOffset >= 0)">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<insert id="setUserTeamExec"  parameterType="cmap" >
+		INSERT INTO covi_smart4j.COLLAB_TEAM_EXEC
+		(ExecYear, GroupId, RegisterCode, RegisteDate)
+		(SELECT date_format(NOW(),'%Y'), b.groupid, #{USERID}, now()
+	     FROM covi_smart4j.sys_object_user_basegroup a
+	     JOIN covi_smart4j.sys_object_group b ON a.DeptCode = b.GroupCode and b.GroupType='Dept'
+   LEFT  JOIN COVI_SMART4J.COLLAB_TEAM_EXEC c on b.groupid = c.groupid AND c.isClose='N'
+	    WHERE UserCode = #{USERID}
+	      AND c.GROUPID IS NULL
+	      AND b.IsUse='Y'
+          AND b.IsDisplay ='Y')
+          ON DUPLICATE KEY UPDATE RegisteDate = NOW()     
+	</insert>
+
+	<select id="getUserTeam"  parameterType="cmap" resultType="cmap">
+	/* collab.common.getUserTeam */
+		 <![CDATA[
+		SELECT Seq
+		    	,UserCode 
+		    	,Fn_BaseGetDictionary_S(#{lang}, MultiCompanyName) AS CompanyName
+		    	,Fn_BaseGetDictionary_S(#{lang}, MultiDeptName) AS DeptName
+		    	,Fn_BaseGetDictionary_S(#{lang}, MultiJobLevelName) AS JobLevelName
+		    	,a.CompanyCode
+		    	,DeptCode
+		    	,JobLevelCode
+		    	, b.GroupID
+				,(SELECT covi_smart4j.Fn_BaseGetDictionary_S(#{lang},sou.MultiDisplayName)
+					FROM covi_smart4j.sys_object_user_basegroup ctm 
+				   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+					WHERE ctm.DeptCode = a.DeptCode
+				 LIMIT 1	) TmUser
+				,(SELECT count(ctm.userCode) 
+					FROM covi_smart4j.sys_object_user_basegroup ctm 
+				   JOIN covi_smart4j.sys_object_user sou on ctm.userCode = sou.userCode
+					WHERE ctm.DeptCode = a.DeptCode) TmUserCnt
+				,c.ExecYear 
+	     FROM sys_object_user_basegroup a
+	     JOIN COVI_SMART4J.SYS_OBJECT_GROUP b ON a.DEPTCODE = b.GROUPCODE and b.GroupType='Dept'
+    	 JOIN COVI_SMART4J.COLLAB_TEAM_EXEC c on b.groupid = c.groupid  AND c.isClose='N'
+	    WHERE UserCode = #{USERID}
+	      AND b.IsUse='Y'
+          AND b.IsDisplay ='Y'
+   	 ORDER BY if(JobType = 'Origin' ,0 ,1)
+   	   	]]>
+	</select>
+
+	<!-- 하위부서 리스트 조회 -->
+	<select id="getSubDeptList" parameterType="cmap" resultType="cmap">
+	/* collab.common.getSubDeptList */
+		SELECT  
+			GroupID
+			,GroupCode
+			,CompanyCode
+			,GroupType
+			,MemberOf
+			,DisplayName
+			,MultiDisPlayName
+			,Fn_BaseGetDictionary_S(#{lang},MultiDisPlayName) AS TransMultiDisplayName  
+			,CHAR_LENGTH(SortPath) - CHAR_LENGTH(REPLACE(SortPath,';','')) SortDepth
+			,GroupPath
+		 FROM covi_smart4j.sys_object_group 
+		WHERE GroupType IN ('Dept','Company')
+		<if test='isAdmin == null or isAdmin == ""'>
+			AND GroupPath LIKE CONCAT(#{GR_GroupPath},'%')
+		</if>
+		<if test='isAdmin == "Y"'>
+			AND CompanyCode = #{CompanyCode}
+		</if>
+		AND IsUse = 'Y'
+		AND IsDisplay = 'Y'
+		ORDER BY SortPath asc  
+	</select>
+
+	<select id="getMyConf" parameterType="cmap" resultType="cmap">
+		SELECT DashThema, TaskShowCode
+		  FROM collab_user_conf
+		 WHERE UserCode = #{USERID}    
+	</select>
+</mapper>
+

@@ -1,0 +1,1198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.job">
+
+	<update id="createScheduleJob" statementType="CALLABLE" parameterType= "cmap">
+	 	{CALL covi_smart4j.SP_attend_createScheduleJob(#{SchSeq}, #{StartDate}, #{EndDate}, #{JobUserCode}, #{HolidayFlag}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="createScheduleJobDirect" statementType="CALLABLE" parameterType= "cmap">
+		{CALL covi_smart4j.SP_attend_createScheduleJobDirect(#{SchSeq}, #{StartDate}, #{EndDate}, #{JobUserCode}, #{HolidayFlag}, #{CompanyCode}, #{USERID}, #{StartTime}, #{EndTime}, #{NextDayYn}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="createScheduleJobDiv" statementType="CALLABLE" parameterType= "cmap">
+	 	{CALL covi_smart4j.SP_attend_createScheduleJobDiv(#{SchSeq}, #{TrgDates}, #{JobUserCode}, #{HolidayFlag}, #{WeekFlag}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="createScheduleJobDivDirect" statementType="CALLABLE" parameterType= "cmap">
+		{CALL covi_smart4j.SP_attend_createScheduleJobDivDirect(#{SchSeq}, #{TrgDates}, #{JobUserCode}, #{HolidayFlag}, #{WeekFlag}, #{CompanyCode}, #{USERID}, #{StartTime}, #{EndTime}, #{NextDayYn}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="createScheduleOff" statementType="CALLABLE" parameterType= "cmap">
+	 	{CALL covi_smart4j.SP_attend_createScheduleOff(#{TrgDates}, #{JobUserCode}, #{WorkSts}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="createScheduleOffCancel" statementType="CALLABLE" parameterType= "cmap">
+		{CALL covi_smart4j.SP_attend_createScheduleOffCancel(#{TrgDates}, #{CompanyCode}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<update id="copyScheduleJob" statementType="CALLABLE" parameterType= "cmap"  >
+	 	{CALL covi_smart4j.SP_attend_copyScheduleJob(#{orgJobDate}, #{orgUserCode}, #{TrgDates}, #{JobUserCode}, #{HolidayFlag}, #{WeekFlag}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+	
+	<update id="reapplyScheduleJob" statementType="CALLABLE" parameterType= "cmap"  >
+	 	{CALL covi_smart4j.SP_attend_reapplyScheduleJob(#{SchSeq}, #{StartDate}, #{EndDate}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<select id="getScheduleJobUser"   parameterType="cmap" resultType= "cmap"  >
+		<![CDATA[
+		SELECT sou.UserCode, HolidayStart, HolidayEnd
+		FROM   covi_smart4j.sys_object_user_basegroup soub
+		JOIN   covi_smart4j.sys_object_user sou			ON soub.UserCode = sou.UserCode AND soub.JobType = 'Origin'
+		JOIN   covi_smart4j.attendance_mng_holiday_schedule ahs on soub.CompanyCode = ahs.CompanyCode AND ahs.HolidayStart = #{HolidayStart} AND ahs.HolidayEnd = #{HolidayEnd} AND ahs.GoogleYn= #{GoogleYn}
+	    WHERE  soub.CompanyCode = #{CompanyCode}
+	    AND    sou.IsUse = 'Y'
+		AND    sou.IsDisplay = 'Y' 
+		AND    ahs.HolidayStart >= STR_TO_DATE(REPLACE(sou.EnterDate,'-',''), '%Y%m%d')
+		AND (RetireDate ='' OR  ahs.HolidayEnd <= STR_TO_DATE(sou.RetireDate,'%Y-%m-%d'))
+		]]>
+	</select>
+	
+	<select id="getJobDayCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+	   SELECT count(*)
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company')  AND bg.DeptCode = og.GroupCode
+   LEFT  JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	</select>
+	
+	<select id="getJobDay"  parameterType="cmap" resultType= "cmap" >
+		   SELECT aj.JobDate          JobDate
+		   		, ur.UserCode
+				, IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName))>0
+					, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+					, ur.DisplayName) as UserName
+		   		, ur.PhotoPath
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS DeptName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS JobPositionName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName) AS JobLevelName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName) AS JobTitleName
+		   		, bg.JobTitleSortKey
+		   		, bg.JobLevelSortKey
+		   		, bg.JobPositionSortKey
+			   , IFNULL(aj.AttDayAC,0)  AttDayAC
+			   , aj.WorkSts          WorkSts
+			   , date_format(aj.AttDayStartTime,'%H%i') AttDayStartTime
+			   , date_format(aj.AttDayEndTime,'%H%i')   AttDayEndTime
+			   , aj.ConfmYn     ConfmYn
+			   , ifnull(ash.SchName,'') SchName
+		   	   , IFNULL(ash.WorkingSystemType,0) WorkingSystemType
+			   ,(SELECT  concat(vv.VacFlag,'/',vv.VacOffFlag,'/',vv.VacCnt,'/',vv.StartTime,'/',vv.EndTime,'/',vv.EachVacDay,'/',vv.VacAmPmVacDay)
+						FROM (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+						, concat(IFNULL( SUM(vd.AmVacDay),0),'|',IFNULL(SUM(vd.PmVacDay),0))  as VacAmPmVacDay
+						, GROUP_CONCAT(vd.VacFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacFlag
+						, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+						, GROUP_CONCAT(IFNULL(vd.StartTime,'00:00') ORDER BY vd.VacOffFlag SEPARATOR '|') as StartTime
+						, GROUP_CONCAT(IFNULL(vd.EndTime,'00:00')  ORDER BY vd.VacOffFlag SEPARATOR '|') as EndTime
+						, GROUP_CONCAT(vd.VacDay ORDER BY vd.VacOffFlag SEPARATOR '|') as EachVacDay
+						from (
+							select
+							UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+							,CASE WHEN VacOffFlag = 'AM' THEN
+							VacDay
+							END as AmVacDay
+							,CASE WHEN VacOffFlag = 'PM' THEN
+							VacDay
+							END as PmVacDay
+							FROM covi_smart4j.VM_VACATIONINFO_DAY
+						) vd
+						where vd.VacDate =  #{StartDate}
+						group by vd.VacDate, vd.UR_Code) vv
+					WHERE vv.UR_Code = aj.UserCode
+					AND JobDate = vv.VacDate
+				) VacFlag
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType  IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate} 
+	LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, bg.SortKey, bg.JobTitlecode, ur.EnterDate ASC
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+	
+	<select id="getJobDayAvg"  parameterType="cmap" resultType= "cmap" >
+	    SELECT count(aj.JobDate) JobCnt
+			   , AVG(IFNULL(AttDayAC,0))  ACAvg
+			    <foreach collection="Days" item="item" index="index" separator="" open="" close="">
+				   , IFNULL(SUM(case when #{item} <![CDATA[>=]]> date_format(aj.AttDayStartTime,'%H') AND #{item} <![CDATA[<]]> date_format(aj.AttDayEndTime,'%H') then 1 end),0) Day_${item}
+	           </foreach>
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate} 
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	</select>
+	
+	<select id="getJobWeekCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+	   SELECT count(ur.UserCode)	
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate} 
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	</select>
+	
+	<select id="getJobWeek"  parameterType="cmap" resultType= "cmap" >
+		SELECT aj.UserCode
+		   		, aj.UserName
+		   		, aj.PhotoPath, aj.DeptName, aj.JobLevelName, aj.JobPositionName, aj.JobTitleName
+		   		, aj.JobPositionSortKey, aj.EnterDate, aj.JobTitleSortKey
+			    ,IFNULL(aj.AttDayAC,0)  AttDayAC
+			   <foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+				   , SchName_${item[1]}
+				   , WorkSts_${item[1]}
+				   , AttDay_${item[1]}
+				   , AttDayStartTime_${item[1]}
+				   , AttDayEndTime_${item[1]}
+				   , AttDayAC_${item[1]}
+				   , ConfmYn_${item[1]}
+				   , (SELECT  concat(vv.VacFlag,':',vv.VacOffFlag,':',vv.VacCnt,':',vv.AmPmVacDay)
+				   		FROM (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+							   , GROUP_CONCAT(vd.VacFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacFlag
+							   , GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+							   , GROUP_CONCAT(vd.StartTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as StartTime
+							   , GROUP_CONCAT(vd.EndTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as EndTime
+				   				, CONCAT(IFNULL( SUM(AmVacDay),0),'|',IFNULL( SUM(PmVacDay),0)) as AmPmVacDay
+							   from (select
+									   UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+									   ,CASE WHEN VacOffFlag = 'AM' THEN
+									   VacDay
+									   END as AmVacDay
+									   ,CASE WHEN VacOffFlag = 'PM' THEN
+									   VacDay
+									   END as PmVacDay
+									   from covi_smart4j.vm_vacationinfo_day
+									   <choose>
+									 		<when test ="item[2] != null and item[2] != ''">
+										   	WHERE vacdate = '${item[2]}'
+											</when> 
+											<otherwise>
+										   	WHERE vacdate BETWEEN #{StartDate} AND #{EndDate}
+											</otherwise>  
+									   </choose>
+									   ) vd
+							   group by vd.VacDate, vd.UR_Code) vv
+				   		WHERE vv.UR_Code = aj.UserCode
+				   		AND AttDay_${item[1]} = vv.VacDate GROUP BY AttDay_${item[1]}
+				      ) VacFlag_${item[1]}
+	           </foreach>
+	    FROM (       
+		   SELECT ur.UserCode
+				, bg.SortKey, bg.JobLevelSortKey, bg.JobTitlecode
+				, IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName))>0
+					, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+					, ur.DisplayName) as UserName
+		   		, ur.PhotoPath
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS DeptName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS JobPositionName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName) AS JobLevelName
+		   		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName) AS JobTitleName
+		   		, bg.JobPositionSortKey, bg.JobTitleSortKey, ur.EnterDate
+			    ,IFNULL(SUM(aj.AttDayAC),0)  AttDayAC
+			   <foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then ifnull(ash.SchName,'')        END) SchName_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.WorkSts         END) WorkSts_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.jobDate         END) AttDay_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayStartTime,'%H%i') END) AttDayStartTime_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayEndTime,'%H%i')   END) AttDayEndTime_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.AttDayAC        END) AttDayAC_${item[1]}
+				   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.ConfmYn        END) ConfmYn_${item[1]}
+	           </foreach>
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+	LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		 </if>
+	 GROUP BY ur.UserCode
+	 <trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, SortKey, JobTitlecode, EnterDate ASC
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>) aj
+		 
+	</select>
+	
+	<select id="getJobWeekAvg"  parameterType="cmap" resultType= "cmap" >
+	SELECT COUNT(UserCode) JobCnt
+			, AVG(AttDayAC) ACAvg
+		   <foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			   , COUNT(AttDay_${item[1]}) ACCount_${item[1]}
+			   , Avg(AttDayAC_${item[1]}) ACAvg_${item[1]}
+           </foreach>
+	FROM (	
+		   SELECT ur.UserCode
+			   		, ur.DisplayName UserName
+				   , IFNULL(SUM(AttDayAC),0)  AttDayAC
+				   <foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+					   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.WorkSts         END) WorkSts_${item[1]}
+					   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.jobDate         END) AttDay_${item[1]}
+					   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayStartTime,'%H%i') END) AttDayStartTime_${item[1]}
+					   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayEndTime,'%H%i')   END) AttDayEndTime_${item[1]}
+					   , MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.AttDayAC   END) AttDayAC_${item[1]}
+		           </foreach>
+		     FROM covi_smart4j.sys_object_user ur
+		     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+             JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+		    WHERE ur.IsUse = 'Y'
+		      AND ur.IsDisplay = 'Y'
+		    <choose>
+				<when test="attendAuth == 'USER' and jobType == 'USER'">
+					AND ur.UserCode = #{UserCode}
+				</when>
+				<otherwise>
+					AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+				</otherwise>
+			</choose>
+			<if test='searchText != null and searchText != ""'>
+				AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+			 </if>
+			<if test='SchSeq != null and SchSeq != ""'>
+				AND aj.SchSeq = #{SchSeq} 
+			 </if>
+		 GROUP BY ur.UserCode     ) a
+	</select>
+	
+	<select id="getJobMonth"  parameterType="cmap" resultType= "cmap" >
+		   SELECT aj.JobDate          JobDate
+		   		, ur.UserCode
+		   		, Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) AS UserName
+			   , IFNULL(aj.AttDayAC,0)  AttDayAC
+			   , aj.WorkSts          WorkSts
+			   , date_format(aj.AttDayStartTime,'%H%i') AttDayStartTime
+			   , date_format(aj.AttDayEndTime,'%H%i')   AttDayEndTime
+			   , ifnull(ash.SchName,'') SchName
+			   , aj.ConfmYn     ConfmYn
+			   , bg.JobTitleSortKey
+			   , bg.JobLevelSortKey
+			   , bg.JobPositionSortKey
+			   , concat(vv.VacFlag,':',vv.VacOffFlag) as VacFlag
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group 		 og ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	     JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN STR_TO_DATE(CONCAT(#{StartDate},'01'),'%Y%m%d') AND LAST_DAY( STR_TO_DATE(#{StartDate},'%Y%m'))
+	LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+	LEFT JOIN (SELECT UR_Code, VacDate, VacFlag, VacOffFlag FROM covi_smart4j.vm_vacationinfo_day WHERE VacDate BETWEEN STR_TO_DATE(CONCAT(#{StartDate},'01'),'%Y%m%d') AND LAST_DAY( STR_TO_DATE(#{StartDate},'%Y%m'))) vv on vv.UR_Code = aj.UserCode and vv.VacDate = aj.JobDate
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	      #AND WorkSts = 'ON'
+	 	<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, JobDate, bg.SortKey ASC, bg.JobTitlecode ASC, ur.EnterDate ASC
+			  	</when>
+			</choose>
+		</trim>
+	</select>
+	
+	<select id="getJobListCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+	   SELECT count(ur.UserCode)	
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	</select>
+	
+	<select id="getJobList"  parameterType="cmap" resultType= "cmap" >
+		   SELECT aj.JobDate          JobDate
+		   		, ur.UserCode
+		   		, case when ur.MultiDisplayName is null then ur.DisplayName else Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName) end AS UserName
+			    , aj.WorkSts          WorkSts
+			    , date_format(aj.AttDayStartTime,'%H:%i') AttDayStartTime
+			    , date_format(aj.AttDayEndTime,'%H:%i')   AttDayEndTime
+			    , case when aj.WorkSts is not NULL then concat(date_format(aj.AttDayStartTime,'%H:%i') , '~' , date_format(aj.AttDayEndTime,'%H:%i')) end AttDay
+			    , Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS DeptName
+			    , case when aj.WorkSts='ON' and ash.WorkingSystemType = 0  then IFNULL(aj.AttDayAC,0) ELSE 0 END  AttDayAC
+			    , case when aj.WorkSts='ON' and ash.WorkingSystemType = 0 and aj.AttDayStartTime IS NOT null then 
+				 	 TIMESTAMPDIFF(minute, date_format(aj.AttDayStartTime, '%Y-%m-%d %H:%i'), date_format(aj.AttDayEndTime, '%Y-%m-%d %H:%i')) - IFNULL(aj.AttDayAC,0)  
+				 	end AttDayIdle
+			    , ConfmYn ConfmYn
+			    , bg.JobTitleSortKey
+			    , bg.JobLevelSortKey
+			    , bg.JobPositionSortKey
+	     FROM covi_smart4j.sys_object_user ur
+	     JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+         JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+	LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+	LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+	    WHERE ur.IsUse = 'Y'
+	      AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		 </if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq} 
+		 </if>
+	 <trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, aj.JobDate, bg.SortKey ASC, bg.JobTitlecode ASC, ur.EnterDate ASC
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		 </if>
+	</select>
+	
+	<select id="getJobDetail"  parameterType="cmap" resultType= "cmap" >
+	SELECT amj.UserCode,amj.JobDate
+			, amj.SchSeq, ams.SchName, amj.AttDayStartTime, amj.AttDayEndTime, amj.NextDayYn, amj.AssYn, amj.AssSeq, amj.Etc, amj.WorkZone
+			,amj.AllowRadius
+			,amj.StartZone, amj.StartAddr, amj.StartPointX, amj.StartPointY
+			,amj.EndZone, amj.EndAddr, amj.EndPointX, amj.EndPointY
+			, DATE_FORMAT(amj.AttDayStartTime, '%H%i') StartTime
+			, DATE_FORMAT(amj.AttDayEndTime, '%H%i') EndTime
+			, amj.ConfmYn ConfmYn
+			, ams.SelfCommYn
+			, ams.WorkingSystemType
+			, ams.CoreTimeYn
+			, ams.CoreStartTimeHour, ams.CoreStartTimeMin, ams.CoreEndTimeHour, ams.CoreEndTimeMin
+			, ams.AutoExtenYn, ams.AutoExtenMinTime, ams.AutoExtenMaxTime
+	  FROM covi_smart4j.attendance_mng_job amj
+ LEFT JOIN covi_smart4j.attendance_mng_schedule as ams ON amj.SchSeq = ams.schSeq
+	 WHERE amj.userCode = #{UserCode}
+	   AND amj.JobDate = #{JobDate}
+	</select>
+	
+	<update id="updateJob"  parameterType="cmap" >
+	UPDATE covi_smart4j.attendance_mng_job 
+	   SET 	AttDayStartTime = str_to_date(concat(DATE_FORMAT(JobDate,'%Y%m%d'), #{StartTime} ),'%Y%m%d%H%i')
+		   	, AttDayEndTime = case when #{NextDayYn} = 'Y' then str_to_date(concat(DATE_FORMAT(DATE_ADD(JobDate, INTERVAL 1 DAY),'%Y%m%d'), #{EndTime} ),'%Y%m%d%H%i') 
+		   		else str_to_date(concat(DATE_FORMAT(JobDate,'%Y%m%d'), #{EndTime} ),'%Y%m%d%H%i') end
+		   	, NextDayYn =       #{NextDayYn}
+		   	, AssYn =           #{AssYn}
+		   	, AssSeq=           #{AssSeq}
+		   	, Etc =             #{Etc}
+			, AllowRadius =     #{AllowRadius}
+			, StartZone   =     #{StartZone}
+			, StartAddr   =     #{StartAddr}
+			, StartPointX =     #{StartPointX}
+			, StartPointY =     #{StartPointY}
+			, EndZone     =     #{EndZone}
+			, EndAddr     =     #{EndAddr}
+			, EndPointX   =     #{EndPointX}
+	        , EndPointY   =     #{EndPointY}
+	        , ModifyerCode=     #{URCode} 
+	        , ModifyDate = now()
+	 WHERE userCode = #{UserCode}
+	   AND JobDate = #{JobDate};
+	   
+        <if test='SelfCommYn != null and SelfCommYn != "Y"'>
+	UPDATE covi_smart4j.attendance_mng_job 
+	  SET  AttDayAC = fn_attend_getJobAttDayACTime(AssYn, AssSeq, 'N', 0, AttDayStartTime, AttDayEndTime) 	        
+	 WHERE userCode = #{UserCode}
+	   AND JobDate = #{JobDate};
+		</if>
+	</update>
+	
+	<delete id="delJob"  parameterType="cmap" >
+	DELETE FROM covi_smart4j.attendance_mng_job 
+	 WHERE userCode = #{UserCode}
+	 <choose>
+	 	<when test ="JobDate !=null and JobDate !='' ">
+		   AND JobDate = #{JobDate}
+		</when> 
+		<otherwise>
+		   AND JobDate between #{StartDate} AND #{EndDate}
+		</otherwise>  
+	 </choose>
+	 <if test='schConfmYn == "Y"'>
+	 	AND ConfmYn = 'N'
+	 </if>
+	</delete>
+	
+	<update id="confirmJob"  parameterType="cmap" >
+	UPDATE covi_smart4j.attendance_mng_job 
+	   SET ConfmYn = #{ConfmYn}
+	        , ModifyerCode=     #{USERID} 
+	        , ModifyDate = now()
+	 WHERE userCode = #{UserCode}
+	 <choose>
+	 	<when test ="JobDate !=null and JobDate !='' ">
+		   AND JobDate = #{JobDate}
+		</when> 
+		<otherwise>
+		   AND JobDate between #{StartDate} AND #{EndDate}
+		</otherwise>  
+	 </choose>
+	</update>
+	
+	<update id="uploadScheduleJob" statementType="CALLABLE" parameterType= "cmap">
+	 	{CALL covi_smart4j.SP_attend_uploadScheduleJob(#{JobUserCode}, #{JobDate}, #{StartTime}, #{EndTime}, #{NextDayYn}, #{WorkSts}, #{CompanyCode}, #{USERID}, #{RetCount, mode=OUT, jdbcType=INTEGER}, #{RetValue, mode=OUT, jdbcType=VARCHAR})}
+	</update>
+
+	<select id="getJobWorkOnDays"  parameterType="cmap" resultType= "cmap" >
+		SELECT amj.UserCode,amj.JobDate, amj.WorkSts, amj.ConfmYn
+		FROM covi_smart4j.attendance_mng_job amj
+		WHERE amj.userCode = #{urCode}
+		<if test='domainCode != null and domainCode != ""'>
+			AND amj.CompanyCode = #{domainCode}
+		</if>
+		<if test='StartDate != null and StartDate != "" and EndDate != null and EndDate != ""'>
+			AND amj.JobDate between #{StartDate} AND #{EndDate}
+		</if>
+	</select>
+
+
+	<select id="getJobViewDayCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+		SELECT count(*)
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company')  AND bg.DeptCode = og.GroupCode
+		LEFT  JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+		<choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+	</select>
+
+	<select id="getJobViewDay"  parameterType="cmap" resultType= "cmap" >
+		SELECT aj.JobDate          JobDate
+		, ur.UserCode
+		, IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName))>0
+		, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+		, ur.DisplayName) as UserName
+		, ur.PhotoPath
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS DeptName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS JobPositionName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName) AS JobLevelName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName) AS JobTitleName
+		, bg.JobTitleSortKey
+		, bg.JobLevelSortKey
+		, bg.JobPositionSortKey
+		, IFNULL(aj.AttDayAC,0)  AttDayAC
+		, aj.WorkSts          WorkSts
+		, date_format(aj.AttDayStartTime,'%H%i') AttDayStartTime
+		, date_format(aj.AttDayEndTime,'%H%i')   AttDayEndTime
+		, aj.ConfmYn     ConfmYn
+		, ifnull(ash.SchName,'') SchName
+		, IFNULL(ash.WorkingSystemType,0) WorkingSystemType
+		, IFNULL(ash.BaseYn, 'N') as BaseYn
+		,(SELECT  concat(vv.VacFlag,'/',vv.VacOffFlag,'/',vv.VacCnt,'/',vv.StartTime,'/',vv.EndTime,'/',vv.EachVacDay,'/',vv.VacAmPmVacDay)
+			FROM (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+				, concat(IFNULL( SUM(vd.AmVacDay),0),'|',IFNULL(SUM(vd.PmVacDay),0))  as VacAmPmVacDay
+				, GROUP_CONCAT(vd.VacFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacFlag
+				, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+				, GROUP_CONCAT(IFNULL(vd.StartTime,'00:00') ORDER BY vd.VacOffFlag SEPARATOR '|') as StartTime
+				, GROUP_CONCAT(IFNULL(vd.EndTime,'00:00')  ORDER BY vd.VacOffFlag SEPARATOR '|') as EndTime
+				, GROUP_CONCAT(vd.VacDay ORDER BY vd.VacOffFlag SEPARATOR '|') as EachVacDay
+			from
+				(
+					select
+					UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+					,CASE WHEN VacOffFlag = 'AM' THEN
+						VacDay
+					END as AmVacDay
+					,CASE WHEN VacOffFlag = 'PM' THEN
+						VacDay
+					END as PmVacDay
+					FROM covi_smart4j.VM_VACATIONINFO_DAY
+				) vd
+			where vd.VacDate =  #{StartDate}
+				group by vd.VacDate, vd.UR_Code) vv
+				WHERE vv.UR_Code = aj.UserCode
+				AND JobDate = vv.VacDate
+			) VacFlag
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType  IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+		LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, bg.SortKey, bg.JobTitlecode, ur.EnterDate
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+
+	<select id="getJobViewDayAvg"  parameterType="cmap" resultType= "cmap" >
+		SELECT count(aj.JobDate) JobCnt
+		, AVG(IFNULL(AttDayAC,0))  ACAvg
+		<foreach collection="Days" item="item" index="index" separator="" open="" close="">
+			, IFNULL(SUM(case when #{item} between date_format(aj.AttDayStartTime,'%H') AND date_format(aj.AttDayEndTime,'%H') then 1 end),0) Day_${item}
+		</foreach>
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+	</select>
+
+	<select id="getJobViewWeekCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+		SELECT count(ur.UserCode)
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+	</select>
+
+	<select id="getJobViewWeek"  parameterType="cmap" resultType= "cmap" >
+		SELECT aj.UserCode
+		, aj.UserName
+		, aj.PhotoPath, aj.DeptName, aj.JobLevelName, aj.JobPositionName, aj.JobTitleName
+		, aj.JobPositionSortKey, aj.JobLevelSortKey, aj.JobTitleSortKey, aj.EnterDate
+		,IFNULL(aj.AttDayAC,0)  AttDayAC
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, SchName_${item[1]}
+			, WorkSts_${item[1]}
+			, AttDay_${item[1]}
+			, AttDayStartTime_${item[1]}
+			, AttDayEndTime_${item[1]}
+			, AttDayAC_${item[1]}
+			, ConfmYn_${item[1]}
+			, (SELECT  concat(vv.VacFlag,':',vv.VacOffFlag,':',vv.VacCnt,':',vv.AmPmVacDay)
+				FROM (select vd.VacDate, SUM(vd.VacDay) as VacCnt, vd.UR_Code
+					, GROUP_CONCAT(vd.VacFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacFlag
+					, GROUP_CONCAT(vd.VacOffFlag ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as VacOffFlag
+					, GROUP_CONCAT(vd.StartTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as StartTime
+					, GROUP_CONCAT(vd.EndTime ORDER BY vd.StartTime, vd.VacOffFlag SEPARATOR '|') as EndTime
+					, CONCAT(IFNULL( SUM(AmVacDay),0),'|',IFNULL( SUM(PmVacDay),0)) as AmPmVacDay
+				from (select
+						UR_Code, VacDate, VacOffFlag, VacFlag, VacDay, StartTime, EndTime
+						,CASE WHEN VacOffFlag = 'AM' THEN
+						VacDay
+						END as AmVacDay
+						,CASE WHEN VacOffFlag = 'PM' THEN
+						VacDay
+						END as PmVacDay
+						from covi_smart4j.vm_vacationinfo_day) vd
+					group by vd.VacDate, vd.UR_Code) vv
+					WHERE vv.UR_Code = aj.UserCode
+					AND AttDay_${item[1]} = vv.VacDate GROUP BY AttDay_${item[1]}
+				) VacFlag_${item[1]}
+		</foreach>
+		FROM (
+		SELECT ur.UserCode
+		, bg.SortKey, bg.JobLevelSortKey, bg.JobTitlecode
+		, IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName))>0
+		, covi_smart4j.Fn_BaseGetDictionary_S(#{lang},ur.MultiDisplayName)
+		, ur.DisplayName) as UserName
+		, ur.PhotoPath
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName) AS DeptName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName) AS JobPositionName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName) AS JobLevelName
+		, Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName) AS JobTitleName
+		, bg.JobPositionSortKey, bg.JobTitleSortKey, ur.EnterDate
+		,IFNULL(SUM(aj.AttDayAC),0)  AttDayAC
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then ifnull(ash.SchName,'')        END) SchName_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.WorkSts         END) WorkSts_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.jobDate         END) AttDay_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayStartTime,'%H%i') END) AttDayStartTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayEndTime,'%H%i')   END) AttDayEndTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.AttDayAC        END) AttDayAC_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.ConfmYn        END) ConfmYn_${item[1]}
+		</foreach>
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+		LEFT JOIN covi_smart4j.attendance_mng_schedule  ash ON aj.SchSeq = ash.SchSeq
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+		GROUP BY ur.UserCode
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, bg.SortKey, bg.JobTitlecode, ur.EnterDate
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>) aj
+
+	</select>
+
+	<select id="getJobViewWeekAvg"  parameterType="cmap" resultType= "cmap" >
+		SELECT COUNT(UserCode) JobCnt
+		, AVG(AttDayAC) ACAvg
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, COUNT(AttDay_${item[1]}) ACCount_${item[1]}
+			, Avg(AttDayAC_${item[1]}) ACAvg_${item[1]}
+		</foreach>
+		FROM (
+		SELECT ur.UserCode
+		, ur.DisplayName UserName
+		, IFNULL(SUM(AttDayAC),0)  AttDayAC
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.WorkSts         END) WorkSts_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.jobDate         END) AttDay_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayStartTime,'%H%i') END) AttDayStartTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayEndTime,'%H%i')   END) AttDayEndTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.AttDayAC   END) AttDayAC_${item[1]}
+		</foreach>
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+		GROUP BY ur.UserCode     ) a
+	</select>
+
+
+	<select id="getJobViewMonthCnt"  parameterType="cmap" resultType= "java.lang.Long" >
+		SELECT count(ur.UserCode)
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate = #{StartDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+	</select>
+
+	<select id="getJobViewMonth"  parameterType="cmap" resultType= "cmap" >
+		SELECT * FROM(
+			SELECT UserCode, SortKey, JobLevelSortKey, JobTitlecode, JobTitleName, UserName,
+				PhotoPath, DeptName, JobLevelName, JobPositionName, jobDate,
+				SchSeqNum, JobPositionSortKey, JobTitleSortKey, EnterDate
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, AttDayStartTime_${index}
+			, AttDayEndTime_${index}
+			, #{item} as AttDayWeeksNum_${index}
+		</foreach>
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, IFNULL(SUM(AttDayAC_${index}),0) as AttDayAC_${index}
+		</foreach>
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, IFNULL(SUM(AttDayEX_${index}), 0) as AttDayEX_${index}
+		</foreach>
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, IFNULL(SUM(AttDayHO_${index}), 0) as AttDayHO_${index}
+		</foreach>
+		<foreach collection="WeeksNum" item="item" index="index" separator="" open="" close="">
+			, IFNULL(SUM(AttDayAC_${index}), 0)+IFNULL(SUM(AttDayEX_${index}), 0)+IFNULL(SUM(AttDayHO_${index}), 0) as AttDayTO_${index}
+		</foreach>
+		FROM (
+			SELECT ur.UserCode,
+				bg.SortKey,
+				bg.JobLevelSortKey,
+				bg.JobTitlecode,
+				IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName)) > 0,
+					covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobTitleName), bg.JobTitleName) as JobTitleName,
+				IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName)) > 0,
+					covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, ur.MultiDisplayName), ur.DisplayName) as UserName,
+				ur.PhotoPath,
+				IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName)) > 0,
+					covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiDeptName), bg.DeptName) as DeptName,
+				IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName)) > 0,
+					covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobLevelName), bg.JobLevelName) as JobLevelName,
+				IF(LENGTH(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName)) > 0,
+					covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, bg.MultiJobPositionName), bg.JobPositionName) as JobPositionName,
+				aj.jobDate,
+				aj.SchSeqNum,
+				bg.JobPositionSortKey,
+				bg.JobTitleSortKey,
+				ur.EnterDate
+				<foreach collection="listRangeFronToDate" item="item" index="index" separator="" open="" close="">
+					<foreach item="value" index="key" collection="item.entrySet()" separator="">
+						, #{key} as AttDayStartTime_${index}
+						, #{value} as AttDayEndTime_${index}
+					</foreach>
+				</foreach>
+				<foreach collection="listRangeFronToDate" item="item" index="index" separator="" open="" close="">
+					<foreach item="value" index="key" collection="item.entrySet()" separator="">
+					, case when (aj.jobDate between #{key} and #{value}) and (aj.WorkSts = 'ON' or aj.WorkSts = 'HOL') then sum(aj.AttDayAC) END as AttDayAC_${index}
+					</foreach>
+				</foreach>
+				<foreach collection="listRangeFronToDate" item="item" index="index" separator="" open="" close="">
+					<foreach item="value" index="key" collection="item.entrySet()" separator="">
+						, case when (aj.jobDate between #{key} and #{value}) and aj.WorkSts = 'O' then sum(aj.AttDayEH) END as AttDayEX_${index}
+					</foreach>
+				</foreach>
+				<foreach collection="listRangeFronToDate" item="item" index="index" separator="" open="" close="">
+					<foreach item="value" index="key" collection="item.entrySet()" separator="">
+						, case when (aj.jobDate between #{key} and #{value}) and aj.WorkSts = 'H' then sum(aj.AttDayEH) END as AttDayHO_${index}
+					</foreach>
+				</foreach>
+				FROM covi_smart4j.sys_object_user ur
+					JOIN covi_smart4j.sys_object_user_basegroup bg
+						ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode} AND bg.JobType = 'Origin'
+					JOIN covi_smart4j.sys_object_group og
+						ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept', 'Company') AND
+							bg.DeptCode = og.GroupCode
+					LEFT JOIN ( select UserCode, jobDate, SchSeqNum, WorkSts, sum(AttDayAC) as AttDayAC,  sum(AttDayEH) as AttDayEH
+							from (select UserCode,
+									SchSeq,
+									SchSeq as SchSeqNum,
+									WorkSts,
+									jobDate,
+									WEEK(JobDate, 0) as WeekNum,
+									AttDayStartTime,
+									AttDayEndTime,
+									AttDayAC,
+									0 as AttDayEH,
+									'' as HolidayFlag,
+									ConfmYn
+								from covi_smart4j.attendance_mng_job
+								where JobDate BETWEEN #{StartDate} AND #{EndDate}
+								UNION ALL
+								select UserCode,
+									ExHoSeq as SchSeq,
+									'' as SchSeqNum,
+									JobStsName as WorkSts,
+									jobDate,
+									WEEK(JobDate, 0) as WeekNum,
+									StartTime as AttDayStartTime,
+									EndTime as AttDayEndTime,
+									0 as AttDayAC,
+									CAST(SUBSTR(WorkTime,1,2) as unsigned)*60+CAST(SUBSTR(WorkTime,3,2) as unsigned) as AttDayEH,
+									HolidayFlag,
+									ApprovalSts as ConfmYn
+								from covi_smart4j.attendance_mng_extensionholiday
+								where JobDate BETWEEN #{StartDate} AND #{EndDate}
+								and CompanyCode = #{CompanyCode}
+								and JobStsName in ('H','O')
+								and ApprovalSts = 'Y'
+								group by UserCode, jobDate
+								order by UserCode, JobDate asc
+							) a
+							group by a.UserCode, a.JobDate, a.WorkSts
+						) aj
+						ON ur.UserCode = aj.UserCode
+				WHERE ur.IsUse = 'Y'
+				AND ur.IsDisplay = 'Y'
+			    <choose>
+					<when test="attendAuth == 'USER' and jobType == 'USER'">
+						AND ur.UserCode = #{UserCode}
+					</when>
+					<otherwise>
+						AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+					</otherwise>
+				</choose>
+				GROUP BY ur.UserCode, aj.JobDate, aj.WorkSts
+			) tb
+		GROUP BY tb.UserCode
+		) tbl
+		WHERE 1=1
+		<if test='searchText != null and searchText != ""'>
+			AND (UserName like concat('%', #{searchText} ,'%')
+			or DeptName like concat('%', #{searchText} ,'%')
+			or JobPositionName like concat('%', #{searchText} ,'%'))
+		</if>
+		<if test='weeklyWorkValue != null and weeklyWorkValue != "" and weeklyWorkValue != "0"'>
+			<if test='weeklyWorkType != null and weeklyWorkType != "" and weeklyWorkType == "over"'>
+				AND (
+				<foreach collection="WeeksNum" item="item" index="index" separator="or" open="" close="">
+					AttDayTO_${index} <![CDATA[>]]> #{weeklyWorkValue}*60
+				</foreach>
+				)
+			</if>
+			<if test='weeklyWorkType != null and weeklyWorkType != "" and weeklyWorkType == "under"'>
+				AND (
+				<foreach collection="WeeksNum" item="item" index="index" separator="and" open="" close="">
+					AttDayTO_${index} <![CDATA[<=]]> #{weeklyWorkValue}*60
+				</foreach>
+				)
+			</if>
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND SchSeqNum = #{SchSeq}
+		</if>
+		<trim prefix="ORDER BY" prefixOverrides =",">
+			<choose>
+				<when test="orgOrders != null and orgOrders != '' ">
+				  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+				  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+				  			JobTitleSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+				  			JobLevelSortKey ASC
+				  		</if>
+				  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+				  			JobPositionSortKey ASC
+				  		</if>
+		  				<if test="orgOrder != null and orgOrder == 'DN'">
+				  			UserName ASC
+				  		</if>
+				  	</foreach>
+				  	, SortKey, JobTitlecode, EnterDate, JobDate ASC
+			  	</when>
+			</choose>
+		</trim>
+		<if test='pageSize != null and pageOffset != null'>
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+
+	</select>
+
+	<select id="getJobViewMonthAvg"  parameterType="cmap" resultType= "cmap" >
+		SELECT COUNT(UserCode) JobCnt
+		, AVG(AttDayAC) ACAvg
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, COUNT(AttDay_${item[1]}) ACCount_${item[1]}
+			, Avg(AttDayAC_${item[1]}) ACAvg_${item[1]}
+		</foreach>
+		FROM (
+		SELECT ur.UserCode
+		, ur.DisplayName UserName
+		, IFNULL(SUM(AttDayAC),0)  AttDayAC
+		<foreach collection="Weeks" item="item" index="index" separator="" open="" close="">
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.WorkSts         END) WorkSts_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.jobDate         END) AttDay_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayStartTime,'%H%i') END) AttDayStartTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then date_format(aj.AttDayEndTime,'%H%i')   END) AttDayEndTime_${item[1]}
+			, MAX(case when WEEKDAY(aj.jobDate) = '${item[0]}' then aj.AttDayAC   END) AttDayAC_${item[1]}
+		</foreach>
+		FROM covi_smart4j.sys_object_user ur
+		JOIN covi_smart4j.sys_object_user_basegroup bg ON bg.UserCode = ur.UserCode AND bg.CompanyCode = #{CompanyCode}  AND bg.JobType = 'Origin'
+		JOIN covi_smart4j.sys_object_group og          ON bg.CompanyCode = og.CompanyCode AND og.GroupType IN ('Dept','Company') AND bg.DeptCode = og.GroupCode
+		LEFT JOIN covi_smart4j.attendance_mng_job        aj ON ur.UserCode = aj.UserCode AND aj.JobDate BETWEEN #{StartDate} AND #{EndDate}
+		WHERE ur.IsUse = 'Y'
+		AND ur.IsDisplay = 'Y'
+	    <choose>
+			<when test="attendAuth == 'USER' and jobType == 'USER'">
+				AND ur.UserCode = #{UserCode}
+			</when>
+			<otherwise>
+				AND og.GroupPath LIKE CONCAT(#{DeptCode},'%')
+			</otherwise>
+		</choose>
+		<if test='searchText != null and searchText != ""'>
+			AND ur.DisplayName LIKE concat('%', #{searchText} ,'%')
+		</if>
+		<if test='SchSeq != null and SchSeq != ""'>
+			AND aj.SchSeq = #{SchSeq}
+		</if>
+		GROUP BY ur.UserCode     ) a
+	</select>
+
+
+	<select id="getJobViewMonthlyInfo"  parameterType="cmap" resultType= "cmap" >
+		SELECT StartDate, StartWeekNum, EndDate, EndWeekNum,
+				WEEK(CONCAT(#{ThisYear},'1231'), 7) as ThisYearWeeksNum,
+				WEEK(CONCAT(#{LastYear},'1231'), 7) as LastYearWeeksNum
+		FROM (
+			select  covi_smart4j.fn_attend_monthlyweekdate('S', #{StartDate}, #{DomainCode}) as StartDate,
+					covi_smart4j.fn_attend_monthlyweeknum('S', #{StartDate}, #{DomainCode}) as StartWeekNum,
+					covi_smart4j.fn_attend_monthlyweekdate('E', #{EndDate}, #{DomainCode}) as EndDate,
+					covi_smart4j.fn_attend_monthlyweeknum('E', #{EndDate}, #{DomainCode}) as EndWeekNum
+			from dual
+		) a
+	</select>
+
+
+</mapper>
+

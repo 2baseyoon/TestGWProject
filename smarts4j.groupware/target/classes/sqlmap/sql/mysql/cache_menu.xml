@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="cache.menu">
+ 	<select id="selectAdminMenu" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT	DISTINCT A.CN_ID
+				,A.ContainerType
+				, IFNULL(B.ProgramAlias, '')
+				 + (CASE (CASE IFNULL(B.ProgramAlias, '') WHEN '' THEN 0 ELSE 1 END) +(CASE IFNULL(A.ContainerAlias, '') WHEN '' THEN 0 ELSE 1 END) WHEN 2 THEN '.' ELSE '' END)
+				 + IFNULL(A.ContainerAlias, '') AS Alias
+				,A.PG_ID
+				,A.DisplayName
+				,A.LinkMN
+				,A.LinkSystem
+				,IFNULL(A.MemberOf,0) AS MemberOf
+				,A.ContainerPath
+				,A.SortKey
+				,A.IsURL
+				,A.URL
+				,A.IsUse
+				,A.Description
+				,A.RegID
+				,A.RegDate
+				,A.ModID
+				,A.ModDate
+				,(SELECT COUNT(0) FROM BASE_OBJECT_CN WHERE DataStatus <> 'D' AND IsUse = 'Y' AND IFNULL(MemberOf,0) = A.CN_ID) AS ChildCount
+				,B.URL AS ProgramURL
+				,B.DisplayName AS ProgramName
+				,B.ProgramAlias
+				,B.ProgramType
+				,B.Description AS ProgramDescription
+				,B.BizSection AS ProgramBizSection
+				,C.koShortWord AS Ko
+				,C.enShortWord AS En
+				,C.jaShortWord AS Ja
+				,C.zhShortWord AS Zh
+				,C.ReservedShortWord1 AS Reserved1
+				,C.ReservedShortWord2 AS Reserved2
+		FROM BASE_OBJECT_CN AS A
+		INNER JOIN BASE_OBJECT_PG AS B
+		ON A.PG_ID = B.PG_ID
+		LEFT OUTER JOIN BASE_DICTIONARY AS C
+		ON CONCAT('CN_',A.CN_ID) = C.Dic_code AND C.IsUse= 'Y'
+		WHERE A.DataStatus <> 'D' AND A.IsUse = 'Y' 
+              AND EXISTS ( SELECT GR_ID 
+						   FROM COMMON_CNGROUP
+						   WHERE COMMON_CNGROUP.CN_ID = A.CN_ID AND COMMON_CNGROUP.GR_ID IN (#{grIDs}) 
+				     	 )
+    ]]>
+	</select>
+ 	<select id="selectUserMenu" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT DISTINCT A.MN_ID,
+				A.PG_ID,
+				A.DIC_ID,
+				A.AclListID,
+				A.MenuType,
+				A.MenuAlias,
+				A.ServiceDevice,
+				A.MPG_ID,
+				A.DisplayName,
+				IFNULL(A.MemberOf,0) AS MemberOf,
+				A.MenuPath,
+				A.LinkMN,
+				A.SecurityLevel,
+				A.SortKey,
+				A.SortPath,
+				A.HasFD,
+				A.IsInherited,
+				A.IsUse,
+				A.IsDisplay,
+				A.IsURL,
+				A.URL,
+				A.Target,
+				A.Description,
+				A.DataStatus,
+				A.RegID,
+				A.RegDate,
+				A.ModID,
+				A.ModDate,
+				(SELECT COUNT(0) FROM covi_smart4j.base_object_mn WHERE DataStatus <> 'D' AND IsUse = 'Y' AND IFNULL(MemberOf,0) = A.MN_ID) AS ChildCount,
+				B.URL AS ProgramURL,
+				B.DisplayName AS ProgramName,
+				B.ProgramAlias,
+				B.ProgramType,
+				B.Description AS ProgramDescription,
+				B.BizSection AS ProgramBizSection,
+				C.KoShortWord AS Ko,
+				C.EnShortWord AS En,
+				C.JaShortWord AS Ja,
+				C.ZhShortWord AS Zh,
+				C.ReservedShortWord1 AS Reserved1,
+				C.ReservedShortWord2 AS Reserved2
+		FROM covi_smart4j.base_object_mn AS A
+		INNER JOIN covi_smart4j.base_object_pg AS B ON A.PG_ID = B.PG_ID
+		LEFT OUTER JOIN covi_smart4j.base_dictionary AS C ON CONCAT('MN_',A.MN_ID) = C.Dic_Code AND C.IsUse = 'Y'
+		WHERE A.DataStatus <> 'D' AND A.IsUse = 'Y'
+		
+    ]]>
+	</select>
+	<!-- 		#	AND EXISTS ( SELECT GR_ID  향후  common_mngroup 테이블에 데이터 들어올 시 사용자 메뉴 쿼리에 추가-->
+<!-- 		#						FROM COMMON_MNGROUP -->
+<!-- 		#						WHERE COMMON_MNGROUP.MN_ID = A.MN_ID AND COMMON_MNGROUP.GR_ID IN (${grIDs}) -->
+<!-- 		#					) -->
+</mapper>

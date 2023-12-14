@@ -1,0 +1,544 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.bizDocMember">
+   <select id="selectBizDocgrid" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM
+			  (SELECT 		BD.EntCode
+			  				,covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS EntName
+			  				,D.DomainId
+			  				,BD.BizDocCode
+							,BD.BizDocID
+							,BD.BizDocName
+					        ,BD.BizDocType
+					        ,(SELECT CodeName FROM covi_smart4j.sys_base_code WHERE Code = BizDocType AND CodeGroup = 'JobFunctionType') AS BizDocTypeName
+							,BD.Description
+							,BD.SortKey
+							,DATE_FORMAT(BD.InsertDate,'%Y-%m-%d %H:%i') AS InsertDate
+							,BD.IsUse
+							,BDM.UR_Name
+							,BDF.FormName							
+				FROM covi_approval4j.jwf_bizdoc BD
+				LEFT OUTER JOIN (
+					select A.BizDocID, A.BizDocMemberID, group_concat(B.DisplayName) AS UR_Name
+					from covi_approval4j.jwf_bizdocmember A
+					INNER JOIN covi_SMART4J.sys_object_user B
+					ON A.UserCode = B.UserCode
+					GROUP BY A.BizDocID
+				) BDM ON BD.BizDocID = BDM.BizDocID
+				LEFT OUTER JOIN (
+					SELECT BDF.BizDocID,group_concat(covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, BDF.FormName)) AS FormName 
+					FROM covi_approval4j.jwf_bizdocform BDF
+					GROUP BY BDF.BizDocID
+				) BDF ON BD.BizDocID = BDF.BizDocID
+				LEFT OUTER JOIN covi_smart4j.sys_object_domain D
+				ON D.DomainCode = BD.EntCode 
+		) A	
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test=" search != null and search != '' ">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("BizDocCode")'>BizDocCode</when>
+					<otherwise>BizDocName</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')	
+			</if>					
+			<if test="BizDocType != null and BizDocType != ''">
+			 	AND BizDocType = #{BizDocType}
+			</if>			
+			<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+				AND DomainId = #{EntCode}
+			</if>	
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					BizDocCode LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					BizDocName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			   
+				)
+			</if>
+		</trim>
+		
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("BizDocName")'>BizDocName</when>
+					<when test='sortColumn.equalsIgnoreCase("BizDocCode")'>BizDocCode</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("BizDocTypeName")'>BizDocTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sortColumn.equalsIgnoreCase("InsertDate")'>InsertDate</when>
+					<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				SortKey ASC
+			</if>
+		</trim>
+		 <!-- paging query
+	    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+	     -->
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>	
+	</select>
+	
+    
+    <select id="selectBizDocgridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT 		BD.EntCode
+			  				,D.DomainId
+			  				,BD.BizDocCode
+							,BD.BizDocID
+							,BD.BizDocName
+					        ,BD.BizDocType
+							,BD.Description
+							,BD.SortKey
+							,DATE_FORMAT(BD.InsertDate,'%Y-%m-%d %H:%i') AS InsertDate
+							,BD.IsUse
+							,BDM.UR_Name
+							,BDF.FormName							
+				FROM covi_approval4j.jwf_bizdoc BD
+				LEFT OUTER JOIN (
+					select A.BizDocID, A.BizDocMemberID, group_concat(B.DisplayName) AS UR_Name
+					from covi_approval4j.jwf_bizdocmember A
+					INNER JOIN covi_SMART4J.sys_object_user B
+					ON A.UserCode = B.UserCode
+					GROUP BY A.BizDocID
+				) BDM ON BD.BizDocID = BDM.BizDocID
+				LEFT OUTER JOIN (
+					SELECT BDF.BizDocID,group_concat(BDF.FormName) AS FormName 
+					FROM covi_approval4j.jwf_bizdocform BDF
+					GROUP BY BDF.BizDocID
+				) BDF ON BD.BizDocID = BDF.BizDocID
+				LEFT OUTER JOIN covi_smart4j.sys_object_domain D
+				ON D.DomainCode = BD.EntCode 
+		) A		
+		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test=" search != null and search != '' ">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("BizDocCode")'>BizDocCode</when>
+					<otherwise>BizDocName</otherwise>
+				</choose> 
+				LIKE CONCAT('%',REGEXP_REPLACE(#{search},'(%|\'|\")','\\\\\\1'),'%')	
+			</if>					
+			<if test="BizDocType != null and BizDocType != ''">
+			 	AND BizDocType = #{BizDocType}
+			</if>			
+			<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+				AND DomainId = #{EntCode}
+			</if>	
+			<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+				AND (
+					BizDocCode LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			OR 
+					BizDocName LIKE CONCAT('%',REGEXP_REPLACE(#{icoSearch},'(%|\'|\")','\\\\\\1'),'%') 			   
+				)
+			</if>
+		</trim>
+			
+	</select>
+	
+     <select id="selectBizDocData" parameterType="cmap" resultType="cmap">
+         SELECT A.* FROM
+		 		(SELECT 	BD.EntCode
+		 					,BD.BizDocCode
+							,BD.BizDocID
+							,BD.BizDocName
+							,BD.BizDocType
+							,BD.Description
+							,BD.SortKey
+							,DATE_FORMAT(BD.InsertDate,'%Y-%m-%d %H:%i') AS InsertDate
+							,BD.IsUse
+							,BDM.UR_Name
+							,BDF.FormName							
+				FROM covi_approval4j.jwf_bizdoc BD
+				LEFT OUTER JOIN
+				(
+					SELECT A.BizDocID, A.BizDocMemberID, group_concat(B.DisplayName) AS UR_Name
+					FROM covi_approval4j.jwf_bizdocmember A
+					INNER JOIN covi_SMART4J.sys_object_user B
+					ON A.UserCode = B.UserCode
+					GROUP BY A.BizDocID
+				) BDM 
+				ON BD.BizDocID = BDM.BizDocID
+				LEFT OUTER JOIN (
+					SELECT BDF.BizDocID,group_concat(BDF.FormName) AS FormName FROM 
+					covi_approval4j.jwf_bizdocform BDF
+					GROUP BY BDF.BizDocID
+				) BDF
+				ON BD.BizDocID = BDF.BizDocID
+		) A	
+		WHERE BizDocID = #{BizDocID}
+	</select>
+    
+	<select id="duplicateBizdocCode" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) FROM covi_approval4j.jwf_bizdoc
+			WHERE BizDocCode = #{BizDocCode} 
+			AND EntCode = #{EntCode}
+		]]>
+	</select>	
+	<insert id="insertBizDoc" parameterType="cmap">
+		INSERT INTO covi_approval4j.jwf_bizdoc(			
+			EntCode
+			,BizDocCode
+			,BizDocName
+			,BizDocType
+			,Description			
+			,SortKey
+			,InsertDate
+			,IsUse
+		)
+		VALUE
+		(
+			#{EntCode}
+	   		<choose>
+				<when test='BizDocCode != null and !BizDocCode.equalsIgnoreCase("")'>
+					, #{BizDocCode}
+				</when>
+				<otherwise>
+					, concat('BIZDOC_CODE_', nextval(covi_approval4j.seq_bizdoc_code))		
+				</otherwise>
+			</choose>
+			,#{BizDocName}
+			,#{BizDocType}
+			,#{Description}			
+			,#{SortKey}
+			,now(3)
+			,#{IsUse}
+		)
+	</insert>
+	<update id="updateBizDoc" parameterType="cmap">
+		<![CDATA[
+		UPDATE covi_approval4j.jwf_bizdoc
+		SET			
+			EntCode = #{EntCode}
+			,BizDocCode = #{BizDocCode}
+			,BizDocName = #{BizDocName}
+			,BizDocType = #{BizDocType}
+			,Description = #{Description}
+			,SortKey = 	#{SortKey}
+			,IsUse = #{IsUse}
+		WHERE BizDocID = #{BizDocID}
+		]]>
+	</update>
+	
+	<delete id="deleteBizDoc" parameterType="cmap">
+		<![CDATA[
+			DELETE FROM covi_approval4j.jwf_bizdoc		
+			WHERE BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	<delete id="deleteBizDocAfterForm" parameterType="cmap">
+	    <![CDATA[
+			DELETE FROM covi_approval4j.jwf_bizdocform		
+			WHERE	BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	<delete id="deleteBizDocAfterMember" parameterType="cmap">
+		<![CDATA[
+			DELETE FROM covi_approval4j.jwf_bizdocmember		
+			WHERE BizDocID = #{BizDocID}
+		]]>
+	</delete>
+	
+	 <select id="selectBizDocFormList" parameterType="cmap" resultType="cmap">
+		SELECT BizDocFormID
+					, BizDocID
+					, SortKey
+					, FormPrefix
+					, FormName				
+		FROM covi_approval4j.jwf_bizdocform
+		WHERE BizDocID = #{bizDocID}
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+				<otherwise>FormName</otherwise>
+			</choose> 
+			LIKE CONCAT('%',#{searchWord},'%')		
+		</if>					
+		<!-- ORDER BY 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>FormName</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+			     SortKey ASC
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>	
+	</select>
+    
+    <select id="selectBizDocFormListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_approval4j.jwf_bizdocform 	
+		WHERE BizDocID = #{bizDocID}
+		<if test="searchType != null and searchType !='' and searchWord != null and searchWord != '' and searchWord.length() gt 0">
+			AND 
+			<choose>
+				<when test='searchType.equalsIgnoreCase("FormPrefix")'>FormPrefix</when>
+				<otherwise>FormName</otherwise>
+			</choose> 
+			LIKE CONCAT('%',#{searchWord},'%')		
+		</if>					
+	</select>
+	
+    <!-- 양식 목록 조회 -->
+    <select id="selectBizDocSelOrginFormgridCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT Count(1) FROM (
+			SELECT F.formid, Count(1) FROM covi_approval4j.jwf_forms F
+				JOIN covi_approval4j.jwf_formclass FC
+				ON fc.formclassid = F.formclassid
+			WHERE 1=1
+			<if test="bizEntCode!='ORGROOT'">
+				AND COMPANYCODE IN ('ORGROOT', #{bizEntCode})
+			</if>
+			AND NOT EXISTS (
+				SELECT 'X' FROM covi_approval4j.jwf_bizdocform SUB
+				WHERE SUB.FORMPREFIX = F.FORMPREFIX 
+				AND SUB.BizDocID = #{bizDocID}
+			)
+			<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+           		AND 
+           		<choose>
+					<when test='SearchType.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='SearchType.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+           		</choose>
+          			like CONCAT('%',#{SearchWord},'%')
+			</if>
+			GROUP BY FormPrefix
+		) Sub
+	</select>
+    <select id="selectBizDocSelOrginFormgrid" parameterType="cmap" resultType="cmap">
+			SELECT F.FormName, F.FormPrefix , F.FormID, FC.FormClassName
+			FROM covi_approval4j.jwf_forms F
+				JOIN covi_approval4j.jwf_formclass FC
+				ON fc.formclassid = F.formclassid
+			WHERE 1=1
+			<if test="bizEntCode!='ORGROOT'">
+				AND COMPANYCODE IN ('ORGROOT', #{bizEntCode})
+			</if>
+			AND NOT EXISTS (
+				SELECT 'X' FROM covi_approval4j.jwf_bizdocform SUB
+				WHERE SUB.FORMPREFIX = F.FORMPREFIX 
+				AND SUB.BizDocID = #{bizDocID}
+			) 
+			<if test="SearchType != null and SearchType != '' and SearchWord != null and SearchWord != ''">
+           		AND 
+           		<choose>
+					<when test='SearchType.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='SearchType.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+           		</choose>
+          			like CONCAT('%',#{SearchWord},'%')
+			</if>
+			GROUP BY FormPrefix
+		<!-- ORDER BY 절 -->
+		<trim prefix="ORDER BY">
+		  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("FormName")'>F.FormName</when>
+					<when test='sortColumn.equalsIgnoreCase("FormPrefix")'>F.FormPrefix</when>
+					<when test='sortColumn.equalsIgnoreCase("FormClassName")'>FC.FormClassName</when>
+					<otherwise>F.SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+			<if test="sortColumn == null or sortDirection == null">
+			     F.SortKey ASC
+			</if>
+		</trim>
+	    <if test="pageSize != null and pageOffset != null">
+	   		LIMIT #{pageSize} OFFSET #{pageOffset}
+	   	</if>	
+	</select>
+    
+    <insert id="insertBizDocForm" parameterType="cmap">         
+		INSERT INTO covi_approval4j.jwf_bizdocform( BizDocID, SortKey, FormPrefix, FormName, FormID )
+		VALUE( #{BizDocID}, #{SortKey}, #{FormPrefix}, #{FormName}, #{FormID}	)
+	</insert>
+     
+    <select id="selectBizDocFormData" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM
+			  (SELECT BizDocFormID
+					,BizDocID
+					,SortKey
+					,FormPrefix
+					,FormName				
+				FROM covi_approval4j.jwf_bizdocform 
+		) A	
+		WHERE BizDocFormID = #{BizDocFormID}		
+	
+	</select>
+	
+    <update id="updateBizDocForm" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_bizdocform
+		SET			
+			SortKey = #{SortKey}
+			,FormPrefix = #{FormPrefix}
+			,FormName = #{FormName}			
+	WHERE
+		BizDocFormID = #{BizDocFormID}
+			
+	]]>
+	</update>
+	
+	<delete id="deleteBizDocForm" parameterType="cmap">
+	<![CDATA[
+		DELETE FROM covi_approval4j.jwf_bizdocform		
+		WHERE
+			BizDocFormID = #{BizDocFormID}
+			
+	]]>
+	</delete>
+    
+	
+	 <select id="selectBizDocMembergrid" parameterType="cmap" resultType="cmap">
+	     SELECT A.* FROM
+			  (SELECT A.BizDocID, A.BizDocMemberID, B.DisplayName AS UR_Name, B.UserCode AS UR_Code, C.DeptName AS DEPT_NAME, A.SortKey
+				FROM covi_approval4j.jwf_bizdocmember A
+				INNER JOIN covi_SMART4J.sys_object_user B ON A.UserCode = B.UserCode
+				INNER JOIN covi_SMART4J.sys_object_user_basegroup C ON B.UserCode = C.UserCode AND C.JobType = 'Origin'
+				WHERE BizDocID = #{BizDocID}
+			) A
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<otherwise>DEPT_NAME</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{search},'%')		
+			</if>					
+		</trim>
+		<!-- Order by 절 -->
+	<trim prefix="ORDER BY">
+	  	<if test="sortColumn != null and sortDirection != null">
+	    		<choose>
+					<when test='sortColumn.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sortColumn.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<when test='sortColumn.equalsIgnoreCase("DEPT_NAME")'>DEPT_NAME</when>
+					<otherwise>SortKey</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if> 
+			<if test="sortColumn == null or sortDirection == null">
+				SortKey ASC
+		</if>
+	</trim>
+	 <!-- paging query
+    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+     -->
+    <if test="pageSize != null and pageOffset != null">
+   		LIMIT #{pageSize} OFFSET #{pageOffset}
+   	</if>	
+	</select>
+	
+    
+    <select id="selectBizDocMembergridcnt" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM
+			  (SELECT A.BizDocID, A.BizDocMemberID, B.DisplayName AS UR_Name, B.UserCode AS UR_Code, C.DeptName AS DEPT_NAME, A.SortKey
+				FROM covi_approval4j.jwf_bizdocmember A
+				INNER JOIN covi_SMART4J.sys_object_user B ON A.UserCode = B.UserCode
+				INNER JOIN covi_SMART4J.sys_object_user_basegroup C ON B.UserCode = C.UserCode AND C.JobType = 'Origin'
+				WHERE BizDocID = #{BizDocID}
+		) A		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">		  		
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+				AND 
+				<choose>
+					<when test='sel_Search.equalsIgnoreCase("UR_Name")'>UR_Name</when>
+					<when test='sel_Search.equalsIgnoreCase("UR_Code")'>UR_Code</when>
+					<otherwise>DEPT_NAME</otherwise>
+				</choose> 
+				LIKE CONCAT('%',#{search},'%')		
+			</if>					
+		</trim>
+	</select>
+	
+    <insert id="insertBizDocMember" parameterType="cmap">
+	<![CDATA[
+		INSERT INTO covi_approval4j.jwf_bizdocmember(			
+			BizDocID
+			,SortKey
+			,UserCode
+	)
+	VALUE
+	(
+			#{BizDocID}
+			,#{SortKey}
+			,#{UserCode}
+	)
+	]]>
+	</insert>
+	<update id="updateBizDocMember" parameterType="cmap">
+	<![CDATA[
+		UPDATE covi_approval4j.jwf_bizdocmember
+		SET	
+			SortKey = 	#{SortKey}		
+	WHERE
+		BizDocMemberID = #{BizDocMemberID}
+			
+	]]>
+	</update>
+	
+	<delete id="deleteBizDocMember" parameterType="cmap">
+	<![CDATA[
+		DELETE FROM covi_approval4j.jwf_bizdocmember		
+		WHERE
+			BizDocMemberID = #{BizDocMemberID}
+			
+	]]>
+	</delete>
+	
+    <select id="selectBizDocMemberData" parameterType="cmap" resultType="cmap">
+        SELECT A.* FROM
+			  (SELECT A.BizDocID, A.BizDocMemberID, B.DisplayName AS UR_Name, B.UserCode AS UR_Code, C.DeptName AS DEPT_NAME, A.SortKey
+				FROM covi_approval4j.jwf_bizdocmember A
+				INNER JOIN covi_SMART4J.sys_object_user B ON A.UserCode = B.UserCode
+				INNER JOIN covi_SMART4J.sys_object_user_basegroup C ON B.UserCode = C.UserCode and C.JobType = 'Origin'			
+		) A
+		WHERE BizDocMemberID = #{BizDocMemberID}	
+	
+	</select>
+
+	<select id="selectBizDocFormAllList" parameterType="cmap" resultType="cmap">
+		SELECT 	BIZDOCFORMID AS "bizDocFormID"
+				,BIZDOCID AS "bizDocID"
+				,SORTKEY AS "sotrKey"
+				,FORMPREFIX AS "formPrefix"
+				,FORMNAME AS "formName"
+				,FORMID AS "formID"
+		FROM covi_approval4j.jwf_bizdocform 
+		WHERE BizDocID = #{bizDocID}
+	</select>
+    
+</mapper>
+

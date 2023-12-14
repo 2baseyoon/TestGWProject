@@ -1,0 +1,62 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 tableStyle linePlus mt10" style="opacity: 1;"><colgroup>
+				<col style="width: 15%;">
+				<col style="width: 35%;">
+				<col style="width: 15%;">
+				<col style="width: 35%;"></colgroup>
+                        
+                    <tbody>
+				<tr style="cursor: default;">
+					<th name="" value="" style="">입사일</th>
+					<td colspan="3"><input type="text" readonly="readonly" data-type="mField" id="EnterDate" value="{{ doc.BodyContext.EnterDate }}" name="EnterDate" style="width:100px; border:0;" title="입사일"></td>
+                </tr>
+                <tr>
+					<th style="">기존 사용<br>육아휴직 기간</th>
+					<td colspan="3">
+                      	<input type="text" onchange="diffDate();" data-type="smField" id="PrevStartDate" data-model="" value="{{ doc.BodyData.MainTable.PrevStartDate }}" data-pattern="date" style="width:100px;" name="PrevStartDate" title="기존휴직기간(시작일)">
+                      	~ <input type="text" onchange="diffDate();" data-type="smField" id="PrevEndDate" data-model="" value="{{ doc.BodyData.MainTable.PrevEndDate }}" data-pattern="date" style="width:100px;" name="PrevEndDate" title="기존휴직기간(종료일)">
+                      	( <input type="text" readonly="readonly" data-type="mField" id="PrevDuration" data-pattern="period" data-period-ref="PrevStartDate,PrevEndDate,1" value="{{ doc.BodyContext.PrevDuration }}" name="PrevDuration" style="width:40px;"> 일 )
+                  	</td>
+                </tr>
+				<tr style="cursor: default;">
+					<th name="" value="" style="">육아휴직 대상<br>자녀 성명</th>
+					<td style=""><input type="text" data-type="smField" id="ChildName" value="{{ doc.BodyContext.ChildName }}" name="ChildName" style="width:100px;" title="자녀성명" required="required" class="input-required"></td>
+					<th name="" value="" style="">육아휴직 대상<br>자녀 생년월일</th>
+					<td><input type="text" required="required" data-type="smField" id="ChildBirth" data-model="" value="{{ doc.BodyData.MainTable.ChildBirth }}" data-pattern="date" style="width:90px;" name="ChildBirth" title="생년월일" class="input-required"></td>
+                </tr>
+				<tr style="cursor: default;">
+					<th style="">휴직기간</th>
+					<td colspan="3">
+                      	<input type="text" onchange="diffDate();" data-type="smField" id="StartDate" data-model="" value="{{ doc.BodyData.MainTable.StartDate }}" data-pattern="date" style="width:100px;" name="StartDate" title="휴직기간(시작일)" required="required" class="input-required">
+                      	~ <input type="text" onchange="diffDate();" data-type="smField" id="EndDate" data-model="" value="{{ doc.BodyData.MainTable.EndDate }}" data-pattern="date" style="width:100px;" name="EndDate" title="휴직기간(종료일)" required="required" class="input-required">
+                      	( <input type="text" readonly="readonly" data-type="mField" id="Duration" data-pattern="period" data-period-ref="StartDate,EndDate,1" value="{{ doc.BodyContext.Duration }}" name="Duration" style="width:40px;"> 일 )
+                  	</td>
+				</tr>
+				<tr style="cursor: default;">
+					<th style="">복귀일</th>
+					<td colspan="3"><input type="text" required="required" data-type="smField" id="ReturnDate" data-model="" value="{{ doc.BodyData.MainTable.ReturnDate }}" data-pattern="date" style="width:90px;" name="ReturnDate" title="복귀일" class="input-required"></td>
+                </tr>
+				<tr style="cursor: default;display:none;">
+					<th style="">사유</th>
+					<td style="" colspan="3" rowspan="1"><textarea data-type="smField" id="Reason" rows="4" style="width: 100%;" name="Reason" value="">{{ doc.BodyData.MainTable.Reason }}</textarea></td>
+				</tr>
+				<tr style="cursor: default;">
+					<th style="">기타</th>
+					<td style="" colspan="3" rowspan="1"><textarea data-type="smField" id="Remarks" rows="4" style="width:100%;" name="Remarks" value="">{{ doc.BodyData.MainTable.Remarks }}</textarea></td>
+					
+					</tr>
+				<tr style="cursor: default;">
+					<th>비상연락</th>
+					<td style="" colspan="3" rowspan="1"><input type="text" data-type="mField" required="required" class="input-required" id="EmergencyTel" value="{{ doc.BodyContext.EmergencyTel }}" style="width:200px;" name="EmergencyTel"></td>
+					
+					</tr>
+				<tr style="cursor: default;">
+					<td style="" colspan="4" rowspan="1">
+                      ※ 첨부 서류 : 출생증명서 / 가족관계증명서 / 등본 중 택1
+                      <br style="">
+                      ※ '기존에 사용한 육아휴직 기간' 항목에는 기존에 사용한 내용이 있는 경우에만 작성 해주세요.
+                  </td>
+					
+					
+					</tr></tbody></table>
+<!--실 결재양식 내용 부분 끝 -->

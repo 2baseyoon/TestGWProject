@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.formCmmFunction">
+    <select id="selectFormInstAll" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FORMINSTID
+				, PROCESSID
+				, FORMID
+				, SCHEMAID
+				, SUBJECT
+				, INITIATORID
+				, INITIATORNAME
+				, INITIATORUNITID
+				, INITIATORUNITNAME
+				, INITIATEDDATE
+				, COMPLETEDDATE
+				, DELETEDDATE
+				, LASTMODIFIEDDATE
+				, LASTMODIFIERID
+				, ENTCODE
+				, ENTNAME
+				, DOCNO
+				, DOCLEVEL
+				, DOCCLASSID
+				, DOCCLASSNAME
+				, DOCSUMMARY
+				, ISPUBLIC
+				, SAVETERM
+				, ATTACHFILEINFO
+				, APPLIEDDATE
+				, APPLIEDTERM
+				, RECEIVENO
+				, RECEIVENAMES
+				, RECEIPTLIST
+				, BODYTYPE
+				, BODYCONTEXT
+				, BODYCONTEXTORG
+				, DOCLINKS
+				, EDMSDOCLINKS
+				, RULEITEMINFO
+			FROM covi_approval4j.jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+    <select id="selectFormInstData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID
+			,Subject
+			,BodyContext
+			FROM covi_approval4j.jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+    <select id="selectDomainID" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT SOD.DomainID 
+			FROM covi_approval4j.jwf_forminstance AS FI
+			INNER JOIN COVI_SMART4J.sys_object_domain AS SOD ON SOD.DomainCode = FI.EntCode
+			WHERE FI.FormInstID = #{FormInstID}
+			AND SOD.IsUse = 'Y'
+			LIMIT 1
+		]]>
+	</select>
+	
+	<select id="selectBodyContextData" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT BodyContext
+			FROM covi_approval4j.jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+    <select id="selectIsManagerData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT ur.UserCode AS UR_Code
+			,ur.DisplayName AS UR_Name
+			,gr.GroupCode AS GR_Code
+			,gr.DisplayName 
+			FROM covi_smart4j.sys_object_group AS gr 
+			INNER JOIN covi_smart4j.sys_object_user AS ur on gr.ManagerCode = ur.UserCode
+			WHERE gr.IsUse = 'Y'
+			AND gr.GroupCode = #{dept_code}
+		]]>
+	</select>
+
+    <select id="selectGovUsingStamp" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FileInfo, FileID FROM covi_approval4j.jwf_stamp
+			WHERE EntCode = #{entCode}
+			AND UseYn = 'Y'
+			AND DelYn = 'N'
+			ORDER BY RegDate DESC
+			LIMIT 1 
+		]]>
+	</select>
+	
+    <insert id = "usp_wfform_RegisterDocumentNumber_Software" useGeneratedKeys="true"  parameterType="cmap"  keyProperty="SerialNumber"  keyColumn="SerialNumber">
+		<![CDATA[
+			INSERT INTO covi_approval4j.jwf_documentnumber (
+				FiscalYear,
+				SerialNumber,
+				DocListType,
+				DeptCode,
+				DeptName,
+				CategoryNumber,
+				DisplayedNumber
+			)
+			VALUES
+			(
+				#{FISCAL_YEAR},
+				1,
+				#{DOC_LIST_TYPE},
+				#{UNIT_CODE},
+				#{UNIT_ABBR},
+				#{CATEGORY_NUMBER},
+				NULL
+			)ON DUPLICATE KEY UPDATE SerialNumber=SerialNumber+1, idx=LAST_INSERT_ID(idx);
+		]]>
+		<selectKey keyProperty="SerialNumber" resultType="int" order="AFTER">
+				SELECT SerialNumber as SerialNumber
+				FROM covi_approval4j.jwf_documentnumber
+				WHERE idx = LAST_INSERT_ID();
+        </selectKey>
+	</insert>
+	
+    <update id= "usp_form_UpdateBodyContext" parameterType="cmap" >
+       <![CDATA[
+        UPDATE covi_approval4j.jwf_forminstance
+		SET BodyContext = #{BODYCONTEXT}
+		WHERE FormInstID = #{FIID}
+	   ]]>
+    </update>
+    
+    <insert id= "insertConnectReqList" parameterType="cmap" >
+       <![CDATA[
+        INSERT covi_approval4j.tb_connectreq_list(FIID, UserCode, SDATE, EDATE, GUBUN)
+		VALUES(#{FIID}, #{UserCode}, #{SDATE}, #{EDATE}, #{GUBUN})
+	   ]]>
+    </insert>
+    
+    <select id="selectConnectReqList" parameterType="cmap" resultType="cmap">
+    	<![CDATA[
+			SELECT FIID, UserCode, EDATE, GUBUN
+			FROM covi_approval4j.tb_connectreq_list
+			WHERE SDATE <= CURRENT_DATE()
+			AND EDATE >= CURRENT_DATE()
+			AND EXEC_YN = 'N'
+		]]>
+	</select>
+	
+	<update id= "updateConnectReqList" parameterType="cmap" >
+       <![CDATA[
+        UPDATE covi_approval4j.tb_connectreq_list
+		SET EXEC_YN = 'Y'
+		WHERE FIID = #{FIID}
+	   ]]>
+    </update>
+	
+    <select id="selectFormInstDataForVac" parameterType="cmap" resultType="cmap">
+		SELECT WorkItemID, ProcessID
+		FROM covi_approval4j.jwf_workitem A
+		WHERE A.ProcessID IN (
+			SELECT ProcessID
+			FROM covi_approval4j.jwf_process
+			WHERE forminstid = #{FormInstID}
+		)
+		AND A.NAME = 'initiator'
+		ORDER BY Created ASC
+		LIMIT 1
+	</select>
+	    
+	<insert id="insertVacationInfo" parameterType="cmap">	
+		INSERT 
+		  INTO covi_smart4j.vm_vacationinfo (VacYear, UR_Code, UR_Name, 
+		  									 VacFlag, Sdate, Edate, VacDay, 
+		  									 Reason, APPDATE, ENDDATE, WorkItemID, 
+		  									 ProcessID, GUBUN, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag
+		  						   			)
+	    VALUES (#{vacYear}, #{urCode}, #{urName},
+	    		#{vacFlag}, #{sDate}, #{eDate}, #{vacDay},
+	    		#{reason}, #{appDate}, #{endDate}, #{workItemID},
+	    		#{processID}, #{gubun}, #{deputyName}, #{deputyCode}, #{vacOffFlag}
+	    	   )
+	</insert>   
+	
+	<select id="selectFormBaseOS" parameterType="cmap" resultType="cmap">
+	    SELECT Code AS CODE, CodeName AS CODE_VALUE
+	    FROM covi_smart4j.sys_base_code
+		WHERE CodeGroup = #{CodeGroup}
+		AND IsUse = 'Y'
+		ORDER BY SortKey ASC
+	</select>
+	
+	<update id="updateCapitalApvStatus" parameterType="cmap"> 	    
+ 	    UPDATE covi_account4j_si.act_expence_application_list
+ 	    SET CapitalStatus = #{CapitalStatus}
+			, CapitalProcessID = #{CapitalProcessID}
+		WHERE ExpenceApplicationListID IN 
+		<foreach collection="ExpenceApplicationListIDs" item="ExpenceApplicationListID" index="index"  open="(" close=")" separator=",">
+           #{ExpenceApplicationListID}
+        </foreach>
+	</update>
+	
+	<select id="selectBaseCodeList" parameterType="cmap" resultType="cmap">
+		SELECT Code, CodeName 
+		FROM covi_account4j_si.act_base_code
+		WHERE CodeGroup = #{CodeGroup}
+		AND IsGroup = 'N'
+		AND IsUse = 'Y'
+		AND	CompanyCode = (
+			CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{CodeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{CompanyCode})
+			THEN #{CompanyCode}
+			ELSE 'ALL'
+			END
+		)
+		<if test="CodeGroup == 'IOCode'">
+		ORDER BY CodeName ASC
+		</if>
+	</select>
+	
+	<insert id="insertAttendanceMngExtensionHoliday" parameterType="cmap">	
+		INSERT INTO covi_smart4j.attendance_mng_ExtensionHoliday (
+			UserCode, JobDate, JobStsName, StartTime, EndTime, IdleTime,
+			WorkTime, Etc, BillName, ProcessId, FormInstId,
+			CompanyCode, RegisterCode, RegistDate
+		) VALUES (
+			#{UserCode}, #{JobDate}, #{JobStsName}, #{StartTime}, #{EndTime}, #{IdleTime},
+			#{WorkTime}, #{Etc}, #{BillName}, #{ProcessId}, #{FormInstId},
+			#{CompanyCode}, #{RegisterCode}, now(3)
+		)	
+	</insert>  
+	
+	<select id="selectAttendanceHolidayCheck" parameterType="cmap" resultType="java.lang.String">
+		SELECT fn_attend_holidayCheck(#{UserCode}, #{CompanyCode}, #{TargetDate}) AS isHoliday
+	</select>
+	
+	<select id="selectAttendanceWorkTimeCheck" parameterType="cmap" resultType="java.lang.String">
+		SELECT fn_attend_workTimeCheck(#{UserCode}, #{TargetDate}, #{StartTime}, #{EndTime}, #{CompanyCode}, #{orgProcessId}) AS workTime
+	</select>
+	
+	<insert id="insertAttendanceSetCommute" parameterType="cmap"><!-- 소명 신청서 -->
+		call sp_attendance_setCommute(#{UserCode}, #{CallDate},#{StartTime}, #{EndTime}, #{CompanyCode}, 
+		#{Etc}, #{Subject}, #{processID}, #{FormID}, #{changeDate})
+	</insert>	
+	
+	<select id="selectAttendanceCommuteTime" parameterType="cmap" resultType="java.lang.String">
+		SELECT fn_attend_commuTime(#{UserCode}, #{CompanyCode}, #{TargetDate}, #{Division}) AS commuteTime
+	</select>
+	
+	<insert id="insertCapitalResolution" parameterType="cmap"><!-- 자금지출 결의서 -->
+		INSERT INTO covi_account4j_si.act_capital_resolution (
+			FormInstId, ProcessId, RealPayDate, CorpCardAmount, AutoAmount, NormalAmount,
+			CashAmount, AccountAmount, RealPayAmount
+		) VALUES (
+			#{FormInstId}, #{ProcessId}, #{RealPayDate}, #{CorpCardAmount}, #{AutoAmount}, #{NormalAmount},
+			#{CashAmount}, #{AccountAmount}, #{RealPayAmount}
+		)	
+	</insert>
+
+	<!-- 근무일정이 등록되어 있는지 체크 -->
+	<select id="attendDayJobCheck" parameterType="cmap" resultType="int">
+		SELECT
+			count(amj.SchSeq) as checkJob
+		FROM covi_smart4j.attendance_mng_job amj
+			INNER JOIN covi_smart4j.attendance_mng_schedule ams ON amj.SchSeq = ams.SchSeq
+		WHERE amj.JobDate = #{TargetDate}
+			AND amj.UserCode = #{UserCode}
+			AND amj.CompanyCode = #{CompanyCode}
+			AND amj.WorkSts not in ('HOL', 'OFF')
+	</select>
+
+	<select id="attendanceRealWorkInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			TargetDate
+			,#{UserName} AS UserName
+		<choose>
+			<when test='ReqType eq "O"'>
+			, DATE_FORMAT(ExtenStart, '%H:%i') AS StartTime
+			, DATE_FORMAT(ExtenEnd, '%H:%i') AS EndTime
+			, ExtenReal AS RealWorkTime
+			, ExtenAC AS RealACTime
+			</when>
+			<otherwise>
+			, DATE_FORMAT(HoliStart, '%H:%i') AS StartTime
+			, DATE_FORMAT(HoliEnd, '%H:%i') AS EndTime
+			, HoliReal AS RealWorkTime
+			, HoliAc AS RealACTime
+			</otherwise>
+		</choose>
+		FROM
+			covi_smart4j.attendance_commuting_mst
+		WHERE
+			TargetDate = #{JobDate}
+			AND CompanyCode = #{CompanyCode}
+			AND UserCode = #{UserCode}
+	</select>
+
+</mapper>

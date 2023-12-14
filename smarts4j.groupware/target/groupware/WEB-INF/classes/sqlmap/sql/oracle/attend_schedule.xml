@@ -1,0 +1,826 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="attend.schedule">
+
+	<select id="getAttendScheduleListCnt"  parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : attend.schedule.getAttendScheduleListCnt */
+		SELECT COUNT(*) AS "CNT"
+		FROM (
+				SELECT
+				AMS.ATTSEQ AS AttSeq
+				,AMS.SCHNAME AS SchName
+				,AMS.SCHSEQ AS SchSeq
+				,AMS.WORKZONE AS WorkZone
+				, AMS.ASSYN AS AssYn
+				, AMS.MEMO AS Memo
+				, AMS.BASEYN AS BaseYn
+				,(SELECT COUNT(*) FROM ATTEND_SCHEDULE_MEMBER AMM WHERE AMM.SCHSEQ = AMS.SCHSEQ) AS MemberCnt
+				,(SELECT LISTAGG(ur.DisplayName, ',') WITHIN GROUP (ORDER BY DisplayName) FROM attend_schedule_member mem, sys_object_user ur WHERE mem.SchSeq = AMS.SchSeq AND mem.UserCode = ur.UserCode) AS MemberList
+				,(SELECT COUNT(*) FROM ATTEND_SCHEDULE_ALLOC AMA WHERE AMA.SCHSEQ = AMS.SCHSEQ) AS AllocCnt
+				,ams.WorkZone||','|| wpinfo.wplist as WorkPlace
+				FROM ATTEND_SCHEDULE AMS
+				LEFT JOIN (SELECT swp.SchSeq, LISTAGG(wp.WorkZone, ',') WITHIN GROUP (ORDER BY wp.WorkZone) as wplist
+							FROM attend_schedule_workplace swp, attend_workplace wp
+							WHERE swp.LocationSeq = wp.LocationSeq
+							GROUP BY swp.SchSeq
+				) wpinfo ON wpinfo.SchSeq = ams.SchSeq
+				WHERE AMS.COMPANYCODE = #{CompanyCode}
+		<if test="ValidCheck != null and ValidCheck != ''">
+				AND ams.ValidYn = #{ValidCheck}
+		</if>
+		<if test="SchSeq != null and SchSeq != ''">
+				AND AMS.SCHSEQ = #{SchSeq}
+		</if>
+		) tbl
+		<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+		WHERE
+			<choose>
+				<when test='schTypeSel == "allSearch"'>
+				SchName LIKE '%'||#{schTxt}||'%'
+				OR WorkPlace LIKE '%'||#{schTxt}||'%'
+				OR MemberList LIKE '%'||#{schTxt}||'%'
+					OR Memo LIKE '%'||#{schTxt}||'%'
+				</when>
+				<when test='schTypeSel == "templateName"'>
+					SchName LIKE '%'||#{schTxt}||'%'
+				</when>
+				<when test='schTypeSel == "workPlaceName"'>
+					WorkPlace LIKE '%'||#{schTxt}||'%'
+				</when>
+				<when test='schTypeSel == "user"'>
+					MemberList LIKE '%'||#{schTxt}||'%'
+				</when>
+				<when test='schTypeSel == "memo"'>
+					Memo LIKE '%'||#{schTxt}||'%'
+				</when>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="getAttendScheduleList"  parameterType="cmap" resultType="cmap">
+	/* attend.schedule.getAttendScheduleList*/
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			AttSeq AS "AttSeq"
+			,SchName AS "SchName"
+			,SchSeq AS "SchSeq"
+			,WorkZone AS "WorkZone"
+			,AttDayStartTime AS "AttDayStartTime"
+			,AttDayEndTime AS "AttDayEndTime"
+			,WorkTimeSun AS "WorkTimeSun"
+			,WorkTimeMon AS "WorkTimeMon"
+			,WorkTimeTue AS "WorkTimeTue"
+			,WorkTimeWed AS "WorkTimeWed"
+			,WorkTimeThe AS "WorkTimeThe"
+			,WorkTimeFri AS "WorkTimeFri"
+			,WorkTimeSat AS "WorkTimeSat"
+			,NextDayYnSun AS "NextDayYnSun"
+			,NextDayYnMon AS "NextDayYnMon"
+			,NextDayYnTue AS "NextDayYnTue"
+			,NextDayYnWed AS "NextDayYnWed"
+			,NextDayYnThu AS "NextDayYnThu"
+			,NextDayYnFri AS "NextDayYnFri"
+			,NextDayYnSat AS "NextDayYnSat"
+			,AssYn AS "AssYn"
+			,Memo AS "Memo"
+			,BaseYn AS "BaseYn"
+			,MemberCnt AS "MemberCnt"
+			,MemberList AS "MemberList"
+			,AllocCnt AS "AllocCnt"
+			,WorkPlace AS "WorkPlace"
+			,ValidYn as "ValidYn"
+		FROM(
+			SELECT
+				AMS.ATTSEQ AS AttSeq
+				,AMS.SCHNAME AS SchName
+				,AMS.SCHSEQ AS SchSeq
+				,AMS.WORKZONE AS WorkZone
+				,AMS.ATTDAYSTARTTIME AS AttDayStartTime
+				,AMS.ATTDAYENDTIME AS AttDayEndTime
+				, AMS.STARTSUNHOUR||':'||AMS.STARTSUNMIN||'~'||AMS.ENDSUNHOUR||':'||AMS.ENDSUNMIN AS WorkTimeSun
+				, AMS.STARTMONHOUR||':'||AMS.STARTMONMIN||'~'||AMS.ENDMONHOUR||':'||AMS.ENDMONMIN AS WorkTimeMon
+				, AMS.STARTTUEHOUR||':'||AMS.STARTTUEMIN||'~'||AMS.ENDTUEHOUR||':'||AMS.ENDTUEMIN AS WorkTimeTue
+				, AMS.STARTWEDHOUR||':'||AMS.STARTWEDMIN||'~'||AMS.ENDWEDHOUR||':'||AMS.ENDWEDMIN AS WorkTimeWed
+				, AMS.STARTTHUHOUR||':'||AMS.STARTTHUMIN||'~'||AMS.ENDTHUHOUR||':'||AMS.ENDTHUMIN AS WorkTimeThe
+				, AMS.STARTFRIHOUR||':'||AMS.STARTFRIMIN||'~'||AMS.ENDFRIHOUR||':'||AMS.ENDFRIMIN AS WorkTimeFri
+				, AMS.STARTSATHOUR||':'||AMS.STARTSATMIN||'~'||AMS.ENDSATHOUR||':'||AMS.ENDSATMIN AS WorkTimeSat
+				, AMS.NEXTDAYYNSUN AS NextDayYnSun
+				, AMS.NEXTDAYYNMON AS NextDayYnMon
+				, AMS.NEXTDAYYNTUE AS NextDayYnTue
+				, AMS.NEXTDAYYNWED AS NextDayYnWed
+				, AMS.NEXTDAYYNTHU AS NextDayYnThu
+				, AMS.NEXTDAYYNFRI AS NextDayYnFri
+				, AMS.NEXTDAYYNSAT AS NextDayYnSat
+				, AMS.ASSYN AS AssYn
+				, AMS.MEMO AS Memo
+				, AMS.BASEYN AS BaseYn
+				,(SELECT COUNT(*) FROM ATTEND_SCHEDULE_MEMBER AMM WHERE AMM.SCHSEQ = AMS.SCHSEQ) AS MemberCnt
+				,(SELECT LISTAGG(ur.DisplayName, ',') WITHIN GROUP (ORDER BY DisplayName) FROM attend_schedule_member mem, sys_object_user ur WHERE mem.SchSeq = AMS.SchSeq AND mem.UserCode = ur.UserCode) AS MemberList
+				,(SELECT COUNT(*) FROM ATTEND_SCHEDULE_ALLOC AMA WHERE AMA.SCHSEQ = AMS.SCHSEQ) AS AllocCnt
+				,ams.WorkZone||','|| wpinfo.wplist as WorkPlace
+				,ValidYn
+			FROM ATTEND_SCHEDULE AMS
+			LEFT JOIN (SELECT swp.SchSeq, LISTAGG(wp.WorkZone, ',') WITHIN GROUP (ORDER BY wp.WorkZone) as wplist
+				FROM attend_schedule_workplace swp, attend_workplace wp
+				WHERE swp.LocationSeq = wp.LocationSeq
+				GROUP BY swp.SchSeq
+			) wpinfo ON wpinfo.SchSeq = ams.SchSeq
+			WHERE AMS.COMPANYCODE = #{CompanyCode}
+			<if test="ValidCheck != null and ValidCheck != ''">
+					AND ams.ValidYn = #{ValidCheck}
+			</if>
+				<if test="SchSeq != null and SchSeq != ''">
+				AND AMS.SCHSEQ = #{SchSeq}
+				</if>
+		) TBL
+			<if test='schTypeSel != null and schTypeSel !="" and schTxt != null and schTxt !=""'>
+				WHERE
+				<choose>
+					<when test='schTypeSel == "allSearch"'>
+						SchName LIKE '%'||#{schTxt}||'%'
+						OR WorkPlace LIKE '%'||#{schTxt}||'%'
+						OR MemberList LIKE '%'||#{schTxt}||'%'
+						OR Memo LIKE '%'||#{schTxt}||'%'
+					</when>
+					<when test='schTypeSel == "templateName"'>
+						SchName LIKE '%'||#{schTxt}||'%'
+					</when>
+					<when test='schTypeSel == "workPlaceName"'>
+						WorkPlace LIKE '%'||#{schTxt}||'%'
+					</when>
+					<when test='schTypeSel == "user"'>
+						MemberList LIKE '%'||#{schTxt}||'%'
+					</when>
+					<when test='schTypeSel == "memo"'>
+						Memo LIKE '%'||#{schTxt}||'%'
+					</when>
+				</choose>
+			</if>
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					, "AttSeq",  "BaseYn" desc,"SchSeq"
+				</if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					, <choose>
+						<when test='sortColumn.equalsIgnoreCase("BaseYn")'>"BaseYn"</when>
+						<when test='sortColumn.equalsIgnoreCase("SchName")'>"SchName"</when>
+						<when test='sortColumn.equalsIgnoreCase("WorkZone")'>"WorkZone"</when>
+						<when test='sortColumn.equalsIgnoreCase("WorkTimeMon")'>"WorkTimeMon"</when>
+						<when test='sortColumn.equalsIgnoreCase("AssYn")'>"AssYn"</when>
+						<when test='sortColumn.equalsIgnoreCase("MemberCnt")'>"MemberCnt"</when>
+						<when test='sortColumn.equalsIgnoreCase("AllocCnt")'>"AllocCnt"</when>
+						<when test='sortColumn.equalsIgnoreCase("Memo")'>"Memo"</when>
+						<otherwise>"AttSeq",  "BaseYn" desc, "SchSeq"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="getAttendScheduleDetail"  parameterType="cmap" resultType="cmap">
+		/* attend.schedule.getAttendScheduleDetail */
+		SELECT
+			AMS.ATTSEQ AS "AttSeq"
+			, AMS.SCHNAME AS "SchName"
+			, AMS.SCHSEQ AS "SchSeq"
+			, AMS.ATTDAYSTARTTIME AS "AttDayStartTime"
+			, AMS.ATTDAYENDTIME AS "AttDayEndTime"
+			, AMS.ASSYN AS "AssYn"
+			, AMS.ASSSEQ AS "AssSeq"
+			, AMS.SELFCOMMYN AS "SelfCommYn"
+			, AMS.ATTDAYAC AS "AttDayAC"
+			, AMS.ATTDAYIDLE AS "AttDayIdle"
+			, AMS.MEMO AS "Memo"
+			, AMS.NEXTDAYYN AS "NextDayYn"
+			, AMS.STARTSUNHOUR AS "StartSunHour"
+			, AMS.STARTSUNMIN AS "StartSunMin"
+			, AMS.ENDSUNHOUR AS "EndSunHour"
+			, AMS.ENDSUNMIN AS "EndSunMin"
+			, AMS.NEXTDAYYNSUN AS "NextDayYnSun"
+			, AMS.STARTMONHOUR AS "StartMonHour"
+			, AMS.STARTMONMIN AS "StartMonMin"
+			, AMS.ENDMONHOUR AS "EndMonHour"
+			, AMS.ENDMONMIN AS "EndMonMin"
+			, AMS.NEXTDAYYNMON AS "NextDayYnMon"
+			, AMS.STARTTUEHOUR AS "StartTueHour"
+			, AMS.STARTTUEMIN AS "StartTueMin"
+			, AMS.ENDTUEHOUR AS "EndTueHour"
+			, AMS.ENDTUEMIN AS "EndTueMin"
+			, AMS.NEXTDAYYNTUE AS "NextDayYnTue"
+			, AMS.STARTWEDHOUR AS "StartWedHour"
+			, AMS.STARTWEDMIN AS "StartWedMin"
+			, AMS.ENDWEDHOUR AS "EndWedHour"
+			, AMS.ENDWEDMIN AS "EndWedMin"
+			, AMS.NEXTDAYYNWED AS "NextDayYnWed"
+			, AMS.STARTTHUHOUR AS "StartThuHour"
+			, AMS.STARTTHUMIN AS "StartThuMin"
+			, AMS.ENDTHUHOUR AS "EndThuHour"
+			, AMS.ENDTHUMIN AS "EndThuMin"
+			, AMS.NEXTDAYYNTHU AS "NextDayYnThu"
+			, AMS.STARTFRIHOUR AS "StartFriHour"
+			, AMS.STARTFRIMIN AS "StartFriMin"
+			, AMS.ENDFRIHOUR AS "EndFriHour"
+			, AMS.ENDFRIMIN AS "EndFriMin"
+			, AMS.NEXTDAYYNFRI AS "NextDayYnFri"
+			, AMS.STARTSATHOUR AS "StartSatHour"
+			, AMS.STARTSATMIN AS "StartSatMin"
+			, AMS.ENDSATHOUR AS "EndSatHour"
+			, AMS.ENDSATMIN AS "EndSatMin"
+			, AMS.NEXTDAYYNSAT AS "NextDayYnSat"
+			, AMS.ACSUN AS "AcSun"
+			, AMS.ACMON AS "AcMon"
+			, AMS.ACTUE AS "AcTue"
+			, AMS.ACWED AS "AcWed"
+			, AMS.ACTHU AS "AcThu"
+			, AMS.ACFRI AS "AcFri"
+			, AMS.ACSAT AS "AcSat"
+			, AMS.IDLESUN AS "IdleSun"
+			, AMS.IDLEMON AS "IdleMon"
+			, AMS.IDLETUE AS "IdleTue"
+			, AMS.IDLEWED AS "IdleWed"
+			, AMS.IDLETHU AS "IdleThu"
+			, AMS.IDLEFRI AS "IdleFri"
+			, AMS.IDLESAT AS "IdleSat"
+			, AMS.WORKZONE AS "WorkZone"
+			, AMS.WORKADDR AS "WorkAddr"
+			, AMS.WORKPOINTX AS "WorkPointX"
+			, AMS.WORKPOINTY AS "WorkPointY"
+			, AMS.ALLOWRADIUS AS "AllowRadius"
+			, AMS.AUTOEXTENYN AS "AutoExtenYn"
+			, AMS.AUTOEXTENMINTIME AS "AutoExtenMinTime"
+			, AMS.AUTOEXTENMAXTIME AS "AutoExtenMaxTime"
+			, AMS.WORKINGSYSTEMTYPE AS "WorkingSystemType"
+			, AMS.CORETIMEYN AS "CoreTimeYn"
+			, NVL(AMS.CORESTARTTIMEHOUR, '00') AS "CoreStartTimeHour"
+			, NVL(AMS.CORESTARTTIMEMIN, '00') AS "CoreStartTimeMin"
+			, NVL(AMS.COREENDTIMEHOUR, '00') AS "CoreEndTimeHour"
+			, NVL(AMS.COREENDTIMEMIN, '00') AS "CoreEndTimeMin"
+			, AMS.GOWORKTIMEYN AS "GoWorkTimeYn"
+			, NVL(AMS.GOWORKSTARTTIMEHOUR, '00') AS "GoWorkStartTimeHour"
+			, NVL(AMS.GOWORKSTARTTIMEMIN, '00') AS "GoWorkStartTimeMin"
+			, NVL(AMS.GOWORKENDTIMEHOUR, '00') AS "GoWorkEndTimeHour"
+			, NVL(AMS.GOWORKENDTIMEMIN, '00') AS "GoWorkEndTimeMin"
+			, AMS.OFFWORKTIMEYN AS "OffWorkTimeYn"
+			, NVL(AMS.OFFWORKSTARTTIMEHOUR, '00') AS "OffWorkStartTimeHour"
+			, NVL(AMS.OFFWORKSTARTTIMEMIN, '00') AS "OffWorkStartTimeMin"
+			, NVL(AMS.OFFWORKENDTIMEHOUR, '00') AS "OffWorkEndTimeHour"
+			, NVL(AMS.OFFWORKENDTIMEMIN, '00') AS "OffWorkEndTimeMin"
+		FROM ATTEND_SCHEDULE AMS
+		WHERE AMS.COMPANYCODE = #{CompanyCode}
+		AND AMS.SCHSEQ = #{SchSeq}
+		AND AMS.VALIDYN = 'Y'
+	</select>
+
+	<insert id="insertAttendSchedule"  parameterType="cmap">
+		INSERT INTO ATTEND_SCHEDULE
+		(
+			SCHSEQ
+			, ATTSEQ
+			, COMPANYCODE
+			, SCHNAME
+			, ATTDAYSTARTTIME
+			, ATTDAYENDTIME
+			, NEXTDAYYN
+			, ASSYN
+			, ASSSEQ
+			, SELFCOMMYN
+			, ATTDAYAC
+			, ATTDAYIDLE
+			, VALIDYN
+			, MEMO
+			, STARTSUNHOUR, STARTSUNMIN, ENDSUNHOUR, ENDSUNMIN, NEXTDAYYNSUN
+			, STARTMONHOUR, STARTMONMIN, ENDMONHOUR, ENDMONMIN, NEXTDAYYNMON
+			, STARTTUEHOUR, STARTTUEMIN, ENDTUEHOUR, ENDTUEMIN, NEXTDAYYNTUE
+			, STARTWEDHOUR, STARTWEDMIN, ENDWEDHOUR, ENDWEDMIN, NEXTDAYYNWED
+			, STARTTHUHOUR, STARTTHUMIN, ENDTHUHOUR, ENDTHUMIN, NEXTDAYYNTHU
+			, STARTFRIHOUR, STARTFRIMIN, ENDFRIHOUR, ENDFRIMIN, NEXTDAYYNFRI
+			, STARTSATHOUR, STARTSATMIN, ENDSATHOUR, ENDSATMIN, NEXTDAYYNSAT
+			, ACSUN, ACMON, ACTUE, ACWED, ACTHU, ACFRI, ACSAT
+			, IDLESUN, IDLEMON, IDLETUE, IDLEWED, IDLETHU, IDLEFRI, IDLESAT
+			, WORKZONE, WORKADDR, WORKPOINTX, WORKPOINTY, ALLOWRADIUS
+			, AUTOEXTENYN, AUTOEXTENMINTIME, AUTOEXTENMAXTIME
+			, WORKINGSYSTEMTYPE
+			, CORETIMEYN, CORESTARTTIMEHOUR, CORESTARTTIMEMIN, COREENDTIMEHOUR, COREENDTIMEMIN
+			, GOWORKTIMEYN, GOWORKSTARTTIMEHOUR, GOWORKSTARTTIMEMIN, GOWORKENDTIMEHOUR, GOWORKENDTIMEMIN
+			, OFFWORKTIMEYN, OFFWORKSTARTTIMEHOUR, OFFWORKSTARTTIMEMIN, OFFWORKENDTIMEHOUR, OFFWORKENDTIMEMIN
+		, REGISTERCODE
+			, REGISTDATE
+			, MODIFYERCODE
+			, MODIFYDATE
+		) VALUES (
+			ATTEND_SCHEDULE_SEQ.NEXTVAL
+			, #{AttSeq}
+			, #{CompanyCode}
+			, #{SchName}
+			, #{AttDayStartTime}
+			, #{AttDayEndTime}
+			, #{NextDayYn}
+			, #{AssYn}
+			, #{AssSeq}
+			, #{SelfCommYn}
+			, #{AttDayAC}
+			, #{AttDayIdle}
+			, 'Y'
+			, #{Memo}
+			, #{StartSunHour}, #{StartSunMin}, #{EndSunHour}, #{EndSunMin}, #{NextDayYnSun}
+			, #{StartMonHour}, #{StartMonMin}, #{EndMonHour}, #{EndMonMin}, #{NextDayYnMon}
+			, #{StartTueHour}, #{StartTueMin}, #{EndTueHour}, #{EndTueMin}, #{NextDayYnTue}
+			, #{StartWedHour}, #{StartWedMin}, #{EndWedHour}, #{EndWedMin}, #{NextDayYnWed}
+			, #{StartThuHour}, #{StartThuMin}, #{EndThuHour}, #{EndThuMin}, #{NextDayYnThu}
+			, #{StartFriHour}, #{StartFriMin}, #{EndFriHour}, #{EndFriMin}, #{NextDayYnFri}
+			, #{StartSatHour}, #{StartSatMin}, #{EndSatHour}, #{EndSatMin}, #{NextDayYnSat}
+			, #{AcSun}, #{AcMon}, #{AcTue}, #{AcWed}, #{AcThu}, #{AcFri}, #{AcSat}
+			, #{IdleSun}, #{IdleMon}, #{IdleTue}, #{IdleWed}, #{IdleThu}, #{IdleFri}, #{IdleSat}
+			, #{WorkZone}, #{WorkAddr}, #{WorkPointX}, #{WorkPointY}, #{AllowRadius}
+			, #{AutoExtenYn}, #{AutoExtenMinTime}, #{AutoExtenMaxTime}
+			, #{WorkingSystemType}
+			, #{CoreTimeYn}, #{CoreStartTimeHour}, #{CoreStartTimeMin}, #{CoreEndTimeHour}, #{CoreEndTimeMin}
+			, #{GoWorkTimeYn}, #{GoWorkStartTimeHour}, #{GoWorkStartTimeMin}, #{GoWorkEndTimeHour}, #{GoWorkEndTimeMin}
+			, #{OffWorkTimeYn}, #{OffWorkStartTimeHour}, #{OffWorkStartTimeMin}, #{OffWorkEndTimeHour}, #{OffWorkEndTimeMin}
+			, #{UserCode}
+			, SYSDATE
+			, #{UserCode}
+			, SYSDATE
+		)
+			
+		<selectKey keyProperty="SchSeq" resultType="Integer" order="AFTER">
+		    SELECT ATTEND_SCHEDULE_SEQ.CURRVAL FROM DUAL
+		</selectKey>
+	</insert>
+
+	<update id="updateAttendSchedule"  parameterType="cmap">
+		UPDATE ATTEND_SCHEDULE
+		SET SCHNAME            	= #{SchName}
+		, ATTDAYSTARTTIME 	= #{AttDayStartTime}
+		, ATTDAYENDTIME   	= #{AttDayEndTime}
+		, NEXTDAYYN       	= #{NextDayYn}
+		, ASSYN           	= #{AssYn}
+		, ASSSEQ		  	= #{AssSeq}
+		, SELFCOMMYN	  	= #{SelfCommYn}
+		, ATTDAYAC		  	= #{AttDayAC}
+		, ATTDAYIDLE	  	= #{AttDayIdle}
+		, MEMO            	= #{Memo}
+		, STARTSUNHOUR    	= #{StartSunHour}, STARTSUNMIN = #{StartSunMin}, ENDSUNHOUR = #{EndSunHour}, ENDSUNMIN = #{EndSunMin}, NEXTDAYYNSUN = #{NextDayYnSun}
+		, STARTMONHOUR    	= #{StartMonHour}, STARTMONMIN = #{StartMonMin}, ENDMONHOUR = #{EndMonHour}, ENDMONMIN = #{EndMonMin}, NEXTDAYYNMON = #{NextDayYnMon}
+		, STARTTUEHOUR    	= #{StartTueHour}, STARTTUEMIN = #{StartTueMin}, ENDTUEHOUR = #{EndTueHour}, ENDTUEMIN = #{EndTueMin}, NEXTDAYYNTUE = #{NextDayYnTue}
+		, STARTWEDHOUR    	= #{StartWedHour}, STARTWEDMIN = #{StartWedMin}, ENDWEDHOUR = #{EndWedHour}, ENDWEDMIN = #{EndWedMin}, NEXTDAYYNWED = #{NextDayYnWed}
+		, STARTTHUHOUR    	= #{StartThuHour}, STARTTHUMIN = #{StartThuMin}, ENDTHUHOUR = #{EndThuHour}, ENDTHUMIN = #{EndThuMin}, NEXTDAYYNTHU = #{NextDayYnThu}
+		, STARTFRIHOUR    	= #{StartFriHour}, STARTFRIMIN = #{StartFriMin}, ENDFRIHOUR = #{EndFriHour}, ENDFRIMIN = #{EndFriMin}, NEXTDAYYNFRI = #{NextDayYnFri}
+		, STARTSATHOUR    	= #{StartSatHour}, STARTSATMIN = #{StartSatMin}, ENDSATHOUR = #{EndSatHour}, ENDSATMIN = #{EndSatMin}, NEXTDAYYNSAT = #{NextDayYnSat}
+		, ACSUN 		  	= #{AcSun}, ACMON = #{AcMon}, ACTUE = #{AcTue}, ACWED = #{AcWed}, ACTHU = #{AcThu}, ACFRI = #{AcFri}, ACSAT = #{AcSat}
+		, IDLESUN 		  	= #{IdleSun}, IDLEMON = #{IdleMon}, IDLETUE = #{IdleTue}, IDLEWED = #{IdleWed}, IDLETHU = #{IdleThu}, IDLEFRI = #{IdleFri}, IDLESAT = #{IdleSat}
+		, WORKZONE        	= #{WorkZone}
+		, WORKADDR        	= #{WorkAddr}
+		, WORKPOINTX	  	= #{WorkPointX}
+		, WORKPOINTY      	= #{WorkPointY}
+		, ALLOWRADIUS     	= #{AllowRadius}
+		, AUTOEXTENYN     	= #{AutoExtenYn}, AUTOEXTENMINTIME = #{AutoExtenMinTime}, AUTOEXTENMAXTIME = #{AutoExtenMaxTime}
+		, WORKINGSYSTEMTYPE = #{WorkingSystemType}
+		, CORETIMEYN 		= #{CoreTimeYn}, CORESTARTTIMEHOUR = #{CoreStartTimeHour}, CORESTARTTIMEMIN = #{CoreStartTimeMin}, COREENDTIMEHOUR = #{CoreEndTimeHour}, COREENDTIMEMIN = #{CoreEndTimeMin}
+		, GOWORKTIMEYN 		= #{GoWorkTimeYn}, GOWORKSTARTTIMEHOUR = #{GoWorkStartTimeHour}, GOWORKSTARTTIMEMIN = #{GoWorkStartTimeMin}, GOWORKENDTIMEHOUR = #{GoWorkEndTimeHour}, GOWORKENDTIMEMIN = #{GoWorkEndTimeMin}
+		, OFFWORKTIMEYN 	= #{OffWorkTimeYn}, OFFWORKSTARTTIMEHOUR = #{OffWorkStartTimeHour}, OFFWORKSTARTTIMEMIN = #{OffWorkStartTimeMin}, OFFWORKENDTIMEHOUR = #{OffWorkEndTimeHour}, OFFWORKENDTIMEMIN = #{OffWorkEndTimeMin}
+		, MODIFYERCODE  	= #{UserCode}
+		, MODIFYDATE      	= SYSDATE
+		WHERE SCHSEQ = #{SchSeq}
+	</update>
+	
+	<delete id="deleteAttendSchedule"  parameterType="java.util.Map">
+		DELETE
+		FROM ATTEND_SCHEDULE
+		WHERE SCHSEQ = #{SchSeq}
+	</delete>
+	
+	<update id="updateAttendScheduleBase"  parameterType="cmap">
+		UPDATE ATTEND_SCHEDULE
+		   SET BASEYN      = CASE WHEN SCHSEQ = #{SchSeq} THEN 'Y' ELSE 'N' END
+		 WHERE COMPANYCODE = #{CompanyCode}
+		   AND VALIDYN = 'Y'
+	</update>
+	
+	<update id="updateAttendScheduleValid"  parameterType="cmap">
+		UPDATE ATTEND_SCHEDULE
+		   SET ValidYn      = #{ValidYn}
+		 WHERE CompanyCode = #{CompanyCode}
+		   AND SchSeq = #{SchSeq}
+	</update>
+	
+	<select id="getAttSchMemberInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			NVL(COUNT(1), 0) AS "CNT"
+		FROM (
+			SELECT
+				AMM.ATTSEQ AS "AttSeq"
+				, AMM.COMPANYCODE AS "CompanyCode"
+				, AMS.SCHSEQ AS "SchSeq"
+				, AMSM.SCMEMSEQ AS "ScMemSeq"
+				, AMS.SCHNAME AS "SchName"
+				, AMS.MULTIDISPLAYNAME AS "MultiDisplayName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, AMS.MULTIDISPLAYNAME) AS "schMulti"
+				, SOU.DISPLAYNAME AS "UserName"
+				, FN_BASEGETDICTIONARY_S(#{lang}, SOU.MULTIDISPLAYNAME) AS "userMulti"
+				, FN_BASEGETDICTIONARY_S(#{lang}, SOU.MULTIDEPTNAME) AS "TransChargeBusiness"
+				, AMSM.USERCODE AS "UserCode"
+				, AMSM.STARTDTM AS "StartDtm"
+				, AMSM.ENDDTM AS "EndDtm"
+				, AMSM.VALIDYN AS "ValidYn"
+				, #{UR_TimeZone} AS "NowDate"
+			FROM ATTEND_SCHEDULE_MEMBER AMSM
+				LEFT JOIN (
+					SELECT UR.*, BG.MULTIDEPTNAME, BG.DEPTCODE, BG.JOBTYPE FROM SYS_OBJECT_USER_BASEGROUP BG
+					LEFT JOIN SYS_OBJECT_USER UR ON UR.USERCODE = BG.USERCODE
+				) SOU
+					ON SOU.USERCODE = AMSM.USERCODE AND SOU.JOBTYPE = 'Origin'
+				LEFT JOIN ATTEND_SCHEDULE AMS
+					ON AMS.SCHSEQ = AMSM.SCHSEQ
+				LEFT JOIN ATTEND_MST AMM
+					ON AMS.ATTSEQ = AMM.ATTSEQ
+			WHERE 1=1
+				AND SOU.ISUSE = 'Y'
+				AND AMS.VALIDYN = 'Y'
+				AND AMM.VALIDYN = 'Y'
+				AND AMM.COMPANYCODE = #{CompanyCode}
+				<if test="AttYn != null and AttYn != ''">
+				/*근무제 사용여부*/
+				AND AMM.ATTYN = #{AttYn}
+				</if>
+				<if test="ValidCheck != null and ValidCheck != ''">
+				/*근무제 활성여부*/
+				AND AMSM.VALIDYN = #{ValidCheck}
+				</if>
+				<if test="p_UserCode != null and p_UserCode != ''">
+				/*특정고객조회시*/
+				AND AMSM.USERCODE = #{p_UserCode}
+				</if>
+				<if test="SchSeq != null and SchSeq != ''">
+				/*근무제 조회*/
+				AND AMSM.SCHSEQ = #{SchSeq}
+				</if>
+				<if test="ScMemSeq != null and ScMemSeq != ''">
+				/*근무제 지정자 번호 조회*/
+				AND AMSM.SCMEMSEQ = #{ScMemSeq}
+				</if>
+				<if test="S_StartDate != null and S_StartDate != ''">
+				/*날자검색 추가*/
+				AND AMSM.STARTDTM BETWEEN TO_DATE(#{S_StartDate}, 'YYYY.MM.DD') AND TO_DATE(#{S_EndDate}, 'YYYY.MM.DD')
+				</if>
+				<if test="S_Specifier != null and S_Specifier != ''">
+				/*지정자명 검색 추가*/
+				AND SOU.DISPLAYNAME LIKE '%'||#{S_Specifier}||'%'
+				</if>
+		) M
+		WHERE 1 = 1
+			<if test='nowYn eq "Y" '>
+			/*당일기준 */
+			AND M."NowDate" BETWEEN M."StartDtm" AND M."EndDtm"
+			</if>
+			<if test='nowYn eq "D" '>
+			/*저장일 기준 */
+			AND (
+				M."StartDtm" BETWEEN TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') AND TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD')
+				OR M."EndDtm" BETWEEN TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') AND TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD')
+				OR TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') BETWEEN M."StartDtm" AND M."EndDtm"
+				OR TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD') BETWEEN M."StartDtm" AND M."EndDtm"
+			)
+			</if>
+			<if test="S_TargetDate != null and S_TargetDate != ''">
+			/*지정일기준 */
+			AND TO_DATE(#{S_TargetDate}, 'YYYY.MM.DD') BETWEEN M."StartDtm" AND M."EndDtm"
+			</if>
+	</select>
+	
+	<select id="getAttSchMemberInfo" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			M.ATTSEQ AS "AttSeq"
+			, M.COMPANYCODE AS "CompanyCode"
+			, M.SCHSEQ AS "SchSeq"
+			, M.SCMEMSEQ AS "ScMemSeq"
+			, M.SCHNAME AS "SchName"
+			, M.MULTIDISPLAYNAME AS "MultiDisplayName"
+			, M.SCHMULTI AS "schMulti"
+			, M.USERNAME AS "UserName"
+			, M.USERMULTI AS "userMulti"
+			, M.TRANSCHARGEBUSINESS AS "TransChargeBusiness"
+			, M.USERCODE AS "UserCode"
+			, TO_CHAR(M.STARTDTM, 'YYYY-MM-DD') AS "StartDtm"
+			, TO_CHAR(M.ENDDTM, 'YYYY-MM-DD') AS "EndDtm"
+			, M.VALIDYN AS "ValidYn"
+			, M.NOWDATE AS "NowDate"
+			, M.PCUSEYN AS "PcUseYn"
+			, M.MOBILEUSEYN AS "MobileUseYn"
+			, CASE
+				WHEN M.NOWDATE <![CDATA[ <  ]]> M.STARTDTM THEN 'A1'
+				WHEN M.NOWDATE <![CDATA[ <= ]]> M.ENDDTM THEN 'A2'
+				WHEN M.NOWDATE <![CDATA[ >  ]]> M.ENDDTM THEN 'A3'
+			  END AS "Sts"
+			, CASE
+				WHEN M.NOWDATE <![CDATA[ >= ]]> M.ENDDTM THEN 'N'
+				ELSE VALIDYN
+			  END AS "Valid"
+		FROM
+		(
+			SELECT
+				AMM.ATTSEQ
+				, AMM.COMPANYCODE
+				, AMS.SCHSEQ
+				, AMSM.SCMEMSEQ
+				, AMS.SCHNAME
+				, AMS.MULTIDISPLAYNAME
+				, FN_BASEGETDICTIONARY_S(#{lang}, AMS.MULTIDISPLAYNAME) AS SCHMULTI
+				, SOU.DISPLAYNAME AS USERNAME
+				, FN_BASEGETDICTIONARY_S(#{lang}, SOU.MULTIDISPLAYNAME) AS USERMULTI
+				, FN_BASEGETDICTIONARY_S(#{lang}, SOU.MULTIDEPTNAME) AS TRANSCHARGEBUSINESS
+				, AMSM.USERCODE
+				, AMSM.STARTDTM
+				, AMSM.ENDDTM
+				, AMSM.VALIDYN
+				, #{UR_TimeZone} AS NOWDATE
+				, AMM.PCUSEYN
+				, AMM.MOBILEUSEYN
+			FROM ATTEND_SCHEDULE_MEMBER AMSM
+				LEFT JOIN (
+					SELECT UR.*, BG.MULTIDEPTNAME, BG.DEPTCODE, BG.JOBTYPE FROM SYS_OBJECT_USER_BASEGROUP BG
+					LEFT JOIN SYS_OBJECT_USER UR ON UR.USERCODE = BG.USERCODE
+				) SOU
+					ON SOU.USERCODE = AMSM.USERCODE AND SOU.JOBTYPE = 'Origin'
+				LEFT JOIN ATTEND_SCHEDULE AMS
+					ON AMS.SCHSEQ = AMSM.SCHSEQ
+				LEFT JOIN ATTEND_MST AMM
+					ON AMS.ATTSEQ = AMM.ATTSEQ
+			WHERE 1=1
+				AND SOU.ISUSE = 'Y'
+				AND AMS.VALIDYN = 'Y'
+				AND AMM.VALIDYN = 'Y'
+				AND AMM.COMPANYCODE = #{CompanyCode}
+				<if test="AttYn != null and AttYn != ''">
+					/*근무제 사용여부*/
+					AND AMM.ATTYN = #{AttYn}
+				</if>
+				<if test="ValidCheck != null and ValidCheck != ''">
+					/*근무제 활성여부*/
+					AND AMSM.VALIDYN = #{ValidCheck}
+				</if>
+				<if test="p_UserCode != null and p_UserCode != ''">
+					/*특정고객조회시*/
+					AND AMSM.USERCODE = #{p_UserCode}
+				</if>
+				<if test="SchSeq != null and SchSeq != ''">
+					/*근무제 조회*/
+					AND AMSM.SCHSEQ = #{SchSeq}
+				</if>
+				<if test="ScMemSeq != null and ScMemSeq != ''">
+					/*근무제 지정자 번호 조회*/
+					AND AMSM.SCMEMSEQ = #{ScMemSeq}
+				</if>
+				<if test="S_StartDate != null and S_StartDate != ''">
+					/*날자검색 추가*/
+					AND AMSM.STARTDTM BETWEEN TO_DATE(#{S_StartDate}, 'YYYY.MM.DD') AND TO_DATE(#{S_EndDate}, 'YYYY.MM.DD')
+				</if>
+				<if test="S_Specifier != null and S_Specifier != ''">
+					/*지정자명 검색 추가*/
+					AND SOU.DISPLAYNAME LIKE '%'||#{S_Specifier}||'%'
+				</if>
+		) M
+		WHERE 1 = 1
+			<if test='nowYn eq "Y" '>
+				/*당일기준 */
+				AND M.NOWDATE BETWEEN M.STARTDTM AND M.ENDDTM
+			</if>
+			<if test='nowYn eq "D" '>
+				/*저장일 기준 */
+				AND (
+				M.STARTDTM BETWEEN TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') AND TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD')
+				OR M.ENDDTM BETWEEN TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') AND TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD')
+				OR TO_DATE(#{P_StartDtm}, 'YYYY.MM.DD') BETWEEN M.STARTDTM AND M.ENDDTM
+				OR TO_DATE(#{P_EndDtm}, 'YYYY.MM.DD') BETWEEN M.STARTDTM AND M.ENDDTM
+				)
+			</if>
+			<if test="S_TargetDate != null and S_TargetDate != ''">
+				/*지정일기준 */
+				AND TO_DATE(#{S_TargetDate}, 'YYYY.MM.DD') BETWEEN M.STARTDTM AND M.ENDDTM
+			</if>
+		ORDER BY "Valid", "StartDtm"
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<insert id="setAttSchMember" parameterType="cmap">
+		MERGE INTO ATTEND_SCHEDULE_MEMBER
+		USING DUAL
+		ON (SCMEMSEQ = #{ScMemSeq})
+		WHEN MATCHED THEN
+		UPDATE SET
+			MODIFYERCODE = #{UserCode}
+			, MODIFYDATE = SYSDATE
+			<if test="StartDtm != null and StartDtm != ''">
+				, STARTDTM = TO_DATE(#{StartDtm},'YYYY.MM.DD')
+			</if>
+			<if test="EndDtm != null and EndDtm != ''">
+				, ENDDTM = TO_DATE(#{EndDtm},'YYYY.MM.DD')
+			</if>
+			<if test="ValidYn != null and ValidYn != ''">
+				, VALIDYN = #{ValidYn}
+			</if>
+		WHEN NOT MATCHED THEN
+		INSERT
+		(
+			SCMEMSEQ
+			, SCHSEQ
+			, USERCODE
+			, STARTDTM
+			, ENDDTM
+			, VALIDYN
+			, COMPANYCODE
+			, REGISTERCODE
+			, REGISTDATE
+			, MODIFYERCODE
+			, MODIFYDATE
+		) VALUES (
+			ATTEND_SCHEDULE_MEMBER_SEQ.NEXTVAL
+			, #{SchSeq}
+			, #{p_UserCode}
+			, TO_DATE(#{StartDtm},'YYYY.MM.DD')
+			, TO_DATE(#{EndDtm},'YYYY.MM.DD')
+			, #{ValidYn}
+			, #{CompanyCode}
+			, #{UserCode}
+			, SYSDATE
+			, #{UserCode}
+			, SYSDATE
+		)
+	</insert>
+
+	<update id="delAttSchMember" parameterType="cmap">
+		DELETE
+		FROM ATTEND_SCHEDULE_MEMBER
+		WHERE SCMEMSEQ = #{ScMemSeq}
+	</update>
+	
+	<select id="getAttSchAllocInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(ALLOCSEQ)
+		FROM (
+			SELECT ALLOCSEQ, ALLOCTYPE, ALLOCID
+			FROM ATTEND_SCHEDULE_ALLOC AMSM
+				INNER JOIN SYS_OBJECT_USER U ON U.USERCODE = AMSM.ALLOCID
+			WHERE AMSM.SCHSEQ = #{SchSeq}
+				AND AMSM.ALLOCTYPE = 'UR'
+			UNION
+			SELECT ALLOCSEQ, ALLOCTYPE, ALLOCID
+			FROM ATTEND_SCHEDULE_ALLOC AMSM
+				INNER JOIN SYS_OBJECT_GROUP G ON G.GROUPCODE = AMSM.ALLOCID
+			WHERE AMSM.SCHSEQ = #{SchSeq}
+				AND AMSM.ALLOCTYPE != 'UR'
+		) A
+	</select>
+
+	<select id="getAttSchAllocInfo" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT
+			ALLOCSEQ AS "AllocSeq"
+			, ALLOCTYPE AS "AllocType"
+			, ALLOCID AS "AllocID"
+			, DISPLAYNAME AS "AllocName"
+		FROM (
+			SELECT
+				ALLOCSEQ
+				, ALLOCTYPE
+				, ALLOCID
+				, DISPLAYNAME
+			FROM ATTEND_SCHEDULE_ALLOC AMSM
+				INNER JOIN SYS_OBJECT_USER U ON U.USERCODE = AMSM.ALLOCID
+			WHERE  AMSM.SCHSEQ = #{SchSeq}
+				AND AMSM.ALLOCTYPE = 'UR'
+			UNION
+			SELECT
+				ALLOCSEQ
+				, ALLOCTYPE
+				, ALLOCID
+				, DISPLAYNAME
+			FROM ATTEND_SCHEDULE_ALLOC AMSM
+				INNER JOIN SYS_OBJECT_GROUP G ON G.GROUPCODE = AMSM.ALLOCID
+			WHERE  AMSM.SCHSEQ = #{SchSeq}
+				AND AMSM.ALLOCTYPE != 'UR'
+		) A
+		ORDER BY ALLOCTYPE ,ALLOCID
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<insert id="setAttSchAlloc" parameterType="cmap">
+		INSERT INTO ATTEND_SCHEDULE_ALLOC
+		(
+			ALLOCSEQ
+			, SCHSEQ
+			, ALLOCTYPE
+			, ALLOCID
+			, REGISTERCODE
+			, REGISTDATE
+			, MODIFYERCODE
+			, MODIFYDATE
+		) VALUES (
+			ATTEND_SCHEDULE_ALLOC_SEQ.NEXTVAL
+			, #{SchSeq}
+			, #{AllocType}
+			, #{AllocID}
+			, #{UserCode}
+			, SYSDATE
+			, #{UserCode}
+			, SYSDATE
+		)	
+	</insert>
+	
+	<update id="delAttSchAlloc" parameterType="cmap">
+		DELETE
+		FROM ATTEND_SCHEDULE_ALLOC
+		WHERE ALLOCSEQ = #{AllocSeq}
+	</update>
+
+	<select id="getWorkPlaceList" parameterType="cmap" resultType="cmap">
+		SELECT
+			LOCATIONSEQ AS "LocationSeq"
+			, WORKZONEGROUPNM AS "WorkZoneGroupNm"
+			, WORKZONE AS "WorkZone"
+			, ValidYn AS "ValidYn"
+		FROM ATTEND_WORKPLACE
+		WHERE
+			COMPANYCODE IN ('ORGROOT', #{CompanyCode})
+		<if test="SchSeq != null and SchSeq != ''">
+			AND LOCATIONSEQ NOT IN (
+				SELECT
+					LOCATIONSEQ
+				FROM ATTEND_SCHEDULE_WORKPLACE
+				WHERE
+					SCHSEQ = #{SchSeq}
+					AND WORKPLACETYPE = #{WorkPlaceType}
+			)
+		</if>
+		<if test="validYn != null and validYn != ''">
+			AND ValidYn = #{validYn}
+		</if>
+	</select>
+
+	<select id="getAddWorkPlaceList" parameterType="cmap" resultType="cmap">
+		SELECT
+			B.LOCATIONSEQ AS "LocationSeq"
+			, B.WORKZONE AS "WorkZone"
+			, B.WORKZONEGROUPNM AS "WorkZoneGroupNm"
+			, B.WORKADDR AS "WorkAddr"
+			, B.ALLOWRADIUS AS "AllowRadius"
+			, B.WORKPOINTX AS "WorkPointX"
+			, B.WORKPOINTY AS "WorkPointY"
+		FROM ATTEND_SCHEDULE_WORKPLACE A
+			INNER JOIN ATTEND_WORKPLACE B ON A.LOCATIONSEQ = B.LOCATIONSEQ
+		WHERE
+			A.SCHSEQ = #{SchSeq}
+			AND A.WORKPLACETYPE = #{WorkPlaceType}
+	</select>
+
+	<insert id="insertAttSchWorkPlace" parameterType="cmap">
+		INSERT INTO ATTEND_SCHEDULE_WORKPLACE
+		(
+			SCHSEQ
+			, WORKPLACETYPE
+			, LOCATIONSEQ
+		) VALUES (
+			#{SchSeq}
+			, #{WorkPlaceType}
+			, #{LocationSeq}
+		)
+	</insert>
+
+	<delete id="deleteAttSchWorkPlace" parameterType="cmap">
+		DELETE
+		FROM ATTEND_SCHEDULE_WORKPLACE
+		WHERE
+			SCHSEQ = #{SchSeq}
+			AND WORKPLACETYPE = #{WorkPlaceType}
+	</delete>
+	
+	<select id="getBaseSchedule" parameterType="cmap" resultType="cmap">
+		SELECT	  SchSeq AS "SchSeq"
+				, SchName AS "SchName"
+				, AttDayStartTime AS "StartTime"
+				, AttDayEndTime AS "EndTime"
+				, TO_CHAR(TO_DATE((REPLACE(#{SetDate}, '-','')||AttDayStartTime||'00'), 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD HH24:MI:SS') AS "AttDayStartTime"
+				, TO_CHAR(TO_DATE((REPLACE(#{SetDate}, '-','')||AttDayEndTime||'00'), 'YYYYMMDDHH24MISS'), 'YYYY-MM-DD HH24:MI:SS') AS "AttDayEndTime"
+		FROM ATTEND_SCHEDULE
+		WHERE CompanyCode = #{CompanyCode}
+		AND ValidYn = 'Y'
+		AND BaseYn = 'Y'
+	</select>
+	
+	<delete id="deleteAttSchWorkPlaceBySchSeq" parameterType="java.util.Map">
+		/* attend.schedule.deleteAttSchWorkPlaceBySchSeq */
+		DELETE FROM ATTEND_SCHEDULE_WORKPLACE
+		WHERE SchSeq = #{SchSeq}
+	</delete>
+	<delete id="delAttSchAllocBySchSeq" parameterType="java.util.Map">	
+		/* attend.schedule.delAttSchAllocBySchSeq */
+		DELETE FROM ATTEND_SCHEDULE_ALLOC
+		WHERE SchSeq = #{SchSeq}
+	</delete>
+</mapper>

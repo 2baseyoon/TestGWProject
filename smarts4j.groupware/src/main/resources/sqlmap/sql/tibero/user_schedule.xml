@@ -1,0 +1,2263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.schedule">
+    <select id="selectACLData" parameterType="cmap" resultType="cmap">
+    	<if test="S_FolderIDs != ''  or  C_FolderIDs != ''  or D_FolderIDs != ''  or M_FolderIDs != ''  or E_FolderIDs != '' or V_FolderIDs != '' or R_FolderIDs != '' ">
+	        SELECT
+	              type AS "type"
+		        , FolderID AS "FolderID"
+				, FolderType  AS "FolderType"
+				, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+				, Reserved2 AS "Color"
+			FROM (
+			<trim prefixOverrides="UNION ALL">
+				<if test="S_FolderIDs != null and S_FolderIDs != '' ">
+					SELECT
+						'S' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='S_FolderIDArr != null and S_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="S_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if>
+				<if test="C_FolderIDs != null and C_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'C' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='C_FolderIDArr != null and C_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="C_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if>
+				<if test="D_FolderIDs != null and D_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'D' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='D_FolderIDArr != null and D_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="D_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if>
+				<if test="M_FolderIDs != null and M_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'M' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='M_FolderIDArr != null and M_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="M_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if> 
+				<if test="E_FolderIDs != null and E_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'E' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='E_FolderIDArr != null and E_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="E_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if>
+				<if test="V_FolderIDs != null and V_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'V' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='V_FolderIDArr != null and V_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="V_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID})
+				</if>
+				<if test="R_FolderIDs != null and R_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'R' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='R_FolderIDArr != null and R_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="R_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+		  			AND IsDisplay = 'Y'
+					AND MenuID = #{MenuID}
+					AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+				</if>
+			</trim>
+			) A
+			WHERE (ObjectType = 'Schedule' OR (ObjectType = 'Community' AND FolderType LIKE 'Schedule%'))
+			ORDER BY SortPath
+		</if>
+    </select>
+    
+    <!-- 통합일정만 -->
+    <select id="selectTreeMenuTotal" parameterType="cmap" resultType="cmap">
+        SELECT
+	          FolderID AS "FolderID"
+			, DomainID AS "DomainID"
+			, MenuID AS "MenuID"
+			, FolderType AS "FolderType"
+			, ParentObjectID  AS "ParentObjectID"
+			, ParentObjectType AS "ParentObjectType"
+			, LinkFolderID AS "LinkFolderID"
+			, DisplayName AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, MemberOf AS "MemberOf"
+			, FolderPath AS "FolderPath"
+			, SortKey AS "SortKey"
+			, SecurityLevel AS "SecurityLevel"
+			, SortPath  AS "SortPath"
+			, IsInherited AS "IsInherited"
+			, IsShared AS "IsShared"
+			, IsUse AS "IsUse"
+			, IsDisplay AS "IsDisplay"
+			, IsURL AS "IsURL"
+			, URL AS "URL"
+			, IsMobileSupport AS "IsMobileSupport"
+			, IsAdminNotice  AS "IsAdminNotice"
+			, ManageCompany AS "ManageCompany"
+			, IsMsgSecurity AS "IsMsgSecurity"
+			, Description  AS "Description"
+			, OwnerCode AS "OwnerCode"
+			, RegisterCode AS "RegisterCode"
+			, RegistDate AS "RegistDate"
+			, ModifierCode AS "ModifierCode"
+			, ModifyDate AS "ModifyDate"
+			, DeleteDate  AS "DeleteDate"
+			, Reserved1  AS "Reserved1"
+			, Reserved2 AS "Color"
+			, Reserved3 AS "Reserved3"
+			, Reserved4 AS "Reserved4"
+			, Reserved5 AS "Reserved5"
+			, (SELECT COUNT(*) FROM SYS_OBJECT_FOLDER SubFD WHERE SubFD.MemberOf = FD.FolderID AND DeleteDate IS NULL) AS "SubCount"
+		FROM SYS_OBJECT_FOLDER FD
+		WHERE
+			MenuID = #{MenuID}
+			AND ObjectType = 'Schedule'
+			AND DeleteDate IS NULL
+			AND IsUse = 'Y' 
+  			AND IsDisplay = 'Y'
+			AND MemberOf = #{ScheduleTotalID}
+			<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+				AND FolderID IN  
+				<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		ORDER BY SortPath
+    </select>
+    
+    <!-- 일정관리 좌측 메뉴 조회 -->
+    <select id="selectTreeMenu" parameterType="cmap" resultType="cmap">
+        SELECT
+	          FolderID AS "FolderID"
+			, DomainID AS "DomainID"
+			, MenuID AS "MenuID"
+			, FolderType  AS "FolderType"
+			, ParentObjectID  AS "ParentObjectID"
+			, ParentObjectType  AS "ParentObjectType"
+			, LinkFolderID  AS "LinkFolderID"
+			, DisplayName AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, MemberOf AS "MemberOf"
+			, FolderPath AS "FolderPath"
+			, SortKey  AS "SortKey"
+			, SecurityLevel  AS "SecurityLevel"
+			, SortPath AS "SortPath"
+			, IsInherited AS "IsInherited"
+			, IsShared AS "IsShared"
+			, IsUse AS "IsUse"
+			, IsDisplay AS "IsDisplay"
+			, IsURL AS "IsURL"
+			, URL AS "URL"
+			, IsMobileSupport AS "IsMobileSupport"
+			, IsAdminNotice AS "IsAdminNotice"
+			, ManageCompany  AS "ManageCompany"
+			, IsMsgSecurity AS "IsMsgSecurity"
+			, Description  AS "Description"
+			, OwnerCode  AS "OwnerCode"
+			, RegisterCode  AS "RegisterCode"
+			, RegistDate AS "RegistDateAS"
+			, ModifierCode AS "ModifierCode"
+			, ModifyDate AS "ModifyDate" 
+			, DeleteDate AS "DeleteDate" 
+			, Reserved1 AS "Reserved1" 
+			, Reserved2 AS "Color"
+			, Reserved3 AS "Reserved3"
+			, Reserved4 AS "Reserved4"
+			, Reserved5 AS "Reserved5"
+			, (SELECT COUNT(*) FROM SYS_OBJECT_FOLDER SubFD WHERE SubFD.MemberOf = FD.FolderID AND DeleteDate IS NULL) AS "SubCount"
+		FROM SYS_OBJECT_FOLDER FD
+		WHERE
+			MenuID = #{MenuID}
+			AND ObjectType = 'Schedule'
+			AND DeleteDate IS NULL
+			AND IsUse = 'Y' 
+  			AND IsDisplay = 'Y'
+			AND FolderType NOT IN ('Schedule', 'Schedule.Total')
+			AND (MemberOf IS NULL OR MemberOf NOT IN (#{ScheduleTotalID}, #{ScheduleThemeFolderID}))
+			<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+				AND FolderID IN  
+				<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		ORDER BY SortPath
+    </select>
+    
+    <!-- 특정 폴더 하위 폴더 조회 -->
+	<select id="selectTreeSubMenu" parameterType="cmap" resultType="cmap">
+	    SELECT
+	          FolderID AS "FolderID"
+			, DomainID AS "DomainID"
+			, MenuID AS "MenuID"
+			, FolderType AS "FolderType"
+			, ParentObjectID AS "ParentObjectID"
+			, ParentObjectType AS "ParentObjectType"
+			, LinkFolderID AS "LinkFolderID"
+			, DisplayName  AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, MemberOf AS "MemberOf"
+			, FolderPath  AS "FolderPath"
+			, SortKey  AS "SortKey"
+			, SecurityLevel AS "SecurityLevel"
+			, SortPath AS "SortPath"
+			, IsInherited AS "IsInherited"
+			, IsShared AS "IsShared"
+			, IsUse AS "IsUse"
+			, IsDisplay AS "IsDisplay"
+			, IsURL AS "IsURL"
+			, URL AS "URL"
+			, IsMobileSupport AS "IsMobileSupport"
+			, IsAdminNotice  AS "IsAdminNotice"
+			, ManageCompany  AS "ManageCompany"
+			, IsMsgSecurity  AS "IsMsgSecurity"
+			, Description AS "Description"
+			, OwnerCode AS "OwnerCode"
+			, RegisterCode AS "RegisterCode"
+			, RegistDate AS "RegistDate"
+			, ModifierCode AS "ModifierCode"
+			, ModifyDate AS "ModifyDate"
+			, DeleteDate AS "DeleteDate"
+			, Reserved1 AS "Reserved1"
+			, Reserved2 AS "Color"
+			, Reserved3 AS "Reserved3"
+			, Reserved4 AS "Reserved4"
+			, Reserved5 AS "Reserved5"
+		FROM SYS_OBJECT_FOLDER
+		WHERE
+			MenuID = #{MenuID}
+			AND ObjectType = 'Schedule'
+			AND DeleteDate IS NULL
+			AND MemberOf = #{MemberOf}
+			<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+				AND FolderID IN  
+				<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		ORDER BY SortPath
+	</select>
+	
+    <!-- 권한있는 폴더에 대해서만 -->
+    <select id="selectToday" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+	        SELECT A.FolderID AS "FolderID"
+	            ,  A.FolderType AS "FolderType"
+	            ,  A.FolderName AS "FolderName"
+	            ,  A.Color AS "Color"
+	            ,  A.EventID AS "EventID"
+	            ,  A.Subject AS "Subject"
+	            ,  A.ImportanceState AS "ImportanceState"
+	            ,  A.RegisterCode AS "RegisterCode"
+	            ,  A.MultiRegisterName AS "MultiRegisterName"
+	            ,  A.DateID AS "DateID"
+	            ,  A.RepeatID AS "RepeatID"
+	            ,  A.StartDateTime AS "StartDateTime"
+	            ,  A.StartDate AS "StartDate"
+	            ,  A.StartTime  AS "StartTime"
+	            ,  A.EndDateTime AS "EndDateTime"
+	            ,  A.EndDate AS "EndDate"
+	            ,  A.EndTime AS "EndTime"
+	        FROM (
+		        SELECT
+		        	 E.FolderID
+					,E.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT E
+		        LEFT JOIN EVENT_DATE ED ON E.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON E.FolderID = FD.FolderID AND FD.FolderType = 'Schedule.Person' AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD')  BETWEEN ED.StartDateTime AND ED.EndDateTime
+		        AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+		        AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND (E.RegisterCode = #{UserCode} OR E.OwnerCode = #{UserCode} )
+		        
+		        UNION ALL
+		        
+		        SELECT
+		        	 LE.FolderID
+					,LE.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,LE.EventID
+					,LE.Subject
+					,LE.ImportanceState
+					,LE.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, LE.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT_ATTENDANT AS E
+		        INNER JOIN EVENT LE ON E.EventID = LE.EventID
+		        INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON LE.FolderID = FD.FolderID AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD') BETWEEN ED.StartDateTime AND ED.EndDateTime
+		        AND LE.DeleteDate IS NULL
+		        AND LE.IsDisplay = 'Y'
+		        AND E.IsAllow = 'Y'
+				AND E.AttenderCode = #{UserCode}
+			]]>
+		        <if test="FolderIDs != null and FolderIDs != '' ">
+					AND INSTR(#{FolderIDs}, ';'||#{SchedulePersonFolderID}||';') <![CDATA[>]]> 0 
+				</if>
+			<![CDATA[	
+		        UNION ALL
+		        
+		        SELECT
+		        	 E.FolderID
+					,E.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT E
+		        LEFT JOIN EVENT_DATE ED ON E.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON E.FolderID = FD.FolderID AND FD.FolderType <> 'Schedule.Person' AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD') BETWEEN ED.StartDateTime AND ED.EndDateTime
+		        AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+		        AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND E.IsPublic = 'Y'
+		        
+		        UNION ALL
+		        
+				SELECT 
+					 FD.FolderID
+					,FD.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+				FROM EVENT E
+				INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+				INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{UserCode}
+				INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+				LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+				WHERE E.FolderType = 'Schedule.Person'
+				AND TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD')  BETWEEN ED.StartDateTime AND ED.EndDateTime
+				AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+				AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND E.IsPublic = 'Y'
+			) A
+			ORDER BY A.StartDateTime, A.EndDateTime
+	 	]]>
+    </select>
+    
+    <!-- 이달의 일정 -->
+    <!-- 권한있는 폴더에 대해서만 -->
+    <select id="selectThisMonth" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+        	SELECT A.FolderID AS "FolderID"
+	            ,  A.FolderType AS "FolderType"
+	            ,  A.FolderName AS "FolderName"
+	            ,  A.Color AS "Color"
+	            ,  A.EventID AS "EventID"
+	            ,  A.Subject AS "Subject"
+	            ,  A.ImportanceState AS "ImportanceState"
+	            ,  A.RegisterCode AS "RegisterCode"
+	            ,  A.MultiRegisterName AS "MultiRegisterName"
+	            ,  A.DateID AS "DateID"
+	            ,  A.RepeatID AS "RepeatID"
+	            ,  A.StartDateTime AS "StartDateTime"
+	            ,  A.StartDate AS "StartDate"
+	            ,  A.StartTime  AS "StartTime"
+	            ,  A.EndDateTime AS "EndDateTime"
+	            ,  A.EndDate AS "EndDate"
+	            ,  A.EndTime AS "EndTime"
+	          FROM (
+		        SELECT
+		        	 E.FolderID
+					,E.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT E
+		        LEFT JOIN EVENT_DATE ED ON E.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON E.FolderID = FD.FolderID AND FD.FolderType = 'Schedule.Person' AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE 
+		        (TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.StartDateTime, 1,7) OR TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.EndDateTime, 1,7) 
+		        AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+		        AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND (E.RegisterCode = #{UserCode} OR E.OwnerCode = #{UserCode} )
+		        
+		        UNION ALL
+		        
+				SELECT
+		        	 LE.FolderID
+					,LE.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,LE.EventID
+					,LE.Subject
+					,LE.ImportanceState
+					,LE.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, LE.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT_ATTENDANT E
+		        INNER JOIN EVENT LE ON E.EventID = LE.EventID
+		        INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON LE.FolderID = FD.FolderID AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE  (TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.StartDateTime, 1,7) OR TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.EndDateTime, 1,7) 
+		        AND LE.DeleteDate IS NULL
+		        AND LE.IsDisplay = 'Y'
+		       	AND E.IsAllow = 'Y'
+				AND E.AttenderCode = #{UserCode}
+			]]>
+				<if test="FolderIDs != null and FolderIDs != '' ">
+					AND INSTR(#{FolderIDs}, ';'||#{SchedulePersonFolderID}||';') <![CDATA[>]]> 0 
+				</if>
+		    <![CDATA[
+		        UNION ALL
+		        
+		        SELECT
+		        	 E.FolderID
+					,E.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+		        FROM EVENT E
+		        LEFT JOIN EVENT_DATE ED ON E.EventID = ED.EventID
+		        INNER JOIN SYS_OBJECT_FOLDER FD ON E.FolderID = FD.FolderID AND FD.FolderType <> 'Schedule.Person' AND FD.DeleteDate IS NULL
+		        LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		        WHERE (TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.StartDateTime, 1,7) OR TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.EndDateTime, 1,7) 
+		        AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+		        AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND E.IsPublic = 'Y'
+		        
+		        UNION ALL
+		        
+				SELECT 
+					 FD.FolderID
+					,FD.FolderType
+					,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+					,NVL(FC.Color, FD.Reserved2) AS Color
+					,E.EventID
+					,E.Subject
+					,E.ImportanceState
+					,E.RegisterCode
+					,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+					,ED.DateID
+					,ED.RepeatID
+					,ED.StartDateTime
+					,ED.StartDate
+					,ED.StartTime
+					,ED.EndDateTime
+					,ED.EndDate
+					,ED.EndTime
+				FROM EVENT E
+				INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+				INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{UserCode}
+				INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+				LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+				LEFT JOIN	EVENT_REPEAT ER	ON E.EventID = ER.EventID AND ED.RepeatID = ER.RepeatID
+				WHERE E.FolderType = 'Schedule.Person'
+				AND (TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.StartDateTime, 1,7) OR TO_CHAR(SYSTIMESTAMP, 'YYYY-MM') = SUBSTR(ED.EndDateTime, 1,7) 
+				AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+				AND E.DeleteDate IS NULL
+		        AND E.IsDisplay = 'Y'
+		        AND E.IsPublic = 'Y'
+			) A
+			ORDER BY A.StartDateTime, A.EndDateTime
+	 	]]>
+    </select>
+    
+    <!-- 일정관리 뷰 조회 쿼리 -->
+    <select id="selectView" parameterType="cmap" resultType="cmap">
+         SELECT A.FolderID AS "FolderID"
+             ,  A.FolderType AS "FolderType"
+             ,  A.FolderName AS "FolderName"
+             ,  A.EventID AS "EventID"
+             ,  A.LinkEventID AS "LinkEventID"
+             ,  A.Subject AS "Subject"
+             ,  A.Place AS "Place"
+             ,  A.ImportanceState AS "ImportanceState"
+             ,  A.OwnerCode  AS "OwnerCode"
+             ,  A.DateID AS "DateID"
+             ,  A.RepeatID AS "RepeatID"
+             ,  A.StartDate AS "StartDate"
+             ,  A.StartTime  AS "StartTime"
+             ,  A.EndDate  AS "EndDate"
+             ,  A.EndTime AS "EndTime"
+             ,  A.IsAllDay AS "IsAllDay"
+             ,  A.IsRepeat AS "IsRepeat"
+             ,  A.Color AS "Color"
+             ,  A.OneMore AS "OneMore"
+             ,  A.IsShare AS "IsShare"
+             ,  A.RegisterCode AS "RegisterCode"
+             ,  A.MailAddress  AS "MailAddress"
+             ,  A.MultiRegisterName AS "MultiRegisterName"
+             ,  A.StartDateTime AS "StartDateTime"
+             ,  A.EndDateTime AS "EndDateTime"
+         FROM (
+	        SELECT
+	        	E.FolderID
+	        	,E.FolderType
+	        	,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+		    	,E.EventID
+				,E.LinkEventID
+				,E.Subject
+				,E.Place
+				,E.ImportanceState
+				,E.OwnerCode
+				,ED.DateID
+				,ED.RepeatID
+				,ED.StartDate
+				,ED.StartTime
+				,ED.EndDate
+				,ED.EndTime
+				,ED.IsAllDay
+				,ED.IsRepeat
+				,NVL(FC.Color, FD.Reserved2) AS Color
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS OneMore
+				,'0' AS IsShare
+				,E.RegisterCode
+				,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+				,(SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = E.RegisterCode) AS MailAddress
+				,ED.StartDateTime
+				,ED.EndDateTime
+	        FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON E.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = E.FolderID AND FC.RegisterCode = #{UserCode}
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+			</if>
+			AND ( (FD.FolderType = 'Schedule.Person' AND E.OwnerCode = #{UserCode} AND E.RegisterCode = #{UserCode} )	
+				OR (FD.FolderType = 'Schedule' AND (E.IsPublic = 'Y' OR E.RegisterCode = #{UserCode} )))						
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			
+			UNION ALL
+			
+			SELECT
+	        	 (SELECT FolderID FROM sys_object_folder fs WHERE fs.FolderID = #{SchedulePersonFolderID}) AS FolderID
+	        	,(SELECT FolderType FROM sys_object_folder fs WHERE fs.FolderID = #{SchedulePersonFolderID}) AS FolderType
+	        	,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+		    	,LE.EventID
+				,LE.LinkEventID
+				,LE.Subject
+				,LE.Place
+				,LE.ImportanceState
+				,LE.OwnerCode
+				,ED.DateID
+				,ED.RepeatID
+				,ED.StartDate
+				,ED.StartTime
+				,ED.EndDate
+				,ED.EndTime
+				,ED.IsAllDay
+				,ED.IsRepeat
+				,NVL(FC.Color, FD.Reserved2) AS Color
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS OneMore
+				,'0' AS IsShare
+				,LE.RegisterCode
+				,FN_BASEGETDICTIONARY_S(#{lang}, LE.MultiRegisterName) AS MultiRegisterName
+				,(SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = LE.RegisterCode) AS MailAddress
+				,ED.StartDateTime
+				,ED.EndDateTime
+	      	FROM EVENT_ATTENDANT E
+	      	INNER JOIN EVENT LE ON E.EventID = LE.EventID
+			INNER JOIN SYS_OBJECT_FOLDER FD	ON LE.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = LE.FolderID AND FC.RegisterCode = #{UserCode}
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})	
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND FD.FolderType = 'Schedule.Person'		
+			AND LE.DeleteDate IS NULL
+			AND LE.IsDisplay = 'Y'
+			AND E.IsAllow = 'Y'
+			AND E.AttenderCode = #{UserCode}
+			
+			UNION ALL
+		
+			SELECT 
+				 FD.FolderID
+				,FD.FolderType
+				,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+		    	,E.EventID
+				,E.LinkEventID
+				,E.Subject
+				,E.Place
+				,E.ImportanceState
+				,E.OwnerCode
+				,ED.DateID
+				,ED.RepeatID
+				,ED.StartDate
+				,ED.StartTime
+				,ED.EndDate
+				,ED.EndTime
+				,ED.IsAllDay
+				,ED.IsRepeat
+				,NVL(FC.Color, FD.Reserved2) AS Color
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS OneMore
+				,'1' AS IsShare
+				,E.RegisterCode
+				,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+				, (SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = E.RegisterCode) AS MailAddress
+				,ED.StartDateTime
+				,ED.EndDateTime
+			FROM SYS_OBJECT_FOLDER FD							
+			INNER JOIN SYS_OBJECT_FOLDER OFD ON FD.LinkFolderID = OFD.FolderID
+			INNER JOIN EVENT E ON E.FolderID = OFD.FolderID
+			INNER JOIN EVENT_DATE ED ON E.EventID = ED.EventID
+			LEFT OUTER JOIN	SCHEDULE_FOLDERCOLOR FC ON FD.FolderID = FC.FolderID AND FC.RegisterCode = #{UserCode}
+			WHERE FD.FolderType = 'ScheduleShare'
+			<![CDATA[
+			AND (	(OFD.FolderType = 'Schedule.Person' AND FD.Reserved1 = E.OwnerCode)
+				OR  OFD.FolderType = 'Schedule' 
+				OR (OFD.FolderType = 'Schedule' AND FD.Reserved1 = E.OwnerCode))			
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||FD.FolderID||';%'
+			</if>
+			AND (E.IsPublic = 'Y' OR E.RegisterCode = #{UserCode} )							
+			AND E.DeleteDate IS NULL 
+			AND E.IsDisplay = 'Y'
+			AND OFD.DeleteDate IS NULL  
+			AND OFD.IsUse = 'Y'
+			
+			UNION ALL
+			
+			SELECT 
+				FD.FolderID
+				,FD.FolderType
+				,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+		    	,E.EventID
+				,E.LinkEventID
+				,E.Subject
+				,E.Place
+				,E.ImportanceState
+				,E.OwnerCode
+				,ED.DateID
+				,ED.RepeatID
+				,ED.StartDate
+				,ED.StartTime
+				,ED.EndDate
+				,ED.EndTime
+				,ED.IsAllDay
+				,ED.IsRepeat
+				,NVL(FC.Color, FD.Reserved2) AS Color
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS OneMore
+				,'Person' AS IsShare
+				,E.RegisterCode
+				,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS MultiRegisterName
+				,(SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = E.RegisterCode) AS MailAddress
+				,ED.StartDateTime
+				,ED.EndDateTime
+			FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+			INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{UserCode}
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+			WHERE E.FolderType = 'Schedule.Person'
+			<![CDATA[
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+			AND E.IsPublic = 'Y'
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			AND #{FolderIDs} LIKE '%;'|| #{ShareScheduleFolderID}|| ';%'
+		) A
+	 	<trim prefix="WHERE" prefixOverrides="AND | OR ">
+	 		<if test="IsMobile !=null and (IsMobile eq 'N'.toString()) ">
+			    <if test="ImportanceState != null and ImportanceState !='' ">
+					A.ImportanceState = #{ImportanceState}
+				</if>
+				<if test="Subject !=null and Subject !='' ">
+					 AND A.Subject LIKE '%'||#{Subject}|| '%'
+				</if>
+				<if test="RegisterName !=null and RegisterName !='' ">
+					 AND A.MultiRegisterName LIKE '%'||#{RegisterName}|| '%'
+				</if>
+				<if test="PlaceName !=null and PlaceName !='' ">
+					 AND A.Place LIKE '%'||#{PlaceName}|| '%'
+				</if>
+			</if>
+	 		<if test="IsMobile !=null and (IsMobile eq 'Y'.toString()) ">
+				<if test="Subject !=null and Subject !='' ">
+					 A.Subject LIKE '%'|| #{Subject}|| '%'
+				</if>
+				<if test="RegisterName !=null and RegisterName !='' ">
+					 OR A.MultiRegisterName LIKE '%'||#{RegisterName}||'%'
+				</if>
+				<if test="PlaceName !=null and PlaceName !='' ">
+					 OR A.Place LIKE '%'||#{PlaceName}|| '%'
+				</if>
+			</if>
+		</trim>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+					<when test='sortColumn.equalsIgnoreCase("StartDateTime")'>StartDateTime</when>
+					<when test='sortColumn.equalsIgnoreCase("EndDateTime")'>EndDateTime</when>
+					<when test='sortColumn.equalsIgnoreCase("MultiRegisterName")'>MultiRegisterName</when>
+					<otherwise>FolderID</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+				<include refid="oracle.include.listOrderBy"/>,
+			</if>
+			A.StartDateTime, A.EndDateTime DESC
+		</trim>
+    </select>
+    
+    <select id="selectViewCount" parameterType="cmap" resultType="java.lang.Integer">
+         SELECT COUNT(*)
+         FROM (
+	        SELECT
+	        	E.*
+	        FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON E.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+			</if>
+			AND ( (FD.FolderType = 'Schedule.Person' AND E.OwnerCode = #{UserCode} AND E.RegisterCode = #{UserCode} )	
+				OR (FD.FolderType = 'Schedule' AND (E.IsPublic = 'Y' OR E.RegisterCode = #{UserCode} )))						
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			
+			UNION ALL
+			
+			SELECT
+				LE.*
+	      	FROM EVENT_ATTENDANT E
+	      	INNER JOIN EVENT LE ON E.EventID = LE.EventID
+			INNER JOIN SYS_OBJECT_FOLDER FD	ON LE.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})	
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND LE.DeleteDate IS NULL
+			AND LE.IsDisplay = 'Y'
+			AND E.IsAllow = 'Y'
+			AND E.AttenderCode = #{UserCode}
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND INSTR(#{FolderIDs}, ';'||#{SchedulePersonFolderID}||';') <![CDATA[>]]> 0 
+			</if>
+						
+			UNION ALL
+		
+			SELECT 
+				E.*
+			FROM SYS_OBJECT_FOLDER FD							
+			INNER JOIN SYS_OBJECT_FOLDER OFD ON FD.LinkFolderID = OFD.FolderID				
+			INNER JOIN EVENT E ON E.FolderID = OFD.FolderID					
+			INNER JOIN EVENT_DATE ED ON E.EventID = ED.EventID		
+			WHERE FD.FolderType = 'ScheduleShare'													
+			<![CDATA[
+			AND (	(OFD.FolderType = 'Schedule.Person' AND FD.Reserved1 = E.OwnerCode)	
+				OR  OFD.FolderType = 'Schedule' 
+				OR (OFD.FolderType = 'Schedule' AND FD.Reserved1 = E.OwnerCode))			
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||FD.FolderID||';%'
+			</if>
+			AND (E.IsPublic = 'Y' OR E.RegisterCode = #{UserCode} )							
+			AND E.DeleteDate IS NULL 
+			AND E.IsDisplay = 'Y'
+			AND OFD.DeleteDate IS NULL  
+			AND OFD.IsUse = 'Y'
+			
+			UNION ALL
+			
+			SELECT 
+				E.*
+			FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+			INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{UserCode}
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+			WHERE E.FolderType = 'Schedule.Person'
+			<![CDATA[
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+			AND E.IsPublic = 'Y'
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			AND #{FolderIDs} LIKE '%;'|| #{ShareScheduleFolderID}|| ';%'
+		) A
+	 	<trim prefix="WHERE" prefixOverrides="AND | OR ">
+	 		<if test="IsMobile !=null and (IsMobile eq 'N'.toString()) ">
+			    <if test="ImportanceState != null and ImportanceState !='' ">
+					A.ImportanceState = #{ImportanceState}
+				</if>
+				<if test="Subject !=null and Subject !='' ">
+					 AND A.Subject LIKE '%'||#{Subject}|| '%'
+				</if>
+				<if test="RegisterName !=null and RegisterName !='' ">
+					 AND A.MultiRegisterName LIKE '%'||#{RegisterName}|| '%'
+				</if>
+			</if>
+	 		<if test="IsMobile !=null and (IsMobile eq 'Y'.toString()) ">
+				<if test="Subject !=null and Subject !='' ">
+					 A.Subject LIKE '%'|| #{Subject}|| '%'
+				</if>
+				<if test="RegisterName !=null and RegisterName !='' ">
+					 OR A.MultiRegisterName LIKE '%'||#{RegisterName}||'%'
+				</if>
+				<if test="PlaceName !=null and PlaceName !='' ">
+					 OR A.Place LIKE '%'||#{PlaceName}|| '%'
+				</if>
+			</if>
+		</trim>
+    </select>
+    
+    <!-- 참석 요청중인 일정 -->
+    <select id="selectAttendList" parameterType="cmap" resultType="cmap">
+        SELECT
+			 E.EventID AS "EventID"
+			,0 AS "DateID"
+			,E.MasterEventID  AS "MasterEventID"
+			,E.FolderID  AS "FolderID"
+			,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS "FolderName"
+			,NVL(FC.Color, FD.Reserved2) AS "Color"
+			,E.ImportanceState AS "ImportanceState"
+			,ER.RepeatStartDate|| ' '|| ER.AppointmentStartTime AS "RepeatStartDate"
+			,ER.RepeatEndDate|| ' '|| ER.AppointmentEndTime AS "RepeatEndDate"
+			,E.Subject AS "Subject"
+			,E.RegisterCode AS "RegisterCode"
+			,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS "MultiRegisterName"
+			,CASE ER.RepeatType WHEN '' THEN 'N' ELSE 'Y' END AS "IsRepeat"
+		FROM  EVENT E 
+		INNER JOIN SYS_OBJECT_FOLDER FD ON FD.FolderID = E.FolderID 
+		INNER JOIN EVENT_REPEAT ER ON E.EventID = ER.EventID
+		INNER JOIN EVENT_ATTENDANT EA ON EA.EventID = E.EventID
+		LEFT JOIN SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+		WHERE #{FolderIDs} LIKE '%;'||FD.FolderID||';%'
+			AND E.DeleteDate IS NULL 
+			AND NVL(E.MasterEventID, 0) = 0
+			AND (EA.IsAllow IS NULL)
+			AND EA.AttenderCode = #{UserCode}
+			AND FD.IsUse = 'Y'
+			AND FD.DeleteDate IS NULL
+    </select>
+    
+    <!-- EVENT_ATTENDANT -->
+    <insert id="insertEventAttendant" parameterType="cmap">
+        INSERT INTO EVENT_ATTENDANT
+		(
+			EventID
+			, AttenderCode
+			, MultiAttenderName
+			, IsOutsider
+			, IsAllow
+		) VALUES (
+			#{EventID}				
+			, NVL(#{AttenderCode}, ' ')			
+			, #{MultiAttenderName}	
+			, #{IsOutsider}			
+			, #{IsAllow}				
+		)
+    </insert>
+    
+    <!-- Attendant 테이블 데이터 삭제 -->
+    <delete id="deleteEventAttendant" parameterType="cmap">
+        DELETE
+        FROM EVENT_ATTENDANT
+        WHERE
+        	EventID = #{EventID}
+    </delete>
+    
+    <!-- 참석자의 Notification 테이블 데이터 삭제 -->
+    <delete id="deleteEventNotificationA" parameterType="cmap">
+        DELETE
+        FROM EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+        	AND RegisterKind = 'A'
+        <if test="RegisterCode != null and RegisterCode != '' ">
+        	AND RegisterCode = #{RegisterCode}
+        </if>
+    </delete>
+    
+    <!-- 참석자 조회 -->
+    <select id="selectAttendee" parameterType="cmap" resultType="cmap">
+        SELECT
+        	  AttenderCode AS "UserCode"
+        	, MultiAttenderName AS "UserName"
+        	, IsOutsider AS "IsOutsider"
+        FROM EVENT_ATTENDANT
+        WHERE
+        	EventID = #{EventID}
+    </select>
+    
+    <!-- 삭제된 참석자가 개인일정으로 별도 등록했을 경우 삭제 -->
+    <delete id="deleteEventByAttendeeData">
+        DELETE
+        FROM EVENT
+        WHERE
+        	LinkEventID = #{EventID}
+        	AND EventType = 'A'
+        <if test="AttenderCode != null and AttenderCode != '' ">
+        	AND OwnerCode = #{AttenderCode}
+        </if>
+    </delete>
+    
+    <!-- Schedule Event Attendant 조회 -->
+    <select id="selectEventAttendant" parameterType="cmap" resultType="cmap">
+       	SELECT
+        	 AttenderCode AS "UserCode"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, MultiAttenderName) AS "UserName"
+        	,DeptCode AS "DeptCode"
+        	,FN_BASEGETDICTIONARY_S(#{lang}, MultiDeptName) AS "DeptName"
+        	,IsOutsider AS "IsOutsider"
+        	,IsAllow AS "IsAllow"
+        	,BG.CompanySortKey AS "DomainID"
+        FROM EVENT_ATTENDANT EA
+        LEFT JOIN SYS_OBJECT_USER_BASEGROUP BG ON EA.AttenderCode = BG.UserCode AND BG.JobType = 'Origin'
+        WHERE
+        	EventID = #{EventID}
+    </select>
+    
+    <!-- 일정 삭제 - EVENT -->
+    <update id="updateEventDeleted" parameterType="cmap">
+        UPDATE EVENT
+        SET
+        	DeleteDate = SYSDATE
+        WHERE
+        	EventID = #{EventID}
+    </update>
+    
+    <!-- 일정 삭제 - EVENT_RESOURCE_BOOKING -->
+    <update id="updateEventResourceBookingDeleted" parameterType="cmap">
+        UPDATE EVENT_RESOURCE_BOOKING
+        SET
+        	DeleteDate = SYSDATE
+        WHERE
+        	EventID = #{EventID}
+    </update>
+
+    <select id="selectAttendeePersonalSchedule" parameterType="cmap" resultType="java.lang.Integer">
+        	SELECT COUNT(*) AS CNT
+			FROM EVENT E
+			LEFT JOIN EVENT LE ON E.LinkEventID = LE.EventID
+			LEFT JOIN EVENT_ATTENDANT EA ON LE.EventID = EA.EventID
+			WHERE
+				EA.AttenderCode = #{UserCode}
+				AND EA.IsAllow = 'Y'
+				AND LE.EventID = #{EventID}
+				AND E.EventType = 'A'
+    </select>
+    
+    <!-- 참석자 승인 시 개인 일정 추가 -->
+    <insert id="insertAttendeePersonalSchedule" parameterType="cmap">
+        INSERT INTO EVENT
+		(
+			  FolderID
+			, FolderType
+			, EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, OwnerCode
+			, RegisterCode
+			, MultiRegisterName
+			, RegistDate
+			, ModifierCode
+			, ModifyDate
+			, DeleteDate
+		) 
+		SELECT
+			#{PersonalFolderID} AS FolderID
+			, 'Schedule.Person' AS FolderType
+			, 'A' AS EventType
+			, #{EventID}	 AS LinkEventID
+			, #{EventID}	 AS MasterEventID
+			, Subject
+			, Description
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, #{UserCode} AS OwnerCode
+			, #{UserCode} RegisterCode
+			, #{UserName} MultiRegisterName
+			, SYSDATE
+			, ModifierCode
+			, SYSDATE
+			, DeleteDate
+		FROM EVENT
+		WHERE EventID = #{EventID}
+    </insert>
+    
+    <!-- 참석자 승인/거부 상태 Update -->
+    <update id="updateAttendeeAllow" parameterType="cmap">
+        UPDATE EVENT_ATTENDANT
+        SET
+        	IsAllow = #{IsAllow}
+        WHERE
+        	EventID = #{EventID}
+        	AND AttenderCode = #{UserCode}
+    </update>
+    
+    <!-- 자주 쓰는 일정 목록 조회 -->
+    <select id="selectTemplateList" parameterType="cmap" resultType="cmap">
+        SELECT
+			  EventID AS "EventID"
+			, FolderID  AS "FolderID"
+			, FolderType  AS "FolderType"
+			, Subject  AS "Subject"
+			, Place  AS "Place"
+		FROM EVENT
+		WHERE
+			EventType = 'F'
+			AND (OwnerCode = #{UserCode} OR RegisterCode = #{UserCode})
+			AND IsDisplay = 'N'
+			AND DeleteDate IS NULL
+		ORDER BY RegistDate ASC
+    </select>
+    
+	<!-- 테마일정 목록 조회 -->
+	<select id="selectThemeList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT
+			  SOF.FolderID AS "FolderID"
+			, SOF.DomainID AS "DomainID"
+			, SOF.MenuID AS "MenuID"
+			, SOF.FolderType AS "FolderType"
+			, FN_BASEGETDICTIONARY_S(#{lang}, SOF.MultiDisplayName) AS "MultiDisplayName"
+			, SOF.SortKey AS "SortKey"
+			, SOF.IsUse AS "IsUse"
+			, SOF.OwnerCode AS "OwnerCode"
+			, NVL(SOF.Reserved2, #{DefaultColor}) AS "Color"
+		FROM SYS_OBJECT_FOLDER SOF
+		INNER JOIN SYS_OBJECT_ACL SOA ON SOA.ObjectID = SOF.FolderID AND SOA.ObjectType = 'FD'
+		WHERE 1=1
+		AND SOF.DeleteDate IS NULL
+		AND SOF.IsUse = 'Y'
+		AND SOF.FolderType = 'Schedule'
+		AND SOF.IsUse = 'Y'
+		AND SOF.MemberOf = #{FolderID}
+		AND (
+			SOA.SubjectType = 'UR' AND SOA.SubjectCode = #{userCode}
+			OR (SOA.SubjectType = 'GR' AND SOA.SubjectCode = #{groupCode})
+			OR (SOA.SubjectType = 'CM' AND SOA.SubjectCode = #{companyCode})
+		)
+	</select>
+    
+    <select id="selectThemeOne" parameterType="cmap" resultType="cmap">
+        SELECT 
+			  FolderID AS "FolderID"
+			, DomainID AS "DomainID"
+			, MenuID AS "MenuID"
+			, FolderType  AS "FolderType"
+			, DisplayName AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, SortKey AS "SortKey"
+			, IsUse AS "IsUse"
+			, OwnerCode AS "OwnerCode"
+			, NVL(Reserved2, #{DefaultColor}) AS "Color"
+		FROM SYS_OBJECT_FOLDER
+		WHERE
+			FolderID = #{FolderID}
+    </select>
+    
+    <!-- 테마일정 삭제 -->
+    <update id="deleteTheme" parameterType="cmap">
+        UPDATE SYS_OBJECT_FOLDER
+        SET 
+        	DeleteDate = SYSDATE
+        WHERE #{FolderIDs} LIKE '%;'||FolderID||';%'
+    </update>
+    
+    <!-- 테마일정 권한 삭제 -->
+    <delete id="deleteThemeACL" parameterType="cmap" >
+        DELETE
+        FROM SYS_OBJECT_ACL
+        WHERE #{FolderIDs} LIKE '%;'|| ObjectID||';%'
+        AND ObjectType = 'FD'
+    </delete>
+    
+    <!-- 시작일과 종료일 차이 -->
+    <select id="selectDiffDate" parameterType="cmap"	resultType="java.lang.Integer">
+        SELECT 
+        	NVL(TO_NUMBER(TRIM(REPLACE(EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(StartDate, '-',''))),'0')
+        FROM EVENT_DATE
+		WHERE
+			EventID = #{EventID} 
+			AND DateID = #{DateID}
+    </select>
+    
+    <!-- 시작시간과 종료시간 차이 -->
+    <select id="selectDiffTime" parameterType="cmap"	resultType="java.lang.Integer">
+        SELECT 
+			TRUNC(
+			(TO_DATE(TRIM(REPLACE(REPLACE(EndDateTime, '-',''),':','')) , 'YYYYMMDDHH24MI')
+			- TO_DATE(TRIM(REPLACE(REPLACE(StartDateTime, '-',''),':','')) , 'YYYYMMDDHH24MI') ) * (24*60),0) AS RemainSecond
+			FROM EVENT_DATE
+		WHERE
+			EventID = #{EventID} 
+			AND DateID = #{DateID}
+    </select>
+    
+    <!-- 시작일 및 종료일 Update -->
+    <update id="updateEventDateForDate" parameterType="cmap">
+       	BEGIN
+	        UPDATE EVENT_DATE
+			SET
+				StartDate = #{StartDate},
+				EndDate = TO_CHAR(TO_DATE(#{StartDate}) + NUMTODSINTERVAL(#{diffDate}, 'DAY'), 'YYYY-MM-DD')
+			WHERE
+				EventID = #{EventID}
+				AND DateID = #{DateID};
+		END;
+	</update>
+	
+	<!-- 시작시간 및 종료시간 Update -->
+    <update id="updateEventDateForTime" parameterType="cmap">
+        <![CDATA[
+        	BEGIN
+		        UPDATE EVENT_DATE
+				SET
+					StartTime = #{StartTime},
+					EndTime = TO_CHAR(TO_DATE(#{StartDateTime}, 'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(#{diffTime}, 'MINUTE'),'HH24:MI')
+				WHERE
+					EventID = #{EventID}
+					AND DateID = #{DateID};
+			
+				UPDATE EVENT_REPEAT
+				SET
+					AppointmentStartTime = #{StartTime},
+					AppointmentEndTime = TO_CHAR(TO_DATE(#{StartDateTime}, 'YYYY-MM-DD HH24:MI:SS') + NUMTODSINTERVAL(#{diffTime}, 'MINUTE'),'HH24:MI')
+				WHERE
+					EventID = #{EventID};
+			END;
+		]]>
+	</update>
+    
+	<!-- 시작일시 및 종료일시 Update -->
+    <update id="updateEventDateForDateTime" parameterType="cmap">
+        <![CDATA[
+	        UPDATE EVENT_DATE A
+	        
+	       		 SET(A.StartDateTime, A.EndDateTime)
+	        = 
+	        (SELECT
+						B.StartDate||' '|| B.StartTime AS StartDateTime,
+						B.EndDate||' '|| B.EndTime AS EndDateTime
+					FROM EVENT_DATE B
+					WHERE B.EventID = #{EventID} AND B.DateID = #{DateID})
+	        
+	        WHERE 
+	        	A.EventID = #{EventID}
+				AND A.DateID = #{DateID}
+	        
+		]]>
+	</update>
+	
+    <!-- Resize 할 경우, 종료시간 Update -->
+    <update id="updateEventEndDate" parameterType="cmap">
+        BEGIN
+	        UPDATE EVENT_DATE
+			SET
+				EndTime = #{EndTime},
+				EndDateTime = #{EndDateTime}
+			WHERE
+				EventID = #{EventID}
+				AND DateID = #{DateID};
+		
+			UPDATE EVENT_REPEAT
+			SET
+				AppointmentEndTime = #{EndTime}
+			WHERE
+				EventID = #{EventID};
+		END;
+    </update>
+    
+    <!-- 기존에 있는 일정으로 자주쓰는일정 추가하기 -->
+    <insert id="insertTempEvent" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT
+		(
+			  FolderID
+			, FolderType
+			, EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, OwnerCode
+			, RegisterCode
+			, MultiRegisterName
+			, RegistDate
+			, ModifierCode
+			, ModifyDate
+			, DeleteDate
+		)
+		SELECT
+			  FolderID
+			, FolderType
+			, 'F'
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, 'N'
+			, IsInviteOther
+			, ImportanceState
+			, #{UserCode} AS OwnerCode
+			, #{UserCode} AS RegisterCode
+			, #{UserName} AS MultiRegisterName
+			, SYSDATE AS RegistDate
+			, #{UserCode} AS ModifierCode
+			, ModifyDate
+			, DeleteDate
+		FROM EVENT
+		WHERE
+		EventID = #{EventID}
+		<selectKey keyProperty="EventID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertTempEventDate" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT_DATE
+		(
+			EventID
+			, RepeatID
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		) VALUES (
+			#{EventID}
+			, 0
+			, ''
+			, ''
+			, ''	
+			, ''
+			, ''
+			, ''
+			, 'N'
+			, 'N'
+		)
+		<selectKey keyProperty="DateID" resultType="Integer" order="AFTER">
+		    SELECT  EVENT_DATE_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertTempEventResourceBooking" parameterType="cmap">
+        INSERT INTO EVENT_RESOURCE_BOOKING (
+			DateID
+			, EventID
+			, ResourceID
+			, ApprovalDate
+			, ApprovalState
+			, RealEndDateTime
+			, DeleteDate
+		)
+		SELECT
+			#{DateID} AS DateID
+			, #{EventID} AS EventID
+			, ResourceID
+			, null
+			, null
+			, null
+			, null
+		FROM EVENT_RESOURCE_BOOKING
+		WHERE
+			EventID = #{oldEventID}
+    </insert>
+    
+    <!-- Event 조회하여 데이터 넣기 -->
+    <insert id="insertSelectEventAttendant" parameterType="cmap">
+        INSERT INTO EVENT_ATTENDANT
+		(
+			EventID
+			, AttenderCode
+			, MultiAttenderName
+			, IsOutsider
+			, IsAllow
+		)
+		SELECT
+			#{EventID}	 AS EventID
+			, AttenderCode
+			, MultiAttenderName
+			, IsOutsider
+			, '' AS IsAllow
+		FROM EVENT_ATTENDANT
+		WHERE
+			EventID = #{oldEventID}
+    </insert>
+    
+    <insert id="insertSelectEventRelation" parameterType="cmap">
+        INSERT INTO EVENT_RELATION
+		(
+			ScheduleID
+			, ResourceID
+			, Reserved1
+			, Reserved2
+		) 
+		SELECT
+			#{EventID} AS ScheduleID
+			, ResourceID
+			, Reserved1
+			, Reserved2
+		FROM EVENT_RELATION
+		WHERE
+			ScheduleID = #{oldEventID}
+    </insert>
+    
+    <insert id="insertSelectEventNotification" parameterType="cmap">
+        INSERT INTO EVENT_NOTIFICATION
+		(
+			EventID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		)
+		SELECT
+			#{EventID} AS EventID
+			, #{UserCode}
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		FROM EVENT_NOTIFICATION
+		WHERE
+			EventID = #{oldEventID}
+			AND RegisterKind = 'R'
+    </insert>
+    
+    <!-- 등록된 자주 쓰는 일정으로 추가하기 -->
+    <insert id="insertEventByTemp" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT
+		(
+			FolderID
+			, FolderType
+			, EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, OwnerCode
+			, RegisterCode
+			, MultiRegisterName
+			, RegistDate
+			, ModifierCode
+			, ModifyDate
+			, DeleteDate
+		)
+		SELECT
+			<if test="FolderID == null or FolderID == '' ">
+				FolderID
+			</if>
+			<if test="FolderID != null and FolderID != '' ">
+				#{FolderID} AS FolderID
+			</if>
+			, FolderType
+			, '' AS EventType
+			, LinkEventID
+			, MasterEventID
+			, Subject
+			, Description
+			, Place
+			, IsPublic
+			, 'Y' AS IsDisplay
+			, IsInviteOther
+			, ImportanceState
+			, #{UserCode} AS OwnerCode
+			, #{UserCode} AS RegisterCode
+			, #{UserName} AS MultiRegisterName
+			, SYSDATE AS RegistDate
+			, #{UserCode} AS ModifierCode
+			, SYSDATE AS ModifyDate
+			, DeleteDate
+		FROM EVENT
+		WHERE
+		EventID = #{EventID}
+		<selectKey keyProperty="EventID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertEventDateByTemp" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT_DATE
+		(
+			EventID
+			, RepeatID
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		) VALUES (
+			#{EventID}
+			, #{RepeatID}
+			, #{StartDateTime}
+			, #{StartDate}
+			, #{StartTime}
+			, #{EndDateTime}
+			, #{EndDate}
+			, #{EndTime}
+			, 'N'
+			, 'N'
+		)
+		<selectKey keyProperty="DateID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_DATE_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertEventResourceBookingByTemp" parameterType="cmap">
+        INSERT INTO EVENT_RESOURCE_BOOKING (
+			DateID
+			, EventID
+			, ResourceID
+			, ApprovalDate
+			, ApprovalState
+			, RealEndDateTime
+			, DeleteDate
+		)
+		SELECT
+			#{DateID} AS DateID
+			, #{EventID} AS EventID
+			, ResourceID
+			, null
+			, #{ApprovalState}
+			, null
+			, null
+		FROM EVENT_RESOURCE_BOOKING
+		WHERE
+			EventID = #{oldEventID}
+    </insert>
+    
+    <!-- 개인일정 공유 수정 -->
+    <update id="updateShareMine" parameterType="cmap">
+        UPDATE EVENT_SHARE
+		SET
+			StartDate = #{StartDate},
+			EndDate = #{EndDate}
+		WHERE
+			TargetCode = #{TargetCode}
+			AND SpecifierCode = #{SpecifierCode}
+    </update>
+    
+    <!-- 개인일정 공유 삭제 -->
+    <delete id="deleteShareMine" parameterType="cmap">
+        DELETE FROM EVENT_SHARE
+		WHERE
+			#{ShareIDs} LIKE '%;'||ShareID||';%'
+    </delete>
+    
+    <!-- 구글 연동 체크 -->
+    <select id="selectGoogleInfo" parameterType="cmap" resultType="cmap">
+        SELECT UserCode AS "UserCode"
+              , Mail AS "Mail"
+		FROM SYS_OBJECT_USER_GOOGLE
+		WHERE UserCode = #{UserCode}
+    </select>
+    
+    <!-- 구독 폴더 조회 -->
+    <select id="selectSubscriptionFolderList" parameterType="cmap" resultType="cmap">
+         SELECT
+	        FolderID AS "FolderID"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, Reserved2 AS "Color"
+		FROM SYS_OBJECT_FOLDER FD
+		WHERE DeleteDate IS NULL
+			<if test="FolderID == null or FolderID == '' ">
+				<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+					AND FolderID IN  
+					<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+						#{item}
+					</foreach>
+				</if>
+				AND (FolderPath LIKE CONCAT(#{ScheduleTotalID}, ';%')
+					OR FolderPath LIKE CONCAT(#{ScheduleThemeID}, ';%')
+					OR FolderPath LIKE CONCAT(#{ScheduleCafeID}, ';%'))
+				AND FolderID NOT IN (#{ScheduleTotalID}, #{ScheduleThemeID}, #{ScheduleCafeID})
+			</if>
+			<if test="FolderID != null and FolderID != '' ">
+			    AND FolderID = #{FolderID}
+			    AND MemberOf = #{ScheduleCafeID}
+			</if>
+			AND MenuID = #{MenuID}
+		ORDER BY SortPath
+    </select>
+    
+    
+    <!-- 사용자 프로필 일정 -->
+    <select id="selectMyInfoProfileScheduleData" parameterType="cmap" resultType="cmap">
+		SELECT 
+			FD.FolderID AS "FolderID"
+			,FD.FolderType AS "FolderType"
+			,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS "FolderName"
+	    	,E.EventID AS "EventID"
+			,E.LinkEventID AS "LinkEventID"
+			,E.Subject AS "Subject"
+			,E.Place AS "Place"
+			,E.ImportanceState AS "ImportanceState"
+			,E.OwnerCode AS "OwnerCode"
+			,ED.DateID AS "DateID"
+			,ED.RepeatID AS "RepeatID"
+			,ED.StartDate AS "StartDate"
+			,ED.StartTime AS "StartTime"
+			,ED.EndDate AS "EndDate"
+			,ED.EndTime AS "EndTime"
+			,ED.IsAllDay AS "IsAllDay"
+			,ED.IsRepeat AS "IsRepeat"
+			,NVL(FC.Color, FD.Reserved2) AS "Color"
+			,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS "OneMore"
+			,'Person' AS "IsShare"
+			,E.RegisterCode AS "RegisterCode"
+			,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS "MultiRegisterName"
+			,(SELECT MailAddress FROM SYS_OBJECT_USER WHERE UserCode = E.RegisterCode) AS "MailAddress"
+			,ED.StartDateTime AS "StartDateTime"
+			,ED.EndDateTime AS "EndDateTime"
+		FROM EVENT E
+		INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+		INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{userCode}
+		INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+		LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{userCode}
+		WHERE E.FolderType = 'Schedule.Person'
+		<![CDATA[
+		AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+			OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+			OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+		]]>
+		AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+		AND E.IsPublic = 'Y'
+		AND E.DeleteDate IS NULL
+		AND E.IsDisplay = 'Y'
+		AND E.OwnerCode = #{targetID}
+    </select>
+    
+    <select id="selectMyScheduleData" parameterType="cmap" resultType="cmap">
+    	SELECT T.*
+    	FROM (
+       		SELECT 
+				FD.FolderID AS "FolderID"
+				,FD.FolderType  AS "FolderType"
+				,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS "FolderName"
+		    	,E.EventID AS "EventID"
+				,E.LinkEventID AS "LinkEventID"
+				,E.Subject AS "Subject"
+				,E.Place AS "Place"
+				,E.ImportanceState  AS "ImportanceState"
+				,E.OwnerCode AS "OwnerCode"
+				,ED.DateID AS "DateID"
+				,ED.StartDate AS "StartDate"
+				,ED.StartTime AS "StartTime"
+				,ED.EndDate AS "EndDate"
+				,ED.EndTime  AS "EndTime"
+				,ED.IsAllDay AS "IsAllDay"
+				,ED.IsRepeat AS "IsRepeat"
+				,NVL(FC.Color, FD.Reserved2) AS "Color"
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0')  WHEN 0 THEN 0 ELSE 1 END AS "OneMore"
+				,'Person' AS "IsShare"
+				,E.RegisterCode  AS "RegisterCode"
+				,FN_BASEGETDICTIONARY_S(#{lang}, E.MultiRegisterName) AS "MultiRegisterName"
+				,ED.StartDateTime AS "StartDateTime"
+				,ED.EndDateTime AS "EndDateTime"
+			FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON E.FolderID = FD.FolderID AND FD.FolderType = 'Schedule.Person'
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = FD.FolderID AND FC.RegisterCode = #{UserCode}
+			WHERE E.OwnerCode = #{UserCode}		
+			<![CDATA[
+				AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+					OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+					OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate} ))		
+			]]>
+			AND E.IsPublic = 'Y'
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			
+			UNION ALL
+			
+			SELECT
+	        	 LE.FolderID
+	        	,LE.FolderType
+	        	,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS FolderName
+		    	,LE.EventID
+				,LE.LinkEventID
+				,LE.Subject
+				,LE.Place
+				,LE.ImportanceState
+				,LE.OwnerCode
+				,ED.DateID
+				,ED.StartDate
+				,ED.StartTime
+				,ED.EndDate
+				,ED.EndTime
+				,ED.IsAllDay
+				,ED.IsRepeat
+				,NVL(FC.Color, (SELECT Reserved2 FROM sys_object_folder WHERE FolderID = #{SchedulePersonFolderID})) AS Color
+				,CASE NVL(TO_NUMBER(TRIM(REPLACE(ED.EndDate, '-',''))),'0') - NVL(TO_NUMBER(TRIM(REPLACE(ED.StartDate, '-',''))),'0') WHEN 0 THEN 0 ELSE 1 END AS OneMore
+				,'0' AS IsShare
+				,LE.RegisterCode
+				,FN_BASEGETDICTIONARY_S(#{lang}, LE.MultiRegisterName) AS MultiRegisterName
+				,ED.StartDateTime
+				,ED.EndDateTime
+	      	FROM EVENT_ATTENDANT E
+	      	INNER JOIN EVENT LE ON E.EventID = LE.EventID
+			INNER JOIN SYS_OBJECT_FOLDER FD	ON LE.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+			LEFT JOIN	SCHEDULE_FOLDERCOLOR FC ON FC.FolderID = LE.FolderID AND FC.RegisterCode = #{UserCode}
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})	
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND LE.DeleteDate IS NULL
+			AND LE.IsDisplay = 'Y'
+			AND E.IsAllow = 'Y'
+			AND E.AttenderCode = #{UserCode}
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND INSTR(#{FolderIDs}, ';'||#{SchedulePersonFolderID}||';') <![CDATA[>]]> 0 
+			</if>
+		) T
+		ORDER BY T."StartDateTime", T."EndDateTime" DESC
+    </select>
+     
+    <select id="selectChildFolder" parameterType="cmap" resultType="cmap">
+        SELECT
+	        FolderID AS "FolderID"
+			, DomainID AS "DomainID"
+			, MenuID  AS "MenuID"
+			, FolderType AS "FolderType"
+			, ParentObjectID  AS "ParentObjectID"
+			, ParentObjectType AS "ParentObjectType"
+			, LinkFolderID AS "LinkFolderID"
+			, DisplayName AS "DisplayName"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, MemberOf  AS "MemberOf"
+			, FolderPath  AS "FolderPath"
+			, SortKey AS "SortKey"
+			, SecurityLevel AS "SecurityLevel"
+			, SortPath AS "SortPath"
+			, IsInherited AS "IsInherited"
+			, IsShared  AS "IsShared"
+			, IsUse  AS "IsUse"
+			, IsDisplay AS "IsDisplay"
+			, IsURL AS "IsURL"
+			, URL AS "URL"
+			, IsMobileSupport AS "IsMobileSupport"
+			, IsAdminNotice  AS "IsAdminNotice"
+			, ManageCompany AS "ManageCompany"
+			, IsMsgSecurity  AS "IsMsgSecurity"
+			, Description  AS "Description"
+			, OwnerCode  AS "OwnerCode"
+			, RegisterCode AS "RegisterCode"
+			, RegistDate AS "RegistDate"
+			, ModifierCode  AS "ModifierCode"
+			, ModifyDate AS "ModifyDate"
+			, DeleteDate  AS "DeleteDate"
+			, Reserved1  AS "Reserved1"
+			, Reserved2 AS "Color"
+			, Reserved3 AS "Reserved3"
+			, Reserved4 AS "Reserved4"
+			, Reserved5 AS "Reserved5"
+		FROM SYS_OBJECT_FOLDER FD
+		WHERE
+			MenuID = #{MenuID}
+			AND DeleteDate IS NULL
+			AND MemberOf = #{folderID}
+			<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+				AND FolderID IN  
+				<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		ORDER BY SortPath
+    </select>
+    
+    <!-- 왼쪽 상단 달력에서 일정 여부 표시해주기 위한 조회 -->
+    <select id="selectLeftCalendarEvent" parameterType="cmap" resultType="cmap">
+        SELECT A.StartEndDate AS "StartEndDate"
+            , LISTAGG(EventID, ',') WITHIN GROUP(ORDER BY EventID) AS "EventIDs"
+		FROM (
+         
+	        SELECT
+	        	 E.EventID
+				,Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.StartDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD')||'~'||
+	        	 Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.EndDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD') AS StartEndDate
+	        FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON E.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||E.FolderID||';%'
+			</if>
+			AND (E.RegisterCode = #{UserCode} OR E.IsPublic = 'Y' )
+			AND ( (FD.FolderType = 'Schedule.Person' AND E.OwnerCode = #{UserCode})		
+				OR FD.FolderType = 'Schedule' )						
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			
+			UNION ALL
+			
+			SELECT
+	        	 LE.EventID
+				,Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.StartDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD')||'~'||
+	        	 Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.EndDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD') AS StartEndDate
+	      	FROM EVENT_ATTENDANT E
+	      	INNER JOIN EVENT LE ON E.EventID = LE.EventID
+			INNER JOIN SYS_OBJECT_FOLDER FD	ON LE.FolderID = FD.FolderID AND FD.IsUse = 'Y'						
+			INNER JOIN EVENT_DATE ED ON LE.EventID = ED.EventID
+			<![CDATA[
+			WHERE ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND LE.DeleteDate IS NULL
+			AND LE.IsDisplay = 'Y'
+			AND E.IsAllow = 'Y'
+			AND E.AttenderCode = #{UserCode}
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND INSTR(#{FolderIDs}, ';'||#{SchedulePersonFolderID}||';') <![CDATA[>]]> 0 
+			</if>
+						
+			UNION ALL
+		
+			SELECT 
+				 E.EventID
+				,Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.StartDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD')||'~'||
+	        	 Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.EndDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD') AS StartEndDate
+			FROM SYS_OBJECT_FOLDER FD							
+			INNER JOIN SYS_OBJECT_FOLDER OFD ON FD.LinkFolderID = OFD.FolderID				
+			INNER JOIN EVENT E ON OFD.FolderID = FD.FolderID					
+			INNER JOIN EVENT_DATE ED ON E.EventID = ED.EventID		
+			WHERE FD.FolderType = 'ScheduleShare'												
+			AND (	(OFD.FolderType = 'Schedule.Person' AND FD.Reserved1 = E.OwnerCode)	
+				OR  OFD.FolderType = 'Schedule' 
+				OR (OFD.FolderType = 'Schedule' AND FD.Reserved1 = E.OwnerCode))			
+			<![CDATA[
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			<if test="FolderIDs != null and FolderIDs != '' ">
+				AND #{FolderIDs} LIKE '%;'||FD.FolderID||';%'
+			</if>
+			AND (E.IsPublic = 'Y' OR E.RegisterCode = #{UserCode} )						
+			AND E.DeleteDate IS NULL 
+			AND E.IsDisplay = 'Y'
+			AND OFD.DeleteDate IS NULL  
+			AND OFD.IsUse = 'Y'
+			
+			UNION ALL
+			
+			SELECT 
+		    	 E.EventID
+				,Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.StartDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD')||'~'||
+	        	 Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(ED.EndDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD') AS StartEndDate
+			FROM EVENT E
+			INNER JOIN	SYS_OBJECT_FOLDER FD	ON FD.FolderType = 'Schedule.Share'
+			INNER JOIN	EVENT_SHARE ES ON ES.SpecifierCode = E.OwnerCode AND ES.TargetCode = #{UserCode}
+			INNER JOIN	EVENT_DATE ED				ON E.EventID = ED.EventID
+			WHERE E.FolderType = 'Schedule.Person'
+			<![CDATA[
+			AND ( (ED.StartDateTime >= #{StartDate} AND ED.StartDateTime < #{EndDate})		
+				OR (ED.StartDateTime <= #{StartDate} AND ED.EndDateTime >= #{EndDate})		
+				OR (#{StartDate} <= ED.EndDateTime AND ED.EndDateTime < #{EndDate}) )		
+			]]>
+			AND SYSDATE BETWEEN ES.StartDate AND ES.EndDate
+			AND E.IsPublic = 'Y'
+			AND E.DeleteDate IS NULL
+			AND E.IsDisplay = 'Y'
+			AND #{FolderIDs} LIKE '%;'|| #{ShareScheduleFolderID}||';%'
+		) A
+		GROUP BY A.StartEndDate
+    </select>
+    
+    <insert id="insertSelectEvent" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT (
+			FolderID,
+			FolderType,
+			EventType,
+			LinkEventID,
+			MasterEventID,
+			Subject,
+			Description,
+			Place,
+			IsPublic,
+			IsDisplay,
+			IsInviteOther,
+			ImportanceState,
+			OwnerCode,
+			RegisterCode,
+			MultiRegisterName,
+			RegistDate,
+			ModifierCode,
+			ModifyDate,
+			DeleteDate
+		)
+		SELECT
+			#{ResourceID},
+			'Resource',
+			'',
+			NULL,
+			NULL,
+			Subject,
+			'',
+			'',
+			'Y',
+			'Y',
+			'N',
+			'N',
+			RegisterCode,
+			RegisterCode,
+			MultiRegisterName,
+			SYSDATE,
+			ModifierCode,
+			SYSDATE,
+			NULL
+		FROM EVENT
+		WHERE EventID = #{EventID}
+		<selectKey keyProperty="EventID" resultType="Integer" order="AFTER">
+		    SELECT EVENT_SEQ.CURRVAL FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertSelectEventRepeat" parameterType="cmap" useGeneratedKeys="true">
+        INSERT INTO EVENT_REPEAT
+		(
+			EventID,
+			AppointmentStartTime,
+			AppointmentEndTime,
+			AppointmentDuring,
+			RepeatType,
+			RepeatYear,
+			RepeatMonth,
+			RepeatWeek,
+			RepeatDay,
+			RepeatMonday,
+			RepeatTuesday,
+			RepeatWednseday,
+			RepeatThursday,
+			RepeatFriday,
+			RepeatSaturday,
+			RepeatSunday,
+			RepeatStartDate,
+			RepeatEndType,
+			RepeatEndDate,
+			RepeatCount,
+			RepeatAppointType
+		)
+		SELECT
+			#{newEventID},
+			AppointmentStartTime,
+			AppointmentEndTime,
+			AppointmentDuring,
+			RepeatType,
+			RepeatYear,
+			RepeatMonth,
+			RepeatWeek,
+			RepeatDay,
+			RepeatMonday,
+			RepeatTuesday,
+			RepeatWednseday,
+			RepeatThursday,
+			RepeatFriday,
+			RepeatSaturday,
+			RepeatSunday,
+			RepeatStartDate,
+			RepeatEndType,
+			RepeatEndDate,
+			RepeatCount,
+			RepeatAppointType
+		FROM EVENT_REPEAT
+		WHERE EventID = #{oldEventID}
+		<selectKey keyProperty="RepeatID" resultType="Integer" order="AFTER">
+			SELECT RepeatID
+			FROM EVENT_REPEAT
+			WHERE ROWNUM = 1
+			ORDER BY RepeatID DESC
+		</selectKey>
+    </insert>
+    
+    <insert id="insertSelectEventDate" parameterType="cmap" useGeneratedKeys="true">
+        
+        INSERT INTO EVENT_DATE
+		(
+			EventID
+			, RepeatID
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		)
+		SELECT
+			#{newEventID}
+			, #{RepeatID}
+			, StartDateTime
+			, StartDate
+			, StartTime
+			, EndDateTime
+			, EndDate
+			, EndTime
+			, IsAllDay
+			, IsRepeat
+		FROM
+			EVENT_DATE
+		WHERE
+			EventID = #{oldEventID}
+		<selectKey keyProperty="newDateIDs,oldDateIDs" resultType="hashmap" order="AFTER">
+		    SELECT (SELECT LISTAGG(DateID, ',') WITHIN GROUP(ORDER BY DateID) FROM EVENT_DATE WHERE EventID = #{newEventID}) AS "newDateIDs",
+						(SELECT LISTAGG(DateID, ',') WITHIN GROUP(ORDER BY DateID) FROM EVENT_DATE WHERE EventID = #{oldEventID}) AS "oldDateIDs" 
+			FROM dual
+		</selectKey>
+    </insert>
+    
+    <insert id="insertSelectEventNotificationR" parameterType="cmap">
+        INSERT INTO EVENT_NOTIFICATION
+		(
+			EventID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		)
+		SELECT
+			#{newEventID}
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		FROM EVENT_NOTIFICATION
+		WHERE EventID = #{oldEventID}
+		AND RegisterKind = 'R'
+    </insert>
+    
+    <!-- 즐겨찾는 일정 DragDrop 시 참석자 알림정보 추가(insertEventByTemplateDragDrop) -->
+    <insert id="insertSelectEventNotificationA" parameterType="cmap">
+        INSERT INTO EVENT_NOTIFICATION
+		(
+			EventID
+			, RegisterCode
+			, RegisterKind
+			, IsNotification
+			, IsReminder
+			, ReminderTime
+			, IsCommentNotification
+			, MediumKind
+		)
+		SELECT
+			#{newEventID}
+			, AttenderCode
+			, 'A'
+			, #{IsNotification}
+			, #{IsReminder}
+			, #{ReminderTime}
+			, #{IsCommentNotification}
+			, #{MediumKind}
+		FROM EVENT_ATTENDANT
+		WHERE EventID = #{oldEventID}
+    </insert>
+    
+    
+    <update id="updateBookingEventDateID" parameterType="cmap">
+        UPDATE EVENT_RESOURCE_BOOKING
+        SET
+        	EventID = #{newEventID} 
+        	, DateID = #{newDateID}
+        WHERE DateID = #{oldDateID}
+        AND EventID = #{oldEventID}
+        AND ResourceID = #{ResourceID}
+    </update>
+    
+    <select id="selectEventNotificationAll" parameterType="cmap" resultType="cmap">
+        SELECT
+        	IsNotification AS "IsNotification"
+        	,IsReminder AS "IsReminder"
+        	,ReminderTime AS "ReminderTime"
+        	,IsCommentNotification AS "IsCommentNotification"
+        	,MediumKind AS "MediumKind"
+        	,RegisterCode AS "UserCode"
+        FROM EVENT_NOTIFICATION
+        WHERE
+        	EventID = #{EventID}
+    </select>
+    
+    <select id="selectSchUserFolderSetting" parameterType="cmap" resultType="cmap">
+        SELECT UserCode AS "UserCode"
+             , FOLDERID AS "FolderID"
+		FROM SCHEDULE_USERFOLDER_SETTING
+		WHERE UserCode = #{UserCode}
+    </select>
+    
+    <insert id="insertSchUserFolder" parameterType="cmap">
+        INSERT INTO SCHEDULE_USERFOLDER_SETTING
+		(
+			UserCode
+			, FolderID
+			, RegistDate
+		) VALUES
+		(
+			#{UserCode}
+			, #{SchUserFolder}
+			, SYSDATE
+		)
+    </insert>    
+    
+    <update id="updateSchUserFolder" parameterType="cmap">
+    	UPDATE SCHEDULE_USERFOLDER_SETTING
+    	SET
+    		  FolderID = #{SchUserFolder}
+    		, ModifyDate = SYSDATE
+    	WHERE UserCode = #{UserCode}
+	</update>
+    
+    <select id="selectStartEndTime" parameterType="cmap" resultType="cmap">
+    	SELECT StartTime AS "StartTime", EndTime AS "EndTime" FROM EVENT_DATE WHERE DateID = #{DateID}
+    </select>
+	
+	<select id="selectLinkFolderInfo" parameterType="cmap" resultType="cmap">
+		SELECT	  FD.LinkFolderID AS "LinkFolderID"
+				, OFD.FolderType AS "FolderType"
+		FROM SYS_OBJECT_FOLDER FD
+		INNER JOIN SYS_OBJECT_FOLDER OFD ON OFD.FolderID = FD.LinkFolderID
+		WHERE FD.FolderID = #{FolderID}
+	</select>
+	<select id="selectScheduleDateID" parameterType="cmap" resultType="String">
+		SELECT DateID
+		FROM event_date
+		WHERE 1=1
+		AND EventID = #{eventID}
+		AND StartDate = to_char(to_date(#{sDate},'yyyymmdd'),'yyyy-mm-dd')
+		AND EndDate = to_char(to_date(#{eDate},'yyyymmdd'),'yyyy-mm-dd')
+	</select>
+
+</mapper>

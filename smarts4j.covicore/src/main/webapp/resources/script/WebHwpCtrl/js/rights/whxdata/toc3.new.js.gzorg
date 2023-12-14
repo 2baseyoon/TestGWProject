@@ -1,0 +1,4 @@
+(function() {
+var toc =  [{"type":"item","name":"되돌리기","url":"edit/undo.htm"},{"type":"item","name":"다시 실행","url":"edit/redo.htm"},{"type":"item","name":"오려 두기","url":"edit/cut.htm"},{"type":"item","name":"복사하기","url":"edit/copy.htm"},{"type":"item","name":"붙이기","url":"edit/paste.htm"},{"type":"book","name":"모양 복사","key":"toc4","url":"edit/quick_format.htm"},{"type":"item","name":"지우기","url":"edit/erase.htm"},{"type":"item","name":"모두 선택","url":"edit/select_all.htm"},{"type":"item","name":"찾기","url":"edit/find/find.htm"},{"type":"item","name":"찾아 바꾸기","url":"edit/replace_with.htm"}];
+window.rh.model.publish(rh.consts('KEY_TEMP_DATA'), toc, { sync:true });
+})();

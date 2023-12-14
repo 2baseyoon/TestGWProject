@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.dashboard">
+
+	<select id="selectHomeSectionSort" parameterType="cmap" resultType="cmap">
+		SELECT SectionKey, SortKey
+		FROM covi_approval4j.jwf_user_dashboard_sort
+		WHERE UserCode = #{UserCode}
+		AND Type = #{Type}
+		ORDER BY SortKey
+	</select>
+	
+	<update id="updateHomeSectionSort" parameterType="cmap">
+		<foreach collection="SortList" item="map" index="index" open="" close="" separator=";">
+			INSERT INTO covi_approval4j.jwf_user_dashboard_sort ( UserCode, `Type`, SectionKey, SortKey )
+			VALUES ( #{UserCode}, #{Type}, #{map.SectionKey}, #{map.SortKey} )
+			ON DUPLICATE KEY  
+			UPDATE SortKey = #{map.SortKey}
+		</foreach>
+	</update>
+</mapper>

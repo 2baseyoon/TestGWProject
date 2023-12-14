@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="common.login">
+    <select id="getMyInfo"  parameterType="cmap" resultType="cmap">
+        <![CDATA[
+			SELECT
+				S.LogonID
+				, Fn_BaseGetDictionary_S(#{lang}, S.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiDeptName) AS DeptName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobLevelName) AS JobLevelName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobTitleName) AS JobTitleName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobPositionName) AS JobPositionName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiCompanyName) AS MultiCompanyName
+				, S.Description
+				, S.Birthdate
+				, S.BirthDiv
+				, S.IsBirthLeapMonth
+				, S.PhoneNumber
+				, S.PhoneNumberInter
+				, S.Mobile
+				, S.Fax
+				, S.PhotoPath
+				, S.MailAddress
+				, S.Address  
+				, S.ChargeBusiness
+				, UB.CompanyCode
+				, ui.QuickMenuConf
+			FROM sys_object_user S
+			INNER JOIN sys_object_user_basegroup UB ON S.UserCode = UB.UserCode
+			LEFT JOIN sys_object_user_info UI ON S.UserCode = UI.UserCode
+			WHERE #{userId} = S.UserCode
+			AND UB.JobType = 'Origin'
+			LIMIT 1 
+		]]>
+    </select>
+    <select id="getAddJobList"  parameterType="cmap" resultType="cmap">
+        <![CDATA[ 
+			SELECT
+				UB.JobType AS JobType
+				, Fn_BaseGetDictionary_S(#{lang}, S.MultiDisplayName) AS DisplayName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiDeptName) AS DeptName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobLevelName) AS JobLevelName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobTitleName) AS JobTitleName
+				, Fn_BaseGetDictionary_S(#{lang}, UB.MultiJobPositionName) AS JobPositionName
+				, UB.Seq as Seq
+				, Fn_BaseGetDictionary_S(#{lang}, MultiCompanyName) AS CompanyName
+			FROM sys_object_user S
+			INNER JOIN sys_object_user_basegroup UB ON S.UserCode = UB.UserCode
+			WHERE #{userId} = S.UserCode]]>
+			<if test="isAll == null or  isAll ==''">
+			AND UB.JobType != 'Origin'
+			</if>
+    </select>
+ 	<select id="selectCount" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM sys_object_user
+			WHERE LogonID = #{id}
+			AND LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{password},512))) 
+			AND IsUse = 'Y'
+		]]>
+		<!-- AND LogonPassword = md5(#{password}) -->
+	</select>
+	<select id="select" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOUBG.Seq AS URBG_ID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,SOU.PhotoPath AS PhotoPath
+				,DomainID AS DN_ID
+				,SubDomain  AS SubDomain
+				,DomainURL as DomainUrl
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobLevelCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,(SELECT Fn_BaseGetDictionary_S(#{lang}, S.MultiDisplayName) FROM  sys_object_user S INNER JOIN sys_object_group g ON S.UserCode = g.ManagerCode
+				WHERE GroupCode = SOUBG.DeptCode)  AS UR_ManagerName
+				,CASE WHEN (SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) = SOU.UserCode THEN 'TRUE' ELSE 'FALSE' END AS UR_IsManager
+				,IFNULL((SELECT PortalID FROM covi_smart4j.portal WHERE PortalID = SOU.initPortal AND BizSection = 'Portal' AND IsUse = 'Y' AND PortalType != 'Personal' ),0) AS UR_InitPortal 
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,covi_smart4j.sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,Fn_GetApprvalDeptInfo_S(SOUBG.DeptCode,'CODE') AS ApprovalParentGR_Code
+				,Fn_GetApprvalDeptInfo_S(SOUBG.DeptCode,'NAME') AS ApprovalParentGR_Name
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IFNULL(SOUI.ThemeType, 'blue') AS UR_ThemeType
+				,IFNULL((SELECT ThemeCode FROM portal WHERE PortalID = UR_InitPortal), 'default') AS UR_ThemeCode
+				,IF((SELECT COUNT(0) from sys_object_group AS SOG
+					LEFT OUTER JOIN sys_object_group_member AS SOGM ON ( SOG.GroupCode = SOGM.GroupCode)
+					WHERE 1=1
+					AND SOG.grouptype = 'Authority' 
+					AND UserCode = SOU.UserCode > 0), 'Y', 'N'
+				) AS IsAdmin
+				, (
+					SELECT IFNULL(GROUP_CONCAT(CONCAT(DomainID, '¶', DomainCode, '¶', Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)) ORDER BY DomainID SEPARATOR '|'), '') FROM COVI_SMART4J.sys_object_domain
+					WHERE DomainCode IN (
+					SELECT G.CompanyCode FROM COVI_SMART4J.sys_object_group_member GM
+					INNER JOIN COVI_SMART4J.sys_object_group G ON GM.GroupCode = G.GroupCode
+					WHERE UserCode = SOU.UserCode
+					AND GroupType = 'Authority'
+					GROUP BY CompanyCode)
+				) AS AssignedDomain
+				,IFNULL(SOU.MailAddress,'') AS MailAddress
+				, IFNULL( (SELECT Reserved1 from sys_base_code sbc where CodeGroup = 'TimeZone' AND Code = SOU.TimeZoneCode and IsUse='Y'
+							AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TimeZone' ORDER BY IF(DomainID = SOD.DomainID, 0, 1) LIMIT 1 )), '09:00:00')  AS UR_TimeZone
+				, IFNULL( (SELECT Reserved2 from sys_base_code sbc where CodeGroup = 'TimeZone' AND Code = SOU.TimeZoneCode and IsUse='Y'
+							AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TimeZone' ORDER BY IF(DomainID = SOD.DomainID, 0, 1) LIMIT 1 )), '09:00:00')  AS UR_TimeZone_Display
+				, SOU.TimeZoneCode AS UR_TimeZoneCode
+				, SOU.INITIAL_CONNECTION
+				, SOU.TEMPORARY_PASSWORD_ISUSE
+				, (CASE WHEN SOU.PASSWORD_CHANGE_DATE IS NULL THEN  '' ELSE DATE_FORMAT(SOU.PASSWORD_CHANGE_DATE, '%Y-%m-%d') end )AS "PASSWORD_CHANGE_DATE"
+				, (CASE WHEN SOU.LATEST_LOGIN_DATE IS NULL THEN  '' ELSE DATE_FORMAT(SOU.LATEST_LOGIN_DATE, '%Y-%m-%d') END )AS "LATEST_LOGIN_DATE"
+				, SOU.ExternalMailAddress
+				, '' AS Attribute 
+				, SOUI.CheckUserIP
+				, SOUI.StartIP
+				, SOUI.EndIP
+				,SOU.MultiDisplayName AS UR_MultiName
+				,SOUBG.MultiJobPositionName AS UR_MultiJobPositionName
+				,SOUBG.MultiJobTitleName AS UR_MultiJobTitleName
+				,SOUBG.MultiJobLevelName AS UR_MultiJobLevelName
+				,SOUBG.MultiDeptName AS GR_MultiName
+				,SOD.DomainImagePath AS DomainImagePath				
+				,SOUBG.RegionCode AS UR_RegionCode
+				,SOUBG.MultiRegionName AS UR_MultiRegionName
+				,SOU.UseMailConnect AS UseMailConnect
+				,SL.LicSeq
+				,SL.LicName
+				,SL.InitPortal LicInitPortal
+				,SL.IsMbPortal LicIsMbPortal
+				,(SELECT case when count(b.UserCode) =0 then 'N' ELSE 'Y' end 
+				    FROM sys_object_domain a
+					JOIN  sys_object_group_member b ON b.GroupCode = CONCAT(a.DomainID,'_EasyAdmin') 
+					WHERE DomainCode = SOUBG.CompanyCode
+					AND b.UserCode = SOU.UserCode) IsEasyAdmin
+				,SOU.SecurityLevel
+				,SOU.UseMessengerConnect AS IsUseMessenger
+				,SOUI.PortalOption 
+				,SOUI.LogonDate as LogonDate
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			LEFT OUTER JOIN sys_object_domain AS SOD ON SOD.DomainCode = SOUBG.CompanyCode
+			LEFT OUTER JOIN	sys_license as SL on SOU.LicSeq = SL.LicSeq
+			WHERE SOU.LogonID = #{id}
+			AND SOU.LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{password},512)))
+			AND SOU.IsUse = 'Y'
+		]]>
+		<choose>
+             <when test="deptId != null and deptId != '' and deptId.length() gt 0 ">
+                AND SOUBG.DeptCode = #{deptId}
+             </when>
+             <otherwise>
+				AND SOUBG.JobType = 'Origin'
+			</otherwise>
+        </choose>
+		LIMIT 1
+		<!-- 	AND SOU.LogonPassword = MD5(#{password}) -->
+	</select>
+	<select id="selectSSO" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT SOU.LanguageCode
+				,SOU.LogonID
+				,SOUBG.Seq AS URBG_ID
+				,SOU.LogonPassword AS LogonPW
+				,SOU.UserCode 	AS UR_ID
+				,SOU.UserCode 	AS UR_Code
+				,SOU.EmpNo		AS UR_EmpNo
+				,Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS UR_Name
+				,SOU.MailAddress AS UR_Mail
+				,SOU.PhotoPath AS PhotoPath
+				,DomainID AS DN_ID
+				,SubDomain  AS SubDomain
+				,DomainURL as DomainUrl
+				,SOUBG.CompanyCode AS DN_Code
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiCompanyName) AS DN_Name
+				,SOUBG.JobPositionCode AS UR_JobPositionCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobPositionName) AS UR_JobPositionName
+				,SOUBG.JobTitleCode AS UR_JobTitleCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobTitleName) AS UR_JobTitleName
+				,SOUBG.JobLevelCode AS UR_JobLevelCode
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiJobLevelName) AS UR_JobLevelName
+				,(SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS UR_ManagerCode
+				,(SELECT Fn_BaseGetDictionary_S(#{lang}, S.MultiDisplayName) FROM  sys_object_user S INNER JOIN sys_object_group g ON S.UserCode = g.ManagerCode
+				WHERE GroupCode = SOUBG.DeptCode)  AS UR_ManagerName
+				,CASE WHEN (SELECT ManagerCode FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) = SOU.UserCode THEN 'TRUE' ELSE 'FALSE' END AS UR_IsManager
+				,IFNULL((SELECT PortalID FROM covi_smart4j.portal WHERE PortalID = SOU.initPortal AND BizSection = 'Portal' AND IsUse = 'Y' AND PortalType != 'Personal' ),0) AS UR_InitPortal 
+				,(SELECT GroupPath FROM sys_object_group WHERE GroupCode = SOUBG.DeptCode) AS GR_GroupPath
+				,covi_smart4j.sys_getFullPath(SOUBG.DeptCode)	AS	GR_FullName
+				,Fn_BaseGetDictionary_S(#{lang}, SOUBG.MultiDeptName) AS GR_Name
+				,SOUBG.DeptCode AS GR_Code
+				,Fn_GetApprvalDeptInfo_S(SOUBG.DeptCode,'CODE') AS ApprovalParentGR_Code
+				,Fn_GetApprvalDeptInfo_S(SOUBG.DeptCode,'NAME') AS ApprovalParentGR_Name
+				,IFNULL(SOUI.LogonCnt,0) AS LogonCnt
+				,IFNULL(SOUI.TopMenuConf, '') AS TopMenuConf
+				,IFNULL(SOUI.ThemeType, 'blue') AS UR_ThemeType
+				,IFNULL((SELECT ThemeCode FROM portal WHERE PortalID = UR_InitPortal), 'default') AS UR_ThemeCode
+				,IFNULL((SELECT b.LayoutType FROM portal a JOIN portal_layout b ON a.LayoutID=b.LayoutID WHERE PortalID = UR_InitPortal), '0') AS UR_LayoutType
+				,IF((SELECT COUNT(0) from sys_object_group AS SOG
+					LEFT OUTER JOIN sys_object_group_member AS SOGM ON ( SOG.GroupCode = SOGM.GroupCode)
+					WHERE 1=1
+					AND SOG.grouptype = 'Authority' 
+					AND UserCode = SOU.UserCode > 0), 'Y', 'N'
+				) AS IsAdmin
+				, (
+					SELECT IFNULL(GROUP_CONCAT(CONCAT(DomainID, '¶', DomainCode, '¶', Fn_BaseGetDictionary_S(#{lang}, MultiDisplayName)) ORDER BY DomainID SEPARATOR '|'), '') FROM COVI_SMART4J.sys_object_domain
+					WHERE DomainCode IN (
+					SELECT G.CompanyCode FROM COVI_SMART4J.sys_object_group_member GM
+					INNER JOIN COVI_SMART4J.sys_object_group G ON GM.GroupCode = G.GroupCode
+					WHERE UserCode = SOU.UserCode
+					AND GroupType = 'Authority'
+					GROUP BY CompanyCode)
+				) AS AssignedDomain
+				,IFNULL(SOU.MailAddress,'') AS MailAddress
+				, IFNULL( (SELECT Reserved1 from sys_base_code sbc where CodeGroup = 'TimeZone' AND Code = SOU.TimeZoneCode and IsUse='Y'
+							AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TimeZone' ORDER BY IF(DomainID = SOD.DomainID, 0, 1) LIMIT 1 )), '09:00:00')  AS UR_TimeZone
+				, IFNULL( (SELECT Reserved2 from sys_base_code sbc where CodeGroup = 'TimeZone' AND Code = SOU.TimeZoneCode and IsUse='Y'
+							AND DomainID = (SELECT DomainID FROM covi_smart4j.sys_base_code WHERE Code = sbc.Code AND CodeGroup = 'TimeZone' ORDER BY IF(DomainID = SOD.DomainID, 0, 1) LIMIT 1 )), '09:00:00')  AS UR_TimeZone_Display
+				, SOU.TimeZoneCode AS UR_TimeZoneCode
+				, SOU.INITIAL_CONNECTION
+				, SOU.TEMPORARY_PASSWORD_ISUSE
+				, (CASE WHEN SOU.PASSWORD_CHANGE_DATE IS NULL THEN  '' ELSE DATE_FORMAT(SOU.PASSWORD_CHANGE_DATE, '%Y-%m-%d') end )AS "PASSWORD_CHANGE_DATE"
+				, (CASE WHEN SOU.LATEST_LOGIN_DATE IS NULL THEN  '' ELSE DATE_FORMAT(SOU.LATEST_LOGIN_DATE, '%Y-%m-%d') END )AS "LATEST_LOGIN_DATE"
+				, SOU.ExternalMailAddress
+				, '' AS Attribute
+				, SOUI.CheckUserIP
+				, SOUI.StartIP
+				, SOUI.EndIP
+				,SOU.MultiDisplayName AS UR_MultiName
+				,SOUBG.MultiJobPositionName AS UR_MultiJobPositionName
+				,SOUBG.MultiJobTitleName AS UR_MultiJobTitleName
+				,SOUBG.MultiJobLevelName AS UR_MultiJobLevelName
+				,SOUBG.MultiDeptName AS GR_MultiName
+				,SOD.DomainImagePath AS DomainImagePath				
+				,SOUBG.RegionCode AS UR_RegionCode
+				,SOUBG.MultiRegionName AS UR_MultiRegionName
+				,SOU.UseMailConnect AS UseMailConnect
+				,SL.LicSeq
+				,SL.LicName
+				,SL.InitPortal LicInitPortal
+				,SL.IsMbPortal LicIsMbPortal
+				,(SELECT case when count(b.UserCode) =0 then 'N' ELSE 'Y' end 
+				    FROM sys_object_domain a
+					JOIN  sys_object_group_member b ON b.GroupCode = CONCAT(a.DomainID,'_EasyAdmin') 
+					WHERE DomainCode = SOUBG.CompanyCode
+					AND b.UserCode = SOU.UserCode) IsEasyAdmin
+				,SOU.SecurityLevel
+				,SOU.UseMessengerConnect AS IsUseMessenger
+				,SOUI.PortalOption
+				,SOUI.LogonDate  as LogonDate
+			FROM sys_object_user AS SOU
+			INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+			LEFT OUTER JOIN sys_object_user_info AS SOUI ON SOUI.UserCode = SOU.UserCode
+			LEFT OUTER JOIN sys_object_domain AS SOD ON SOD.DomainCode = SOUBG.CompanyCode
+			LEFT OUTER JOIN	sys_license as SL on SOU.LicSeq = SL.LicSeq
+			WHERE SOU.IsUse = 'Y' 
+		]]>
+		<choose>
+             <when test="idType != null and idType == 'UserCode' ">
+                AND SOU.UserCode = #{id} 
+             </when>
+             <when test="idType != null and idType == 'EmpNo' ">
+                AND SOU.EmpNo = #{id} 
+             </when>
+             <otherwise>
+				AND SOU.LogonID = #{id} 
+			</otherwise>
+        </choose>
+		<choose>
+             <when test="deptId != null and deptId != '' and deptId.length() gt 0 ">
+                AND SOUBG.DeptCode = #{deptId}
+             </when>
+             <otherwise>
+				AND SOUBG.JobType = 'Origin'
+			</otherwise>
+        </choose>
+		LIMIT 1
+	</select>
+	<select id="selectSSOValue" parameterType="cmap" resultType="String">
+		<![CDATA[
+			SELECT SettingValue
+			FROM covi_smart4j.sso_config sso
+			WHERE Code = #{Code}
+			AND DomainID = (SELECT DomainID FROM covi_smart4j.sso_config WHERE Code = sso.Code ORDER BY IF(DomainID = #{DomainID}, 0, 1) LIMIT 1 )
+		]]>
+	</select>
+	
+	<select id="selectSSOCount" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM sys_object_user
+			WHERE LogonID = #{id}
+			AND IsUse = 'Y'
+		]]>
+	</select>
+	<insert id="ssoTokenHistory" parameterType="cmap" >
+	   <![CDATA[ INSERT INTO covi_smart4j.sso_token_his (     
+	   											      TOKEN
+				   									, UserID
+				   									, UserName
+				   									, UserCode
+				   									, EMPNO
+				   									, MAXAGE
+				   									, TYPE	
+				   									, ASSERTION_ID
+				   											  ) VALUES (
+				   									   
+				   									  #{token}
+				   									, #{urid}
+				   									, #{urname}
+				   									, #{urcode}
+				   									, #{empno}
+				   									, #{maxage}
+				   									, #{type}
+				   									, #{assertion_id} 
+				   								  ) 
+	 	]]>  								  
+	</insert>
+	<select id="selectTokenInForMation" parameterType="cmap" resultType="cmap">
+	   <![CDATA[ 
+	  	 	SELECT   TOKEN
+			       , UserID AS LogonID
+			       , UserName
+			       , UserCode
+			       , EMPNO AS UR_EmpNo
+			       , MAXAGE
+			       , MODIFIERDATE
+			FROM covi_smart4j.sso_token_his 
+			WHERE TOKEN = #{key}
+			ORDER BY MODIFIERDATE DESC 
+	 	]]>  								  
+	</select>
+	<update id="updateUserInfo" parameterType="cmap">
+	    UPDATE sys_object_user_info 
+	    SET 	LogonDate 	= NOW(3)
+<!-- 	    	,UserIP 	= #{userIP} -->
+	    	,LogonCnt	= (#{LogonCnt} + 1)
+	    WHERE 1=1
+	    AND UserCode = #{UR_Code}
+	</update>
+	
+	<select id="selectUserLoginPassword" parameterType="cmap" resultType="cmap">
+		SELECT LogonPassword,
+			   REPLACE(BirthDate, '.', '') AS BirthDate, 
+			   REPLACE(Mobile, '-', '') AS Mobile
+		  FROM covi_smart4j.sys_object_user A
+		 WHERE UserCode = #{userCode}	  
+	</select>
+		
+	<update id="updateUserPassword" parameterType="cmap">
+		UPDATE covi_smart4j.sys_object_user
+		  <!--  SET LogonPassword = #{loginPassword} -->
+		  SET LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{loginPassword},512)))
+		    , ACCOUT_LOCK = 'N'
+		    , TEMPORARY_PASSWORD_ISUSE = 'N'
+		    , PASSWORD_CHANGE_DATE = NOW(3)
+		 WHERE UserCode = #{userCode}
+	</update>
+	
+	<insert id="insertUserLogPassword" parameterType="cmap">
+		<![CDATA[ INSERT INTO covi_smart4j.password_change_history (     
+				   									  UserCode
+				   									, LogonID
+				   									, OldLogonPW
+				   									, NewLogonPW
+				   											  ) VALUES (
+				   									   
+				   									  #{userCode}
+				   									, #{logonID}
+				   									, HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{nowPassword},512)))
+				   									, HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{newPassword},512)))
+				   								  ) 
+		]]>  
+	</insert>
+	
+	<select id="checkPasswordLogCnt" parameterType="cmap" resultType="java.lang.Long">		
+		SELECT COUNT(*) 
+		FROM (
+			SELECT *
+			FROM password_change_history
+			WHERE userCode = #{userCode}
+			ORDER BY registDate DESC
+			LIMIT #{pwdCheckCount}
+		) A
+		WHERE NewLogonPW = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{newPassword},512)))
+	</select>
+	
+	<select id="selectAdminInfo" parameterType="cmap" resultType="String">
+	    SELECT IFNULL(MailAddress,'')AS MailAddress FROM sys_object_user  WHERE UserCode = #{adminCode} 
+	</select>
+
+	<select id="selectUserAuthetication" parameterType="cmap" resultType="String">
+	   	SELECT UserCode
+			FROM sys_object_user
+			WHERE LogonID = #{id}
+			AND LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{password},512)))
+			AND IsUse = 'Y'
+	</select>
+
+	<select id="selectBaseCheckInfo" parameterType="cmap" resultType="cmap">
+	   		SELECT COUNT(IF(ACCOUT_LOCK = 'Y', ACCOUT_LOCK, null)) AS LockCount
+					, IF(LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{password},512))) , UserCode, '') UserCode
+			FROM covi_smart4j.sys_object_user
+			WHERE LogonID = #{id}
+			AND IsUse = 'Y'
+	</select>
+	
+	<select id="selectUserMailAddress" parameterType="cmap" resultType="String">
+	   	SELECT MailAddress
+		FROM sys_object_user
+		WHERE LogonID = #{id}
+		AND IsUse = 'Y'
+	</select>
+	
+	<select id="selectUserLanguageCode" parameterType="cmap" resultType="String">
+	   	SELECT LanguageCode
+		FROM sys_object_user
+		WHERE LogonID = #{id}
+		AND IsUse = 'Y'
+	</select>
+	
+	<select id="checkPasswordCnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+		FROM sys_object_user
+		WHERE UserCode = #{userCode}
+		AND LogonPassword = HEX(AES_ENCRYPT(#{aeskey}, SHA2(#{nowPassword},512))) 
+	</select>
+	
+	<select id="selectAccountLock" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*)
+		FROM sys_object_user
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	    AND ACCOUT_LOCK = 'Y'
+	</select>
+	
+	<select id="selectUserFailCount" parameterType="cmap" resultType="cmap">
+	    SELECT IFNULL(LOGIN_FAIL_COUNT, 0) failCount
+	    	,(SELECT DomainID 
+	    	    FROM sys_object_domain a JOIN sys_object_user_basegroup SOUBG ON a.DomainCode = SOUBG.CompanyCode
+			   WHERE SOUBG.UserCode = SOU.UserCode AND SOUBG.JobType = 'Origin') AS DN_ID
+	    FROM sys_object_user SOU
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</select>
+	
+	<update id="updateUserFailCount" parameterType="cmap" >
+	    UPDATE sys_object_user  SET 
+	    	LOGIN_FAIL_COUNT = IFNULL(LOGIN_FAIL_COUNT,0)+1
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</update>
+	
+	<update id="updateUserLock"  parameterType="cmap" >
+	    UPDATE sys_object_user  SET 
+	    	ACCOUT_LOCK = #{ACCOUT_LOCK}
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</update>
+	
+	<update id="deleteUserFailCount"  parameterType="cmap" >
+	    UPDATE sys_object_user  SET 
+	    	  ACCOUT_LOCK = 'N'
+	    	, LOGIN_FAIL_COUNT = 0
+	    	, LATEST_LOGIN_DATE = NOW(3)
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</update>
+	
+	<update id="updateUserInitialConection" parameterType="cmap" >
+	    UPDATE sys_object_user  SET 
+	    	   INITIAL_CONNECTION = 'N'
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</update>
+	
+	<update id="updateUserPasswordClear"  parameterType="cmap" >
+	    UPDATE sys_object_user  SET 
+	    	   PASSWORD_CHANGE_DATE = NOW(3)
+	    WHERE LogonID = #{id}
+	    AND IsUse = 'Y'
+	</update>
+	
+	<select id="selectTwoFactorIpCheck" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM sys_base_two_factor
+		 WHERE INET_ATON(#{partIPAddress}) <![CDATA[>=]]> INET_ATON(StartIP)
+		 AND INET_ATON(#{partIPAddress}) <![CDATA[<=]]> INET_ATON(EndIP)
+		 AND TWOFACTOR = 'Y'
+		 <if test='isTarget == "U"'>
+			AND ISLOGIN = 'Y'
+		</if>	
+		<if test='isTarget == "A"'>
+			AND ISADMIN = 'Y'
+		</if>
+		 AND DomainID IN (0, #{domainID})
+	</select>
+	
+	<select id="userDomainUrl" parameterType="cmap" resultType="String">
+	    SELECT 
+		   	(SELECT DomainURL FROM sys_object_domain WHERE DomainCode = SOUBG.CompanyCode) AS DomainURL
+		FROM sys_object_user AS SOU
+		INNER JOIN sys_object_user_basegroup AS SOUBG ON (SOUBG.UserCode = SOU.UserCode)
+		WHERE SOU.LogonID = #{LogonID}
+		AND SOU.IsUse = 'Y'
+		AND SOUBG.JobType = 'Origin'
+		LIMIT 1 
+	</select>
+	
+	<select id="selectOTPCheck" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT COUNT(*) FROM (
+		 SELECT LOGONID
+		      , OTPNUMBER
+		      , DATE_FORMAT(DATE_ADD(EVENTDATE, INTERVAL + #{otpUseTime} MINUTE), '%Y-%m-%d %T')AS EVENTDATE
+		      , DATE_FORMAT(NOW(), '%Y-%m-%d %T') AS stamp
+		 FROM covi_smart4j.sys_base_two_factor_ip_log
+		 WHERE LOGONID = #{id}
+		 AND IFNULL(OTP_FAIL_COUNT,0) <![CDATA[<]]> #{OTPFailCount}
+		 ORDER BY LOGID DESC
+		 LIMIT 1
+		 )A 
+		 WHERE EVENTDATE <![CDATA[>=]]> stamp
+		  AND OTPNUMBER = #{otpNumber}
+	</select>
+	
+	<select id="selectOTPFailCount" parameterType="cmap" resultType="java.lang.Long">
+		SELECT OTP_FAIL_COUNT
+		FROM sys_base_two_factor_ip_log
+		WHERE LOGONID = #{id}
+		AND LOGTYPE = #{logType}
+		AND DATE_FORMAT(DATE_ADD(EVENTDATE, INTERVAL + #{otpUseTime} MINUTE), '%Y-%m-%d %T')
+		<![CDATA[>=]]> DATE_FORMAT(NOW(), '%Y-%m-%d %T')
+		ORDER BY LOGID DESC
+		LIMIT 1
+	</select>
+	
+	<update id="updateOTPFailCount" parameterType="cmap" >
+		UPDATE sys_base_two_factor_ip_log SET
+		OTP_FAIL_COUNT = IFNULL(OTP_FAIL_COUNT,0)+1
+		WHERE LogonID = #{id}
+		AND DATE_FORMAT(DATE_ADD(EVENTDATE, INTERVAL + #{otpUseTime} MINUTE), '%Y-%m-%d %T')
+		<![CDATA[>=]]> DATE_FORMAT(NOW(), '%Y-%m-%d %T')
+	</update>
+	
+	<update id="updateLogoutTime" parameterType="cmap">
+		UPDATE covi_smart4j.log_connect
+		SET LogoutDate = now(3)
+		WHERE LogonID = #{logonID}
+		AND IPAddress = #{IPAddress}
+		AND OS = #{OS}
+		AND Browser = #{browser}
+		ORDER BY LogonDate DESC
+		LIMIT 1 
+	</update>
+
+	<select id="vacationCreateMethod" parameterType="cmap" resultType="String">
+		SELECT
+		CreateMethod
+		FROM vm_config
+		WHERE CompanyCode = #{CompanyCode}
+		LIMIT 1
+	</select>
+	
+	<update id="updateUserLang" parameterType="cmap">
+		UPDATE sys_object_user
+		SET LanguageCode = #{lang}
+		WHERE UserCode = #{userCode}
+	</update>
+</mapper>

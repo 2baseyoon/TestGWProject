@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.forms">
+    <select id="select" parameterType="cmap" resultType="cmap">
+	<![CDATA[
+		SELECT
+			FormID,
+			FormClassID,
+			SchemaID,
+			IsUse,
+			Revision,
+			SortKey,
+			FormName,
+			FormPrefix,
+			FormDesc,
+			FileName,
+			BodyDefault,
+			EntCode,
+			ExtInfo,
+			AutoApprovalLine,
+			BodyType,
+			SubTableInfo,
+			Reserved1,
+			Reserved2,
+			Reserved3,
+			Reserved4,
+			Reserved5,
+			RegID,
+			RegDate,
+			ModID,
+			ModDate
+		FROM covi_approval4j.jwf_forms
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	  <if test="FormID != null">AND FormID = #{FormID}</if>
+	  <if test="FormID == null">AND false</if>
+	</trim>
+	</select>
+</mapper>

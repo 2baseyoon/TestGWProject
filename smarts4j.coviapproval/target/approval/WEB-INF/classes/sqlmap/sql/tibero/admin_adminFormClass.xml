@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.adminFormClass">
+    <select id="selectFormClassList" parameterType="cmap" resultType="cmap">
+         <include refid="oracle.include.pagingHeader"/>
+         	SELECT A.FormClassID AS "FormClassID",
+         		A.FormClassName AS "FormClassName",
+         		A.SortKey AS "SortKey",
+         		A.EntName AS "EntName",
+         		A.EntCode AS "EntCode",
+         		A.DisplayName AS "DisplayName"
+         	FROM
+         	(
+			  SELECT FC.FormClassID AS FormClassID
+						,FC.FormClassName AS FormClassName
+						,FC.SortKey AS SortKey
+						,NVL(sog.DisplayName,'') AS EntName
+						,NVL(FC.EntCode,'') AS EntCode
+						,(
+							SELECT 
+								LISTAGG(DECODE( FC.AclAllYN, 'Y', fn_entname_s(FC.EntCode), DECODE(A.GroupType, 'Company', fn_entname_s(B.CompanyCode), fn_entname_s(B.CompanyCode)||'('||B.DisplayName||')')), ',') WITHIN GROUP(ORDER BY A.CompanyCode)
+							FROM jwf_forms_acl A
+							INNER JOIN sys_object_group B ON A.GroupCode = B.GroupCode 
+							WHERE A.ObjectType ='CLASS' AND TargetID = FC.FormClassID 
+							<if test="DomainID != null and DomainID != '' and DomainID != 'ORGROOT'">
+								AND A.CompanyCode = #{DomainID}
+							</if>
+						)AS DisplayName
+   			  FROM JWF_FORMCLASS FC
+   			  LEFT JOIN sys_object_group sog ON FC.EntCode = sog.GroupCode
+   			  	<trim prefix="WHERE" prefixOverrides="AND |OR ">
+					<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+						and 
+						(
+							(
+								fc.AclAllYN = 'Y'
+								and fc.EntCode IN ('ORGROOT', #{DomainID})
+							)
+						OR 
+							(
+								exists 
+								( 
+									select 1 from jwf_forms_acl jfa 
+									where jfa.TargetID = fc.FormClassID and jfa.ObjectType = 'CLASS'
+									and jfa.CompanyCode=#{DomainID}
+								)
+								<if test='isSaaS != null and isSaaS.equals("Y")'>
+									and fc.EntCode IN ('ORGROOT', #{DomainID})
+								</if>
+							)
+						 )
+					</if>
+					<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+						AND 
+						<choose>
+							<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+						</choose> 
+						LIKE '%'||#{search}||'%'
+					</if>		
+					<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+						AND (
+							FormClassName LIKE '%'||#{icoSearch}||'%' 
+						)
+					</if>
+				</trim> 
+			 ) A
+			 <trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("FormClassName")'>A.FormClassName</when>
+						<otherwise>A.SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					A.SortKey ASC
+			   </if>
+			 </trim>
+         <include refid="oracle.include.pagingFooter"/>	 
+	</select>
+	
+    
+    <select id="selectFormClassListCnt" resultType="java.lang.Long">
+        SELECT COUNT(*) 
+		FROM (
+			SELECT FC.FormClassID AS FormClassID
+			FROM JWF_FORMCLASS FC
+			LEFT JOIN sys_object_group sog ON FC.EntCode = sog.GroupCode
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="DomainID != null and DomainID != '' and DomainID.length() gt 0">
+					and 
+					(
+						(
+							fc.AclAllYN = 'Y'
+							and fc.EntCode IN ('ORGROOT', #{DomainID})
+						)
+					OR 
+						(
+							exists 
+							( 
+								select 1 from jwf_forms_acl jfa 
+								where jfa.TargetID = fc.FormClassID and jfa.ObjectType = 'CLASS'
+								and jfa.CompanyCode=#{DomainID}
+							)
+							<if test='isSaaS != null and isSaaS.equals("Y")'>
+								and fc.EntCode IN ('ORGROOT', #{DomainID})
+							</if>
+						)
+					 )
+				</if>
+				<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0 and search != null and search != '' and search.length() gt 0">
+					AND 
+					<choose>
+						<when test='sel_Search.equalsIgnoreCase("FormClassName")'>FormClassName</when>
+					</choose> 
+					LIKE '%'||#{search}||'%'
+				</if>		
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						FormClassName LIKE '%'||#{icoSearch}||'%' 
+					)
+				</if>
+			</trim>			
+		) A
+	</select>
+	
+	<select id="selectFormClassData" parameterType="cmap" resultType="cmap">
+		SELECT FC.FormClassID AS "FormClassID"
+					,FC.FormClassName AS "FormClassName"
+					,FC.SortKey AS "SortKey"
+					,NVL(FC.EntCode,'') AS "EntCode"
+					,NVL(BOD.DisplayName,'') AS "DisplayName"
+		FROM JWF_FORMCLASS FC
+		LEFT JOIN sys_object_domain BOD ON FC.EntCode = BOD.DomainCode
+		WHERE FormClassID = #{FormClassID} 
+	</select>
+    
+    <insert id="insertFormClassData" parameterType="cmap">
+		INSERT INTO JWF_FORMCLASS(	FormClassName	,SortKey	,EntCode	,AclAllYN	)
+		VALUES (	#{FormClassName}	,#{SortKey}	,#{EntCode}, #{AclAllYN}	 )
+		
+		<selectKey keyProperty="FormClassID" resultType="Integer" order="AFTER">
+		   	SELECT JWF_FORMCLASS_SEQ.CURRVAL FROM dual
+		</selectKey>
+	</insert>
+	
+	<update id="updateFormClassData" parameterType="cmap">
+		UPDATE JWF_FORMCLASS
+		SET FormClassName = #{FormClassName}
+			 ,SortKey = #{SortKey}
+			 ,EntCode = #{EntCode}
+			 ,AclAllYN = #{AclAllYN}
+		WHERE FormClassID = #{FormClassID}
+	</update>
+	
+	<select id="selectEachFormClassData" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM JWF_FORMS
+		WHERE FormClassID = #{FormClassID}
+	</select>
+	
+	<delete id="deleteFormClassData" parameterType="cmap">
+		DELETE FROM JWF_FORMCLASS		
+		WHERE FormClassID = #{FormClassID}
+	</delete>
+	
+	<delete id="deleteClassAcl" parameterType="cmap">
+		DELETE FROM jwf_forms_acl
+		WHERE ObjectType = 'CLASS' AND TargetID = #{FormClassID}
+		AND ID NOT IN 
+		<foreach item="item" index="index" collection="list" open="(" close=")" separator=" ">
+			SELECT ID FROM jwf_forms_acl
+			WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+			AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+			AND GroupType = #{item.GroupType}
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</delete>
+	
+	<insert id="insertClassAcl" parameterType="java.util.List">
+		INSERT INTO jwf_forms_acl
+			(ObjectType,TargetID,CompanyCode,GroupCode,GroupType,RegisterCode)
+		<foreach collection="list" item="item" separator=" " index="index">		
+			SELECT
+				#{item.ObjectType}
+				,#{item.TargetID}
+				,#{item.CompanyCode}
+				,#{item.GroupCode}
+				,#{item.GroupType}
+				,#{item.RegisterCode}
+			FROM DUAL
+			WHERE NOT EXISTS(
+				SELECT 1 FROM jwf_forms_acl
+				WHERE ObjectType = #{item.ObjectType} AND TargetID = #{item.TargetID}
+				AND CompanyCode = #{item.CompanyCode} AND GroupCode = #{item.GroupCode}
+				AND GroupType = #{item.GroupType}
+			)
+			<if test="size != index">
+				UNION ALL
+			</if>
+		</foreach>
+	</insert>
+	
+	<delete id="deleteAllClassAcl" parameterType="cmap">
+		DELETE FROM jwf_forms_acl
+		WHERE ObjectType = #{ObjectType}
+		AND TargetID = #{FormClassID}
+	</delete>
+	
+	<select id="getFormClassAclSelect" resultType="cmap">
+		SELECT
+			'group' AS "itemType"
+			,gr.GroupID AS "GroupID"
+			,gr.MultiDisplayName AS "DN"
+			,cn.MultiDisplayName AS "ETNM"
+			,gr.CompanyCode AS "CompanyCode"
+			,gr.GroupCode AS "GroupCode"
+			,gr.GroupType AS "GroupType"
+		FROM sys_object_group gr
+		LEFT JOIN sys_object_group cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+		INNER JOIN jwf_forms_acl jfa ON gr.GroupCode = jfa.GroupCode AND gr.GroupType = jfa.GroupType AND jfa.ObjectType = 'CLASS'
+		WHERE 1=1
+		AND gr.IsUse = 'Y' 
+		AND gr.IsDisplay = 'Y'
+		AND gr.GroupType IN ('Dept','Company')
+		AND jfa.TargetID = #{FormClassID}
+	</select>	
+</mapper>
+

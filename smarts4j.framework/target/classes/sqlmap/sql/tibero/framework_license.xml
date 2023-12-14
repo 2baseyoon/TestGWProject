@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="framework.license">
+ 	
+ 	<select id="selectAllUserSortSeq" parameterType="cmap" resultType="cmap">
+ 		SELECT u.UserCode AS "UserCode"
+			 , ROW_NUMBER() OVER( ORDER BY u.SortKey+1, u.DisplayName ) AS "SortSeq" 
+		FROM 	SYS_OBJECT_USER u
+		JOIN    sys_object_user_basegroup ub ON u.UserCode = ub.UserCode AND ub.JobType = 'Origin'
+		<if test='domainID != null and domainID !=""'>
+		JOIN 	sys_object_domain d ON ub.CompanyCode = d.DomainCode AND d.DomainID = #{domainID}
+		</if>
+		<if test='licSeq != null and licSeq !=""'>
+			<if test='isOpt == "Y"'>
+			JOIN sys_license_opt_user e      ON u.UserCode = e.UserCode   AND e.LicSeq = #{licSeq}
+			</if>
+			<if test='isOpt != "Y"'>
+			JOIN sys_object_domain_license e ON u.LicSeq   = e.LicSeq   AND e.LicSeq = #{licSeq}
+			</if>
+			
+			<if test='domainID != null and domainID !=""'>
+				AND d.DomainID = e.DomainID
+			</if> 
+			<if test='domainID == null or domainID ==""'>
+				AND e.DomainID = 0
+			</if>
+		</if>		
+		WHERE u.IsUse = 'Y'
+	</select>
+
+ 	<select id="selectUserSortSeq" parameterType="cmap" resultType="java.lang.Long">
+ 		SELECT SortSeq AS "SortSeq"
+		FROM (
+			SELECT u.UserCode AS UserCode
+				 , ROW_NUMBER() OVER( ORDER BY u.SortKey+1, u.DisplayName ) AS SortSeq
+			FROM SYS_OBJECT_USER u
+			JOIN sys_object_user_basegroup ub ON u.UserCode = ub.UserCode AND ub.JobType = 'Origin'
+			<if test='domainID != null and domainID !=""'>
+			JOIN sys_object_domain d ON ub.CompanyCode = d.DomainCode AND d.DomainID = #{domainID}
+			</if>
+			<if test='licSeq != null and licSeq !=""'>
+				<if test='isOpt == "Y"'>
+				LEFT JOIN sys_license_opt_user e ON u.UserCode = e.UserCode 
+				</if>
+				<if test='isOpt != "Y"'>
+				LEFT JOIN sys_object_domain_license e ON u.LicSeq = e.LicSeq
+				</if>
+				<if test='domainID != null and domainID !=""'>
+					AND d.DomainID = e.DomainID
+				</if> 
+				<if test='domainID == null or domainID ==""'>
+					AND e.DomainID = 0
+				</if>
+			</if>		
+			WHERE u.IsUse = 'Y'		) A
+		WHERE UserCode = #{userCode}
+	</select>
+	<select  id="selectLicenseInfo" parameterType="cmap" resultType="cmap">
+		SELECT LicDomain "LicDomain"
+			, LicUserCount "LicUserCount"
+			, LicExpireDate "LicExpireDate"
+			, LieExUserCount "LieExUserCount"
+			, LicEx1Date "LicEx1Date"
+			, ChargerEmail "ChargerEmail"
+			, DomainUrl "DomainUrl"
+		FROM sys_object_domain
+		WHERE IsUse = 'Y'
+		AND DomainID = #{domainID}
+	</select>
+	
+	<select  id="selectLicenseInfoByService" parameterType="cmap" resultType="cmap">
+		SELECT LicDomain "LicDomain"
+			, odl.LicUserCount "LicUserCount"
+			, odl.LicExpireDate "LicExpireDate"
+			, odl.LicExUserCount "LicExUserCount"
+			, odl.LicEx1Date "LicEx1Date"
+			, ChargerEmail "ChargerEmail"
+			, DomainUrl "DomainUrl"
+		FROM sys_object_domain od
+		JOIN sys_object_domain_license odl on od.domainid = odl.domainid
+		WHERE IsUse = 'Y'
+		AND od.DomainID = #{domainID}
+		AND odl.LicSeq = #{licSeq}
+	</select>
+	
+	<select  id="selectLicenseUserList" parameterType="cmap" resultType="cmap">
+		/* queryId : framework.license.selectLicenseUserList */
+		<include refid="oracle.include.pagingHeader" />
+			SELECT	E.DomainId AS "DomainId"
+					, E.DomainCode AS "DomainCode"
+					, E.DomainUrl AS "DomainUrl"
+					, E.DisplayName AS "DisplayName"
+					, E.LicSeq AS "LicSeq"
+					, E.LicName AS "LicName"
+					, E.IsOpt AS "IsOpt"
+					, E.ServiceUser AS "ServiceUser"
+					, E.ServiceStart AS "ServiceStart"
+					, E.ServiceEnd AS "ServiceEnd"
+					, E.ExtraServiceUser AS "ExtraServiceUser"
+					, E.ExtraExpiredate AS "ExtraExpiredate"
+					, E.LicUsingCnt AS "LicUsingCnt"
+					, E.LicUserCount AS "LicUserCount"
+					, E.LicExpireDate AS "LicExpireDate"
+					, E.LicExUserCount AS "LicExUserCount"
+					, E.LicEx1Date AS "LicEx1Date"
+					, E.Description AS "Description"
+			FROM (
+					SELECT	A.DomainId
+							, D.DomainCode
+							, D.DomainUrl
+		            		, D.DisplayName
+		            		, A.LicSeq
+		            		, B.LicName
+		        			, B.IsOpt
+		        			, A.ServiceUser
+		        			, A.ServiceStart
+		        			, A.ServiceEnd
+		        			, A.ExtraServiceUser
+		        			, A.ExtraExpiredate
+		        			, NVL(CASE WHEN B.IsOpt = 'Y' THEN LICO.LicUsingCnt ELSE LIC.LicUsingCnt END, 0) AS LicUsingCnt
+		        			, A.LicUserCount
+		        			, A.LicExpireDate
+		        			, A.LicExUserCount
+		        			, A.LicEx1Date
+		        			, NVL(b.Description, '') AS Description
+		      		FROM 	SYS_OBJECT_DOMAIN D
+		      		JOIN 	SYS_OBJECT_DOMAIN_LICENSE A ON D.DomainId = A.DomainId
+		      		JOIN 	SYS_LICENSE B ON A.LicSeq = B.LicSeq
+					LEFT JOIN (SELECT  LicSeq, COUNT(ou.Usercode) LicUsingCnt<if test='isSaaS == "Y"'>, od.DomainId</if> 
+							      FROM  sys_object_user ou
+								  JOIN  sys_object_user_basegroup oub ON ou.UserCode = oub.UserCode AND oub.JobType='Origin'
+								  <if test='isSaaS == "Y"'>	
+								  	JOIN  sys_object_domain od ON oub.CompanyCode = od.DomainCode <if test='domainID != null and domainID !=""'>AND  od.DomainId  = #{domainID}		   </if>
+								  </if>
+								 WHERE  ou.IsUse = 'Y'
+							  GROUP BY LicSeq<if test='isSaaS == "Y"'>, od.DomainId</if>) lic ON  A.LicSeq = lic.LicSeq AND b.IsOpt = 'N' <if test='isSaaS == "Y"'>AND A.DomainId = lic.DomainID  </if>
+					LEFT JOIN (SELECT  lou.LicSeq, COUNT(ou.Usercode) LicUsingCnt<if test='isSaaS == "Y"'>, lou.DomainId</if>
+							     FROM  sys_object_user ou
+							     JOIN  sys_license_opt_user lou ON ou.UserCode = lou.UserCode  
+								WHERE  ou.IsUse = 'Y'
+								 <if test='isSaaS == "Y" and domainID != null and domainID !=""'>
+								  AND  lou.DomainId= #{domainID}
+								  </if>
+							 GROUP BY lou.LicSeq<if test='isSaaS == "Y"'>, lou.DomainId</if>) lico ON A.LicSeq = lico.LicSeq AND b.IsOpt = 'Y' <if test='isSaaS == "Y"'>AND A.DomainId = lico.DomainID   </if>
+		    		WHERE 	1=1 
+					<if test='domainID != null and domainID !=""'>
+		      		AND A.DomainId= #{domainID}
+					</if>
+		    		<if test='selectsearch != null and selectsearch != ""'>
+		      		AND DisplayName LIKE  '%'||#{selectsearch}||'%'
+		    		</if>
+		    		<if test='isService == "Y"'>
+		      		AND SYSDATE BETWEEN A.ServiceStart AND A.ServiceEnd
+		    		</if>
+    		) E
+    		<if test='isService != null and isService != "Y"'>
+			UNION ALL
+			(SELECT		T1.DomainId AS "DomainId"
+						, T1.DomainCode AS "DomainCode"
+						, T1.DomainUrl as "DomainUrl"
+				        , T1.DisplayName AS "DisplayName"
+				        , T2.LicSeq AS "LicSeq"
+				        , '-' AS "LicName"
+				        , '-' AS "IsOpt"
+						, NVL(T2.ServiceUser, 0) AS "ServiceUser"
+						, T2.ServiceStart AS "ServiceStart"
+						, T2.ServiceEnd AS "ServiceEnd" 
+						, NVL(T2.ExtraServiceUser, 0) AS "ExtraServiceUser"
+						, T2.ExtraExpiredate AS "ExtraExpiredate"
+						, 0  AS "LicUsingCnt"
+						, NVL(T2.LicUserCount, '') AS "LicUserCount"
+						, T2.LicExpireDate AS "LicExpireDate"
+						, NVL(T2.LicExUserCount, '') AS "LicExUserCount"
+						, T2.LicEx1Date AS "LicEx1Date"
+						, '-' AS "Description"
+			FROM		SYS_OBJECT_DOMAIN T1
+			LEFT JOIN	SYS_OBJECT_DOMAIN_LICENSE T2 ON T2.domainid = T1.domainid
+			WHERE		T2.LicSeq IS NULL
+				<if test='selectsearch != null and selectsearch != ""'>
+			AND 		T1.DisplayName LIKE CONCAT('%',#{selectsearch},'%')
+				</if>
+			)
+			</if>
+    		ORDER BY "DomainId", "LicSeq" ASC
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select  id="selectLicenseUserOptList" parameterType="cmap" resultType="cmap">
+		SELECT LicSeq
+		FROM   sys_license_opt_user
+		WHERE  DomainID = #{domainID}
+		AND    UserCode = #{userCode}
+	</select>
+	
+	<select id="selectLicenseUserCnt" resultType="java.lang.Long">
+		/* queryID : framework.license.selectLicenseUserCnt */
+		SELECT	COUNT(1)
+		FROM 	(
+				SELECT		1
+						
+				FROM 		SYS_OBJECT_DOMAIN_LICENSE A
+				INNER JOIN 	SYS_LICENSE B ON A.LicSeq = B.LicSeq
+				INNER JOIN 	SYS_OBJECT_DOMAIN C ON C.DomainID = A.DomainID
+				WHERE 		1=1
+				<if test='domainID != null and domainID !=""'>
+				AND 		A.DomainId= #{domainID}
+				</if>
+				<if test='selectsearch != null and selectsearch != ""'>
+				AND 		DisplayName LIKE '%'||#{selectsearch}||'%'
+				</if>
+				<if test='isService == "Y"'>
+				AND 		SYSDATE BETWEEN A.ServiceStart AND A.ServiceEnd
+				</if>
+				<if test='isService != "Y"'>
+				UNION ALL
+				SELECT 		1
+				FROM		SYS_OBJECT_DOMAIN T1
+				LEFT JOIN	SYS_OBJECT_DOMAIN_LICENSE T2 ON T2.domainid = T1.domainid
+				WHERE		T2.LicSeq IS NULL
+					<if test='selectsearch != null and selectsearch != ""'>
+				AND 		T1.DisplayName LIKE '%'||#{selectsearch}||'%'
+					</if>
+				</if>
+		) X
+	</select>
+	
+	<select id="selectLicenseUserInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : framework.license.selectLicenseUserInfoCnt */
+		SELECT
+					COUNT(1)
+		FROM 		sys_object_user A
+		INNER JOIN 	sys_object_user_basegroup B ON B.UserCode = A.UserCode AND JobType = 'Origin'
+		<choose>
+			<when test='isSaaS == "Y"'>
+		INNER JOIN 	sys_object_domain C ON B.CompanyCode = C.DomainCode AND C.DomainID = #{domainId}
+				<if test='licSeq != null and licSeq !=""'>
+					<if test='isOpt == "Y"'>
+		INNER JOIN 	sys_license_opt_user D ON A.UserCode = D.UserCode AND D.LicSeq = #{licSeq} AND C.DomainID = D.DomainID
+					</if>
+					<if test='isOpt != "Y"'>
+		INNER JOIN 	sys_object_domain_license D ON A.LicSeq = D.LicSeq AND D.LicSeq = #{licSeq} AND D.DomainID = #{domainId}
+					</if>
+				</if>
+			</when>
+			<otherwise>
+				<if test='licSeq != null and licSeq !=""'>
+					<if test='isOpt == "Y"'>
+		INNER JOIN 	sys_license_opt_user D ON A.UserCode = D.UserCode AND D.LicSeq = #{licSeq} 
+					</if>
+					<if test='isOpt != "Y"'>
+		INNER JOIN 	sys_object_domain_license D ON A.LicSeq = D.LicSeq AND D.LicSeq = #{licSeq} AND D.DomainID = 0
+					</if>
+				</if>
+			</otherwise>
+		</choose>
+		WHERE A.IsUse = 'Y'
+		<if test='category != null and category != ""'>
+			<if test='searchText != ""'>
+				<if test='category == "dept"'>
+		AND			UPPER(B.MultiDeptName) LIKE '%'||UPPER(#{searchText})||'%'
+				</if>
+				<if test='category == "name"'>
+		AND			UPPER(A.MultiDisplayName) LIKE '%'||UPPER(#{searchText})||'%'
+				</if>
+			</if>
+		</if>
+	</select>
+	
+	<select id="selectLicenseUserInfoList" parameterType="cmap" resultType="cmap">
+		/* queryID : framework.license.selectLicenseUserInfoList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 		
+					T2.UserName AS "UserName"
+					, T2.LogonID AS "LogonID"
+					, T2.DeptName AS "DeptName"
+					, T2.IsUse AS "IsUse"
+					, T2.SortKey AS "SortKey"
+					, T2.DisplayName AS "DisplayName"
+					, T2.CompanyCode AS "CompanyCode"
+					, T2.UserCode AS "UserCode"
+					, T2.LicSeq AS "LicSeq"
+					, T2.DomainID AS "DomainID"
+		FROM (
+					SELECT
+								Fn_BaseGetDictionary_S(#{lang}, A.MultiDisplayName) AS UserName
+								, A.LogonID AS LogonID
+								, Fn_BaseGetDictionary_S(#{lang}, B.MultiDeptName) AS DeptName
+								, A.IsUse AS IsUse
+								, A.SortKey
+								, A.DisplayName
+								, B.CompanyCode
+								, A.UserCode
+								, D.LicSeq
+								, E.DomainID
+					FROM 		sys_object_user A
+					INNER JOIN 	sys_object_user_basegroup B ON B.UserCode = A.UserCode AND JobType = 'Origin'
+					LEFT JOIN   SYS_OBJECT_DOMAIN E ON E.DOMAINCODE = B.COMPANYCODE
+					<choose>
+						<when test='isSaaS == "Y"'>
+					INNER JOIN 	sys_object_domain C ON B.CompanyCode = C.DomainCode AND C.DomainID = #{domainId}
+							<if test='licSeq != null and licSeq !=""'>
+								<if test='isOpt == "Y"'>
+					INNER JOIN 	sys_license_opt_user D ON A.UserCode = D.UserCode AND D.LicSeq = #{licSeq} AND C.DomainID = D.DomainID
+								</if>
+								<if test='isOpt != "Y"'>
+					INNER JOIN 	sys_object_domain_license D ON A.LicSeq = D.LicSeq AND D.LicSeq = #{licSeq} AND D.DomainID = #{domainId}
+								</if>
+							</if>
+						</when>
+						<otherwise>
+							<if test='licSeq != null and licSeq !=""'>
+								<if test='isOpt == "Y"'>
+					INNER JOIN 	sys_license_opt_user D ON A.UserCode = D.UserCode AND D.LicSeq = #{licSeq} 
+								</if>
+								<if test='isOpt != "Y"'>
+					INNER JOIN 	sys_object_domain_license D ON A.LicSeq = D.LicSeq AND D.LicSeq = #{licSeq} AND D.DomainID = 0
+								</if>
+							</if>
+						</otherwise>
+					</choose>
+					WHERE A.IsUse = 'Y'
+					ORDER BY A.SortKey+0, A.DisplayName
+			) T2
+		WHERE 	1=1
+		<if test='category != null and category != ""'>
+			<if test='searchText != ""'>
+				<if test='category == "dept"'>
+		AND			UPPER(DeptName) LIKE '%'||UPPER(#{searchText})||'%'
+				</if>
+				<if test='category == "name"'>
+		AND			UPPER(UserName) LIKE '%'||UPPER(#{searchText})||'%'
+				</if>
+			</if>
+		</if>
+		<!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+			<if test="sortColumn != null and sortDirection != null">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+					<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<otherwise>	DisplayName </otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("DESC")'> DESC</when>
+					<otherwise> ASC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+
+	<select id="selectDownloadExcel1st" parameterType="cmap" resultType="cmap">
+		/* queryID : framework.license.selectDownloadExcel1st */
+		SELECT	CONCAT(CONCAT(T.DisplayName, ' / '), T.DomainCode) AS "DisplayName"
+				, T.IsOpt AS "IsOpt"
+		        , T.LicName AS "LicName"
+		        , T.ServiceEnd AS "ServiceEnd"
+		        , T.ServiceUser AS "ServiceUser"
+		        , T.ExtraExpiredate AS "ExtraExpiredate"
+		        , T.ExtraServiceUser AS "ExtraServiceUser"
+		        , T.LicUsingCnt AS "LicUsingCnt"
+		        , (T.TempRemainCnt - T.LicUsingCnt) AS "RemainCnt"
+		        , CASE WHEN (T.TempOverYN - T.LicUsingCnt) &lt; 0 then 'Y' else '' END OverYN
+		FROM (
+				SELECT	a.DomainId, d.DomainCode
+						, d.DisplayName
+						, b.IsOpt
+						, b.LicName
+						, a.LicSeq
+						, a.ServiceEnd
+						, a.ServiceUser
+						, a.ExtraExpiredate
+						, a.ExtraServiceUser
+						, CASE WHEN b.IsOpt = 'Y' THEN lico.LicUsingCnt	ELSE lic.LicUsingCnt END LicUsingCnt
+						, CASE WHEN TO_DATE(SYSDATE, 'YYYY-MM-DD HH24:mi:SS') &gt; a.ExtraExpiredate 
+							THEN NVL(a.ServiceUser, 0) ELSE NVL(a.ServiceUser, 0 ) + NVL(a.ExtraServiceUser, 0) END TempRemainCnt
+						, CASE WHEN TO_DATE(SYSDATE, 'YYYY-MM-DD HH24:mi:SS') &gt; a.ExtraExpiredate 
+							THEN a.ServiceUser ELSE (a.ServiceUser + NVL(a.ExtraServiceUser, 0)) END TempOverYN
+				FROM 	sys_object_domain d
+				JOIN 	sys_object_domain_license a ON d.DomainId = a.DomainId
+				JOIN 	sys_license b ON a.LicSeq = b.LicSeq
+			 	LEFT JOIN 	(	SELECT  od.DomainId, LicSeq, COUNT(ou.Usercode) LicUsingCnt
+					      		FROM  sys_object_user ou
+						  		JOIN  sys_object_user_basegroup oub ON ou.UserCode = oub.UserCode AND oub.JobType='Origin'
+						  		JOIN  sys_object_domain od ON oub.CompanyCode = od.DomainCode
+						 		WHERE  ou.IsUse = 'Y'
+						 		<if test='domainID != null and domainID !=""'>
+						   		AND  od.DomainId  = #{domainID}
+						   		</if>
+					  			GROUP BY od.DomainId, LicSeq) lic ON  A.DomainId = lic.DomainID and A.LicSeq = lic.LicSeq AND b.IsOpt = 'N'
+				LEFT JOIN 	(	SELECT  lou.DomainId, lou.LicSeq, COUNT(ou.Usercode) LicUsingCnt
+					     		FROM  sys_object_user ou
+					     		JOIN  sys_license_opt_user lou ON ou.UserCode = lou.UserCode  
+								WHERE  ou.IsUse = 'Y'
+						 		<if test='domainID != null and domainID !=""'>
+						  		AND  lou.DomainId= #{domainID}
+						  		</if>
+					 			GROUP BY lou.DomainId, lou.LicSeq) 
+					 			lico ON A.DomainId = lico.DomainID AND  A.LicSeq = lico.LicSeq AND b.IsOpt = 'Y'
+				WHERE 1=1 
+				<if test='domainID != null and domainID !=""'>
+					AND a.DomainId= #{domainID}
+				</if>
+				<if test='selectsearch != null and selectsearch != ""'>
+					AND DisplayName LIKE '%'||#{selectsearch}||'%'
+				</if>
+				<if test='isService == "Y"'>
+					and SYSDATE between a.ServiceStart AND a.ServiceEnd
+				</if>
+			) T
+			ORDER BY T.DomainId, T.LicSeq
+	</select>
+
+	<select id="selectDownloadExcel2nd" parameterType="cmap" resultType="cmap">
+		/* queryID : framework.license.selectDownloadExcel2nd */
+		SELECT		CONCAT(CONCAT(t1.DisplayName, ' / '), t1.DomainCode) AS "DisplayName"
+					, '-' AS "IsOpt"
+					, '-' AS "LicName"
+					, t2.ServiceEnd AS "ServiceEnd"
+					, NVL(t2.ServiceUser, 0) AS "ServiceUser"
+					, t2.ExtraExpiredate AS "ExtraExpiredate"
+					, NVL(t2.ExtraServiceUser, 0) AS "ExtraServiceUser"
+					, '0' AS "LicUsingCnt"
+					, '0' AS "RemainCnt"
+					, '' AS "OverYN"
+		FROM		sys_object_domain t1
+		LEFT JOIN	sys_object_domain_license t2 on t2.domainid = t1.domainid
+		WHERE		t2.LicSeq is null
+		<if test='selectsearch != null and selectsearch != ""'>
+		AND 		t1.DisplayName LIKE  '%'||#{selectsearch}||'%'
+		</if>
+	</select>
+	
+	<select id="selectLicenseAddUserCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : framework.license.selectLicenseAddUserCnt */
+		SELECT
+					COUNT(1)
+		FROM		SYS_OBJECT_USER A
+        INNER JOIN 	SYS_OBJECT_USER_BASEGROUP B ON B.JobType = 'Origin' AND B.UserCode = A.UserCode
+        INNER JOIN 	SYS_OBJECT_DOMAIN C ON C.DomainCode = B.CompanyCode
+        LEFT JOIN 	SYS_LICENSE_OPT_USER D ON D.UserCode = A.UserCode AND D.LicSeq = #{licSeq}
+		WHERE		C.DomainID = #{domainId} 
+		AND			A.IsUse ='Y'				
+		AND 		A.IsDisplay ='Y'
+        AND 		D.LicSeq is null
+		<if test='category != null and category != ""'>
+        	<if test='searchText != ""'>
+            	<if test='category == "dept"'>
+       	AND  	UPPER(B.MultiDeptName) LIKE '%'||UPPER(#{searchText})||'%'
+                </if>
+                <if test='category == "name"'>
+        AND     UPPER(A.MultiDisplayName) LIKE '%'||UPPER(#{searchText})||'%'
+                </if>
+            </if>
+        </if>
+	</select>
+	
+	<select id="selectLicenseAddUserList" parameterType="cmap" resultType="cmap">
+		/* queryID : framework.license.selectLicenseAddUserList */
+		<include refid="oracle.include.pagingHeader" />
+		SELECT 	T1.UserName AS "UserName"
+				, T1.LogonID AS "LogonID"
+				, T1.DeptName AS "DeptName"
+				, T1.IsUse AS "IsUse"
+				, T1.UserCode AS "UserCode"
+		FROM 	(
+					SELECT
+								Fn_BaseGetDictionary_S(#{lang}, A.MultiDisplayName) AS UserName
+								, A.LogonID
+								, Fn_BaseGetDictionary_S(#{lang}, B.MultiDeptName) AS DeptName
+								, A.IsUse AS IsUse
+								, A.UserCode
+					FROM 		SYS_OBJECT_USER A
+					INNER JOIN 	SYS_OBJECT_USER_BASEGROUP B ON B.JobType = 'Origin' AND B.UserCode = A.UserCode AND A.IsUse = 'Y'
+					INNER JOIN 	SYS_OBJECT_DOMAIN C ON  C.DomainCode = B.CompanyCode
+					LEFT JOIN 	SYS_LICENSE_OPT_USER D ON D.UserCode = A.UserCode AND D.LicSeq = #{licSeq}
+					WHERE		C.DomainID = #{domainId} 
+					AND			a.IsUse ='Y'				
+					AND 		a.IsDisplay ='Y'
+					AND 		D.LicSeq is null
+					<if test='category != null and category != ""'>
+						<if test='searchText != ""'>
+							<if test='category == "dept"'>
+					AND  	UPPER(B.MultiDeptName) LIKE '%'||UPPER(#{searchText})||'%'
+							</if>
+							<if test='category == "name"'>
+					AND     UPPER(A.MultiDisplayName) LIKE '%'||UPPER(#{searchText})||'%'
+							</if>
+						</if>
+					</if>
+					ORDER BY 	A.SortKey, UserName, DeptName ASC
+		) T1
+	   	<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<insert id="insertUserLicense"  parameterType="cmap">
+		/* queryID : framework.license.insertUserLicense */
+        INSERT INTO SYS_LICENSE_OPT_USER
+            (LicSeq, DomainID, UserCode, RegisterCode, RegistDate) VALUES
+            (#{licSeq}, #{domainId}, #{userCode}, #{registerCode}, SYSDATE) 
+    </insert>
+	
+	<delete id="deleteUserLicense" parameterType="cmap">
+		/* queryID : framework.license.deleteUserLicense */
+		DELETE FROM SYS_LICENSE_OPT_USER
+		WHERE 	1=1
+		AND 	LicSeq = #{LicSeq}
+		AND 	DomainID = #{DomainID}
+		AND  	UserCode = #{UserCode}
+	</delete>
+	
+	<select id="selectAssignedModule" parameterType="cmap" resultType="cmap">
+		SELECT slb.LicModule as  "LicModule"
+		  FROM sys_object_user SOU
+		  JOIN sys_license slb ON slb.LicSeq = SOU.LicSeq
+		 WHERE SOU.UserCode =  #{userCode}
+		 <if test="assingedOptLicArr != null and assingedOptLicArr.size > 0">     	  
+			UNION 
+	    SELECT slb.LicModule  as  "LicModule"
+		  FROM sys_license_opt_user slop 
+		  JOIN sys_license slb ON  slop.LICSEQ = slb.LicSeq
+		 WHERE slop.usercode= #{userCode} AND slop.domainid = #{DomainID}	  
+		   AND slop.LICSEQ  IN 
+		   <foreach collection="assingedOptLicArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>		
+	</select>	
+	
+</mapper>

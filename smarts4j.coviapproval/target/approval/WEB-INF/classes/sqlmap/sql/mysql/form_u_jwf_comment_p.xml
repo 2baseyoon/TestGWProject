@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="form.comment">
+    <select id="select" parameterType="cmap" resultType="cmap">
+		SELECT CommentID, FormInstID, ProcessID, UserCode, UserName,
+			   InsertDate, Mode, Kind, Comment, Comment_fileinfo
+		  FROM covi_approval4j.jwf_comment
+		 WHERE FormInstID = #{FormInstID}
+	</select>
+	<select id="selectstore" parameterType="cmap" resultType="cmap">
+		SELECT CommentID, FormInstID, ProcessID, UserCode, UserName,
+			   InsertDate, Mode, Kind, Comment, Comment_fileinfo
+		  FROM covi_approval4j_store.jwf_comment
+		 WHERE FormInstID = #{FormInstID}
+	</select>	
+	<insert id="insert" parameterType="cmap">	
+		INSERT 
+		  INTO covi_approval4j.jwf_comment (FormInstID, ProcessID, UserCode, UserName,InsertDate, Mode, Kind, Comment, Comment_fileinfo)
+		VALUES (#{FormInstID}, #{ProcessID}, #{UserCode},	#{UserName}, now(3), #{Mode}, #{Kind}, #{Comment}, #{Comment_fileinfo})
+	</insert>	
+	<update id="updateIsComment" parameterType="cmap">
+		UPDATE covi_approval4j.jwf_processdescription SET IsComment = 'Y' WHERE FormInstID = #{FormInstID}
+	</update>
+    <select id="selectCommentMessage" parameterType="cmap" resultType="cmap">
+    	SELECT WI.TaskID, WI.UserCode, WI.DeputyID, WI.WorkItemID, P.ProcessID, FI.Subject, P.FormName, FI.InitiatorID 
+		FROM covi_approval4j.jwf_workitem WI 
+		INNER join covi_approval4j.jwf_process P ON WI.ProcessID = P.ProcessID 
+		INNER join covi_approval4j.jwf_forminstance FI ON P.FormInstID = FI.FormInstID 
+		WHERE FI.FormInstID = #{FormInstID}
+		AND WI.TaskID != #{TaskID}
+		AND (WI.SubKind IS NULL OR WI.SubKind IN ('T000','T004','T005','T006','T009','T011','T016','T017','T018','T019','T020','T021'))
+		AND WI.Deleted IS null
+	</select>
+</mapper>

@@ -1,0 +1,55 @@
+<div class="PN_myContents_box PN_myContents_sizeH">
+	<div class="PN_portlet" id="schedule_calendar">
+		<div class="PN_portlet_head PN_portlet_handler">
+			<div class="PN_portlet_title">
+				<strong class="PN_portlet_link"><spring:message code='Cache.lbl_schedule_title'/></strong>
+			</div>
+			<div class="PN_portlet_function">
+				<a href="#" class="PN_portlet_btn" onclick="javascript:pnMyPlace.toggleMenu(this);">
+					<span class=""></span>
+					<span class=""></span>
+					<span class=""></span>
+				</a>
+				<div class="PN_portlet_menu">
+					<ul>
+						<li mode="write"><a href="#" onclick="javascript:scheduleCalendar.add();"><spring:message code="Cache.lbl_Write"/></a></li>
+						<li mode="hide"><a href="#"><spring:message code="Cache.lbl_HideContent"/></a></li> <!-- 컨텐츠 숨기기 -->
+						<li><a href="#" class="PN_portlet_close"><spring:message code="Cache.lbl_ClosingWindow"/></a></li> <!-- 창닫기 -->
+					</ul>
+				</div>
+			</div>
+			<a href="/groupware/layout/schedule_View.do?CLSYS=schedule&CLMD=user&CLBIZ=Schedule&viewType=M" class="PN_More">more</a>
+		</div>
+		<div class="PN_portlet_contents webpart-content">
+			<div class="PN_scManage">
+				<div class="PN_scCalendar">
+					<!-- 달력 시작 -->
+					<div class="covi-calendar-container" id="wp_calendar"></div>
+					<!-- 달력 끝 -->
+				</div>
+				<div class="PN_scList mScrollV scrollVType01" data-role="result">
+					<ul id="schedule_calendar_list"></ul>
+				</div>
+				<div class="PN_scheduleBox PN_nolist" data-role="no-result" style="display:none;">
+					<ul class="PN_scheduleList">
+						<li>
+							<strong><spring:message code='Cache.lbl_NoRegistSchedule' /></strong> <!-- 등록된 일정이 없습니다. -->
+							<p><spring:message code='Cache.msg_RegistImportantSchedule' /></p> <!-- 효율적인 일정 관리를 위해<br>중요하거나 반복되는 업무를 등록해 보세요. -->
+							<a href="#" onclick="javascript:scheduleCalendar.add();" class="PN_btnRegist"><spring:message code='Cache.lbl_RegistSchedule' /></a> <!-- 일정 등록하기 -->
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script type="text/template" id="template_schedule_calender_li">
+<li onclick="javascript:{link}">
+	<a href="#">
+		<span class="scTheme" style="background-color: {color}"></span>
+		<strong class="scTitle">{subject}</strong>
+		<span class="scTime">{startTimeEndTime}</span>
+	</a>
+</li>
+</script>

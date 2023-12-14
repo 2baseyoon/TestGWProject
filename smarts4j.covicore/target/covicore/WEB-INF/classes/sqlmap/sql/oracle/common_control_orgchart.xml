@@ -1,0 +1,910 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="control.orgchart">
+    <!-- 도메인 선택시 해당 도메인의 부서 또는 그룹을 가져옴 -->
+    <select id="selectDeptList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT  'group' AS "itemType"
+					,gr.COMPANYCODE AS "CompanyCode"
+					,gr.GROUPCODE AS "GroupCode"
+					,gr.GROUPTYPE AS "GroupType"
+					,gr.MULTIDISPLAYNAME AS "GroupName"
+					,cn.MULTIDISPLAYNAME AS "CompanyName"
+					,gr.PRIMARYMAIL AS "PrimaryMail"
+					,gr.MEMBEROF AS "MemberOf"
+					,gr.GROUPCODE AS AN
+					,gr.MULTIDISPLAYNAME AS DN
+					,gr.PRIMARYMAIL AS EM
+					,cn.COMPANYCODE AS ETID
+					,cn.MULTIDISPLAYNAME AS ETNM
+					,gr.MEMBEROF AS SGAN
+					,gr.MEMBEROF AS SGDN
+					,gr.RECEIVABLE AS RCV
+					,gr.SORTPATH AS "SortPath"
+					,gr.GROUPPATH AS "GroupPath"
+					,gr.GROUPID AS "GroupID"
+					,(SELECT COUNT(0) FROM SYS_OBJECT_GROUP sob WHERE sob.MEMBEROF = gr.GROUPCODE AND sob.ISUSE = 'Y') AS "hasChild"
+					,REPLACE(SYS_GETFULLPATH(gr.GROUPCODE, #{lang}),'@','>') AS "GroupFullPath"
+			FROM SYS_OBJECT_GROUP gr
+			LEFT JOIN SYS_OBJECT_GROUP cn ON gr.COMPANYCODE = cn.GROUPCODE AND cn.GROUPTYPE = 'Company'
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	       	AND gr.ISUSE = 'Y' 
+			AND gr.ISDISPLAY = 'Y'
+		  	AND gr.GROUPTYPE in ('Dept','Company')  	
+	      <if test="companyCode != null and companyCode != 'ORGROOT'">
+		  	AND gr.COMPANYCODE =#{companyCode}
+		  </if>
+		  <if test="searchType == 'MemberOf' and  searchText != null and searchText !=''">
+	  		AND gr.MemberOf = #{searchText}
+	  	  </if>  	
+		  <if test="(searchType == null or searchType =='') and searchText != null and searchText !=''">
+		  	AND gr.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+		  </if>
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		 	gr.SORTPATH ASC
+		</trim>
+	    
+	</select>
+	 <select id="selectGroupList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+	    SELECT 'group' AS "itemType"
+				,gr.COMPANYCODE AS "CompanyCode"
+				,gr.GROUPCODE AS "GroupCode"
+				,gr.GROUPTYPE AS "GroupType"
+				,gr.MULTIDISPLAYNAME AS "GroupName"
+				,cn.MULTIDISPLAYNAME AS "CompanyName"
+				,gr.PRIMARYMAIL AS "PrimaryMail"
+				,gr.MEMBEROF AS "MemberOf"
+				,gr.GROUPCODE AS AN
+				,gr.MULTIDISPLAYNAME AS DN
+				,gr.PRIMARYMAIL AS EM
+				,cn.COMPANYCODE AS ETID
+				,cn.MULTIDISPLAYNAME AS ETNM
+				,gr.MEMBEROF AS SGAN
+				,gr.MEMBEROF AS SGDN
+				,gr.RECEIVABLE AS RCV
+				,gr.SORTPATH AS "SortPath"
+				,gr.GROUPPATH AS "GroupPath"
+				,gr.GROUPID AS "GroupID"
+				,(SELECT COUNT(0) FROM SYS_OBJECT_GROUP sob WHERE sob.MEMBEROF = gr.GROUPCODE AND sob.ISUSE = 'Y') AS "hasChild"				
+				, REPLACE(SYS_GETFULLPATH(gr.GROUPCODE, #{lang}),'@','>') AS "GroupFullPath"
+		FROM SYS_OBJECT_GROUP gr
+		LEFT JOIN SYS_OBJECT_GROUP cn ON gr.COMPANYCODE = cn.GROUPCODE AND cn.GROUPTYPE = 'Company'
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	       	AND gr.ISUSE = 'Y' 
+			AND gr.ISDISPLAY = 'Y'
+		  	AND gr.GROUPTYPE != 'Dept'	
+	      <if test="companyCode != null and companyCode != '' ">
+		  	AND gr.COMPANYCODE =#{companyCode}
+		  </if>
+		  <if test="searchText != null and searchText !=''">
+		  	AND gr.DISPLAYNAME LIKE '%'||#{searchText}||'%'
+		  </if>
+		  <if test="groupDivision != null and groupDivision != ''">
+		  	AND (REGEXP_LIKE(gr.GroupPath, (SELECT LISTAGG(';'||GroupCode, ';|') WITHIN GROUP(ORDER BY GroupCode) FROM SYS_OBJECT_GROUP WHERE Reserved5 IN 
+			  	<foreach collection="groupDivision" item="item" separator="," open="(" close=")">
+			  		#{item}
+			  	</foreach>
+		  	)) OR gr.GroupType = 'Company')
+		  </if>
+		  <if test="communityId != null and communityId != ''">  	
+		  	AND (
+		  		(REGEXP_LIKE(gr.GroupPath, '_Community'||';') AND gr.GroupCode = (SELECT CU_Code FROM COMMUNITY WHERE CU_ID = #{communityId}) OR gr.Reserved5 = 'Community') 
+				OR (NOT REGEXP_LIKE(gr.GroupPath, '_Community'||';')) 
+			)
+		  </if>	  
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		 	gr.SORTPATH ASC
+		</trim>
+	</select>
+	
+	<!-- 부서 선택시 해당 부서의 사용자 가져옴 -->
+    <select id="selectUserList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT  'user' AS "itemType"
+				,'so' AS "so"
+				, ur.USERID AS "UserID"
+				, ur.USERCODE AS AN
+				, d.DOMAINID AS "DomainID"
+				, ur.MULTIDISPLAYNAME AS DN
+				, bg.JOBLEVELCODE || '|' || bg.MULTIJOBLEVELNAME AS LV
+				, bg.JOBTITLECODE || '|' || bg.MULTIJOBTITLENAME AS TL
+				, bg.JOBPOSITIONCODE || '|' || bg.MULTIJOBPOSITIONNAME AS PO
+				, ur.MOBILE AS MT 
+				, ur.MOBILE AS "Mobile"
+				, ur.MAILADDRESS AS EM 
+				, ur.PHONENUMBER AS OT 
+				, ur.FAX 
+				, ur.EMPNO AS USEC 
+				, bg.DEPTCODE AS RG
+				, bg.DEPTCODE AS SG
+				, bg.MULTIDEPTNAME AS RGNM
+				, bg.MULTIDEPTNAME AS SGNM
+				, bg.COMPANYCODE AS ETID
+				, bg.MULTICOMPANYNAME AS ETNM
+				, NVL(bg.JOBTYPE,'Origin') AS "JobType"
+				, ur.USERCODE AS "UserCode"
+				, bg.MULTIDEPTNAME AS "ExGroupName"
+				, ur.PHONENUMBERINTER AS "PhoneNumberInter"
+				, ur.CHARGEBUSINESS AS "ChargeBusiness"
+				, ur.PHOTOPATH AS "PhotoPath"
+				, CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') >= NVL(TO_CHAR(info.ABSENSETERMSTART, 'YYYYMMDD'), '19010101') 
+				   		  	AND NVL(TO_CHAR(info.ABSENSETERMEND, 'YYYYMMDD'), '19010101') >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+				   		  	AND info.ABSENSEUSEYN != 'N'
+				       THEN 'Y' ELSE 'N' END AS "AbsenseUseYN"
+				, ur.SORTKEY
+		        , bg.JOBTITLESORTKEY
+		        , bg.JOBLEVELSORTKEY
+		        , ur.ENTERDATE
+				, (SELECT MULTIDISPLAYNAME FROM SYS_OBJECT_USER WHERE USERCODE = info.ABSENSEDUTY) AS "AbsenseDuty"
+		 		, DATE_FORMAT(info.ABSENSETERMSTART, '%Y-%m-%d') AS "AbsenseTermStart"
+		 		, DATE_FORMAT(info.ABSENSETERMEND, '%Y-%m-%d') AS "AbsenseTermEnd"
+		 		, info.ABSENSEREASON AS "AbsenseReason"
+		  		, info.ABSENSETYPE AS "AbsenseType" 
+		]]>
+		<if test="useAttendStatus !=null and useAttendStatus.equalsIgnoreCase('Y')">
+		 <![CDATA[
+		     	, NVL((
+					SELECT VI.VacFlag
+					FROM VM_VACATIONINFO_DAY VI
+					WHERE UR_Code = ur.UserCode
+					AND VI.VacDate = TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD')
+					AND (CASE WHEN VacOffFlag IN ('AM', 'PM')
+					        THEN (
+					            CASE 
+					                WHEN VacOffFlag = 'AM' AND TO_CHAR(SYSTIMESTAMP, 'HH24') < 13 THEN 1 
+					                WHEN VacOffFlag = 'PM' AND TO_CHAR(SYSTIMESTAMP, 'HH24') >= 13 THEN 1
+					                ELSE 0
+					            END
+					        )
+					        ELSE 1
+					    END
+					) > 0
+					AND ROWNUM <= 1
+				), '') AS "VacStatus"
+				, NVL((
+					SELECT 
+					    CASE 
+					        WHEN attEndTime IS NOT NULL THEN 'lbl_att_offWork'
+					        WHEN attEndTime IS NULL THEN 'lbl_att_goWork'
+					        ELSE NULL
+					    END
+					FROM ATTEND_COMMUTING_MST acm
+					WHERE acm.UserCode = ur.UserCode
+					AND targetDate = TO_CHAR(SYSTIMESTAMP, 'yyyy-mm-dd')
+					AND length(attStartTime) > 0
+				),'lbl_n_att_absent') AS "AttendStatus"
+				, NVL((
+					SELECT amh.JobStsName || ';' || StartTime || ';' || EndTime || ';' || ETC
+					FROM ATTEND_JOB_HISTORY amh
+					WHERE amh.UserCode = ur.UserCode
+					AND JobDate = TO_CHAR(SYSTIMESTAMP,  'yyyy-mm-dd')
+					AND amh.STARTTIME <= TO_CHAR(SYSTIMESTAMP,  'HH24MI')
+					AND amh.ENDTIME > TO_CHAR(SYSTIMESTAMP,  'HH24MI')
+				),'') AS "JobStatus"
+		    ]]>
+		 </if>
+		 FROM SYS_OBJECT_USER_BASEGROUP bg
+		 LEFT JOIN SYS_OBJECT_USER ur ON ur.USERCODE = bg.USERCODE
+		 LEFT JOIN SYS_OBJECT_USER_INFO info ON bg.USERCODE = info.USERCODE
+		 LEFT JOIN SYS_OBJECT_DOMAIN d ON d.DOMAINCODE = bg.COMPANYCODE
+		 <if  test="hasChildGroup !=null and hasChildGroup.equalsIgnoreCase('Y') and deptCode != null  and deptCode != '' and ( searchText == null  or serchText == '') ">
+		     	LEFT JOIN SYS_OBJECT_GROUP gr ON bg.DEPTCODE = gr.GROUPCODE 
+		 </if>		
+		 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    AND ur.ISUSE = 'Y' 
+		    AND ur.ISDISPLAY = 'Y'
+	    <choose>
+	        <when test="hasChildGroup !=null and hasChildGroup.equalsIgnoreCase('Y') and deptCode != null  and deptCode != ''  and ( searchText == null  or serchText == '') ">
+	            AND ';'||gr.GROUPPATH LIKE '%;'||#{deptCode}||';%'
+	        </when>
+	        <when test="deptCode != null" >
+	            AND bg.DEPTCODE = #{deptCode}
+	        </when>
+	    </choose>
+	      <if test="companyCode != null and companyCode != 'ORGROOT'">
+		  	AND bg.COMPANYCODE = #{companyCode}    
+		  </if>
+		  <!--검색 : 이름-->
+		  <if test="searchText != null and searchType == 'name'">
+		  	AND ur.MULTIDISPLAYNAME like '%'||#{searchText}||'%'
+		  </if>
+		  <!--검색 : 부서명-->
+		  <if test="searchText != null and searchType == 'dept'">
+		  	AND bg.MULTIDEPTNAME like '%'||#{searchText}||'%'   
+		  </if>
+		  <!--검색 : 직위 -->
+		  <if test="searchText != null and searchType == 'jobposition'">
+		  	AND bg.MULTIJOBPOSITIONNAME like '%'||#{searchText}||'%'  
+		  </if>
+		  <!--검색 : 직급  -->
+		  <if test="searchText != null and searchType == 'joblevel'">
+		  	AND bg.MULTIJOBLEVELNAME like '%'||#{searchText}||'%'
+		  </if>
+		  <!--검색 : 직책  -->
+		  <if test="searchText != null and searchType == 'jobtitle'">
+		  	AND bg.MULTIJOBTITLENAME like '%'||#{searchText}||'%'
+		  </if>
+		  <!--검색 : 휴대폰번호 -->
+		  <if test="searchText != null and searchType == 'phone'">
+		  	AND (REPLACE(ur.Mobile,'-','') like '%'||REPLACE(#{searchText},'-','')||'%' OR ur.Mobile like '%'||REPLACE(#{searchText},'-','')||'%' )
+		  </if>
+		  <!-- 회사전화번호 -->
+		  <if test="searchText != null and searchType == 'companynumber'">
+		  	AND (REPLACE(ur.PhoneNumber,'-','') like '%'||REPLACE(#{searchText},'-','')||'%' OR ur.PhoneNumber like '%'||REPLACE(#{searchText},'-','')||'%' )
+		  </if>
+		  <!-- 메일 -->
+		  <if test="searchText != null and searchType == 'mail'">
+		  	AND ur.MailAddress like '%'||#{searchText}||'%'
+		  </if>
+		  <!--검색 : 담당업무 -->
+		  <if test="searchText != null and searchType == 'charge'">
+		  	AND ur.CHARGEBUSINESS like '%'||#{searchText}||'%'
+		  </if>
+		  <!--검색 : usercode -->
+		  <if test="usercodes != null and searchType == 'usercodes'">
+		  	AND ur.UserCode IN
+		  	<foreach collection="usercodes" item="usercode" separator="," open="(" close=")">
+		  		#{usercode}
+		  	</foreach>
+		  </if>
+		  <!--검색 : 모바일 조직도(전체 검색)-->
+		  <if test="searchText != null and searchType == 'all'">
+		  	AND (
+		  		ur.MULTIDISPLAYNAME like '%'||#{searchText}||'%' 		OR 						<!-- 이름 -->
+		  		bg.MULTIDEPTNAME like '%'||#{searchText}||'%' 			OR 						<!-- 부서명 -->
+		  		bg.MULTIJOBPOSITIONNAME like '%'||#{searchText}||'%' 	OR 						<!-- 직위 -->
+		  		bg.MULTIJOBLEVELNAME like '%'||#{searchText}||'%'		OR 						<!-- 직급 -->
+		  		bg.MULTIJOBTITLENAME like '%'||#{searchText}||'%'		OR 						<!-- 직책 -->
+		  		REPLACE(ur.Mobile,'-','') like '%'||REPLACE(#{searchText},'-','')||'%'		OR 	<!-- 휴대폰번호 -->		  		
+		  		replace(ur.PhoneNumber,'-','') like '%'||REPLACE(#{searchText},'-','')||'%'	OR 	<!-- 회사전화번호 -->
+		  		ur.MailAddress like '%'||#{searchText}||'%'				OR	 					<!-- 메일 -->
+		  		ur.CHARGEBUSINESS like '%'||#{searchText}||'%'  								<!-- 담당업무 -->
+		  	)  
+	  	  </if>
+		</trim> 
+		<!--검색 정렬 기준 : orgOrders -->
+		Order By 
+		<choose>
+			<when test="orgOrders != null and orgOrders != '' ">
+			  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+			  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+			  			bg.JOBTITLESORTKEY ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+			  			bg.JOBLEVELSORTKEY ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+			  			bg.JOBPOSITIONSORTKEY ASC
+			  		</if>
+			  		<if test="orgOrder != null and orgOrder == 'DN'">
+			  			DN ASC
+			  		</if>
+			  	</foreach>
+			  	, ur.SORTKEY ASC, ur.ENTERDATE ASC
+		  	</when>
+		  	<otherwise>
+		  		<![CDATA[	(ur.SORTKEY+0) ASC, bg.JOBTITLESORTKEY ASC, bg.JOBLEVELSORTKEY ASC, bg.JOBPOSITIONSORTKEY ASC, ur.ENTERDATE ASC, DN ASC ]]>
+		  	</otherwise>
+		</choose>
+	</select>
+	
+      <!-- 그룹 선택시 해당 그룹의 사용자 가져옴 -->
+    <select id="selectGroupUserList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT A.* 
+		FROM ( 
+				SELECT  'user' AS "itemType"
+							,'so' AS "so" 	
+							, ur.USERID AS "UserID"
+							, ur.USERCODE AS AN
+							, ur.MULTIDISPLAYNAME AS DN
+							, bg.JOBLEVELCODE||'|'||bg.MULTIJOBLEVELNAME AS LV
+							, bg.JOBTITLECODE||'|'||bg.MULTIJOBTITLENAME AS TL
+							, bg.JOBPOSITIONCODE||'|'||bg.MULTIJOBPOSITIONNAME AS PO
+							, ur.MOBILE AS MT 
+							, ur.MOBILE AS "Mobile"
+							, ur.MAILADDRESS AS EM 
+							, ur.PHONENUMBER AS OT 
+							, ur.FAX 
+							, ur.EMPNO AS USEC 
+							, bg.DEPTCODE AS RG
+							, bg.DEPTCODE AS SG
+							, bg.MULTIDEPTNAME AS RGNM
+							, bg.MULTIDEPTNAME AS SGNM
+							, bg.COMPANYCODE AS ETID
+							, bg.MULTICOMPANYNAME AS ETNM
+					   	    , NVL(bg.JOBTYPE,'Origin') AS "JobType"
+							, ur.USERCODE AS "UserCode"
+							, bg.MULTIDEPTNAME AS "ExGroupName"
+							, ur.PHONENUMBERINTER AS "PhoneNumberInter"
+							, ur.CHARGEBUSINESS AS "ChargeBusiness"
+							, ur.PHOTOPATH AS "PhotoPath"
+							, CASE WHEN TO_CHAR(SYSDATE, 'YYYYMMDD') >= NVL(TO_CHAR(info.ABSENSETERMSTART, 'YYYYMMDD'), '19010101') 
+							   		  	AND NVL(TO_CHAR(info.ABSENSETERMEND, 'YYYYMMDD'), '19010101') >= TO_CHAR(SYSDATE, 'YYYYMMDD')
+							   		  	AND info.ABSENSEUSEYN != 'N'
+							       THEN 'Y' ELSE 'N' END AS "AbsenseUseYN"
+							, CASE WHEN NVL(info.AbsenseTermEnd, To_Date('19010101' , 'RR/MM/DD')) >= SYSDATE AND info.AbsenseUseYN <> 'N' THEN info.AbsenseType ELSE '' END AS "AbsenseType"
+							, CASE WHEN NVL(info.AbsenseTermEnd, To_Date('19010101' , 'RR/MM/DD')) >= SYSDATE AND info.AbsenseUseYN <> 'N' THEN NVL(info.AbsenseReason,'') ELSE NVL(NULL,'')  END AS "AbsenseReason"
+				]]>
+				<if test="useAttendStatus !=null and useAttendStatus.equalsIgnoreCase('Y')">
+					 <![CDATA[
+					     	, NVL((
+								SELECT (SELECT BC.codeName FROM SYS_BASE_CODE BC WHERE BC.CodeGroup = 'VACATION_TYPE' AND BC.IsUse = 'Y' AND BC.DomainID = bg.CompanyCode AND VI.VacFlag = BC.Code) || ';' || VI.Gubun
+								FROM VM_VACATIONINFO VI
+								WHERE UR_Code = ur.UserCode
+								AND VacYear = TO_CHAR(SYSTIMESTAMP, 'yyyy')
+								AND Sdate >= TO_CHAR(SYSTIMESTAMP, 'YYYY-MM-DD')
+								AND Edate < TO_CHAR(ADD_MONTHS(SYSTIMESTAMP ,'0')+1, 'YYYY-MM-DD')
+								AND (CASE WHEN VacOffFlag IN ('AM', 'PM')
+								        THEN (
+								            CASE 
+								                WHEN VacOffFlag = 'AM' AND TO_CHAR(SYSTIMESTAMP, 'HH24') < 13 THEN 1 
+								                WHEN VacOffFlag = 'PM' AND TO_CHAR(SYSTIMESTAMP, 'HH24') >= 13 THEN 1
+								                ELSE 0
+								            END
+								        )
+								        ELSE 1
+								    END
+								) > 0
+								AND ROWNUM <= 1
+							), '') AS "VacStatus"
+							, NVL((
+								SELECT 
+								    CASE 
+								        WHEN attEndTime IS NOT NULL THEN 'lbl_att_offWork'
+								        WHEN attEndTime IS NULL THEN 'lbl_att_goWork'
+								        ELSE NULL
+								    END
+								FROM ATTEND_COMMUTING_MST acm
+								WHERE acm.UserCode = ur.UserCode
+								AND targetDate = TO_CHAR(SYSTIMESTAMP, 'yyyy-mm-dd')
+								AND length(attStartTime) > 0
+							),'lbl_n_att_absent') AS "AttendStatus"
+							, NVL((
+								SELECT amh.JobStsName || ';' || StartTime || ';' || EndTime || ';' || ETC
+								FROM ATTEND_JOB_HISTORY amh
+								WHERE amh.UserCode = ur.UserCode
+								AND JobDate = TO_CHAR(SYSTIMESTAMP,  'yyyy-mm-dd')
+								AND amh.STARTTIME <= TO_CHAR(SYSTIMESTAMP,  'HH24MI')
+								AND amh.ENDTIME > TO_CHAR(SYSTIMESTAMP,  'HH24MI')
+							),'') AS "JobStatus"
+					    ]]>
+					 </if>
+				FROM SYS_OBJECT_USER ur
+				INNER JOIN SYS_OBJECT_USER_BASEGROUP bg ON ur.USERCODE = bg.USERCODE
+				LEFT JOIN SYS_OBJECT_GROUP_MEMBER gm  ON ur.USERCODE = gm.USERCODE
+				LEFT JOIN sys_object_user_info info ON ur.USERCODE = info.USERCODE
+				<if test="hasChildGroup !=null and hasChildGroup.equalsIgnoreCase('Y') and groupCode != null  and groupCode != '' and ( searchText == null  or serchText == '') ">
+				  	LEFT JOIN SYS_OBJECT_GROUP gr ON gm.GroupCode = gr.GroupCode 
+				</if>		
+				 <trim prefix="WHERE" prefixOverrides="AND |OR ">
+				    AND ur.IsUse = 'Y' 
+				    AND ur.IsDisplay = 'Y'
+				    AND gm.IsUse = 'Y'
+					AND bg.JobType = 'Origin' 
+				 <choose>
+			        <when test="hasChildGroup !=null and hasChildGroup.equalsIgnoreCase('Y') and groupCode != null  and groupCode != '' and ( searchText == null  or serchText == '') ">
+			            AND ';'||gr.GroupPath LIKE '%;'||#{groupCode}||';%'
+			            
+			            <if test="isMailChk != null  and isMailChk != '' and isMailChk.equalsIgnoreCase('Y')">
+				    		AND  gr.IsMail = #{isMailChk}
+				    	</if>
+			        </when>
+			        <when test="groupCode != null" >
+			          	AND  gm.GroupCode = #{groupCode}
+			        </when>
+			    </choose>
+			      <!-- 그룹 사용자 검색은 현재 사용 X (조직도 검색은  부서 사용자 검색 쿼리로 고정)  -->
+				  <!--검색 : 이름-->
+				  <if test="searchText != null and searchType == 'name'">
+				  	AND ur.MultiDisplayName like '%'||#{searchText}||'%'
+				  </if>
+				  <!--검색 : 부서명-->
+				  <if test="searchText != null and searchType == 'dept'">
+				  	AND bg.MultiDeptName like '%'||#{searchText}||'%'
+				  </if>
+				  <!--검색 : 직위 -->
+				  <if test="searchText != null and searchType == 'jobposition'">
+				  	AND bg.MultiJobPositionName like '%'||#{searchText}||'%'
+				  </if>
+				  <!--검색 : 직급  -->
+				  <if test="searchText != null and searchType == 'joblevel'">
+				  	AND bg.MultiJobLevelName like '%'||#{searchText}||'%'
+				  </if>
+				  <!--검색 : 휴대폰번호 -->
+				  <if test="searchText != null and searchType == 'phone'">
+		  			AND ( REPLACE(ur.Mobile,'-','') like '%'||REPLACE(#{searchText},'-','')||'%'  OR ur.Mobile like '%'||REPLACE(#{searchText},'-','')||'%' )
+				  </if>
+				  <!--검색 : 담당업무 -->
+				  <if test="searchText != null and searchType == 'charge'">
+				  	AND ur.ChargeBusiness like '%'||#{searchText}||'%'
+				  </if>
+				  <!--검색 : 모바일 조직도(전체 검색)-->
+				  <if test="searchText != null and searchType == 'all'">
+				  	AND (
+				  		ur.MultiDisplayName like '%'||#{searchText}||'%' 		OR <!-- 이름 -->
+				  		bg.MultiDeptName like '%'||#{searchText}||'%' 		OR <!-- 부서명 -->
+				  		bg.MultiJobPositionName like '%'||#{searchText}||'%' 	OR <!-- 직위 -->
+				  		bg.MultiJobLevelName like '%'||#{searchText}||'%'		OR <!-- 직급 -->
+		  				REPLACE(ur.Mobile,'-','') like '%'||REPLACE(#{searchText},'-','')||'%'				OR <!-- 휴대폰번호 -->
+				  		ur.ChargeBusiness like '%'||#{searchText}||'%'		   <!-- 담당업무 -->
+				  	)  
+			  	  </if>
+				</trim> 
+				<!--검색 정렬 기준 : orgOrders -->
+				Order By 
+				<choose>
+					<when test="orgOrders != null and orgOrders != '' ">
+					  	<foreach collection="orgOrders" item="orgOrder" separator=",">
+					  		<if test="orgOrder != null and orgOrder == 'JobTitle'">
+					  			bg.JOBTITLESORTKEY ASC
+					  		</if>
+					  		<if test="orgOrder != null and orgOrder == 'JobLevel'">
+					  			bg.JOBLEVELSORTKEY ASC
+					  		</if>
+					  		<if test="orgOrder != null and orgOrder == 'JobPosition'">
+					  			bg.JOBPOSITIONSORTKEY ASC
+					  		</if>
+					  		<if test="orgOrder != null and orgOrder == 'DN'">
+					  			DN ASC
+					  		</if>
+					  	</foreach>
+					  	, ur.SORTKEY ASC, ur.ENTERDATE ASC
+				  	</when>
+				  	<otherwise>
+				  		<![CDATA[ 	ur.SORTKEY ASC, bg.JOBTITLESORTKEY ASC, bg.JOBLEVELSORTKEY ASC, bg.JOBPOSITIONSORTKEY ASC, ur.ENTERDATE ASC, DN ASC ]]>
+				  	</otherwise>
+				</choose>
+		) A
+	</select>
+	
+    <select id="selectUserAutoTagList" parameterType="cmap" resultType="cmap"	>
+        SELECT A.* FROM(
+        SELECT 
+				 a.UserCode AS "UserCode"
+			   , FN_BASEGETDICTIONARY_S(#{lang}, a.MultiDisplayName)AS "UserName"
+		       , a.MailAddress AS "MailAddress"
+		       , a.Mobile AS "Mobile"
+		       , d.DomainID AS "DomainID"
+		       , a.DisplayName AS "DisplayName"
+			   <if test="haveDept!=null and haveDept.equalsIgnoreCase('Y')">
+			 	, FN_BASEGETDICTIONARY_S(#{lang}, b.MultiDeptName)AS "DeptName"
+		   	   </if>
+		FROM SYS_OBJECT_USER a
+		LEFT JOIN SYS_OBJECT_USER_BASEGROUP b ON a.UserCode = b.UserCode
+		LEFT JOIN SYS_OBJECT_DOMAIN d ON d.DomainCode = b.CompanyCode
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		    AND a.IsUse = 'Y'
+		    AND a.IsDisplay = 'Y'
+		    AND b.JobType = 'Origin'
+		    <if test="UserName != null and UserName != '' and (MailAddress == null or MailAddress == '')">
+		        AND a.MultiDisplayName LIKE '%'||#{UserName}||'%'
+		    </if>
+		    <if test="UserName != null and UserName != '' and MailAddress != null and MailAddress != ''">
+		        AND (a.MultiDisplayName LIKE '%'||#{UserName}||'%' OR a.MailAddress LIKE '%'||#{MailAddress}||'%')
+		    </if>
+			<if test="CompanyCode!=null and CompanyCode!= ''">
+				AND b.CompanyCode = #{CompanyCode}
+			</if>
+		 </trim>
+		  ORDER BY b.JobTitleSortKey ASC, b.JobLevelSortKey ASC, b.JobPositionSortKey ASC, a.MultiDisplayName ASC, a.SortKey ASC, a.EnterDate ASC
+        ) A
+		 <![CDATA[WHERE ROWNUM <= 10]]>
+    </select>
+    
+    <!-- 자동완성 태그용 모든 사용자 및 그룹(회사, 부서, 커뮤니티 그룹)  -->
+    <select id="selectUserGroupAutoTagList" parameterType="cmap" resultType="cmap"	>
+        SELECT B.* FROM (
+			SELECT A.* FROM (
+				SELECT  a.UserCode AS "Code"
+						, 'UR' AS "Type"
+						, FN_BASEGETDICTIONARY_S(#{lang}, a.MultiDisplayName) AS "Name"
+						, FN_BASEGETDICTIONARY_S(#{lang}, b.MultiDeptName) AS "DeptName"
+						, FN_BASEGETDICTIONARY_S(#{lang}, b.MultiJobLevelName) AS "JobLevelName"
+						, PHOTOPATH AS "PhotoPath"
+				FROM SYS_OBJECT_USER  a
+				LEFT OUTER JOIN SYS_OBJECT_USER_BASEGROUP b ON a.UserCode = b.UserCode
+				WHERE a.IsUse = 'Y'
+				AND a.IsDisplay = 'Y'	
+				AND b.JobType = 'Origin'
+				AND b.CompanyCode = #{CompanyCode}
+				
+				<if test='onlyUser != null and onlyUser == "N"'>
+				UNION 
+				
+				SELECT     GroupCode AS "Code"
+						, DECODE(GroupType,'Company','CM','GR') AS "Type"
+						, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "Name"
+						, '' AS "DeptName"
+						, '' AS "JobLevelName"
+						, '' AS "PhotoPath"
+				FROM SYS_OBJECT_GROUP
+				WHERE IsUse = 'Y'
+				AND IsDisplay = 'Y'
+				AND GroupType IN ('Community','Company','Dept','JobLevel','JobPosition','JobTitle','Manage','Officer','Region')
+				AND CompanyCode = #{CompanyCode}
+				</if>
+			) A
+			<if test="KeyWord != null and KeyWord != '' ">
+				WHERE A."Name" LIKE '%'||#{KeyWord}||'%'
+			</if>
+			ORDER BY A."Name" ASC
+		) B
+		<![CDATA[WHERE ROWNUM <= 10]]>
+    </select>
+    
+    <!-- 도메인 select -->
+    <select id="selectCompanyList" parameterType="cmap" resultType="cmap">
+		SELECT GroupID AS "GroupID"
+		     , GroupCode AS "GroupCode"
+		     , MultiDisplayName AS "MultiDisplayName"
+		FROM SYS_OBJECT_GROUP 
+		WHERE IsUse = 'Y' 
+		AND IsDisplay = 'Y' 
+		AND GroupType = 'Company'
+		<choose>
+			<when test="isAdmin=='admin'">
+				<if test="assignedDomain.size() > 0">
+        			AND GroupCode IN 
+            		<foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+            			#{item}
+            		</foreach>
+        		</if>
+			</when>
+       		<otherwise>
+				<if test="allCompany!=null and allCompany.equalsIgnoreCase('N')">
+					AND GroupCode = #{companyCode}
+				</if>
+			</otherwise>
+		</choose>
+		ORDER BY SortKey
+	</select>
+	
+    
+   <select id="selectInitOrgTreeList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 'group' AS "itemType"
+			,gr.CompanyCode AS "CompanyCode"
+			,gr.GroupCode AS "GroupCode"
+			,gr.GroupType AS "GroupType"
+			,gr.MultiDisplayName AS "GroupName"
+			,cn.MultiDisplayName AS "CompanyName"
+			,gr.PrimaryMail AS "PrimaryMail"
+			,gr.MemberOf AS "MemberOf"
+			,gr.GroupCode AS "AN"
+			,gr.MultiDisplayName AS "DN"
+			,gr.PrimaryMail AS "EM"
+			,cn.CompanyCode AS "ETID"
+			,cn.MultiDisplayName AS "ETNM"
+			,gr.MemberOf AS "SGAN"
+			,gr.MemberOf AS "SGDN"
+			,gr.Receivable AS "RCV"
+			,gr.SortPath AS "SortPath"
+			,gr.GroupPath AS "GroupPath"
+			,gr.GroupID AS "GroupID"
+			,(SELECT COUNT(0) FROM sys_object_group self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS "hasChild"
+			, REPLACE(SYS_GETFULLPATH(gr.GROUPCODE, #{lang}),'@','>') AS "GroupFullPath"
+			, gr.Approvable AS "Approvable"
+			, gr.Receivable AS "Receivable"
+			, gr.ISMAIL AS "IsMail"
+			FROM sys_object_group gr
+			LEFT JOIN sys_object_group cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	       	AND gr.IsUse = 'Y' 
+			AND gr.IsDisplay = 'Y'
+	        <if test="groupType.equalsIgnoreCase('DEPT')"> <!-- 조직도  -->
+			  	AND gr.GroupType IN ('Dept','Company')
+	        </if>
+	        <if test="groupType.equalsIgnoreCase('GROUP')"> <!-- 그룹  -->
+			  	AND gr.GroupType != 'Dept'
+			  	<if test="groupDivision != null and groupDivision != ''">
+			  	    AND (REGEXP_LIKE(gr.GroupPath, (SELECT LISTAGG(';'||GroupCode, ';|') WITHIN GROUP(ORDER BY GroupCode) FROM SYS_OBJECT_GROUP WHERE Reserved5 IN 
+					  	<foreach collection="groupDivision" item="item" separator="," open="(" close=")">
+					  		#{item}
+					  	</foreach>
+				  	)) OR gr.GroupType = 'Company')
+				  </if>
+				  
+				<if test="mailYn.equalsIgnoreCase('Y')">
+			  		and gr.GroupType NOT IN ('Authority','Community') <!-- 메일 조직도 제외 : 권한, 커뮤니티 -->
+			  		and SUBSTR(gr.GroupCode, INSTR(gr.GroupCode, '_') + 1) NOT IN ('Authority','Community')
+  				</if>
+			</if>		        
+	       	AND (gr.MemberOf = #{companyCode}
+			     OR gr.GroupCode = #{companyCode}
+			     <choose>
+				    <when test="groupType.equalsIgnoreCase('DEPT') and defaultValue !=null and defaultValue !=''"> <!-- 조직도 트리에서 기본값 설정시 -->
+					 	OR #{defaultValueGroupPath} LIKE '%;'||gr.MemberOf||';%'
+				 	</when>
+				    <when test="groupType.equalsIgnoreCase('DEPT') and loadMyDept.equalsIgnoreCase('Y')"> <!-- 조직도 트리에서 부서 로드 기능이 Y 일떄  -->
+					 	OR #{userGroupPath} LIKE '%;'||gr.MemberOf||';%'
+				 	</when>
+			     </choose>
+			)
+	      <if test="companyCode != null and companyCode != 'ORGROOT'">
+		  	AND gr.CompanyCode =#{companyCode}
+		  </if>  	
+		  
+		  <if test="searchText != null and searchText !=''">
+		  	AND gr.DisplayName LIKE '%||#{searchText}||'%'
+		  </if>
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		 	gr.SortPath asc
+		</trim>
+   </select>
+
+   <select id="selectChildrenData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT 'group' AS "itemType"
+			,gr.CompanyCode AS "CompanyCode"
+			,gr.GroupCode AS "GroupCode"
+			,gr.GroupType AS "GroupType"
+			,gr.MultiDisplayName AS "GroupName"
+			,cn.MultiDisplayName AS "CompanyName"
+			,gr.PrimaryMail AS "PrimaryMail"
+			,gr.MemberOf AS "MemberOf"
+			,gr.GroupCode AS "AN"
+			,gr.MultiDisplayName AS "DN"
+			,gr.PrimaryMail AS "EM"
+			,cn.CompanyCode AS "ETID"
+			,cn.MultiDisplayName AS "ETNM"
+			,gr.MemberOf AS "SGAN"
+			,gr.MemberOf AS "SGDN"
+			,gr.Receivable AS "RCV"
+			,gr.SortPath AS "SortPath"
+			,gr.GroupPath AS "GroupPath"
+			,gr.GroupID AS "GroupID"
+			,(SELECT COUNT(0) FROM sys_object_group self WHERE self.MemberOf =gr.GroupCode AND self.IsUse = 'Y') AS "hasChild"
+			, REPLACE(SYS_GETFULLPATH(gr.GROUPCODE, #{lang}),'@','>') AS "GroupFullPath"
+			, gr.Approvable AS "Approvable"
+			, gr.Receivable AS "Receivable"
+			, gr.ISMAIL AS "IsMail"
+			FROM sys_object_group gr
+			LEFT JOIN sys_object_group cn ON gr.CompanyCode = cn.GroupCode AND cn.GroupType = 'Company'
+	    ]]>
+	    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+	       	AND gr.IsUse = 'Y' 
+			AND gr.IsDisplay = 'Y'
+	        <if test="groupType.equalsIgnoreCase('DEPT')"> <!-- 조직도  -->
+			  	AND gr.GroupType IN ('Dept','Company')
+	        </if>
+	        <if test="groupType.equalsIgnoreCase('GROUP')"> <!-- 그룹  -->
+			  	AND gr.GroupType != 'Dept'
+			  	<if test="communityId != null and communityId != ''">  	
+				  	AND (
+				  		(REGEXP_LIKE(gr.GroupPath, '_Community'||';'||(SELECT CU_Code FROM COMMUNITY WHERE CU_ID = #{communityId}))) 
+						OR (NOT REGEXP_LIKE(gr.GroupPath, '_Community'||';')) 
+					)
+			    </if>			  	
+			</if>
+			AND gr.memberOf = #{memberOf}
+	    	<if test="companyCode != null and companyCode != 'ORGROOT'">
+		  		AND gr.CompanyCode =#{companyCode}
+			</if> 
+		</trim>
+		
+	    <!-- Order by 절 -->
+		<trim prefix="ORDER BY">
+		 	gr.SortPath asc
+		</trim>
+    
+   </select>
+   
+   	<!-- 조직도 Path 정보 조회 -->
+    <select id="getOrgPathInfo" parameterType="cmap" resultType="cmap">
+		SELECT 
+			CompanyCode AS "CompanyCode",
+			GroupCode AS "GroupCode",
+			GroupPath AS "GroupPath",
+			MultiDisplayName AS "MultiDisplayName"			
+		FROM sys_object_group 
+		WHERE GroupCode IN
+		<foreach collection="arrGroupPath" item="item" separator="," open="(" close=")">
+	  		#{item}
+	  	</foreach>
+		ORDER BY SortPath ASC
+	</select>
+    
+    <select id="selectGovOrgTreeList" parameterType="cmap" resultType="cmap">    	
+    	SELECT * FROM (
+			SELECT A.OUCODE
+				, A.OUCODE AS "AN"
+				, A.OUORDER
+				, A.UCORGFULLNAME
+				, A.OU
+				, A.OU AS "DN"
+				, A.TOPOUCODE
+				, A.REPOUCODE
+				, A.PARENTOUCODE
+				, NVL(A.PARENTOUNAME, '') AS PARENTOUNAME
+				, A.OULEVEL
+				, A.ISUSE				
+				, OUReceiveDocumentYN AS USEYN
+				, A.UCCHIEFTITLE
+				, A.OUSTEP
+				, (
+					SELECT CASE WHEN A.OUCODE = A.REPOUCODE THEN A.UCCHIEFTITLE 
+					ELSE CASE WHEN NVL(A.UCCHIEFTITLE,' ') = ' ' THEN Z.UCCHIEFTITLE ELSE (Fn_GetParentOUName_ReceiveY(Z.OUCODE) || '(' || A.UCCHIEFTITLE || ')') END END
+					FROM JWF_PROCESSGOV_LDAP Z  
+					WHERE (Z.OUCODE = A.PARENTOUCODE AND A.PARENTOUCODE != '0000000')				
+						UNION ALL				
+					SELECT CASE WHEN A.OUCODE = A.REPOUCODE THEN A.UCCHIEFTITLE 
+					ELSE CASE WHEN NVL(A.UCCHIEFTITLE,' ') = ' ' THEN Z.UCCHIEFTITLE ELSE (Fn_GetParentOUName_ReceiveY(Z.OUCODE) || '(' || A.UCCHIEFTITLE || ')') END END
+					FROM JWF_PROCESSGOV_LDAP Z  
+					WHERE (Z.OUCODE = A.OUCODE AND A.PARENTOUCODE = '0000000')
+				) AS DISPLAY_UCCHIEFTITLE
+				, A.SUBCOUNT AS HASSUBOU	
+			FROM JWF_PROCESSGOV_LDAP A
+			WHERE 1=1		
+		<!-- 검색어가 있는 경우 -->
+		<choose>
+			<when test="searchText != null and searchText != '' ">				
+				AND A.OUSTEP LIKE '%' || #{searchText} || '%'
+				AND OUReceiveDocumentYN = 'Y'				
+				) TEMP
+				WHERE NVL(TEMP.DISPLAY_UCCHIEFTITLE, ' ') != ' '
+				ORDER BY TEMP.OULEVEL ASC, TEMP.OU ASC
+			</when>
+			<otherwise>
+				<if test="parentOUCode != null and parentOUCode != '' ">
+					AND A.PARENTOUCODE = #{parentOUCode}
+				</if>
+				<if test="memberOf != null and memberOf != '' ">
+					AND A.PARENTOUCODE = #{memberOf}
+				</if>				
+					AND NVL(A.OULEVEL, ' ') != ' '
+					AND A.ISUSE IS NULL
+					AND A.UCCHIEFTITLE IS NOT NULL
+					ORDER BY OU
+				) TEMP
+			</otherwise>			
+		</choose>
+   </select>
+   
+   <select id="selectParentGovOrgTree" parameterType="cmap" resultType="java.lang.String">    	
+    	SELECT A.UCCHIEFTITLE
+		FROM JWF_PROCESSGOV_LDAP A
+		WHERE A.OUCODE = #{POuCode}
+   </select>
+	
+   <select id="selectSearchGovOrgTreeList" parameterType="cmap" resultType="cmap">    	
+			SELECT A.OUCODE
+				, A.OUCODE AS "AN"
+				, A.OUORDER
+				, A.UCORGFULLNAME
+				, A.OU
+				, A.OU AS "DN"
+				, A.TOPOUCODE
+				, A.REPOUCODE
+				, A.PARENTOUCODE
+				, IFNULL(A.PARENTOUNAME, '') AS PARENTOUNAME
+				, A.OULEVEL
+				, A.ISUSE				
+				, OUReceiveDocumentYN AS USEYN
+				, A.UCCHIEFTITLE
+				, A.OUSTEP
+				, REPLACE(A.OUSTEP,'대한민국 > ','') as DISPLAY_UCCHIEFTITLE
+				, A.SUBCOUNT AS HASSUBOU
+			FROM JWF_PROCESSGOV_LDAP A
+			WHERE 1=1
+			AND A.UCCHIEFTITLE LIKE CONCAT('%',#{searchText} ,'%')
+			AND OUReceiveDocumentYN = 'Y'
+			ORDER BY A.OULEVEL ASC, A.OU ASC
+   </select>	
+   
+    <select id="selectGov24OrgTreeList" parameterType="cmap" resultType="cmap">
+    	SELECT * FROM (
+	    	SELECT 
+				ORGCD, CMPNYNM, SENDERNM, BIZNO, ADRES, 
+				DELETEFLAG, '0' AS HASSUBOU, '0000000' AS PARENTOUCODE, ORGCD AS AN, 
+				CMPNYNM AS DN, CMPNYNM AS OUSTEP, CMPNYNM || '(' || SENDERNM || ')' AS DISPLAY_UCCHIEFTITLE
+			FROM JWF_PROCESSGOV_GOV24	
+			WHERE DELETEFLAG = 'N'
+		) A
+		WHERE 1=1
+			<!-- 검색어가 있는 경우 -->
+			<choose>
+				<when test="searchText != null and searchText != '' ">				
+					AND A.CMPNYNM LIKE '%' || #{searchText} || '%'
+				</when>
+				<otherwise>
+					<if test="parentOUCode != null and parentOUCode != '' ">
+						AND A.PARENTOUCODE = #{parentOUCode}
+					</if>
+					<if test="memberOf != null and memberOf != '' ">
+						AND A.PARENTOUCODE = #{memberOf}
+					</if>				
+				</otherwise>			
+			</choose>
+		ORDER BY CMPNYNM ASC
+   </select>
+   
+	<!-- 조직도에서 선택한 사용자 정보 조회. UserCode 기준 본직 정보를 가져옴. -->
+    <select id="getSelectedUserList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT 
+			 'user' AS itemType
+			, ur.USERID AS "UserID"
+			, ur.USERCODE AS AN
+			, ur.MULTIDISPLAYNAME AS DN
+			, bg.JOBLEVELCODE || '|' || bg.MULTIJOBLEVELNAME AS LV
+			, bg.JOBTITLECODE || '|' || bg.MULTIJOBTITLENAME AS TL
+			, bg.JOBPOSITIONCODE || '|' || bg.MULTIJOBPOSITIONNAME AS PO
+			, ur.MOBILE AS MT 
+			, ur.MOBILE AS "Mobile"
+			, ur.MAILADDRESS AS EM 
+			, ur.PHONENUMBER AS OT 
+			, ur.FAX 
+			, ur.EMPNO AS USEC 
+			, bg.DEPTCODE AS RG
+			, bg.DEPTCODE AS SG
+			, bg.MULTIDEPTNAME AS RGNM
+			, bg.MULTIDEPTNAME AS SGNM
+			, bg.COMPANYCODE AS ETID
+			, bg.MULTICOMPANYNAME AS ETNM
+			, NVL(bg.JOBTYPE,'Origin') AS "JobType"
+			, ur.USERCODE AS "UserCode"
+			, bg.MULTIDEPTNAME AS "ExGroupName"
+			, ur.PHONENUMBERINTER AS "PhoneNumberInter"
+			, ur.CHARGEBUSINESS AS "ChargeBusiness"
+			, ur.PHOTOPATH AS "PhotoPath"
+		]]>
+		FROM SYS_OBJECT_USER_BASEGROUP bg
+		JOIN SYS_OBJECT_USER ur ON ur.USERCODE = bg.USERCODE
+		WHERE	bg.JOBTYPE = 'Origin'
+		AND 	ur.USERCODE IN 
+		<foreach collection="selections" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		<![CDATA[ 	Order By (ur.SORTKEY+0) ASC, bg.JOBTITLESORTKEY ASC, bg.JOBLEVELSORTKEY ASC, bg.JobTitlecode ASC, ur.ENTERDATE ASC, DN ASC ]]>
+	</select>
+	
+	<!-- 조직도에서 선택한 부서 정보 조회. -->
+    <select id="getSelectedDeptList" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+		SELECT 
+			'group' AS itemType
+			,gr.COMPANYCODE AS "CompanyCode"
+			,gr.GROUPCODE AS "GroupCode"
+			,gr.GROUPTYPE AS "GroupType"
+			,gr.MULTIDISPLAYNAME AS "GroupName"
+			,cn.MULTIDISPLAYNAME AS "CompanyName"
+			,gr.PRIMARYMAIL AS "PrimaryMail"
+			,gr.MEMBEROF AS "MemberOf"
+			,gr.GROUPCODE AS AN
+			,gr.MULTIDISPLAYNAME AS DN
+			,gr.PRIMARYMAIL AS EM
+			,cn.COMPANYCODE AS ETID
+			,cn.MULTIDISPLAYNAME AS ETNM
+			,gr.MEMBEROF AS SGAN
+			,gr.MEMBEROF AS SGDN
+			,gr.RECEIVABLE AS RCV
+			,gr.SORTPATH AS "SortPath"
+			,gr.GROUPPATH AS "GroupPath"
+			,gr.GROUPID AS "GroupID"
+		FROM SYS_OBJECT_GROUP gr
+		LEFT JOIN SYS_OBJECT_GROUP cn ON gr.COMPANYCODE = cn.GROUPCODE AND cn.GROUPTYPE = 'Company'
+		]]>
+		WHERE	gr.GROUPCODE IN 
+		<foreach collection="selections" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+		ORDER BY gr.SORTPATH asc
+	</select>
+</mapper>
+
+

@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="legacy.formCmmFunction">
+	<select id="selectFormInstAll" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FORMINSTID AS "FORMINSTID"
+				, PROCESSID AS "PROCESSID"
+				, FORMID AS "FORMID"
+				, SCHEMAID AS "SCHEMAID"
+				, SUBJECT AS "SUBJECT"
+				, INITIATORID AS "INITIATORID"
+				, INITIATORNAME AS "INITIATORNAME"
+				, INITIATORUNITID AS "INITIATORUNITID"
+				, INITIATORUNITNAME AS "INITIATORUNITNAME"
+				, INITIATEDDATE AS "INITIATEDDATE"
+				, COMPLETEDDATE AS "COMPLETEDDATE"
+				, DELETEDDATE AS "DELETEDDATE"
+				, LASTMODIFIEDDATE AS "LASTMODIFIEDDATE"
+				, LASTMODIFIERID AS "LASTMODIFIERID"
+				, ENTCODE AS "ENTCODE"
+				, ENTNAME AS "ENTNAME"
+				, DOCNO AS "DOCNO"
+				, DOCLEVEL AS "DOCLEVEL"
+				, DOCCLASSID AS "DOCCLASSID"
+				, DOCCLASSNAME AS "DOCCLASSNAME"
+				, DOCSUMMARY AS "DOCSUMMARY"
+				, ISPUBLIC AS "ISPUBLIC"
+				, SAVETERM AS "SAVETERM"
+				, ATTACHFILEINFO AS "ATTACHFILEINFO"
+				, APPLIEDDATE AS "APPLIEDDATE"
+				, APPLIEDTERM AS "APPLIEDTERM"
+				, RECEIVENO AS "RECEIVENO"
+				, RECEIVENAMES AS "RECEIVENAMES"
+				, RECEIPTLIST AS "RECEIPTLIST"
+				, BODYTYPE AS "BODYTYPE"
+				, BODYCONTEXT AS "BODYCONTEXT"
+				, BODYCONTEXTORG AS "BODYCONTEXTORG"
+				, DOCLINKS AS "DOCLINKS"
+				, EDMSDOCLINKS AS "EDMSDOCLINKS"
+				, RULEITEMINFO AS "RULEITEMINFO"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+    <select id="selectFormInstData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FormInstID AS "FormInstID"
+			,Subject AS "Subject"
+			,BodyContext AS "BodyContext"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+	<select id="selectDomainID" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT DomainID AS "DomainID" FROM (
+				SELECT SOD.DomainID, ROWNUM AS R_ID
+				FROM jwf_forminstance FI
+				INNER JOIN sys_object_domain SOD ON SOD.DomainCode = FI.EntCode
+				WHERE FI.FormInstID = #{FormInstID}
+				AND SOD.IsUse = 'Y'
+			) A
+			WHERE R_ID <= 1
+		]]>
+	</select>
+	
+	<select id="selectBodyContextData" parameterType="cmap" resultType="java.lang.String">
+		<![CDATA[
+			SELECT BodyContext AS "BodyContext"
+			FROM jwf_forminstance
+			WHERE FormInstID = #{FormInstID}
+		]]>
+	</select>
+	
+    <select id="selectIsManagerData" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT
+				ur.UserCode AS "UR_Code"
+				,ur.DisplayName AS "UR_Name"
+				,gr.GroupCode AS "GR_Code"
+				,gr.DisplayName AS "DisplayName"
+			FROM sys_object_group gr 
+			INNER JOIN sys_object_user ur ON gr.ManagerCode = ur.UserCode
+			WHERE gr.IsUse = 'Y'
+			AND gr.GroupCode = #{dept_code}
+		]]>
+	</select>
+
+    <select id="selectGovUsingStamp" parameterType="cmap" resultType="cmap">
+		<![CDATA[
+			SELECT FileInfo AS "FileInfo", FileID AS "FileID" FROM (
+				SELECT FileInfo, ROWNUM AS R_ID
+				FROM jwf_stamp
+				WHERE EntCode = #{entCode}
+				AND UseYn = 'Y'
+				AND DelYn = 'N'
+				ORDER BY RegDate DESC
+			) A
+			WHERE R_ID <= 1
+		]]>
+	</select>
+	
+    <insert id = "usp_wfform_RegisterDocumentNumber_Software" useGeneratedKeys="true"  parameterType="cmap"  keyProperty="SerialNumber"  keyColumn="SerialNumber">
+		<![CDATA[
+	        INSERT INTO jwf_documentnumber (FiscalYear,SerialNumber,DocListType,DeptCode,DeptName,CategoryNumber,DisplayedNumber)
+			SELECT #{FISCAL_YEAR}
+			,NVL(MAX(SerialNumber),0)+1
+			,#{DOC_LIST_TYPE}
+			,#{UNIT_CODE}
+			,#{UNIT_ABBR}
+			,#{CATEGORY_NUMBER}
+			,NULL
+			FROM jwf_documentnumber 
+			WHERE DeptCode = #{UNIT_CODE}
+			AND DocListType =#{DOC_LIST_TYPE}
+			AND FiscalYear = #{FISCAL_YEAR}
+		]]>
+		<selectKey keyProperty="SerialNumber" resultType="int" order="AFTER">
+            SELECT JWF_DOCUMENTNUMBER_SEQ.CURRVAL FROM dual
+        </selectKey>
+	</insert>
+	
+    <update id= "usp_form_UpdateBodyContext" parameterType="cmap" >
+       <![CDATA[
+        UPDATE jwf_forminstance
+		SET BodyContext = #{BODYCONTEXT}
+		WHERE FormInstID = #{FIID}
+	   ]]>
+    </update>
+    
+    <select id="selectFormInstDataForVac" parameterType="cmap" resultType="cmap">
+        <![CDATA[
+	        SELECT WorkItemID AS "WorkItemID"
+	        , ProcessID AS "ProcessID"
+	        FROM jwf_workitem A
+	        WHERE A.ProcessID = (
+	        	SELECT ProcessID FROM (
+		        	SELECT ProcessID, ROWNUM AS R_ID
+		        	FROM jwf_process
+		        	WHERE forminstid = #{FormInstID}
+		        	ORDER BY ProcessID DESC
+		        ) A
+		        WHERE R_ID <= 1
+	        )
+	        AND A.NAME = 'initiator'
+        ]]>
+	</select>
+
+	<select id="selectVacationData" parameterType="cmap" resultType="cmap">
+		SELECT
+			NVL(VACDAY+EXTVACDAY,0.0) AS "VACDAY"
+			,DAYSREQ AS "DAYSREQ"
+			,DAYSCAN AS "DAYSCAN"
+			,DAYSNEXT AS "DAYSNEXT"
+			,(DAYSREQ + DAYSCAN + DAYSNEXT) AS "USEDAYS"
+			,NVL((VACDAY+EXTVACDAY) - (DAYSREQ + DAYSCAN + DAYSNEXT),0.0) AS "ATot"
+		FROM (
+			SELECT (
+				SELECT REGEXP_REPLACE(TO_CHAR(NVL(SUM(VACDAY), 0), 'FM99.9'),'\.$', '.0')
+				FROM VM_VACATIONPLAN
+				WHERE UR_Code = #{urCode}
+				AND YEAR = TargetYear
+				AND VACKIND = 'PUBLIC'
+			) VACDAY
+			, (SELECT CAST(NVL(SUM(VacDay),0.0) AS FLOAT)
+				FROM VM_VACATIONPLAN
+				WHERE UR_Code = #{urCode}
+				AND TO_DATE(UseStartDate,'YYYYMMDD') <![CDATA[>=]]> U.Sdate
+				AND TO_DATE(UseEndDate,'YYYYMMDD') <![CDATA[<=]]> U.Edate
+				AND VACKIND <![CDATA[<>]]> 'PUBLIC'
+				AND VacKind IN (SELECT Code
+								FROM SYS_BASE_CODE
+								WHERE CodeGroup = 'VACATION_TYPE'
+								AND IsUse ='Y'
+								AND DomainID = #{DomainID}
+								<!--AND Reserved1 ='+'-->
+								AND (Reserved2 is null or Reserved2 ='')
+				)
+			) AS EXTVACDAY
+			,(
+				SELECT NVL(SUM(VacDay), 0)
+				FROM VM_VACATIONINFO
+				WHERE TO_DATE(Sdate, 'YYYY-MM-DD') <![CDATA[>=]]> U.Sdate
+				AND TO_DATE(Edate, 'YYYY-MM-DD') <![CDATA[<=]]> U.Edate
+				AND UR_Code = #{urCode}
+				AND GUBUN in('VACATION_APPLY','VACATION_PUBLIC')
+				AND VacFlag IN (
+					SELECT Code
+					FROM SYS_BASE_CODE
+					WHERE CodeGroup = 'VACATION_TYPE'
+					AND IsUse ='Y'
+					AND DomainID = #{DomainID}
+					AND Reserved1 ='+'
+					AND (Reserved2 is null or Reserved2 ='')
+				)
+			) DAYSREQ
+			,(
+				SELECT NVL(SUM(VacDay), 0)
+				FROM VM_VACATIONINFO
+				WHERE TO_DATE(Sdate, 'YYYY-MM-DD') <![CDATA[>=]]> U.Sdate
+				AND TO_DATE(Edate, 'YYYY-MM-DD') <![CDATA[<=]]> U.Edate
+				AND UR_Code = #{urCode}
+				AND GUBUN in('VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+				AND VacFlag IN (
+								SELECT Code
+								FROM SYS_BASE_CODE
+								WHERE CodeGroup = 'VACATION_TYPE'
+								AND IsUse ='Y'
+								AND DomainID = #{DomainID}
+								AND Reserved1 ='+'
+								AND (Reserved2 is null or Reserved2 ='')
+								)
+			) DAYSCAN
+			,(SELECT NVL(SUM(VacDay), 0.0)
+				FROM VM_VACATIONINFO
+				WHERE TO_DATE(Sdate, 'YYYY-MM-DD') <![CDATA[>=]]> U.Sdate
+				AND TO_DATE(Edate, 'YYYY-MM-DD') <![CDATA[<=]]> U.Edate
+				AND UR_Code = #{urCode}
+				AND GUBUN in('VACATION_APPLY','VACATION_PUBLIC','VACATION_CANCEL','VACATION_PUBLIC_CANCEL')
+				AND VacFlag IN (SELECT Code
+								FROM SYS_BASE_CODE
+								WHERE CodeGroup = 'VACATION_TYPE'
+								AND IsUse ='Y'
+								AND DomainID = #{DomainID}
+								AND Reserved1 ='+'
+								AND Reserved2 ='1'
+								)
+			) AS DAYSNEXT
+		FROM (select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey, CreateMethod, TargetYear
+				, CASE WHEN CreateMethod = 'J' THEN
+						TO_DATE(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD')
+					ELSE
+						TO_DATE(CONCAT(#{year},'0101'),'YYYYMMDD')
+					END as Sdate
+				, CASE WHEN CreateMethod = 'J' THEN
+						(ADD_MONTHS(TO_DATE(CONCAT(TargetYear,TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD'), 12)) -1
+					ELSE
+						TO_DATE(CONCAT(#{year},'1231'),'YYYYMMDD')
+					END as Edate
+				from(
+					select UserCode, EnterDate, MultiDisplayName, RetireDate, SortKey, CFG.CreateMethod
+						,CASE WHEN  CFG.CreateMethod = 'J' THEN
+							CASE WHEN TO_DATE(CONCAT(#{year},TO_CHAR(TO_DATE(REPLACE(EnterDate,'-',''),'YYYYMMDD'),'MMDD')),'YYYYMMDD')  <![CDATA[<=]]>  TO_DATE(CONCAT(#{year},TO_CHAR(SYSDATE,'MMDD')),'YYYYMMDD') THEN
+								EXTRACT(YEAR FROM TO_DATE(CONCAT(#{year},'0101'),'YYYYMMDD'))
+							ELSE
+								EXTRACT(YEAR FROM ADD_MONTHS(TO_DATE(CONCAT(#{year},'0101'),'YYYYMMDD'), -12)) END
+						ELSE
+							EXTRACT(YEAR FROM TO_DATE(CONCAT(#{year},'0101'),'YYYYMMDD'))
+						END AS TargetYear
+						from sys_object_user U
+						, vm_config CFG
+					where U.UserCode = #{urCode}
+					and CFG.CompanyCode = #{CompanyCode}
+				) a
+			) U
+		) A
+	</select>
+	
+	<insert id="insertVacationInfo" parameterType="cmap">	
+		INSERT INTO vm_vacationinfo 
+		(
+			VacYear, UR_Code, UR_Name,
+			VacFlag, Sdate, Edate, VacDay,
+			Reason, APPDATE, ENDDATE, WorkItemID,
+			ProcessID, GUBUN, DEPUTY_NAME, DEPUTY_CODE, VacOffFlag
+		)
+	    VALUES (
+	    	#{vacYear}, #{urCode}, #{urName},
+	    	#{vacFlag}, #{sDate}, #{eDate}, #{vacDay},
+	    	#{reason}, #{appDate}, #{endDate}, #{workItemID},
+	    	#{processID}, #{gubun}, #{deputyName}, #{deputyCode}, #{vacOffFlag}
+	    )
+	</insert>   
+	
+	<select id="selectFormBaseOS" parameterType="cmap" resultType="cmap">
+	    SELECT Code AS CODE, CodeName AS CODE_VALUE
+	    FROM sys_base_code
+		WHERE CodeGroup = #{CodeGroup}
+		AND IsUse = 'Y'
+		ORDER BY SortKey ASC
+	</select>
+
+	<select id="selectVacationInfo" parameterType="cmap" resultType="Long">
+		/* legacy.formCmmFunction.selectVacationInfo */
+		SELECT NVL(CASE WHEN ROWCNT = 0 THEN 0 ELSE EXIST END,0) AS cnt
+		FROM (SELECT a.ROWCNT,
+		CASE WHEN #{VacOffFlag}='AM' OR #{VacOffFlag}='PM' THEN
+		CASE WHEN cnt = 0 OR cnt is null THEN 0
+		WHEN LENGTH2(#{STime}) > 0 AND LENGTH2(#{ETime}) > 0 THEN
+		CASE WHEN (CAST(REPLACE(#{STime},':','') AS INTEGER)+1 <![CDATA[>=]]> CAST(REPLACE(StartTime,':','') AS INTEGER)
+		AND CAST(REPLACE(#{STime},':','') AS INTEGER)+1 <![CDATA[<=]]> CAST(REPLACE(EndTime,':','') AS INTEGER))
+		OR (CAST(REPLACE(#{ETime},':','') AS INTEGER)-1 <![CDATA[>=]]> CAST(REPLACE(StartTime,':','') AS INTEGER)
+		AND CAST(REPLACE(#{ETime},':','') AS INTEGER)-1 <![CDATA[<=]]> CAST(REPLACE(EndTime,':','') AS INTEGER)) THEN
+		1
+		ELSE 0
+		END
+		WHEN LENGTH2(#{STime}) = 0 AND LENGTH2(#{ETime}) = 0 THEN
+		CASE WHEN LENGTH2(StartTime) > 0 AND LENGTH2(EndTime) > 0 AND VacOffFlag='PM' THEN
+		1
+		WHEN LENGTH2(StartTime) = 0 AND LENGTH2(EndTime) = 0 AND VacOffFlag=#{VacOffFlag} THEN
+		1
+		WHEN VacFlag='VACATION_ANNUAL' THEN
+		1
+		ELSE
+		0
+		END
+		ELSE 1 END
+		ELSE
+		NVL(cnt,0)
+		END AS EXIST
+
+		FROM
+		(select COUNT(*) AS ROWCNT, MAX(UR_Code) UR_CODE
+		FROM (select *  from vm_vacationinfo_day) vm
+		WHERE TO_DATE(VacDate,'YYYY-MM-DD') BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+		AND UR_Code = #{UserCode}
+		AND (GUBUN != 'VACATION_CANCEL' and GUBUN != 'VACATION_PUBLIC_CANCEL')
+		<if test="(VacOffFlag=='AM' or VacOffFlag=='PM') and STime.length() == 0 and ETime.length() == 0">
+		AND (VacOffFlag is null OR VacOffFlag = '0' OR VacOffFlag = #{VacOffFlag})
+		</if>
+		) a
+		left join (select 1 cnt, VacDate, UR_Code,GUBUN,VacDay, StartTime, EndTime, VacOffFlag, VacFlag  from vm_vacationinfo_day
+		WHERE TO_DATE(VacDate,'YYYY-MM-DD') BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+		AND UR_Code = #{UserCode}
+		AND (GUBUN != 'VACATION_CANCEL' and GUBUN != 'VACATION_PUBLIC_CANCEL')
+		<if test="(VacOffFlag=='AM' or VacOffFlag=='PM') and STime.length() == 0 and ETime.length() == 0">
+		AND (VacOffFlag is null OR VacOffFlag = '0' OR VacOffFlag = #{VacOffFlag})
+		</if>
+		) vm ON a.UR_CODE = vm.UR_CODE
+		) T
+	</select>
+	
+	<select id="selectVacationCancelInfo" parameterType="cmap" resultType="Long">
+	    SELECT COUNT(1) - (TO_DATE(#{EndDate},'YYYY-MM-DD') - TO_DATE(#{StartDate},'YYYY-MM-DD') + 1) AS invalidcnt
+	    FROM vm_vacationinfo_day
+		WHERE UR_Code = #{UserCode}
+		AND VacFlag = #{VacFlag}
+		AND VacOffFlag = #{VacOffFlag}
+		AND TO_DATE(VacDate,'YYYY-MM-DD') BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD') AND TO_DATE(#{EndDate},'YYYY-MM-DD')
+		AND (GUBUN != 'VACATION_CANCEL' and GUBUN != 'VACATION_PUBLIC_CANCEL')
+	</select>
+
+	<select id="selectVacationProcessInfo" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+		    SELECT
+		    	NVL(SUM(VacDay),0) AS days
+		    	, COUNT('x') AS cnt 
+		    FROM vm_vacationinfo_process
+			WHERE VacYear = #{year}
+			AND UR_Code = #{UserCode}
+			AND Gubun = 'VACATION_APPLY'
+		]]>
+	</select>
+	
+	<update id="updateCapitalApvStatus" parameterType="cmap"> 	    
+ 	    UPDATE act_expence_application_list
+ 	    SET CapitalStatus = #{CapitalStatus}
+			, CapitalProcessID = #{CapitalProcessID}
+		WHERE ExpenceApplicationListID IN 
+		<foreach collection="ExpenceApplicationListIDs" item="ExpenceApplicationListID" index="index"  open="(" close=")" separator=",">
+           #{ExpenceApplicationListID}
+        </foreach>
+	</update>
+	
+	<select id="selectBaseCodeList" parameterType="cmap" resultType="cmap">
+		SELECT Code AS "Code", CodeName AS "CodeName" 
+		FROM act_base_code
+		WHERE CodeGroup = #{CodeGroup}
+		AND IsGroup = 'N'
+		AND IsUse = 'Y'
+		AND	CompanyCode = (
+			CASE WHEN EXISTS (SELECT Code FROM act_base_code WHERE CodeGroup = #{CodeGroup} AND IsGroup = 'N' AND IsUse = 'Y' AND CompanyCode = #{CompanyCode})
+			THEN #{CompanyCode}
+			ELSE 'ALL'
+			END
+		)
+		<if test="CodeGroup == 'IOCode'">
+		ORDER BY CodeName ASC
+		</if>
+	</select>
+	
+	<insert id="insertCapitalResolution" parameterType="cmap"><!-- 자금지출 결의서 -->
+		INSERT INTO act_capital_resolution (
+			FormInstId, ProcessId, RealPayDate, CorpCardAmount, AutoAmount, NormalAmount,
+			CashAmount, AccountAmount, RealPayAmount
+		) VALUES (
+			#{FormInstId}, #{ProcessId}, #{RealPayDate}, #{CorpCardAmount}, #{AutoAmount}, #{NormalAmount},
+			#{CashAmount}, #{AccountAmount}, #{RealPayAmount}
+		)	
+	</insert>
+
+	<insert id="insertAttendanceMngExtensionHoliday" parameterType="cmap">
+		INSERT INTO ATTEND_EXTENSIONHOLIDAY (
+			EXHOSEQ, USERCODE, JOBDATE, JOBSTSNAME, STARTTIME, ENDTIME, IDLETIME,
+			WORKTIME, ETC, BILLNAME, PROCESSID, FORMINSTID,
+			COMPANYCODE, REGISTERCODE, REGISTDATE
+		) VALUES (
+			ATTEND_EXTENSIONHOLIDAY_SEQ.NEXTVAL, #{UserCode}, #{JobDate}, #{JobStsName}, #{StartTime}, #{EndTime}, #{IdleTime},
+			#{WorkTime}, #{Etc}, #{BillName}, #{ProcessId}, #{FormInstId},
+			#{CompanyCode}, #{RegisterCode}, SYSDATE
+		)
+	</insert>
+
+	<select id="selectAttendanceHolidayCheck" parameterType="cmap" resultType="java.lang.String">
+		SELECT FN_ATTEND_HOLIDAYCHECK(#{UserCode}, #{CompanyCode}, #{TargetDate}) AS "isHoliday" FROM DUAL
+	</select>
+
+	<select id="selectAttendanceWorkTimeCheck" parameterType="cmap" resultType="java.lang.String">
+		SELECT FN_ATTEND_WORKTIMECHECK(#{UserCode}, #{TargetDate}, #{StartTime},  #{EndTime}, #{CompanyCode}) AS "workTime" FROM DUAL
+	</select>
+
+	<select id="selectAttendanceCommuteTime" parameterType="cmap" resultType="java.lang.String">
+		SELECT FN_ATTEND_COMMUTIME(#{UserCode}, #{CompanyCode}, #{TargetDate}, #{Division}) AS "commuteTime" FROM DUAL
+	</select>
+
+	<insert id="insertAttendanceSetCommute" statementType="CALLABLE" parameterType="cmap"><!-- 소명 신청서 -->
+		{ CALL SP_ATTEND_SETCOMMUTE(#{UserCode}, #{CallDate},#{StartTime}, #{EndTime}, #{CompanyCode},
+		#{Etc}, #{Subject}, #{processID}, #{FormID}, #{changeDate}) }
+	</insert>
+
+	<!-- 근무일정이 등록되어 있는지 체크 -->
+	<select id="attendDayJobCheck" parameterType="cmap" resultType="int">
+		SELECT
+			COUNT(AMJ.SCHSEQ) AS "checkJob"
+		FROM ATTEND_JOB AMJ
+			INNER JOIN ATTEND_SCHEDULE AMS ON AMJ.SCHSEQ = AMS.SCHSEQ
+		WHERE AMJ.JOBDATE = #{TargetDate}
+			AND AMJ.USERCODE = #{UserCode}
+			AND AMJ.COMPANYCODE = #{CompanyCode}
+			AND AMJ.WORKSTS NOT IN ('HOL', 'OFF')
+	</select>
+
+	<select id="attendanceRealWorkInfo" parameterType="cmap" resultType="cmap">
+		SELECT
+			TARGETDATE AS "TargetDate"
+			,#{UserName} AS "UserName"
+		<choose>
+			<when test='ReqType eq "O"'>
+				, TO_CHAR(EXTENSTART, 'HH24:MI') AS "StartTime"
+				, TO_CHAR(EXTENEND, 'HH24:MI') AS "EndTime"
+				, EXTENREAL AS "RealWorkTime"
+				, EXTENAC AS "RealACTime"
+			</when>
+			<otherwise>
+				, TO_CHAR(HOLISTART, 'HH24:MI') AS "StartTime"
+				, TO_CHAR(HOLIEND, 'HH24:MI') AS "EndTime"
+				, HOLIREAL AS "RealWorkTime"
+				, HOLIAC AS "RealACTime"
+			</otherwise>
+		</choose>
+		FROM
+			ATTEND_COMMUTING_MST
+		WHERE
+			TARGETDATE = #{JobDate}
+			AND COMPANYCODE = #{CompanyCode}
+			AND USERCODE = #{UserCode}
+	</select>
+
+</mapper>

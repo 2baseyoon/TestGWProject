@@ -1,0 +1,51 @@
+<!-- 메일/일정/결재 한눈에 보기 -->
+<div id="divWebpartSummeryCnt" class="metroview_wrap">
+	<div class="metroviewL">
+		<div class="m_mail" style="display: none;">
+			<a href="javascript:mobile_comm_go('/mail/mobile/mail/List.do')" class="m_link">
+				<i class="ico_bg"></i>
+				<p class="mtit"><spring:message code="Cache.CPMail_mail_inbox" /></p>
+				<p class="mcnt" id="pCntMailNew">0</p>
+			</a>
+		</div>
+		<div class="m_schedule" style="display:none;">
+			<a href="javascript: mobile_comm_go('/groupware/mobile/schedule/month.do?viewtype=M')" class="m_link">
+				<i class="ico_bg"></i>
+				<p class="mtit"><spring:message code="Cache.lbl_TodaySchedule" /></p>
+				<p class="mcnt" id="pCntScheduleNew">0</p>
+			</a>
+		</div>
+	</div>
+	<div class="metroviewR">
+		<div class="m_approval">
+			<div class="m_approval_t">
+				<a href="javascript:mobile_comm_go('/approval/mobile/approval/list.do')">
+					<i class="ico_bg"></i>
+					<p class="mtit"><spring:message code="Cache.lbl_MobileApprovalStatus" /></p>
+				</a>
+			</div>
+			<div class="m_approval_b">
+				<ul>
+					<li>
+						<a href="javascript:mobile_comm_go('/approval/mobile/approval/list.do')">
+							<span class="m_applistT"><spring:message code="Cache.lbl_apv_doc_approve2" /></span>
+							<span id="pCntAppval" class="m_applistN">0</span>
+						</a>
+						</li>
+					<li>
+						<a href="javascript:mobile_comm_go('/approval/mobile/approval/list.do?mode=Process')">
+							<span class="m_applistT"><spring:message code="Cache.lbl_apv_doc_process2" /></span>
+							<span id="pCntAppIng" class="m_applistN">0</span>
+						</a>
+					</li>
+					<li>
+						<a href="javascript:mobile_comm_go('/approval/mobile/approval/list.do?mode=TCInfo')">
+							<span class="m_applistT"><spring:message code="Cache.lbl_TCInfoListBox" /></span>
+							<span id="pCntAppRe" class="m_applistN">0</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,103 @@
+<!--실 결재양식 내용 부분 시작 -->
+<table class="table_10 tableStyle linePlus mt10" style="opacity: 1;"><!-- class="table_10" -->
+    <colgroup>
+        <col style="width:12%">
+        <col style="width:18%">
+      	<col style="width:12%">
+      	<col style="width:14%">
+      	<col style="width:12%">
+      	<col style="width:12%">
+      	<col style="width:*">
+    </colgroup>
+    <tbody>
+      	<tr>
+	    	<th>요청본부</th>
+          	<td colspan="2">
+              	<input type="text" readonly="readonly" data-type="smField" id="Central" value="{{ doc.BodyData.MainTable.Central }}" name="Central" style="width:100px; border:0;">
+          	</td>
+          	<th>요청부서</th>
+          	<td colspan="1">
+              	<input type="text" readonly="readonly" data-type="smField" id="Dept" value="{{ doc.BodyData.MainTable.Dept }}" name="Dept" style="width:100px; border:0;">
+          	</td>
+          	<th>요청인원</th>
+          	<td>
+              	<input type="text" data-type="smField" id="ReqNumber" required="required" class="input-required" value="{{ doc.BodyData.MainTable.ReqNumber }}" name="ReqNumber" style="width:50px;" title="요청인원">
+          	</td>
+      	</tr>
+      	<tr>
+    		<th>채용직무</th>
+    		<td colspan="1">
+    			<input type="text" data-type="smField" required="required" class="input-required" id="ReqJob" value="{{ doc.BodyData.MainTable.ReqJob }}" style="width:100%;" name="ReqJob" title="채용직무">
+    		</td>
+			<th>희망직급</th>
+          	<td colspan="2">
+          		<select required="required" class="input-required" data-type="smField" id="ReqLvlMin" data-element-type="sel_d_t" style="width: 60px" data-node-name="" name="ReqLvlMin" value="{{ doc.BodyData.MainTable.ReqLvlMin}}" title="희망직급(From)"><option value="">-선택-</option><option value="신입">신입</option><option value="사원">사원</option><option value="대리">대리</option><option value="과장">과장</option><option value="차장">차장</option><option value="부장이상">부장이상</option></select>
+              	~ 
+              	<select required="required" class="input-required" data-type="smField" id="ReqLvlMax" data-element-type="sel_d_t" style="width: 60px" data-node-name="" name="ReqLvlMax" value="{{ doc.BodyData.MainTable.ReqLvlMax}}" title="희망직급(To)"><option value="">-선택-</option><option value="신입">신입</option><option value="사원">사원</option><option value="대리">대리</option><option value="과장">과장</option><option value="차장">차장</option><option value="부장이상">부장이상</option></select>
+         	</td>
+          	<th>희망직책</th>
+          	<td>  	
+          		<select required="required" class="input-required" data-type="smField" id="ReqFunc" data-element-type="sel_d_t" style="width: 60px" data-node-name="" name="ReqFunc" value="{{ doc.BodyData.MainTable.ReqFunc}}" title="희망직책"><option value="">-선택-</option><option value="팀원">팀원</option><option value="파트장">파트장</option><option value="팀장">팀장</option></select>
+         	</td>
+    	</tr>
+      	<tr>
+    		<th>채용유형</th>
+    		<td colspan="2">
+    			<label data-type="smField" data-element-type="rdo_d" data-node-name="RecruitType" style="padding-left:2px;padding-right:2px;">
+                  	<input type="radio" name="RecruitType" value="충원" data-text="Yes" id="RecruitType_FILL">충원
+              	</label>
+              	<label data-type="smField" data-element-type="rdo_d" data-node-name="RecruitType" style="padding-left:2px;padding-right:2px;">
+                  	<input type="radio" name="RecruitType" value="증원" data-text="No" id="RecruitType_INCREASE">증원
+             	</label>
+         	</td>
+          	<th>
+              	채용유형(증원)
+          	</th>
+    		<td colspan="3">
+    			<label data-type="smField" data-element-type="rdo_d" data-node-name="RecruitAddingType" style="padding-left:2px;padding-right:2px;">
+                  	<input type="radio" name="RecruitAddingType" value="사장님 구두보고 완료" data-text="Yes" id="RecruitAddingType1">사장님 구두보고 완료
+              	</label>
+              	<br style="">
+              	<label data-type="smField" data-element-type="rdo_d" data-node-name="RecruitAddingType" style="padding-left:2px;padding-right:2px;">
+                  	<input type="radio" name="RecruitAddingType" value="당해년도 사업계획 반영" data-text="No" id="RecruitAddingType2">당해년도 사업계획 반영
+             	</label>
+         	</td>
+    	</tr>
+      	<tr>
+    		<th>채용사유</th>
+    		<td colspan="6">
+    			<textarea id="RecruitReason" name="RecruitReason" required="required" class="input-required" rows="3" data-type="smField" style="width: 98%;" title="채용사유">{{ doc.BodyData.MainTable.RecruitReason }}</textarea>
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>업무내용</th>
+    		<td colspan="6">
+    			<textarea id="JobDesc" name="JobDesc" required="required" class="input-required" rows="3" data-type="smField" style="width: 98%;" title="업무내용">{{ doc.BodyData.MainTable.JobDesc }}</textarea>
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>자격요건</th>
+    		<td colspan="6">
+    			<textarea id="Qualification" name="Qualification" required="required" class="input-required" rows="3" data-type="smField" style="width: 98%;" title="자격요건">{{ doc.BodyData.MainTable.Qualification }}</textarea>
+    		</td>
+    	</tr>
+      	<tr>
+    		<th>우대조건</th>
+    		<td colspan="6">
+    			<textarea id="Preference" name="Preference" required="required" class="input-required" rows="3" data-type="smField" style="width: 98%;" title="우대조건">{{ doc.BodyData.MainTable.Preference }}</textarea>
+    		</td>
+    	</tr>
+      	<tr>
+    		<td colspan="7">
+				※ 채용 직무, 희망 경력년수, 업무 내용, 자격/우대요건 등 구체적으로 작성해주시길 바랍니다.
+				<br style="">
+				※ 채용 유형 
+				<br style="">	
+              	- 충원 : 기존 인력 퇴사로 인한 채용 (채용 사유에 퇴사한 기존 인력의 정보를 기재해주세요.)
+				<br style="">
+              	- 증원 : 사업계획 시 계획하지 않았는데 업무 조정 등의 사유로 인해 TO가 발생한 경우
+    		</td>
+    	</tr>
+	</tbody>
+</table>
+<!--실 결재양식 내용 부분 끝 -->

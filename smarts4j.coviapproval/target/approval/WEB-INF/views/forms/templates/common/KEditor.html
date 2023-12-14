@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title></title>
+    <script type="text/javascript" src="/covicore/resources/script/jquery.min.js"></script>
+    <script type="text/javascript" src="../KEditor/js/raonkeditor.js"></script>
+    <script type="text/javascript">
+    	
+    	var containerID = window.name; 
+    	
+    	//keditor 에디터 로딩 완료 호출 이벤트
+        function RAONKEDITOR_CreationComplete(containerID) {
+			//console.log('dext5 loaded.');
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].focusObjID != undefined ){
+				var focusObjId = window.parent.coviEditor.editorVariables[containerID].focusObjID; 
+				//window.parent.document.getElementById(focusObjId).attr("tabindex", -1).focus();	
+				if(focusObjId != ''){
+					$('#' + focusObjId, window.parent.document).focus();	
+				}
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].useResize != undefined ){
+				var useResize = window.parent.coviEditor.editorVariables[containerID].useResize; 
+				if(useResize == 'N'){
+					$('#resizeContainer').hide();	
+				}
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].frameHeight != undefined ){
+				var frameHeight = window.parent.coviEditor.editorVariables[containerID].frameHeight; 
+				var $container = $('.keditorContainer');
+				$container.height(frameHeight);
+				//  Editor 높이 조절
+	            $('#keditor_frame_holder' + containerID).height($container.height());
+	            //  Editor 감싸는 iFrame 높이 조절
+	            parent.document.all[containerID + 'Frame'].height = $container.height() + 30;
+			}
+			
+			if(window.parent.coviEditor.editorVariables[containerID] != null && 
+					window.parent.coviEditor.editorVariables[containerID].onLoad != undefined &&
+					window.parent.coviEditor.editorVariables[containerID].onLoad != '' ){
+				
+				if(typeof window.parent.coviEditor.editorVariables[containerID].onLoad == "string" &&
+						window.parent[window.parent.coviEditor.editorVariables[containerID].onLoad] != undefined){
+					window.parent[window.parent.coviEditor.editorVariables[containerID].onLoad]();
+					
+				}else if(typeof window.parent.coviEditor.editorVariables[containerID].onLoad == "function"){
+					window.parent.coviEditor.editorVariables[containerID].onLoad();
+				}
+				
+			}
+			//Editor load가 완료되었는지 확인(다안기안 Editor load 지연현상으로 인해 추가)
+			window.parent.document.getElementById(containerID+ "Frame").setAttribute("editorloaded", "Y");
+        }
+    	
+        //에디터 창 높이 조절 함수
+        function resizeHeight(pMode) {
+        	var $container = $('.keditorContainer');
+            if (pMode == "plus") {
+                if (($container.height() + 200) < 1000) {
+                    $container.height($container.height() + 200);
+                }
+            }
+
+            if (pMode == "minus") {
+                if (($container.height() - 200) > 100) {
+                    $container.height($container.height() - 200);
+                }
+            }
+
+            // Dext5 Editor 높이 조절
+            $('#keditor_frame_holder' + containerID).height($container.height());
+
+            // Dext5 Editor 감싸는 iFrame 높이 조절
+            parent.document.all[containerID + 'Frame'].height = $container.height() + 30;
+        }
+
+        function k_editor_fn_getHtmlValueEx(ptype, pcallback) {
+            var _gettype = (ptype==null)?'htmlex':ptype;
+            var fn_callback = function (paramObj){
+                return paramObj.strData;
+            };
+
+            RAONKEDITOR.GetHtmlContents({
+                type: _gettype,
+                callback: pcallback
+            }, containerID);
+        }        
+        function k_editor_fn_getBodyValue(ptype, pcallback) {
+            var _gettype = (ptype==null)?'body':ptype;
+
+            RAONKEDITOR.GetHtmlContents({
+                type: _gettype,
+                callback: pcallback
+            }, containerID);
+        }        
+    </script>
+</head>
+<body>
+    <div class="keditorContainer">
+        <script type="text/javascript">
+			var g_editorLang = "";
+			
+			switch(window.parent.Common.getSession("lang")){
+				case "en":
+					g_editorLang = "en-us";
+					break;
+				case "ko":
+					g_editorLang = "ko-kr";
+					break;
+				case "ja":
+					g_editorLang = "ja-jp";
+					break;
+				case "zh":
+					g_editorLang = "zh-cn";
+					//g_editorLang = "zh-tw";
+					break;
+				default:
+					g_editorLang = "ko-kr";
+					break;
+			}
+        
+            var keditor_config_xml = "raonkeditor.config.xml";
+            try {
+	        	if(window.parent.coviEditor.editorVariables[containerID].target == "divWebEditorContainer") {
+	        	    keditor_config_xml = "raonkeditor_approval.config.xml";
+	        	}
+			} catch(e) {
+			    keditor_config_xml  = "raonkeditor.config.xml";
+			}
+			var keditor_InitServerXml = window.parent.Common.getBaseConfig("raonkEditorURL");
+            //var raonkParam = {Id:containerID,Width:'100%',Height:'450px',ZIndex:'100001',InitServerXml:keditor_InitServerXml+'handler/raonkhandler.jsp?f='+keditor_config_xml,Lang:g_editorLang,Runtimes:'html5'};
+            var raonkParam = {Id:containerID,Width:'100%',ZIndex:'100001',Lang:g_editorLang,Runtimes:'html5'};
+            var editor = new RAONKEditor(raonkParam);
+    	</script>
+    </div>
+    <div id="resizeContainer">
+        <table style="width: 100%; background: #F6F6F6; margin-top: 0px; border: 1px solid #BDBDBD; border-top: 0.5px; border-bottom: 0.5px">
+            <tr>
+                <td style="height: 15px; text-align: center;">
+                    <table class="editor_size" cellpadding="0" cellspacing="0" align="center">
+                        <tr>
+                            <td style="height: 11px; text-align: center; vertical-align: middle">
+                            	<a href="javascript:;" onclick="resizeHeight('minus');">
+                                	<img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/editor_minus.gif" alt="minus" title="minus" />
+                                </a>
+                            </td>
+                            <td>&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            <td style="height: 11px; text-align: center; vertical-align: middle">
+                            	<a href="javascript:;" onclick="resizeHeight('plus');">
+                                	<img src="/HtmlSite/smarts4j_n/approval/resources/images/Approval/editor_plus.gif" alt="plus" title="plus" />
+                                </a>
+                        	</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.oAuth2">
+	
+    <select id="getEmail" parameterType="cmap" resultType="String">
+	    <![CDATA[
+		    SELECT Mail AS "Mail"
+		    FROM SYS_OBJECT_USER_GOOGLE
+		    WHERE 1=1
+		    AND UserCode = #{UserCode}
+	    ]]>
+	</select>
+	
+	<select id="getOAuthInfo" parameterType="cmap" resultType="String">
+	    <![CDATA[
+		    SELECT SettingValue AS "SettingValue"
+		    FROM SSO_CONFIG sso
+		    WHERE 1=1
+		    AND Code = #{code}
+		    AND DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SSO_CONFIG WHERE Code = sso.Code AND DomainID = #{domainID})
+	    ]]>
+	</select>
+	
+	<select id="getOAuthClient" parameterType="cmap" resultType="String">
+	    SELECT  client_id AS "client_id"
+		FROM OAUTH_CLIENT
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM OAUTH_CLIENT bc
+				  INNER JOIN SYS_OBJECT_DOMAIN sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN SYS_OBJECT_USER_BASEGROUP soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN SYS_OBJECT_USER ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code}) b)
+	    
+	</select>
+	
+	<select id="getOAuthRedirect" parameterType="cmap" resultType="String">
+	    SELECT redirect_uri AS "redirect_uri"
+		FROM OAUTH_CLIENT
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM OAUTH_CLIENT bc
+				  INNER JOIN SYS_OBJECT_DOMAIN sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN SYS_OBJECT_USER_BASEGROUP soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN SYS_OBJECT_USER ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code}) b)
+	</select>
+	
+	<select id="getOAuthClientKey" parameterType="cmap" resultType="String">
+	    SELECT client_secret AS "client_secret"
+		FROM OAUTH_CLIENT
+		WHERE 1=1 
+		AND client_id = 
+			 (SELECT b.client_id FROM
+				( SELECT  client_id
+			      FROM OAUTH_CLIENT bc
+				  INNER JOIN SYS_OBJECT_DOMAIN sod ON sod.DomainURL = bc.domainURL 
+				  INNER JOIN SYS_OBJECT_USER_BASEGROUP soub ON soub.CompanyCode = sod.DomainCode
+				  INNER JOIN SYS_OBJECT_USER ur ON soub.UserCode = ur.UserCode
+				  WHERE 1=1 
+				  AND ur.UserCode = #{ur_code}) b)
+	    
+	</select>
+</mapper>
+

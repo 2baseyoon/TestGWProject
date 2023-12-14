@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="xform.xformEditor">
+    <select id="selectFormList" parameterType="cmap" resultType="cmap">
+		SELECT F.FormID
+			,F.FormName
+			,F.IsUse
+			,F.RegDate
+			,F.FileName
+			,F.Revision
+			,F.FormPrefix
+			,FS.SchemaID
+			,CONCAT(F.FormPrefix,'_V',F.Revision,'.js') AS JsFileName
+			,F.CompanyCode
+		FROM covi_approval4j.jwf_forms AS F 
+		INNER JOIN covi_approval4j.jwf_formsSchema AS FS ON F.SchemaID = FS.SchemaID
+		<if test="CompanyCode != null and CompanyCode != '' and CompanyCode.length() gt 0">
+			AND F.CompanyCode = #{CompanyCode}
+		</if>
+		ORDER BY F.SortKey, F.FormName
+	</select>
+	
+	<select id="selectTemplateList" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+	    	SELECT * 
+	    	FROM covi_approval4j.jwf_XFormTemplate
+	    ]]>  
+	</select>
+
+	<select id="selectTemplateData" parameterType="cmap" resultType="cmap">
+	    <![CDATA[
+	    	SELECT * 
+	    	FROM covi_approval4j.jwf_XFormTemplate 
+	    	WHERE TemplateID = #{templateID}
+	    ]]>  
+	</select>
+	
+	<insert id="insertTemplateData" parameterType="cmap">
+	    INSERT INTO covi_approval4j.jwf_XFormTemplate(TemplateName, TemplateHTML)
+		VALUES(#{templateName},#{templateHTML});
+	</insert>
+	
+	<delete id="deleteTemplateData" parameterType="cmap">
+	    DELETE FROM covi_approval4j.jwf_XFormTemplate 
+	    WHERE TemplateID = #{templateID}
+	</delete>
+</mapper>
+

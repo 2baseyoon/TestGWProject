@@ -1,0 +1,1201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.resource">
+	<!-- EVENT_ATTENDANT : 2022.03.15 자원예약 시 참석자 추가 될 경우 insert -->
+    <insert id="insertResEventAttendant" parameterType="cmap">
+        INSERT INTO EVENT_ATTENDANT
+        (	EventID
+		  , AttenderCode
+		  , MultiAttenderName
+		  , IsOutsider
+		  , IsAllow) 
+	VALUES (   #{EventID}				<!-- EVENT의 ID -->
+		  , #{AttenderCode}			<!--  참석자 코드 -->
+		  , #{MultiAttenderName}	<!--  참석자 명 (다국어값) -->
+		  , #{IsOutsider}			<!--  외부참석자 여부 -->
+		  , #{IsAllow}				<!--  '' -->
+		)
+    </insert>
+
+	<!-- Attendant 테이블 데이터 삭제 -->
+    <delete id="deleteEventAttendant" parameterType="cmap">
+        DELETE FROM EVENT_ATTENDANT
+         WHERE EventID = #{EventID}
+    </delete>
+    
+    <!-- 삭제된 참석자가 개인일정으로 별도 등록했을 경우 삭제 -->
+    <delete id="deleteEventByAttendeeData">
+        DELETE FROM EVENT
+         WHERE LinkEventID = #{EventID}
+           AND EventType = 'A'
+        <if test="AttenderCode != null and AttenderCode != '' ">
+           AND OwnerCode = #{AttenderCode}
+        </if>
+    </delete>
+  
+  	<!-- EVENT_ATTENDANT -->
+    <insert id="insertEventAttendant" parameterType="cmap">
+        INSERT INTO EVENT_ATTENDANT
+		(   EventID
+		  , AttenderCode
+		  , MultiAttenderName
+		  , IsOutsider
+		  , IsAllow
+		) VALUES (
+			#{EventID}					
+			, #{AttenderCode}
+			, #{MultiAttenderName}
+			, #{IsOutsider}
+			, #{IsAllow}
+		)
+    </insert>
+ 	<!-- Resource Event selectResEventAttendant 조회 -->
+    <select id="selectResEventAttendant" parameterType="cmap" resultType="cmap">
+       	SELECT   AttenderCode AS "UserCode"
+        	   , Fn_BaseGetDictionary_S(#{lang}, MultiAttenderName) AS "UserName"
+        	   , DeptCode AS "DeptCode"
+        	   , Fn_BaseGetDictionary_S(#{lang}, MultiDeptName) AS "DeptName"
+        	   , IsOutsider AS "IsOutsider"
+        	   , IsAllow AS "IsAllow"
+          FROM   EVENT_ATTENDANT EA
+     LEFT JOIN   SYS_OBJECT_USER_BASEGROUP BG 
+     		ON 	 EA.AttenderCode = BG.UserCode AND BG.JobType = 'Origin'
+         WHERE   EventID = #{EventID}
+    </select>
+
+    <select id="selectACLData" parameterType="cmap" resultType="cmap">
+        <if test="S_FolderIDs != ''  or  C_FolderIDs != ''  or D_FolderIDs != ''  or M_FolderIDs != ''  or E_FolderIDs != ''  or R_FolderIDs != '' ">
+        SELECT 
+        	type AS "type"
+    	    , FolderID AS "FolderID"
+			, FolderType AS "FolderType"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiDisplayName) AS "MultiDisplayName"
+			, SecurityLevel AS "SecurityLevel"
+			FROM (
+			<trim prefixOverrides="UNION ALL">
+				<if test="S_FolderIDs != null and S_FolderIDs != '' ">
+					SELECT
+						'S' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='S_FolderIDArr != null and S_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="S_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+				<if test="C_FolderIDs != null and C_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'C' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='C_FolderIDArr != null and C_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="C_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+				<if test="D_FolderIDs != null and D_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'D' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='D_FolderIDArr != null and D_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="D_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+				<if test="M_FolderIDs != null and M_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'M' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='M_FolderIDArr != null and M_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="M_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if> 
+				<if test="E_FolderIDs != null and E_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'E' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='E_FolderIDArr != null and E_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="E_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+				<if test="V_FolderIDs != null and V_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'V' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='V_FolderIDArr != null and V_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="V_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+				<if test="R_FolderIDs != null and R_FolderIDs != '' ">
+					UNION ALL
+					
+					SELECT
+						'R' as type
+				      , FD.*
+					FROM SYS_OBJECT_FOLDER FD
+					WHERE 1=1
+					<if test='R_FolderIDArr != null and R_FolderIDArr.length != 0'>
+						AND FolderID IN  
+						<foreach collection="R_FolderIDArr" item="item" open="(" close=")" separator=",">
+							#{item}
+						</foreach>
+					</if>
+					AND ObjectType = 'Resource'
+					AND DeleteDate IS NULL
+					AND IsUse = 'Y' 
+	  				AND IsDisplay = 'Y'
+				</if>
+			</trim>
+			) A
+			WHERE
+				ObjectType = 'Resource'
+				AND DeleteDate IS NULL
+				AND IsUse = 'Y' 
+  				AND IsDisplay = 'Y'
+			ORDER BY SortPath
+		</if>
+    </select>
+    
+    <!--예약 정보 조회 (목록형)  -->
+    <select id="selectBookingList" parameterType="cmap" resultType="cmap">
+        /* queryID : user.resource.selectBookingList */
+        <include refid="oracle.include.pagingHeader"/>
+			SELECT  A.EventID AS "EventID"
+				 , A.DateID AS "DateID"
+			     , A.FolderID AS "FolderID" 
+			     , A.FolderType AS "FolderType" 
+			     , A.ResourceID AS "ResourceID" 
+			     , A.RepeatID AS "RepeatID" 
+			     , A.ResourceName AS "ResourceName" 
+			     , A.Subject AS "Subject" 
+			     , A.StartDateTime AS "StartDateTime" 
+			     , A.EndDateTime AS "EndDateTime" 
+			     , A.IsRepeat AS "IsRepeat"  
+			     , A.ApprovalState AS "ApprovalState"  
+			     , A.ApprovalStateCode AS "ApprovalStateCode"  
+			     , A.BookingType AS "BookingType"  
+			     , A.ReturnType AS "ReturnType"  
+			     , A.ReturnTypeCode AS "ReturnTypeCode" 
+			     , A.LeastRentalTime AS "LeastRentalTime" 
+			     , A.RegisterCode AS "RegisterCode"  
+			     , A.RegisterName AS "RegisterName"  
+			     , A.RegistDate  AS "RegistDate"  
+			FROM (	
+				
+				<![CDATA[
+						 SELECT a.EventID
+								  ,b.DateID
+								  ,CASE WHEN a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL THEN c.ResourceID
+							  			ELSE a.FolderID END AS FolderID
+								  ,e.FolderType
+								  ,c.ResourceID
+								  ,b.RepeatID
+								  , (CASE WHEN (e.DomainID = #{domainID}) THEN FN_BASEGETDICTIONARY_S(#{lang},e.MultiDisplayName)
+								  		ELSE '['||Fn_GetSelDictionary(#{lang},'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},e.MultiDisplayName)
+								  		END
+								  	) AS ResourceName
+								  ,a.Subject
+								  ,b.StartDateTime
+								  ,TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AS EndDateTime
+								  ,b.IsRepeat
+								  ,CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS ApprovalState
+								  ,CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS ApprovalStateCode
+								  ,f.BookingType
+								  ,f.ReturnType
+								  ,f.ReturnType AS ReturnTypeCode
+								  ,f.LeastRentalTime
+								  ,a.RegisterCode
+								  ,FN_BASEGETDICTIONARY_S(#{lang},a.MultiRegisterName) AS RegisterName
+								  ,a.RegistDate
+						  FROM EVENT a 
+						  INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+						  LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+						  LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID 
+						  INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+						  LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+						  WHERE ( (a.FolderType LIKE 'Resource%') OR (a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL) )
+						  AND c.DeleteDate IS NULL
+						  AND e.DeleteDate IS NULL
+				]]>
+			   <if test="Subject != null and Subject !='' ">
+					AND a.Subject LIKE '%'||#{Subject}||'%'
+				</if>
+				<if test="RegisterName !=null and RegisterName !='' ">
+					 AND  FN_BASEGETDICTIONARY_S(#{lang},a.MultiRegisterName) LIKE '%'||#{RegisterName}||'%'
+				</if>
+				<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != '' ">
+				    <choose>
+					    <when test="searchDateType == 'RegistDate'">
+					      AND a.RegistDate BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD HH24:MI:SS') and TO_DATE(#{EndDate},'YYYY-MM-DD HH24:MI:SS')
+					    </when>
+					    <when test="searchDateType == 'BookingDate' " >
+					     AND  (  ( b.StartDateTime BETWEEN #{StartDate} AND #{EndDate} ) OR  (TO_CHAR( c.RealEndDateTime, 'YYYYMMDDHH24MI') BETWEEN REPLACE(#{StartDate},'-','') AND REPLACE(#{EndDate},'-','') )  )
+					    </when>
+				    </choose>
+			  	</if>
+			  	<if test="userID != null and userID !='' and userID.length() gt 0">
+			  	     AND a.RegisterCode = #{userID}
+			  	</if>
+				<choose>
+					<when test='isGetShared != null and isGetShared.equalsIgnoreCase("Y")'>
+						<if test="linkFolderIDs != null and linkFolderIDs.length != 0">
+					AND c.ResourceID  in
+							<foreach collection="linkFolderIDs" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+					</when>
+					<otherwise>
+						<if test="FolderIDs != null and FolderIDs.length != 0">
+					AND c.ResourceID  in
+							<foreach collection="FolderIDs" item="item" index="index" separator="," open="(" close=")">
+								#{item}
+							</foreach>
+						</if>
+						<if test="domainID != null and domainID !=''">
+					AND ( e.DomainID = #{domainID} OR e.DomainID = 0)
+						</if>
+					</otherwise>
+				</choose>
+			  	<if test="arrApprovalState != null and arrApprovalState != '' ">
+			  	    <![CDATA[  AND CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END   IN ]]>
+			  	     <foreach item="item" index="index" collection="arrApprovalState" open="(" close=")" separator=",">
+			            #{item}
+			    	</foreach>
+			  	</if>
+			  	<if test="SearchText != null and SearchText != ''">
+			  	    AND (
+						a.Subject LIKE '%'||#{SearchText}||'%' OR 
+						a.MultiRegisterName LIKE '%'||#{SearchText}||'%' 
+					)
+			  	</if>
+			)A
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY"  prefixOverrides =",">
+				<if test="sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+					StartDateTime DESC
+				</if>
+				<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("StartDateTime")'>StartDateTime</when>
+						<when test='sortColumn.equalsIgnoreCase("EndDateTime")'>EndDateTime</when>
+						<when test='sortColumn.equalsIgnoreCase("Subject")'>Subject</when>
+						<when test='sortColumn.equalsIgnoreCase("ResourceName")'>ResourceName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApprovalStateCode")'>ApprovalStateCode</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<otherwise>RegistDate</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+					<include refid="oracle.include.listOrderBy"/>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+    <select id="selectBookingListCnt" parameterType="cmap" resultType="java.lang.Long">
+		/* queryID : user.resource.selectBookingListCnt */
+			<![CDATA[
+					  SELECT COUNT(*)
+					  FROM EVENT a 
+					  INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+					  LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+					  LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID 
+					  INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+					  LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+					  WHERE ( (a.FolderType LIKE 'Resource%') OR (a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL) )
+		 			  AND c.DeleteDate IS NULL
+		 			  AND e.DeleteDate IS NULL
+			]]>
+			<if test="Subject != null and Subject !='' ">
+				AND a.Subject LIKE '%'||#{Subject}||'%'
+			</if>
+			<if test="RegisterName !=null and RegisterName !='' ">
+				 AND  FN_BASEGETDICTIONARY_S(#{lang},a.MultiRegisterName) LIKE '%'||#{RegisterName}||'%'
+			</if>
+			<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != '' ">
+			    <choose>
+				    <when test="searchDateType == 'RegistDate'">
+				      AND a.RegistDate BETWEEN TO_DATE(#{StartDate},'YYYY-MM-DD HH24:MI:SS') and TO_DATE(#{EndDate},'YYYY-MM-DD HH24:MI:SS')
+				    </when>
+				    <when test="searchDateType == 'BookingDate' " >
+				     AND  (  ( b.StartDateTime BETWEEN #{StartDate} AND #{EndDate} ) OR  (TO_CHAR( c.RealEndDateTime, 'YYYYMMDDHH24MI') BETWEEN REPLACE(#{StartDate},'-','') AND REPLACE(#{EndDate},'-','') )  )
+				    </when>
+			    </choose>
+		  	</if>
+		  	<if test="userID != null and userID !='' and userID.length() gt 0">
+		  	     AND a.RegisterCode = #{userID}
+		  	</if>
+			<choose>
+		  		<when test='isGetShared != null and isGetShared.equalsIgnoreCase("Y")'>
+		  			<if test="linkFolderIDs != null and linkFolderIDs.length != 0">
+		  		AND c.ResourceID  in
+		  				<foreach collection="linkFolderIDs" item="item" index="index" separator="," open="(" close=")">
+		  					#{item}
+		  				</foreach>
+		  			</if>
+		  		</when>
+		  		<otherwise>
+		  			<if test="FolderIDs != null and FolderIDs.length != 0">
+		  		AND c.ResourceID  in 
+		  				<foreach collection="FolderIDs" item="item" index="index" separator="," open="(" close=")">
+		                    #{item}
+			            </foreach>
+		  			</if>
+		  			<if test="domainID != null and domainID !=''">
+		  		AND ( e.DomainID = #{domainID} OR e.DomainID = 0)
+		  			</if>
+		  		</otherwise>
+		  	</choose>
+		  	<if test="arrApprovalState != null and arrApprovalState != '' ">
+		  	    <![CDATA[  AND CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END   IN ]]>
+		  	     <foreach item="item" index="index" collection="arrApprovalState" open="(" close=")" separator=",">
+		            #{item}
+		    	</foreach>
+		  	</if>
+		  	<if test="SearchText != null and SearchText != ''">
+		  	    AND (
+					a.Subject LIKE '%'||#{SearchText}||'%' OR 
+					a.MultiRegisterName LIKE '%'||#{SearchText}||'%' 
+				)
+		  	</if>
+	</select>
+    
+    <!-- 향후 주간과 일간 쿼리가 차이가 없을 경우 하나로 통일 => 통일 -->
+    <select id="selectBookingPeriodList" parameterType="cmap" resultType="cmap">
+        /* queryID : user.resource.selectBookingPeriodList */
+         	
+	        SELECT         a.EventID AS "EventID"
+						  ,b.DateID AS "DateID"
+						  ,CASE WHEN a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL THEN c.ResourceID
+						  		ELSE a.FolderID END AS "FolderID"
+						  ,c.ResourceID AS "ResourceID"
+						  <if test="FolderIDs != null and FolderIDs.length != 0">
+						  , NVL( CASE
+						  		<foreach collection="FolderIDs" item="item" index="index" separator="" open="" close="">
+						  			<choose>
+								    	<when test='isSaaS == "Y"'>
+								    		WHEN (e.DomainID = #{DomainID} AND e.FolderID = #{item}) THEN e.FolderID
+								    	</when>
+								    	<otherwise>
+								    		WHEN ((e.DomainID = #{DomainID} OR e.DomainID = 0) AND e.FolderID = #{item}) THEN e.FolderID
+								    	</otherwise>
+								    </choose>
+						  		</foreach>
+						  		END , 
+						  		<choose>
+						  			<when test='DomainID.equals("0")'>
+						  				e.LinkFolderID
+						  			</when>
+						  			<otherwise>
+						  				<choose>
+							  				<when test='isSaaS == "Y"'>
+									    		(SELECT MIN(FolderID) FROM SYS_OBJECT_FOLDER WHERE DomainID = #{DomainID} AND e.FolderID = LinkFolderID AND IsUse = 'Y' AND IsDisplay = 'Y')
+									    		
+									    	</when>
+									    	<otherwise>
+									    		(SELECT MIN(FolderID) FROM SYS_OBJECT_FOLDER WHERE (DomainID = #{DomainID} OR DomainID = 0) AND e.FolderID = LinkFolderID AND IsUse = 'Y' AND IsDisplay = 'Y')
+									    	</otherwise>
+						  				</choose>
+						  			</otherwise>
+						  		</choose>
+						  		) AS "IntegratedID"
+						  </if>
+						  , (CASE WHEN (e.LinkFolderID IS NULL AND e.IsShared = 'Y') THEN Fn_BaseGetDictionary_S(#{lang},e.MultiDisplayName)
+						  		WHEN (e.IsShared = 'Y') THEN '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},e.MultiDisplayName)
+								ELSE '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},e.MultiDisplayName)
+								END
+							) AS "FolderName"
+						  ,b.RepeatID AS "RepeatID"
+	 					  ,b.IsRepeat AS "IsRepeat"
+						  ,a.Subject  AS "Subject"
+						  ,b.StartDate AS "StartDate"
+						  ,b.StartTime AS "StartTime"
+						  ,TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD') AS "EndDate"
+						  ,TO_CHAR(c.RealEndDateTime,'HH24:MI') AS "EndTime"
+						  ,b.StartDateTime AS "StartDateTime"
+						  ,TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AS "EndDateTime"
+						  ,CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime <![CDATA[<]]> TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS "ApprovalState"
+						  ,a.RegisterCode AS "RegisterCode"
+						  ,FN_BASEGETDICTIONARY_S(#{lang},a.MultiRegisterName) AS "RegisterName"
+				  FROM EVENT a 
+				  INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+				  LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+				  LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID 
+				  INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+				  LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+				  WHERE ( (a.FolderType LIKE 'Resource%') OR (a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL) )
+		  		  AND a.DeleteDate IS NULL
+		  		  AND c.DeleteDate IS NULL
+		  		  AND e.DeleteDate IS NULL
+				  <choose>
+				  	<when test="arrApprovalState != null and arrApprovalState != '' ">
+				  		<![CDATA[  AND CASE WHEN f.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END   IN ]]>
+						<foreach item="item" index="index" collection="arrApprovalState" open="(" close=")" separator=",">
+				            #{item}
+				    	</foreach>
+				  	</when>
+				  	<otherwise>
+				  		 AND c.ApprovalState IN ('ApprovalRequest', 'Approval', 'ReturnRequest', 'ReturnComplete')
+				  	</otherwise>
+				  </choose>
+			<choose>
+				<when test='isGetShared != null and isGetShared.equalsIgnoreCase("Y")'>
+					<if test="linkFolderIDs != null and linkFolderIDs.length != 0">
+				  AND c.ResourceID  in
+				  		<foreach collection="linkFolderIDs" item="item" index="index" separator="," open="(" close=")">
+				  			#{item}
+				  		</foreach>
+					</if>
+				</when>
+				<otherwise>
+					<if test="FolderIDs != null and FolderIDs.length != 0">
+				AND c.ResourceID  in
+						<foreach collection="FolderIDs" item="item" index="index" separator="," open=" (" close=")">
+                			#{item}
+	            		</foreach>
+		  			</if>
+				</otherwise>
+			</choose>
+			<if test="StartDate != null and StartDate != '' and EndDate != null and EndDate != '' ">
+			  	   <![CDATA[
+					AND ( 	(#{StartDate} <= b.StartDateTime AND TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDate}) OR 
+				  	   	(#{StartDate} < b.StartDateTime  AND b.StartDateTime < #{EndDate} AND #{EndDate} <= TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI')) OR
+				  	   	(b.StartDateTime <= #{StartDate} AND #{StartDate} < TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDate}) OR 
+				  	   	(b.StartDateTime <= #{StartDate} AND #{EndDate} <= TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI'))    )
+			  	  ]]>
+		  	</if>
+		  	ORDER BY StartDateTime ASC
+	</select>
+	
+	 <select id="selectBookingData" parameterType="cmap" resultType="cmap">
+	 	/* queryId : user.resource.selectBookingData */
+			<![CDATA[
+					SELECT     a.EventID AS "EventID"
+							  ,b.DateID  AS "DateID"
+							  ,a.FolderID AS "FolderID"
+							  ,FD.FolderType AS "FolderType"
+							  ,FN_BASEGETDICTIONARY_S(#{lang}, FD.MultiDisplayName) AS "ResourceName"
+							  ,c.ResourceID AS "ResourceID"
+							  ,b.RepeatID AS "RepeatID"
+							  ,b.IsRepeat AS "IsRepeat"
+							  ,b.IsAllDay AS "IsAllDay"
+							  ,a.Subject AS "Subject"
+							  ,a.Description AS "Description"
+							  ,b.StartDateTime AS "StartDateTime"
+							  ,TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AS "EndDateTime"
+							  ,CASE WHEN R.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS "ApprovalState"
+							  ,CASE WHEN R.ReturnType = 'AutoReturn' AND b.EndDateTime < TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI') AND c.ApprovalState = 'Approval' THEN 'ReturnComplete' ELSE c.ApprovalState END  AS "ApprovalStateCode"
+							  ,R.BookingType AS "BookingType"
+							  ,R.BookingType AS "BookingTypeCode"
+							  ,R.ReturnType AS "ReturnType"
+							  ,R.ReturnType AS "ReturnTypeCode"
+							  ,a.RegisterCode AS "RegisterCode"
+							  ,UR.PhotoPath AS "RegisterPhoto"
+							  ,a.OwnerCode AS "OwnerCode"
+							  ,FN_BASEGETDICTIONARY_S(#{lang},a.MultiRegisterName) AS "RegisterName"
+							  ,CASE WHEN a.FolderType LIKE 'Resource%' THEN '' ELSE TO_CHAR(a.EventID) END AS "LinkScheduleID"
+							  ,FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiJobPositionName) AS "UserPositionName"
+							  ,FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiDeptName) AS "UserDeptName"
+							  ,FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiJobLevelName) AS "UserLevelName"
+							  ,FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiJobTitleName) AS "UserTitleName"
+					FROM EVENT a 
+					INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+					LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+					LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID 
+					LEFT JOIN SYS_OBJECT_FOLDER FD ON FD.FolderID = c.ResourceID
+					LEFT JOIN RESOURCE_ R ON Fn_ResourceParentIDGet_S(FD.FolderID) = R.FolderID
+					LEFT JOIN SYS_OBJECT_USER_BASEGROUP UG ON a.RegisterCode = UG.UserCode AND UG.JobType = 'Origin'
+					LEFT JOIN SYS_OBJECT_USER UR ON a.RegisterCode = UR.UserCode
+					WHERE ( (a.FolderType LIKE 'Resource%') OR (a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL) )
+			]]>
+			<!-- 1개 예약 정보 조회   -->
+			<if test="FolderIDArr == null or FolderIDArr.size == 0">
+				<if test="FolderID != null and FolderID != '' ">
+			    AND c.ResourceID = #{FolderID}
+				</if>
+			</if>
+			<if test="EventID != null and EventID !='' ">
+			    AND a.EventID = #{EventID}
+			</if>
+			<if test="RepeatID != null and RepeatID !='' ">
+			    AND b.RepeatID = #{RepeatID}
+			</if>
+			<if test="DateID != null and DateID !='' ">
+			    AND b.DateID = #{DateID}
+			</if>
+			
+			<!-- N개의 예약정보 조회 (N > 1)  -->
+			<if test="FolderIDArr != null and FolderIDArr.size != 0">
+		  		AND c.ResourceID IN 
+		        <foreach item="folderID" index="index" collection="FolderIDArr" open="(" close=")" separator=",">
+		            #{folderID}
+		       	</foreach>
+			</if>
+			<if test="EventIDArr != null and EventIDArr.size != 0">
+		  		AND a.EventID IN 
+		        <foreach item="eventID" index="index" collection="EventIDArr" open="(" close=")" separator=",">
+		            #{eventID}
+		       	</foreach>
+			</if>
+			<if test="RepeatIDArr != null and RepeatIDArr.size != 0">
+		  		AND b.RepeatID IN 
+		        <foreach item="repeatID" index="index" collection="RepeatIDArr" open="(" close=")" separator=",">
+		            #{repeatID}
+		       	</foreach>
+			</if>
+			<if test="DateIDArr != null and DateIDArr.size != 0">
+		  		AND b.DateID IN 
+		        <foreach item="dateID" index="index" collection="DateIDArr" open="(" close=")" separator=",">
+		            #{dateID}
+		       	</foreach>
+			</if>
+	</select>
+
+    <select id="selectFolderData" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT    a.FolderID AS "FolderID"
+							, FN_BASEGETDICTIONARY_S(#{lang},a.MultiDisplayName) AS "ResourceName"
+							, FN_BASEGETDICTIONARY_S(#{lang},b.MultiDisplayName) AS "ParentFolderName"
+							, a.Reserved1 AS "PlaceOfBusiness"
+							, a.Description AS "Description"
+							, a.Reserved3 AS "ResourceImage"
+							, a.FolderType AS "FolderType"
+					FROM SYS_OBJECT_FOLDER a 
+					INNER JOIN SYS_OBJECT_FOLDER b ON a.MemberOf = b.FolderID 
+					WHERE a.FolderID = #{FolderID}
+			]]>
+	</select>
+  
+	<select id="selectEquipmentList" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT  a.EquipmentID AS "EquipmentID"
+						  , FN_BASEGETDICTIONARY_S(#{lang},b.MultiEquipmentName) AS "EquipmentName"
+						  , b.IconPath AS "IconPath"
+					FROM RESOURCE_EQUIPMENT_DEF a 
+					INNER JOIN RESOURCE_EQUIPMENT b ON a.EquipmentID = b.EquipmentID
+					WHERE b.IsUse = 'Y' AND a.FolderID = FN_RESOURCEPARENTIDGET_S(#{FolderID})
+			]]>
+	</select>
+    
+    <select id="selectAttributeList" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT a.AttributeID AS "AttributeID"
+					     , FN_BASEGETDICTIONARY_S(#{lang},a.MultiAttributeName) AS "AttributeName"
+						 , FN_BASEGETDICTIONARY_S(#{lang},a.MultiAttributeValue) AS "AttributeValue"
+					FROM RESOURCE_ATTRIBUTE a 
+					WHERE FolderID = FN_RESOURCEPARENTIDGET_S(#{FolderID})
+					ORDER BY a.SortKey ASC
+			]]>
+	</select>
+	
+	 <select id="selectManagerCodes" parameterType="cmap" resultType="java.lang.String">
+			SELECT LISTAGG(A.SubjectCode , ';') WITHIN GROUP(ORDER BY A.SubjectCode)
+			FROM sys_object_acl A
+			WHERE A.ObjectType =#{ObjectType} AND A.ObjectID = FN_RESOURCEPARENTIDGET_S(#{FolderID}) AND A.SubjectType = 'RM' 
+	</select>    
+	
+	
+    <select id="selectManagerList" parameterType="cmap" resultType="cmap">
+			<![CDATA[
+				SELECT A.AclID AS "AclID"
+					 , A.ObjectID AS "ObjectID"
+					 , A.ObjectType AS "ObjectType"
+					 , A.SubjectCode AS "SubjectCode"
+					 , A.SubjectName AS "SubjectName"
+					 , A.UserType AS "UserType"
+					 , A.UserPositionName AS "UserPositionName"
+					 , A.UserDeptName AS "UserDeptName"
+					 , A.PhotoPath AS "PhotoPath"
+				FROM (
+					SELECT
+						A.AclID
+						, A.ObjectID
+						, A.ObjectType
+						, A.SubjectCode
+						, FN_BASEGETDICTIONARY_S(#{lang},U.MultiDisplayName) AS SubjectName
+						,'User' AS UserType
+						, FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiJobPositionName) AS UserPositionName
+						, FN_BASEGETDICTIONARY_S(#{lang}, UG.MultiDeptName) AS UserDeptName
+						, U.PhotoPath
+					FROM SYS_OBJECT_ACL A 
+					INNER JOIN SYS_OBJECT_USER U ON A.SubjectCode = U.UserCode
+					INNER JOIN SYS_OBJECT_USER_BASEGROUP UG ON U.UserCode = UG.UserCode AND UG.JobType = 'Origin'
+					WHERE A.ObjectType =#{ObjectType} AND A.ObjectID = FN_RESOURCEPARENTIDGET_S(#{FolderID}) AND A.SubjectType = 'RM' 
+					
+					UNION
+					
+					SELECT 
+						A.AclID
+						, A.ObjectID
+						, A.ObjectType
+						, A.SubjectCode
+						, FN_BASEGETDICTIONARY_S(#{lang}, G.MultiDisplayName) AS SubjectName
+						, 'Group' AS UserType
+						, '' AS UserPositionName
+						, '' AS UserDeptName
+						, '' AS PhotoPath
+					FROM SYS_OBJECT_ACL A 
+					INNER JOIN SYS_OBJECT_GROUP G ON A.SubjectCode = G.GroupCode
+					WHERE A.ObjectType = #{ObjectType} AND A.ObjectID = FN_RESOURCEPARENTIDGET_S(#{FolderID}) AND A.SubjectType = 'RM'
+				
+				)A
+			
+			]]>
+	</select>
+	
+    <!--목록의 표시할 자원 정보 조회   -->
+    <select id="selectResourceListData" parameterType="cmap" resultType="cmap">
+		/* queryID : user.resource.selectResourceListData */
+		<![CDATA[
+		SELECT a.FolderID AS "FolderID"
+		     , ( CASE 
+		     		WHEN (a.LinkFolderID IS NULL AND a.IsShared = 'Y') THEN Fn_BaseGetDictionary_S(#{lang},a.MultiDisplayName)
+		     		WHEN (a.IsShared = 'Y') THEN '['||Fn_GetSelDictionary(#{lang},'lbl_sharing',0)||'] '||Fn_BaseGetDictionary_S(#{lang},a.MultiDisplayName)
+					ELSE
+						Fn_BaseGetDictionary_S(#{lang},a.MultiDisplayName)
+				END ) AS "DisplayName"
+			 , Fn_BaseGetDictionary_S(#{lang},a.MultiDisplayName) AS "MultiDisplayName"
+		     , a.FolderType AS "FolderType"
+		     , NVL(b.LeastRentalTime, 0) AS "LeastRentalTime"
+		     , NVL(b.LeastPartRentalTime, 0) AS "LeastPartRentalTime"
+		     , b.BookingType AS "BookingType"
+		     , FN_FOLDERPATHBYLANGGET_S(#{lang}, a.MemberOf) AS "ParentFolderName"
+		     , Fn_FolderPathByLangGet_S(#{lang}, a.FolderPath) AS "FolderPathName"
+		FROM SYS_OBJECT_FOLDER a
+		LEFT JOIN RESOURCE_ b ON b.FolderID = FN_RESOURCEPARENTIDGET_S(a.FolderID)
+		]]>
+	    	<if test="FolderIDs != null and FolderIDs.length != 0">
+				WHERE a.FolderID  in 
+	        	<foreach collection="FolderIDs" item="item" index="index" separator="," open="(" close=")">
+                    #{item}
+	            </foreach>
+			    AND a.DeleteDate IS NULL
+			    <choose>
+			    	<when test='isSaaS == "Y"'>
+			    		AND a.DomainID = #{DomainID}
+			    	</when>
+			    	<otherwise>
+			    		AND (a.DomainID = #{DomainID} OR a.DomainID = 0)
+			    	</otherwise>
+			    </choose>
+			    <if test="placeOfBusiness != null and placeOfBusiness != '' and placeOfBusiness.length() gt 0">
+			    	AND (a.Reserved1 LIKE '%'||#{placeOfBusiness}||'%' OR a.Reserved1 is null OR a.Reserved1 = '')
+			    </if>
+			</if>      
+		    ORDER BY a.SortPath ASC
+	</select>
+	
+    <select id="selectUserDefValueList"  parameterType="cmap" resultType="cmap">
+			<![CDATA[
+					SELECT
+					      v.UserFormID AS "UserFormID"
+						, v.FieldValue AS "FieldValue"
+						, NVL(FN_BASEGETDICTIONARY_S(#{lang}, uo.MultiOptionName), v.FieldValue) AS "FieldText"
+						, uf.SortKey AS "SortKey"
+						, FN_BASEGETDICTIONARY_S(#{lang}, uf.MultiFieldName) AS "FieldName"
+						, uf.FieldType AS "FieldType"
+					FROM RESOURCE_USERFORM_VALUE v
+					INNER JOIN RESOURCE_USERFORM uf ON v.UserFormID = uf.UserFormID
+					LEFT JOIN RESOURCE_USERFORM_OPTION uo ON v.FieldValue = uo.OptionValue AND uf.UserFormID = uo.UserFormID
+					WHERE EventID = #{EventID}
+					ORDER BY uf.SortKey
+			]]>
+	</select>
+     
+    <!-- isRepeatAll이 Y일 경우 결과값 list, N일 경우 결과값 map  -->
+    <select id="selectBookingStateData" parameterType="cmap" resultType="cmap">
+		/* queryId : user.resource.selectBookingStateData */
+           SELECT a.EventID AS "EventID"
+           		, a.DateID AS "DateID"
+           		, CASE WHEN e.FolderType = 'Resource' THEN 'N' ELSE 'Y' END AS "IsSchedule"
+                , a.ResourceID AS "FolderID"
+                , NVL(a.ApprovalState,'') AS "ApprovalState"
+                , b.RepeatID  AS "RepeatID"
+                , b.IsRepeat AS "IsRepeat"
+                , b.StartDateTime AS "StartDateTime"
+                , b.EndDateTime AS "EndDateTime"
+                , ReturnType AS "ReturnType"
+                , BookingType  AS "BookingType"
+                , e.Subject AS "Subject"
+                , e.RegisterCode AS "RegisterCode" 
+		   FROM EVENT_RESOURCE_BOOKING a
+		   INNER JOIN EVENT_DATE b ON a.DateID = b.DateID
+		   INNER JOIN EVENT  e ON e.EventID = b.EventID  
+		   INNER JOIN RESOURCE_ c ON c.FolderID = FN_RESOURCEPARENTIDGET_S(a.ResourceID)
+		   <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		   		<if test="ResourceID != null and ResourceID != ''">
+		   			AND a.ResourceID = #{ResourceID}
+		   		</if>
+		   		<choose>
+		   			<when test="IsRepeatAll !=null and IsRepeatAll.equalsIgnoreCase('Y')">
+				   	   AND a.eventID = #{EventID}
+				   	</when>
+				   	<otherwise>
+					   AND a.DateID =  #{DateID}
+					   AND ROWNUM = 1
+				   	</otherwise>
+		   		</choose>
+		   </trim>
+    </select>
+    
+    <update id="updateBookingState" parameterType="cmap" >
+        	UPDATE EVENT_RESOURCE_BOOKING
+			SET   ApprovalState = #{ApprovalState}
+				, ApprovalDate = SYSDATE
+			WHERE DateID = #{DateID}
+			<if test="ResourceID != null and ResourceID != '' ">
+			 	AND ResourceID = #{ResourceID}
+			</if>
+    </update>
+    
+    <update id="updateReturnBookingState" parameterType="cmap" >
+        	 UPDATE EVENT_RESOURCE_BOOKING 
+			 SET ApprovalState = #{ApprovalState}
+				 , ApprovalDate = SYSDATE
+				 , RealEndDateTime = SYSDATE
+			 WHERE DateID = #{DateID}
+			 <if test="ResourceID != null and ResourceID != '' ">
+			 	AND ResourceID = #{ResourceID}
+			 </if>
+    </update>
+
+    <select id="selectDuplicateTime" parameterType="cmap"  resultType="java.lang.Long">
+      	/* queryId : user.resource.selectDuplicateTime */
+      	SELECT COUNT(*) AS cnt
+		FROM EVENT_RESOURCE_BOOKING a
+		LEFT JOIN EVENT_DATE b ON a.DateID = b.DateID
+    	WHERE a.ResourceID =  (SELECT * FROM (SELECT NVL(LinkFolderID,folderID) FROM SYS_OBJECT_FOLDER WHERE folderID = #{FolderID}  ORDER BY folderID DESC) A WHERE ROWNUM = 1)
+     	AND a.DeleteDate IS NULL
+       	AND a.ApprovalState IN('Approval','ReturnRequest','ReturnComplete')
+   	 	<if test="DateID != null and DateID !=''">
+  	  		  AND a.DateID !=  #{DateID}
+  		</if>
+   	 	<if test="EventID != null and EventID !=''">
+  	  		  AND a.EventID !=  #{EventID}
+  		</if>
+  		<if test="RepeatID != null and RepeatID !=''">
+  			  AND b.RepeatID != #{RepeatID}
+  		</if>
+  		<![CDATA[
+	       	AND (
+	       	(#{StartDateTime} <= b.StartDateTime AND TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+	      	OR (#{StartDateTime} < b.StartDateTime AND b.StartDateTime < #{EndDateTime} AND #{EndDateTime} <= TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI'))
+	      	OR (b.StartDateTime <= #{StartDateTime} AND #{StartDateTime} < TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+	       	OR (b.StartDateTime <= #{StartDateTime} AND #{EndDateTime} <= TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') )
+	       	)
+  		]]>
+    </select>
+    
+    <!-- 해당 시간에 예약 가능한 동일한 종류의 다른 자원 목록 조회  -->
+    <select id="selectCheckTime" parameterType="cmap"  resultType="cmap">
+				SELECT a.FolderID AS "FolderID"
+				    , FN_BASEGETDICTIONARY_S(#{lang}, a.MultiDisplayName) AS "FolderName"
+				FROM SYS_OBJECT_FOLDER a
+				WHERE a.FolderType = #{FolderType}
+				<if test="FolderIDs != null and FolderIDs.length != 0">
+					AND a.FolderID  in 
+		        	<foreach collection="FolderIDs" item="item" index="index" separator="," open="(" close=")">
+		                    #{item}
+		            </foreach>
+				</if>   
+				AND a.FolderID NOT IN (
+						SELECT b.ResourceID
+						FROM EVENT_RESOURCE_BOOKING b
+						LEFT JOIN EVENT_DATE c ON b.DateID = c.DateID
+						WHERE b.DeleteDate IS NULL
+						AND b.ApprovalState IN('Approval','ReturnRequest','ReturnComplete')
+						<if test="DateID != null and DateID !='' and DateID.length() gt 0">
+					  		  AND b.DateID !=  #{DateID}
+						</if>						
+			<![CDATA[
+						AND (
+							   	(#{StartDateTime} <= c.StartDateTime AND TO_CHAR(b.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+						      	OR (#{StartDateTime} < c.StartDateTime AND c.StartDateTime < #{EndDateTime} AND #{EndDateTime} <= TO_CHAR(b.RealEndDateTime,'YYYY-MM-DD HH24:MI'))
+						      	OR (c.StartDateTime <= #{StartDateTime} AND #{StartDateTime} < TO_CHAR(b.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND TO_CHAR(b.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+						       	OR (c.StartDateTime <= #{StartDateTime} AND #{EndDateTime} <= TO_CHAR(b.RealEndDateTime,'YYYY-MM-DD HH24:MI') )
+						)		
+				)
+			]]>
+			ORDER BY a.SortKey ASC
+    </select>
+    
+	<!-- 해당 자원이 예약 가능한 자원인지 조회  -->
+	<select id="selectCheckResourceApv" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM resource_
+		WHERE FolderID = #{FolderID}
+		AND BookingType = 'ApprovalProhibit'
+	</select>
+    
+    <!-- 같은 종류의 자원 목록 조회  -->
+    <select id="selectSameTypeFolderList" parameterType="cmap"  resultType="cmap">
+        SELECT a.FolderID AS "FolderID"
+             , FN_BASEGETDICTIONARY_S(#{lang}, a.MultiDisplayName) AS "FolderName"
+		FROM SYS_OBJECT_FOLDER a
+		WHERE a.FolderType = #{FolderType}
+		<if test="FolderID != null and FolderID !='' and FolderID.length() gt 0">
+  	  		  AND a.FolderID !=  #{FolderID}
+  		</if>
+		ORDER BY a.SortKey ASC
+    </select>
+    
+    <!-- 특정 자원의 n시 ~ n시 의 예약 정보 조회 -->
+    <select id="selectCheckList" parameterType="cmap"  resultType="cmap">
+			<![CDATA[
+				SELECT b.StartDateTime AS "StartDateTime"
+				     , TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') AS "EndDateTime"
+				FROM EVENT_RESOURCE_BOOKING a
+				LEFT JOIN EVENT_DATE b ON a.DateID = b.DateID
+				WHERE a.ResourceID =  (SELECT * FROM ( SELECT NVL(LinkFolderID,folderID) FROM SYS_OBJECT_FOLDER WHERE folderID = #{FolderID}  ORDER BY folderID DESC ) A WHERE ROWNUM = 1)
+				AND a.DeleteDate IS NULL
+				AND a.ApprovalState IN('Approval','ReturnRequest','ReturnComplete')
+				AND (
+					(#{StartDateTime} <= b.StartDateTime AND TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+					OR (#{StartDateTime} < b.StartDateTime AND b.StartDateTime < #{EndDateTime} AND #{EndDateTime} <= TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI'))
+					OR (b.StartDateTime <= #{StartDateTime} AND #{StartDateTime} < TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDateTime})
+					OR (b.StartDateTime <= #{StartDateTime} AND #{EndDateTime} <= TO_CHAR(a.RealEndDateTime,'YYYY-MM-DD HH24:MI') )
+				)		
+			]]>
+    </select>
+
+    <insert id="insertUserformValue" parameterType="cmap" >
+        INSERT INTO RESOURCE_USERFORM_VALUE
+		(
+			EventID
+			, UserFormID
+			, FolderID
+			, FieldValue
+		) VALUES (
+			#{EventID}					
+			, #{UserFormID}				
+			, #{FolderID}					
+			, #{FieldValue}				
+		)
+    </insert>
+    
+    <delete id="deleteUserformValue" parameterType="cmap" >
+        DELETE FROM RESOURCE_USERFORM_VALUE 
+		WHERE EventID = #{EventID}
+    </delete>
+    
+	<select id="selectResourceList" parameterType ="cmap" resultType="cmap">
+		SELECT    a.FolderID AS "FolderID"
+				, a.FolderType AS "FolderType"
+				, NVL(SUBSTR(a.FolderType,1, INSTR(a.FolderType,'.') -1),a.FolderType) AS "TypeCode"
+				, FN_BASEGETDICTIONARY_S('', NVL(b.MultiCodeName,'')) AS "TypeName"
+				, (SELECT CASE WHEN s.MemberOf != '0' THEN FN_BASEGETDICTIONARY_S('', NVL(s.MultiDisplayName,s.DisplayName)) ELSE '' END FROM sys_object_folder s WHERE s.FolderID = a.MemberOf) AS "UpperFolderName"
+				, FN_BASEGETDICTIONARY_S('', NVL(a.MultiDisplayName,a.DisplayName)) AS "FolderName"
+				, a.Reserved1 AS "PlaceOfBusiness" 
+				, c.LeastRentalTime AS "LeastRentalTime"
+		FROM SYS_OBJECT_FOLDER a 
+		LEFT JOIN SYS_BASE_CODE b ON NVL(SUBSTR(FolderType,INSTR(FolderType,'.')+1, LENGTH(FolderType)) ,FolderType) = b.Code AND b.CodeGroup = 'ResourceType'
+		LEFT JOIN resource_ c ON (a.FolderID = c.FolderID)
+		WHERE FolderType LIKE 'Resource%'
+		<if test='aclFolderIDArr != null and aclFolderIDArr.length != 0'>
+			AND a.FolderID IN  
+			<foreach collection="aclFolderIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		AND a.DeleteDate IS NULL 
+		AND a.IsUse = 'Y'
+		AND a.IsDisplay = 'Y'
+		AND b.DomainID = (SELECT NVL(MAX(DomainID), 0) FROM SYS_BASE_CODE WHERE Code = b.Code AND CodeGroup = 'ResourceType' AND DomainID = a.DomainID)
+		ORDER BY a.SortPath
+	</select>
+    
+	<select id="selectRootFolderID" parameterType="cmap" resultType="cmap">
+		SELECT FolderID AS "FolderID" -- root가 없을 경우 -1로 반환 
+			, DomainID as "DomainID"
+			, DECODE(FolderType,'Root','Folder','Resource') AS "FolderType"
+			, (CASE WHEN (LinkFolderID IS NULL AND IsShared = 'N') THEN FN_BASEGETDICTIONARY_S(#{lang},MultiDisplayName)
+				ELSE '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},MultiDisplayName)
+				END ) AS "FolderName"
+		FROM SYS_OBJECT_FOLDER 
+		WHERE FolderType = 'Root'
+		<if test='aclFolderIDArr != null and aclFolderIDArr.length != 0'>
+			AND FolderID IN  
+			<foreach collection="aclFolderIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		AND ObjectType = 'Resource'
+		AND	DomainID in (0, #{DomainID} )
+		AND IsUse = 'Y' 
+		AND IsDisplay = 'Y'
+		AND DeleteDate IS NULL
+	</select>
+    
+    <select id="selectChildResource" parameterType="cmap" resultType="cmap">
+    	/* queryID : user.resource.selectChildResource */
+        SELECT    FolderID AS "FolderID" 
+        		, DECODE(FolderType,'Folder','Folder','Resource') AS "FolderType"
+        		, (CASE WHEN (LinkFolderID IS NULL AND IsShared = 'N') THEN FN_BASEGETDICTIONARY_S(#{lang},MultiDisplayName)
+        			ELSE '['||Fn_GetSelDictionary(#{lang}, 'lbl_sharing', 0)||'] '||Fn_BaseGetDictionary_S(#{lang},MultiDisplayName)
+        			END ) AS "FolderName"
+	 	FROM SYS_OBJECT_FOLDER
+		WHERE   
+			<if test="folderID != null and folderID !='' ">
+			 	MemberOf = #{folderID} 
+			</if>
+			<if test="folderID == null or folderID =='' ">
+				MemberOf in 
+				<foreach collection="rootFolderIDArr" item="item" open="(" close=")" separator=",">
+						#{item.FolderID}
+				</foreach>
+			</if>
+		<if test="placeOfBusiness != null and placeOfBusiness !='' and placeOfBusiness.length() gt 0">
+  	  		AND (Reserved1 LIKE '%'||#{placeOfBusiness}||'%' OR Reserved1 is null OR Reserved1 = '')
+  		</if>
+  		<if test='aclFolderIDArr != null and aclFolderIDArr.length != 0'>
+			AND FolderID IN  
+			<foreach collection="aclFolderIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+  		AND IsUse = 'Y' 
+  		AND IsDisplay = 'Y'
+  		AND ObjectType = 'Resource'
+  		AND	(DomainID = #{DomainID} OR DomainID = 0)
+  		ORDER BY DomainID, SortKey 
+    </select>
+
+    <select id="selectManageInfo" parameterType="cmap" resultType="cmap">
+      		SELECT ObjectID AS "FolderID"
+      		FROM SYS_OBJECT_ACL a
+			WHERE a.DeleteDate IS NULL
+			AND SubjectType = 'RM'
+			AND 
+				(a.SubjectCode IN 
+				<foreach collection="subjectInArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				OR  #{groupPath} LIKE '%;'||a.SubjectCode||'%;'
+				)
+    </select>
+    
+    <select id="selectManageInfoCnt" parameterType="cmap" resultType="java.lang.Long">
+      		SELECT COUNT(*) 
+      		FROM SYS_OBJECT_ACL a
+			WHERE a.DeleteDate IS NULL
+			AND SubjectType = 'RM'
+			AND 
+				(a.SubjectCode IN 
+				<foreach collection="subjectInArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				OR  #{groupPath} LIKE '%;'||a.SubjectCode||'%;'
+				)
+    </select>
+    
+     <!-- 메인 화면 자원 관리 목록 조회-->
+    <select id = "selectMainResourceList" parameterType="cmap" resultType ="cmap">
+		<![CDATA[
+	        SELECT a.FolderID AS "FolderID"
+			FROM RESOURCE_FRONT a
+		]]>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+		 	AND a.IsDefault = 'Y'
+		 	<if test='FolderIDArr != null and FolderIDArr.length != 0'>
+				AND a.FolderID IN  
+				<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			</if>
+		</trim>
+    </select>
+    
+    <select id="selectResourceTreeList" parameterType="cmap" resultType ="cmap">
+		SELECT a.FolderID AS "FolderID" 
+        	, a.FolderType AS "FolderType"
+        	, a.DomainID  AS "DomainID"
+        	, (CASE WHEN a.FolderType = 'Root' THEN d.MultiDisplayName ELSE NVL(a.MultiDisplayName,a.DisplayName) END) AS "MultiDisplayName"
+        	, FN_FOLDERPATHBYLANGGET_S(#{lang}, a.FolderPath) AS "FolderPath"
+        	, a.MemberOf AS "MemberOf"
+        	, a.SortKey AS "SortKey"
+        	, a.SortPath AS "SortPath"
+        	, NVL(b.IconCode,' ') AS "IconCode"
+			, b.BookingType AS "BookingType"
+        	, a.SecurityLevel AS "SecurityLevel"
+        FROM SYS_OBJECT_FOLDER a
+        LEFT JOIN RESOURCE_ b ON a.FolderID = b.FolderID
+        LEFT JOIN SYS_OBJECT_DOMAIN d ON a.DomainID = d.DomainID
+        WHERE a.IsUse = 'Y' AND a.DeleteDate IS NULL
+        AND ObjectType = 'Resource'
+        <if test='FolderIDArr != null and FolderIDArr.length != 0'>
+			AND a.FolderID IN  
+			<foreach collection="FolderIDArr" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+		</if>
+		<choose>
+			<when test='isSaaS == "Y"'>
+				AND a.DomainID = #{DomainID}
+			</when>
+			<otherwise>
+				AND (a.DomainID = #{DomainID} OR a.DomainID = 0)
+			</otherwise>
+		</choose>
+        <if test="placeOfBusiness != null and placeOfBusiness !='' and placeOfBusiness.length() gt 0">
+            AND (Reserved1 LIKE '%'||#{placeOfBusiness}||'%' OR Reserved1 is null OR Reserved1 = '')
+        </if>
+		ORDER BY a.DomainID ASC, a.SortPath ASC, a.SortKey ASC
+    </select>
+    
+    <!-- 확장 필드 조회 -->
+    <select id="selectUserFormData" parameterType="cmap" resultType ="cmap">
+        SELECT
+			  UserFormID AS "UserFormID"
+			, FolderID AS "FolderID"
+			, SortKey AS "SortKey"
+			, FN_BASEGETDICTIONARY_S(#{lang}, MultiFieldName) AS "MultiFieldName"
+			, FieldType AS "FieldType"
+			, FieldInputLimit AS "FieldInputLimit"
+			, IsList AS "IsList"
+			, IsOption  AS "IsOption"
+		FROM RESOURCE_USERFORM
+		WHERE FolderID = #{FolderID}
+		AND IsList = 'Y'
+		ORDER BY SortKey
+    </select>
+    
+    <select id="selectLeftCalendarEvent" parameterType="cmap" resultType ="cmap">
+      
+      SELECT A.StartEndDate AS "StartEndDate",
+      		LISTAGG(a.EventID, ',') WITHIN GROUP (ORDER BY a.EventID) AS "EventID"
+		FROM ( 
+		        SELECT
+		        	Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, TO_DATE(b.StartDateTime, 'YYYY-MM-DD HH24:MI'), 'YYYY-MM-DD') || '~' ||
+		        	Fn_NewComURTimeZoneTrans_S(#{UR_TimeZone}, c.RealEndDateTime, 'YYYY-MM-DD') AS StartEndDate,
+		        	a.EventID
+		        FROM EVENT a
+		        INNER JOIN EVENT_DATE b ON a.EventID = b.EventID
+		        LEFT JOIN EVENT_RESOURCE_BOOKING c ON b.DateID = c.DateID
+		        LEFT JOIN EVENT_RELATION d ON c.ResourceID = d.ResourceID AND a.EventID = d.ScheduleID
+		        INNER JOIN SYS_OBJECT_FOLDER e ON c.ResourceID = e.FolderID
+		        LEFT JOIN RESOURCE_ f ON f.FolderID = FN_RESOURCEPARENTIDGET_S(NVL(e.LinkFolderID,e.FolderID))
+		        WHERE ( (a.FolderType LIKE 'Resource%') OR (a.FolderType LIKE 'Schedule%' AND d.ResourceID IS NOT NULL) )
+		        	AND c.DeleteDate IS NULL
+		        	AND c.ApprovalState IN ('ApprovalRequest', 'Approval', 'ReturnRequest', 'ReturnComplete')
+		        	<if test="FolderIDs != null and FolderIDs.length != 0">
+						AND c.ResourceID  in 
+			        	<foreach collection="FolderIDs" item="item" index="index" separator="," open="(" close=")">
+			                    #{item}
+			            </foreach>
+					</if>     
+		        	<![CDATA[
+					AND ( 	(#{StartDate} <= b.StartDateTime AND TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDate}) OR 
+				  	   	(#{StartDate} < b.StartDateTime  AND b.StartDateTime < #{EndDate} AND #{EndDate} <= TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI')) OR
+				  	   	(b.StartDateTime <= #{StartDate} AND #{StartDate} < TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') AND TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI') <= #{EndDate}) OR 
+				  	   	(b.StartDateTime <= #{StartDate} AND #{EndDate} <= TO_CHAR(c.RealEndDateTime,'YYYY-MM-DD HH24:MI'))    )
+				  	]]> 
+				  )A
+	  	GROUP BY StartEndDate
+		ORDER BY StartEndDate ASC
+    </select>
+    
+    <update id="updateEventResourceBookingResID" parameterType="cmap">
+        UPDATE
+        	EVENT_RESOURCE_BOOKING
+        SET
+        	ResourceID = #{ResourceID}
+        WHERE
+        	ResourceID = #{oldResourceID}
+        	AND EventID = #{EventID}
+        	AND DateID = #{DateID}
+    </update>
+    
+	<select id="selectLinkFolderList" parameterType="cmap" resultType ="cmap">
+    	/* queryID : user.resource.selectLinkFolderList */
+    	with vt AS (
+    		SELECT 	FolderID, LinkFolderID
+    		FROM	sys_object_folder
+			WHERE	1=1    		
+    	<if test='FolderIDs != null'>
+    		AND
+    		<foreach collection="FolderIDs" item="item" open="(" close=")" separator="OR">
+    		FolderID = #{item} OR LinkFolderID = #{item}
+    		</foreach>
+    	</if>
+    		AND  	ObjectType = 'Resource'
+			AND		IsUse = 'Y'
+			AND  	IsDisplay = 'Y'
+    	)
+    	
+    	SELECT	vtt.FolderID AS "FolderID"
+		FROM	(
+					SELECT 	FolderID
+					FROM	vt
+					WHERE	FolderID IS NOT NULL
+					UNION ALL
+					SELECT 	LinkFolderID 
+					FROM 	vt
+					WHERE	LinkFolderID IS NOT NULL
+		) vtt
+		GROUP BY FolderID
+    </select>
+    
+</mapper>

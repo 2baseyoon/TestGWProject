@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.monitoring">
+    <select id="selectFormInstance" parameterType="cmap" resultType="cmap">
+		SELECT FormInstID AS "FormInstID"
+				, ProcessID AS "ProcessID"
+				, FormID AS "FormID"
+				, SchemaID AS "SchemaID"
+				, Subject AS "Subject"
+				, InitiatorID AS "InitiatorID"
+				, InitiatorName AS "InitiatorName"
+				, InitiatorUnitID AS "InitiatorUnitID"
+				, InitiatorUnitName AS "InitiatorUnitName"
+				, InitiatedDate AS "InitiatedDate"
+				, CompletedDate AS "CompletedDate"
+				, DeletedDate AS "DeletedDate"
+				, LastModifiedDate AS "LastModifiedDate"
+				, LastModifierID AS "LastModifierID"
+				, EntCode AS "EntCode"
+				, EntName AS "EntName"
+				, DocNo AS "DocNo"
+				, DocLevel AS "DocLevel"
+				, DocClassID AS "DocClassID"
+				, DocClassName AS "DocClassName"
+				, NVL(DocSummary, Empty_CLOB()) AS "DocSummary"
+				, IsPublic AS "IsPublic"
+				, SaveTerm AS "SaveTerm"
+				, NVL(AttachFileInfo, Empty_CLOB()) AS "AttachFileInfo"
+				, AppliedDate AS "AppliedDate"
+				, AppliedTerm AS "AppliedTerm"
+				, NVL(ReceiveNo, Empty_CLOB()) AS "ReceiveNo"
+				, NVL(ReceiveNames, Empty_CLOB()) AS "ReceiveNames"
+				, NVL(ReceiptList, Empty_CLOB()) AS "ReceiptList"
+				, BodyType AS "BodyType"
+				, NVL(BodyContext, Empty_CLOB()) AS "BodyContext"
+				, NVL(DocLinks, Empty_CLOB()) AS "DocLinks"
+		FROM JWF_FORMINSTANCE
+		WHERE FormInstID = #{formInstID}
+	</select>
+	
+    <update id="updateFormInstance" parameterType="cmap">
+        UPDATE jwf_forminstance
+        <trim prefix="SET" suffixOverrides=",">
+			<if test="FormInstID != null and FormInstID != ''">FormInstID = #{FormInstID},</if>
+			<if test="ProcessID != null and ProcessID != ''">ProcessID = #{ProcessID},</if>
+			<if test="SchemaID != null and SchemaID != ''">SchemaID = #{SchemaID},</if>
+			<if test="InitiatorID != null and InitiatorID != ''">InitiatorID = #{InitiatorID},</if>
+			<if test="InitiatorUnitID != null and InitiatorUnitID != ''">InitiatorUnitID = #{InitiatorUnitID},</if>
+			<if test="InitiatedDate != null and InitiatedDate != ''">InitiatedDate = TO_DATE(#{InitiatedDate}, 'YYYY-MM-DD HH24:MI:SS'),</if>
+			<if test="DeletedDate != null and DeletedDate != ''">DeletedDate = TO_DATE(#{DeletedDate}, 'YYYY-MM-DD HH24:MI:SS'),</if>
+			<if test="EntName != null and EntName != ''">EntName = #{EntName},</if>
+			<if test="DocLevel != null and DocLevel != ''">DocLevel = #{DocLevel},</if>
+			<if test="DocClassName != null and DocClassName != ''">DocClassName = #{DocClassName},</if>
+			<if test="AttachFileInfo != null and AttachFileInfo != ''">AttachFileInfo = #{AttachFileInfo},</if>
+			<if test="SaveTerm != null and SaveTerm != ''">SaveTerm = #{SaveTerm},</if>
+			<if test="AppliedTerm != null and AppliedTerm != ''">AppliedTerm = #{AppliedTerm},</if>
+			<if test="ReceiveNames != null and ReceiveNames != ''">ReceiveNames = #{ReceiveNames},</if>
+			<if test="BodyType != null and BodyType != ''">BodyType = #{BodyType},</if>
+			<if test="BodyContext != null and BodyContext != ''">BodyContext = #{BodyContext},</if>
+			<if test="FormID != null and FormID != ''">FormID = #{FormID},</if>
+			<if test="Subject != null and Subject != ''">Subject = #{Subject},</if>
+			<if test="InitiatorName != null and InitiatorName != ''">InitiatorName = #{InitiatorName},</if>
+			<if test="InitiatorUnitName != null and InitiatorUnitName != ''">InitiatorUnitName = #{InitiatorUnitName},</if>
+			<if test="CompletedDate != null and CompletedDate != ''">CompletedDate = TO_DATE(#{CompletedDate}, 'YYYY-MM-DD HH24:MI:SS'),</if>
+			<if test="EntCode != null and EntCode != ''">EntCode = #{EntCode},</if>
+			<if test="DocNo != null and DocNo != ''">DocNo = #{DocNo},</if>
+			<if test="DocClassID != null and DocClassID != ''">DocClassID = #{DocClassID},</if>
+			<if test="IsPublic != null and IsPublic != ''">IsPublic = #{IsPublic},</if>
+			<if test="AppliedDate != null and AppliedDate != ''">AppliedDate = TO_DATE(#{AppliedDate}, 'YYYY-MM-DD HH24:MI:SS'),</if>
+			<if test="ReceiveNo != null and ReceiveNo != ''">ReceiveNo = #{ReceiveNo},</if>
+			<if test="ReceiptList != null and ReceiptList != ''">ReceiptList = #{ReceiptList},</if>
+			<if test="DocLinks != null and DocLinks != ''">DocLinks = #{DocLinks},</if>
+		</trim>
+        WHERE FormInstID = #{fiid}
+    </update>
+	
+    <update id="updateDomainData" parameterType="cmap">
+         UPDATE jwf_domaindata
+	     SET DomainDataContext = #{DomainDataContext}
+		 WHERE ProcessID IN (
+		                        SELECT ProcessID
+		                        FROM jwf_process
+		                        WHERE FormInstID = #{FormInstID}
+		                       )
+    </update>
+    
+    <update id="updateDomainDataArchive" parameterType="cmap">
+       UPDATE jwf_domaindata 
+	   SET DomainDataContext = #{DomainDataContext}
+	   WHERE ProcessID IN (
+		                        SELECT ProcessID
+		                        FROM jwf_process
+		                        WHERE FormInstID = #{FormInstID}
+		                       )
+    </update>
+    
+    <update id="updateIsComment" parameterType="cmap">
+        UPDATE jwf_processdescription
+        SET IsComment = 'Y'
+        WHERE FormInstID = #{FormInstID};
+    </update>
+    
+    <select id="selectProcessStep" parameterType="cmap" resultType="java.lang.String">
+	      SELECT ApprovalStep AS "ApprovalStep"
+		  FROM jwf_processdescription PD
+		  INNER JOIN jwf_process P ON P.ProcessDescriptionID = PD.ProcessDescriptionID
+	      WHERE P.ProcessID = #{ProcessID}
+    </select>
+    
+    <update id="updateProcessDesc" parameterType="cmap">
+        UPDATE jwf_processdescription
+        <trim prefix="SET" suffixOverrides=",">
+			<if test="ApprovalStep != null">ApprovalStep = #{ApprovalStep},</if>
+			<if test="chargeName != null">ApproverName = #{chargeName},</if>
+			<if test="chargeCode != null">ApproverCode = #{chargeCode},</if>
+		</trim>
+		WHERE ProcessDescriptionID IN(
+												SELECT ProcessDescriptionID
+												FROM jwf_process
+												WHERE ProcessID = #{ProcessID}
+												)
+    </update>
+    
+    <update id="updateWorkitemData" parameterType="cmap">
+        BEGIN
+	        UPDATE jwf_workitem
+			 <trim prefix="SET" suffixOverrides=",">
+				<if test="chargeId != null">
+				    UserCode = #{chargeId},
+				</if>
+				<if test="chargeName != null">
+				    UserName = #{chargeName},
+				</if>
+				<if test="deputyID != null">
+				   DeputyID = #{deputyID},
+				</if>
+				<if test="deputyName != null">
+				    DeputyName = #{deputyName},
+				</if>
+			</trim>
+				WHERE WorkitemID = #{WorkitemID};
+				
+			<if test="chargeId != null or chargeName != null">
+				UPDATE  jwf_performer
+			    <trim prefix="SET" suffixOverrides=",">
+				    <if test="chargeId != null">
+					    UserCode = #{chargeId},
+					</if>
+					<if test="chargeName != null">
+					     UserName = #{chargeName},
+					</if>
+				</trim>
+				WHERE WorkitemID = #{WorkitemID};
+		    </if>
+        END;
+    </update>
+    
+    <select id="selectSuperAdminData" parameterType="cmap" resultType="cmap">
+	    SELECT UR.UserCode AS "UR_Code",
+				   UR.DisplayName AS "UR_Name",
+				   BG.DeptCode AS "DEPT_Code",
+				   BG.DeptName AS "DEPT_Name",
+				   BG.JobPositionCode AS "JobPositionCode",
+				   BG.JobPositionName AS "JobPositionName",
+				   BG.JobTitleCode AS "JobTitleCode",
+				   BG.JobTitleName AS "JobTitleName",
+				   BG.JobLevelCode AS "JobLevelCode",
+				   BG.JobLevelName AS "JobLevelName"
+		FROM sys_object_user UR
+		INNER JOIN sys_object_user_basegroup BG ON UR.UserCode = BG.UserCode
+	  	WHERE UR.UserCode = #{userID} AND BG.JobType = 'Origin'
+    </select>
+	
+    <select id="selectProcess" parameterType="cmap" resultType="cmap">
+		SELECT ProcessID AS "ProcessID"
+		        ,  ProcessKind AS "ProcessKind"
+		        ,  ParentProcessID AS "ParentProcessID"
+		        ,  ParentInstanceID AS "ParentInstanceID"
+		        ,  ProcessDescriptionID AS "ProcessDescriptionID"
+		        ,  ProcessName AS "ProcessName"
+		        ,  DocSubject AS "DocSubject"
+		        ,  TransactionMode AS "TransactionMode"
+		        ,  BusinessState AS "BusinessState"
+		        ,  InitiatorID AS "InitiatorID"
+		        ,  InitiatorName AS "InitiatorName"
+		        ,  InitiatorUnitID AS "InitiatorUnitID"
+		        ,  InitiatorUnitName AS "InitiatorUnitName"
+		        ,  FormInstID AS "FormInstID"
+		        ,  ProcessState AS "ProcessState"
+		        ,  InitiatorSIPAddress AS "InitiatorSIPAddress"
+		        ,  TO_CHAR(StartDate,'YYYY-MM-DD HH24:MI:SS') AS "StartDate"
+		        ,  TO_CHAR(EndDate,'YYYY-MM-DD HH24:MI:SS') AS "EndDate"
+		        ,  TO_CHAR(DeleteDate,'YYYY-MM-DD HH24:MI:SS') AS "DeleteDate"
+		FROM JWF_PROCESS
+		WHERE FormInstID =  #{formInstID}
+	</select>
+	
+    <select id="selectProcessDesc" parameterType="cmap" resultType="cmap">
+		SELECT ProcessDescriptionID AS "ProcessDescriptionID"
+				    , FormInstID AS "FormInstID"
+				    , FormID AS "FormID"
+				    , FormPrefix AS "FormPrefix"
+				    , FormName AS "FormName"
+				    , FormSubject AS "FormSubject"
+				    , IsSecureDoc AS "IsSecureDoc"
+				    , IsFile AS "IsFile"
+				    , FileExt AS "FileExt"
+				    , IsComment AS "IsComment"
+				    , ApproverCode AS "ApproverCode"
+				    , ApproverName AS "ApproverName"
+				    , ApprovalStep AS "ApprovalStep"
+				    , ApproverSIPAddress AS "ApproverSIPAddress"
+				    , IsReserved AS "IsReserved"
+				    , ReservedGubun AS "ReservedGubun"
+				    , ReservedTime AS "ReservedTime"
+				    , Priority AS "Priority"
+				    , IsModify AS "IsModify"
+				    , Reserved1 AS "Reserved1"
+				    , Reserved2 AS "Reserved2"
+		FROM JWF_PROCESSDESCRIPTION
+		WHERE ProcessDescriptionID = #{processDescriptionID}
+	</select>
+	
+    <select id="selectWorkitem" parameterType="cmap" resultType="cmap">
+		SELECT WorkItemID AS "WorkItemID"
+				, TaskID AS "TaskID"
+				, ProcessID AS "ProcessID"
+				, PerformerID AS "PerformerID"
+				, WorkItemDescriptionID AS "WorkItemDescriptionID"
+				, Name AS "Name"
+				, DSCR AS "DSCR"
+				, Priority AS "Priority"
+				, ActualKind AS "ActualKind"
+				, UserCode AS "UserCode"
+				, UserName AS "UserName"
+				, DeputyID AS "DeputyID"
+				, DeputyName AS "DeputyName"
+				, State AS "State"
+				, TO_CHAR(Created,'YYYY-MM-DD HH24:MI:SS') AS "Created"
+				, TO_CHAR(FinishRequested,'YYYY-MM-DD HH24:MI:SS') AS "FinishRequested"
+				, Finished AS "Finished"
+				, Limit AS "Limit"
+				, LastRepeated AS "LastRepeated"
+				, TO_CHAR(Finalized,'YYYY-MM-DD HH24:MI:SS') AS "Finalized"
+				, TO_CHAR(Deleted,'YYYY-MM-DD HH24:MI:SS') AS "Deleted"
+				, InlineSubProcess AS "InlineSubProcess"
+				, Charge AS "Charge"
+				, BusinessData1 AS "BusinessData1"
+				, BusinessData2 AS "BusinessData2"
+				, BusinessData3 AS "BusinessData3"
+				, BusinessData4 AS "BusinessData4"
+				, BusinessData5 AS "BusinessData5"
+				, BusinessData6 AS "BusinessData6"
+				, BusinessData7 AS "BusinessData7"
+				, BusinessData8 AS "BusinessData8"
+				, BusinessData9 AS "BusinessData9"
+				, BusinessData10 AS "BusinessData10"
+		FROM JWF_WORKITEM
+		WHERE ProcessID = #{processID}
+		and state != '512' <!-- 삭제된 예고자는 표시하지 않음. -->
+		ORDER by Created, WorkItemID
+	</select>
+	
+    <select id="selectDomaindata" parameterType="cmap" resultType="cmap">
+	    SELECT DomainDataID AS "DomainDataID"
+			, DomainDataName AS "DomainDataName"
+			, ProcessID AS "ProcessID"
+			, NVL(DomainDataContext, Empty_CLOB()) AS "DomainDataContext"
+		FROM JWF_DOMAINDATA
+		WHERE ProcessID = #{processID}
+	</select>
+	
+	<select id="selectFormSchema" parameterType="java.lang.String" resultType="java.lang.String">
+		SELECT 
+		    NVL(S.SchemaContext, '') AS "SchemaContext"
+		FROM jwf_forminstance FI
+		INNER JOIN jwf_forms F ON FI.FormID = F.FormID
+		INNER JOIN jwf_formsschema S ON F.SchemaID = S.SchemaID
+		WHERE FI.FormInstID = #{formInstID}
+	</select>
+</mapper>
+

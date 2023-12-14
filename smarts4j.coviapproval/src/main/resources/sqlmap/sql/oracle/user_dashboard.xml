@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user.dashboard">
+
+	<select id="selectHomeSectionSort" parameterType="cmap" resultType="cmap">
+		SELECT SectionKey AS "SectionKey", SortKey AS "SortKey"
+		FROM jwf_user_dashboard_sort
+		WHERE UserCode = #{UserCode}
+		AND "Type" = #{Type}
+		ORDER BY SortKey
+	</select>
+	
+	<update id="updateHomeSectionSort" parameterType="cmap">
+		<foreach collection="SortList" item="map" index="index" open="begin" close=";end;" separator=";">
+			MERGE INTO jwf_user_dashboard_sort D
+			USING dual
+			ON (D.UserCode = #{UserCode} AND D."Type" = #{Type} AND D.SectionKey = #{map.SectionKey})
+			WHEN MATCHED THEN
+			  UPDATE SET D.SortKey = #{map.SortKey}
+			WHEN NOT MATCHED THEN
+			  INSERT (UserCode, "Type", SectionKey, SortKey)
+			  VALUES (#{UserCode}, #{Type}, #{map.SectionKey}, #{map.SortKey})
+
+		</foreach>
+	</update>
+</mapper>

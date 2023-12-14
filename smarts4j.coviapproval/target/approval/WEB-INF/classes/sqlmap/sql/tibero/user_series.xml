@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.series">
+	<select id="selectSeriesListData" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT A.SeriesCode AS "SeriesCode"
+				 , A.SeriesName AS "SeriesName"
+				 , A.SeriesDescription AS "SeriesDescription"
+				 , A.SFCode AS "SFCode"
+				 , A.KeepPeriod AS "KeepPeriod"
+				 , A.KeepPeriodTxt AS "KeepPeriodTxt"
+				 , A.KeepPeriodReason AS "KeepPeriodReason"
+				 , A.KeepMethod AS "KeepMethod"
+				 , A.KeepMethodTxt AS "KeepMethodTxt"
+				 , A.KeepPlace AS "KeepPlace"
+				 , A.KeepPlaceTxt AS "KeepPlaceTxt"
+				 , A.ApplyDate AS "ApplyDate"
+				 , A.JobType AS "JobType"
+				 , A.JobTypeTxt AS "JobTypeTxt"
+				 , A.DeptCode AS "DeptCode"
+				 , A.DeptName AS "DeptName"
+				 , A.MAPPINGID AS "MappingID"
+			FROM (
+				SELECT	  GS.SeriesCode
+						, GS.SeriesName
+						, GS.SeriesDescription
+						, GS.SFCode
+						, GS.KeepPeriod
+						, CASE GS.KeepPeriod WHEN '01' THEN '1년'
+											 WHEN '03' THEN '3년'
+											 WHEN '05' THEN '5년'
+											 WHEN '10' THEN '10년'
+											 WHEN '20' THEN '20년'
+											 WHEN '25' THEN '25년'
+											 WHEN '30' THEN '준영구'
+											 WHEN '40' THEN '영구'
+											 ELSE ''
+						  END AS KeepPeriodTxt
+						, GS.KeepPeriodReason
+						, GS.KeepMethod
+						, CASE GS.KeepMethod WHEN '1' THEN '원본과 보존매체를 함께 보존하는 방법'
+											 WHEN '2' THEN '원본은 폐기하고 보존매체만 보존하는 방법'
+											 WHEN '3' THEN '원본을 그대로 보존하는 방법'
+											 ELSE ''
+						  END AS KeepMethodTxt
+						, GS.KeepPlace
+						, CASE GS.KeepPlace WHEN '1' THEN '자료관'
+											WHEN '2' THEN '전문관리기관'
+											ELSE ''
+						  END AS KeepPlaceTxt
+						, GSM.ApplyDate
+						, GSM.JobType
+						, CASE GSM.JobType WHEN '1' THEN '신설'
+										  WHEN '2' THEN '폐지'
+										  WHEN '3' THEN '변경'
+										  ELSE ''
+						  END AS JobTypeTxt
+						, GS.BaseYear
+						, GSM.DeptCode
+						, GSM.DeptName
+						, GSM.MAPPINGID
+				FROM GOV_SERIES GS
+				LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GSM.SeriesCode = GS.SeriesCode
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="seriesName != null and seriesName != ''">
+					AND A.SeriesName LIKE '%' || #{seriesName} || '%'
+				</if>
+				<if test="seriesCode != null and seriesCode !=''">
+					AND A.SeriesCode = #{seriesCode}
+				</if>
+				<if test="sfCode != null and sfCode !=''">
+					AND A.SFCode = #{sfCode}
+				</if>
+				<if test="deptCode != null and deptCode !=''">
+					AND A.DeptCode = #{deptCode}
+				</if>
+				<if test="keepPeriod != null and keepPeriod !=''">
+					AND A.KeepPeriod = #{keepPeriod}
+				</if>
+				<if test="revokeStatus != null and revokeStatus !=''">
+					AND A.JobType = #{revokeStatus}
+				</if>
+				<if test="baseYear != null and baseYear !=''">
+					AND A.BaseYear = #{baseYear}
+				</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+					<choose>
+						<when test="searchType == 'Code'">
+							AND A.SeriesCode LIKE '%' || #{searchWord} || '%'
+						</when>
+						<when test="searchType == 'Name'">
+							AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+						</when>
+						<otherwise>
+							AND (
+								 A.SeriesCode LIKE '%' || #{searchWord} || '%'
+								OR A.SeriesName LIKE '%' || #{searchWord} || '%'
+							)
+						</otherwise>
+					</choose>
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY" prefixOverrides=",">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("SeriesCode")'>SeriesCode</when>
+					<when test='sortColumn.equalsIgnoreCase("SeriesName")'>SeriesName</when>
+					<when test='sortColumn.equalsIgnoreCase("SeriesDescription")'>SeriesDescription</when>
+					<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+					<when test='sortColumn.equalsIgnoreCase("KeepPeriodTxt")'>KeepPeriodTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("KeepPeriodReason")'>KeepPeriodReason</when>
+					<when test='sortColumn.equalsIgnoreCase("KeepMethodTxt")'>KeepMethodTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("KeepPlaceTxt")'>KeepPlaceTxt</when>
+					<when test='sortColumn.equalsIgnoreCase("JobTypeTxt")'>JobTypeTxt</when>					
+					<otherwise>ApplyDate</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectSeriesListDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*) FROM (
+			SELECT A.SeriesCode AS "SeriesCode"
+				 , A.SeriesName AS "SeriesName"
+				 , A.SeriesDescription AS "SeriesDescription"
+				 , A.KeepPeriod AS "KeepPeriod"
+				 , A.KeepPeriodReason AS "KeepPeriodReason"
+				 , A.KeepMethod AS "KeepMethod"
+				 , A.KeepPlace AS "KeepPlace"
+				 , A.ApplyDate AS "ApplyDate"
+				 , A.JobType AS "JobType"
+				 , A.DeptCode AS "DeptCode"
+				 , A.DeptName AS "DeptName"
+			FROM (
+				SELECT	  GS.SeriesCode
+						, GS.SeriesName
+						, GS.SeriesDescription
+						, GS.SFCode
+						, GS.KeepPeriod
+						, GS.KeepPeriodReason
+						, GS.KeepMethod
+						, GS.KeepPlace
+						, GSM.ApplyDate
+						, GSM.JobType
+						, GS.BaseYear
+						, GSM.DeptCode
+						, GSM.DeptName
+				FROM GOV_SERIES GS
+				LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GSM.SeriesCode = GS.SeriesCode
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="seriesName != null and seriesName != ''">
+					AND A.SeriesName LIKE '%' || #{seriesName} || '%'
+				</if>
+				<if test="seriesCode != null and seriesCode !=''">
+					AND A.SeriesCode = #{seriesCode}
+				</if>
+				<if test="sfCode != null and sfCode !=''">
+					AND A.SFCode = #{sfCode}
+				</if>
+				<if test="deptCode != null and deptCode !=''">
+					AND A.DeptCode = #{deptCode}
+				</if>
+				<if test="keepPeriod != null and keepPeriod !=''">
+					AND A.KeepPeriod = #{keepPeriod}
+				</if>
+				<if test="revokeStatus != null and revokeStatus !=''">
+					AND A.JobType = #{revokeStatus}
+				</if>
+				<if test="baseYear != null and baseYear !=''">
+					AND A.BaseYear = #{baseYear}
+				</if>
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+					<choose>
+						<when test="searchType == 'Code'">
+							AND A.SeriesCode LIKE '%' || #{searchWord} || '%'
+						</when>
+						<when test="searchType == 'Name'">
+							AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+						</when>
+						<otherwise>
+							AND (
+								 A.SeriesCode LIKE '%' || #{searchWord} || '%'
+								OR A.SeriesName LIKE '%' || #{searchWord} || '%'
+							)
+						</otherwise>
+					</choose>
+				</if>
+			</trim>
+		) A
+	</select>
+	
+	<select id="selectBaseYearList" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT (BaseYear) AS "BaseYear" 
+		FROM GOV_SERIES
+		WHERE BaseYear >= TO_CHAR(SYSDATE, 'YYYY')-10
+		ORDER BY BaseYear ASC
+	</select>
+	
+	<!-- 관리자 여부 확인 -->
+	<select id="selectGroupMemberList" parameterType="cmap" resultType="int">
+		SELECT COUNT(*)
+		FROM (
+			SELECT 'User' AS Type
+					, GM.UserCode AS Code
+					, NVL(UR.DisplayName, '') AS CodeName
+					, NVL(UR.MailAddress, '') AS MailAddress
+					, GM.GroupMemberID AS MemberID
+			FROM SYS_OBJECT_GROUP_MEMBER GM
+			LEFT JOIN SYS_OBJECT_USER UR ON GM.UserCode = UR.UserCode
+			WHERE GM.GroupCode = 'RecordAdmin'
+			UNION 
+			SELECT 'Dept' AS Type
+					, GM.MemberGroupCode AS Code
+					, NVL(GR.DisplayName, '') AS CodeName
+					, NVL(GR.PrimaryMail, '') AS MailAddress
+					, GM.MemberGroupID AS MemberID
+			FROM SYS_OBJECT_GROUP_MEMBERGROUP GM
+			LEFT JOIN SYS_OBJECT_GROUP GR ON GM.MemberGroupCode = GR.GroupCode
+			WHERE GM.GroupCode = 'RecordAdmin'
+		) A 
+		WHERE Code = #{UserCode}
+	</select>
+	
+	<select id="getSubDeptList" parameterType="cmap" resultType="cmap">
+		SELECT GroupID AS "GroupID"
+			 , GroupCode AS "GroupCode"
+			 , CompanyCode AS "CompanyCode"
+			 , GroupType AS "GroupType"
+			 , MemberOf AS "MemberOf"
+			 , DisplayName AS "DisplayName"
+			 , MultiDisPlayName AS "MultiDisPlayName"
+			 , Fn_BaseGetDictionary_S(#{lang}, MultiDisPlayName) AS "TransMultiDisplayName"
+			 , LENGTH(SortPath) - LENGTH(REPLACE(SortPath, ';', '')) AS "SortDepth"
+		FROM SYS_OBJECT_GROUP
+		WHERE 1=1
+		<if test='isAdmin neq "Y"'>
+			AND GroupCode = #{DEPTIDORI} OR MemberOf = #{DEPTIDORI}
+		</if>
+		AND GroupType IN ('Dept', 'Company') 
+		AND GroupPath LIKE 'ORGROOT;' || #{CompanyCode} || '%'
+		AND IsUse = 'Y'
+		AND IsDisplay = 'Y'
+		AND MemberOf != 'NOUSE'
+		ORDER BY SortPath ASC
+	</select>
+	
+	<select id="selectSeriesSearchList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT DISTINCT A.SeriesCode AS "SeriesCode"
+				 		  , A.SeriesName AS "SeriesName"
+			FROM (
+				SELECT	  GS.SeriesCode
+						, GS.SeriesName
+						, GS.BaseYear
+						, GSM.DeptCode
+				FROM GOV_SERIES GS
+				LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GSM.SeriesCode = GS.SeriesCode
+				WHERE GSM.JobType != '2'
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="deptCode != null and deptCode != ''">
+					AND A.DeptCode = #{deptCode}
+				</if>
+				<if test="baseYear != null and baseYear != ''">
+					AND A.BaseYear = #{baseYear}
+				</if>
+				<if test="searchWord != null and searchWord != ''">
+					AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY" prefixOverrides=",">
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("SeriesName")'>SeriesName</when>
+					<otherwise>SeriesCode</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("DESC")'> DESC</when>
+					<otherwise> ASC</otherwise>
+				</choose>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectSeriesSearchListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM(
+			SELECT DISTINCT A.SeriesCode AS "SeriesCode"
+				 		  , A.SeriesName AS "SeriesName"
+			FROM (
+				SELECT	  GS.SeriesCode
+						, GS.SeriesName
+						, GS.BaseYear
+						, GSM.DeptCode
+				FROM GOV_SERIES GS
+				LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GSM.SeriesCode = GS.SeriesCode
+				WHERE GSM.JobType != '2'
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="deptCode != null and deptCode != ''">
+					AND A.DeptCode = #{deptCode}
+				</if>
+				<if test="baseYear != null and baseYear != ''">
+					AND A.BaseYear = #{baseYear}
+				</if>
+				<if test="searchWord != null and searchWord != ''">
+					AND A.SeriesName LIKE '%' || #{searchWord} || '%'
+				</if>
+			</trim>
+		) A
+	</select>
+	
+	<select id="selectSeriesSearchTreeData" parameterType="cmap" resultType="cmap">
+		SELECT A.SFCode AS "SFCode"
+			 , A.SFName AS "SFName"
+			 , A.SFParentCode AS "SFParentCode"
+			 , A.SFLevel AS "SFLevel"
+		FROM (
+			SELECT	  GS.SeriesCode AS SFCode
+					, GS.SeriesName AS SFName
+					, GS.SFCode AS SFParentCode
+					, '4' AS SFLevel
+			FROM GOV_SERIES GS
+			WHERE 1 = 1 
+			AND GS.JOBTYPE != '2'
+			<if test="baseYear != null and baseYear != ''">
+				AND GS.BaseYear = #{baseYear}
+			</if>
+		
+			UNION
+			
+			SELECT	  GSF.FunctionCode AS SFCode
+					, GSF.FunctionName AS SFName
+					, GSF.ParentFunctionCode AS SFParentCode
+					, GSF.FunctionLevel AS SFLevel
+			FROM GOV_SERIES_FUNC GSF
+		) A
+	</select>
+	
+	<select id="selectSeriesFunctionListData" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader"/>
+			SELECT A.FunctionCode AS "FunctionCode"
+				 , A.FunctionName AS "FunctionName"
+				 , A.FunctionLevel AS "FunctionLevel"
+				 , A.ParentFunctionCode AS "ParentFunctionCode"
+				 , A.FunctionLevelTxt AS "FunctionLevelTxt"
+			FROM (
+				SELECT	  FunctionCode
+						, FunctionName
+						, FunctionLevel
+						, GSF.ParentFunctionCode
+						, CASE FunctionLevel WHEN '1' THEN '대'
+											 WHEN '2' THEN '중'
+											 WHEN '3' THEN '소'
+						  ELSE ''
+						  END AS FunctionLevelTxt
+				FROM GOV_SERIES_FUNC GSF
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+					<choose>
+						<when test="searchType == 'Code'">
+							AND A.FunctionCode LIKE '%' || #{searchWord} || '%'
+						</when>
+						<when test="searchType == 'Name'">
+							AND A.FunctionName LIKE '%' || #{searchWord} || '%'
+						</when>
+						<otherwise>
+							AND (
+								A.FunctionCode LIKE '%' || #{searchWord} || '%'
+								OR A.FunctionName LIKE '%' || #{searchWord} || '%'
+							)
+						</otherwise>
+					</choose>
+				</if>
+				<if test="FunctionLevel != null and FunctionLevel !=''">
+					AND A.FunctionLevel = #{FunctionLevel}
+				</if>
+			</trim>
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY" prefixOverrides=",">
+				<if test='sortColumn != null and sortDirection != null'>
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("FunctionName")'>, A.FunctionName</when>
+						<otherwise>, A.FunctionCode</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("DESC")'> DESC</when>
+						<otherwise> ASC</otherwise>
+					</choose>
+				</if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="selectSeriesFunctionListDataCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+			FROM (
+				SELECT	  FunctionCode
+						, FunctionName
+						, FunctionLevel
+						, ParentFunctionCode
+						, CASE FunctionLevel WHEN '1' THEN '대'
+											 WHEN '2' THEN '중'
+											 WHEN '3' THEN '소'
+						  ELSE ''
+						  END AS FunctionLevelTxt
+				FROM GOV_SERIES_FUNC GSF
+			) A
+			<!-- 검색 데이터 Where 절 -->
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">
+				<if test="searchType != null and searchType !='' and searchWord != null and searchWord !=''">
+					<choose>
+						<when test="searchType == 'Code'">
+							AND A.FunctionCode LIKE '%' || #{searchWord} || '%'
+						</when>
+						<when test="searchType == 'Name'">
+							AND A.FunctionName LIKE '%' || #{searchWord} || '%'
+						</when>
+						<otherwise>
+							AND (
+								A.FunctionCode LIKE '%' || #{searchWord} || '%'
+								OR A.FunctionName LIKE '%' || #{searchWord} || '%'
+							)
+						</otherwise>
+					</choose>
+				</if>
+				<if test="FunctionLevel != null and FunctionLevel !=''">
+					AND A.FunctionLevel = #{FunctionLevel}
+				</if>
+			</trim>
+	</select>
+
+	<insert id="insertSeriesData" parameterType="cmap">
+		INSERT INTO GOV_SERIES
+			(
+				  SeriesCode
+				, SFCode
+				, SeriesName
+				, SeriesDescription
+				, KeepPeriod
+				, KeepPeriodReason
+				, KeepMethod
+				, KeepPlace
+				, BaseGroupCode
+				, BaseYear
+				, JobType
+			)
+		VALUES
+			(
+				  #{SeriesCode}
+				, #{SFCode} 
+				, #{SeriesName}
+				, #{SeriesDescription}
+				, #{KeepPeriod}
+				, #{KeepPeriodReason}
+				, #{KeepMethod}
+				, #{KeepPlace}
+				, #{DeptCode}
+				, #{BaseYear}
+				,'1'
+			)
+	</insert>
+	
+	<insert id="insertSeriesMappingData" parameterType="cmap">
+		INSERT INTO GOV_SERIES_MAPPING
+			(
+				  SeriesCode
+				, SeriesName
+				, DeptCode
+				, DeptName
+				, BaseYear
+				, JobType
+				, SyncStatus
+				, ProcessDateTime
+				, ApplyDate
+				, RegistDate
+				, RegisterID
+			)
+			<choose>
+				<when test="UnitTaskType == 'ZZ' or UnitTaskType == 'ZA'">
+					SELECT #{SeriesCode}
+						 , #{SeriesName}
+						 , GroupCode
+						 , DisplayName
+						 , #{BaseYear}
+						 , '1'
+						 , 'N'
+						 , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+						 , TO_CHAR(SYSDATE, 'YYYYMMDD')
+						 , TO_CHAR(SYSDATE, 'YYYYMMDD')
+						 , #{userCode}
+					FROM SYS_OBJECT_GROUP SOG
+					WHERE 1 = 1
+					AND SOG.IsUse = 'Y'
+					AND SOG.IsDisplay = 'Y'
+					AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+					AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+					AND SOG.GroupType IN ('Dept', 'Company')
+					AND SOG.GroupCode NOT IN (
+						SELECT GSM.DeptCode
+						FROM GOV_SERIES_MAPPING GSM
+						WHERE GSM.SeriesCode = #{SeriesCode}
+					)
+					AND (
+						(SUBSTR(#{SeriesCode}, 0, 2) = 'ZZ' AND SOG.GroupPath LIKE '%' || #{DeptCode} || '%')
+						OR
+						(SUBSTR(#{SeriesCode}, 0, 2) = 'ZA' AND SOG.CompanyCode = #{DeptCode})
+					)
+				</when>
+				<otherwise> <!-- 고유 -->
+					VALUES
+						(
+							  #{SeriesCode}
+							, #{SeriesName}
+							, #{DeptCode}
+							, #{DeptName}
+							, #{BaseYear}
+							, '1'
+							, 'N'
+							, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+							, TO_CHAR(SYSDATE, 'YYYYMMDD')
+							, TO_CHAR(SYSDATE, 'YYYYMMDD')
+							, #{userCode}
+						)
+				</otherwise>
+			</choose>
+	</insert>
+	
+	<insert id="insertSeriesByExcel" parameterType="cmap">
+		MERGE INTO GOV_SERIES GS
+		USING(
+			<foreach collection="dataList" item="item" open="" separator="UNION" close="">
+				SELECT	  #{item.SeriesCode} AS SeriesCode
+						, #{item.SmallFunctionCode} AS SmallFunctionCode
+						, #{item.TempSeriesCode} AS TempSeriesCode
+						, #{item.SeriesName} AS SeriesName
+						, #{item.SeriesDescription} AS SeriesDescription
+						, LPAD(#{item.KeepPeriod}, 2, '0') AS KeepPeriod
+						, #{item.KeepPeriodReason} AS KeepPeriodReason
+						, #{item.KeepMethod} AS KeepMethod
+						, #{item.KeepPlace} AS KeepPlace
+						, #{item.DeptCode} AS BaseGroupCode
+						, #{item.BaseYear} AS BaseYear
+				FROM DUAL
+			</foreach>
+		) A ON (GS.SeriesCode = A.SeriesCode AND GS.BaseYear = A.BaseYear)
+		WHEN MATCHED THEN
+			UPDATE 
+				<set>
+					GS.SFCode = A.SmallFunctionCode
+					, GS.TempSeriesCode = A.TempSeriesCode
+					, GS.SeriesName = A.SeriesName 
+					, GS.SeriesDescription = A.SeriesDescription 
+					, GS.KeepPeriod = A.KeepPeriod 
+					, GS.KeepPeriodReason = A.KeepPeriodReason 
+					, GS.KeepMethod = A.KeepMethod 
+					, GS.KeepPlace = A.KeepPlace 
+					, GS.BaseGroupCode = A.BaseGroupCode  
+				</set>
+		WHEN NOT MATCHED THEN
+			INSERT 
+				<trim prefix="(" suffix=")" suffixOverrides="," > 
+					  GS.SeriesCode
+					, GS.SFCode
+					, GS.TempSeriesCode
+					, GS.SeriesName
+					, GS.SeriesDescription
+					, GS.KeepPeriod
+					, GS.KeepPeriodReason
+					, GS.KeepMethod
+					, GS.KeepPlace
+					, GS.BaseGroupCode
+					, GS.BaseYear
+				</trim>
+				<trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+					  A.SeriesCode
+					, A.SmallFunctionCode
+					, A.TempSeriesCode
+					, A.SeriesName
+					, A.SeriesDescription
+					, A.KeepPeriod
+					, A.KeepPeriodReason
+					, A.KeepMethod
+					, A.KeepPlace
+					, A.BaseGroupCode
+					, A.BaseYear
+				</trim>
+	</insert>
+	
+	<insert id="insertSeriesMappingByExcel" parameterType="cmap">
+		MERGE INTO GOV_SERIES_MAPPING GSM
+		USING(
+			<foreach collection="dataList" item="item" open="" separator="UNION" close="">
+				SELECT	  #{item.SeriesCode} AS SeriesCode
+						, #{item.SeriesName} AS SeriesName
+						, #{item.DeptCode} AS DeptCode
+						, #{item.DeptName} AS DeptName
+						, #{item.BaseYear} AS BaseYear
+						, #{item.JobType} AS JobType
+						, #{item.ApplyDate} AS ApplyDate
+						, #{item.ProcessDateTime} AS ProcessDateTime
+				FROM DUAL
+			</foreach>
+		)A ON (GSM.SeriesCode = A.SeriesCode AND GSM.DeptCode = A.DeptCode)
+		WHEN MATCHED THEN
+			UPDATE 
+				<set>
+					GSM.SeriesName = A.SeriesName 
+					, GSM.DeptName = A.DeptName 
+					, GSM.JobType = A.JobType 
+					, GSM.ApplyDate = A.ApplyDate 
+					, GSM.ProcessDateTime = A.ProcessDateTime  
+				</set>
+		WHEN NOT MATCHED THEN
+			INSERT
+				<trim prefix="(" suffix=")" suffixOverrides="," > 
+					  GSM.SeriesCode
+					, GSM.SeriesName
+					, GSM.DeptCode
+					, GSM.DeptName
+					, GSM.BaseYear
+					, GSM.JobType
+					, GSM.SyncStatus
+					, GSM.RegistDate
+					, GSM.RegisterID
+					, GSM.ApplyDate
+					, GSM.ProcessDateTime
+				</trim>
+				<trim prefix="VALUES (" suffix=")" suffixOverrides=",">
+					  A.SeriesCode
+					, A.SeriesName
+					, A.DeptCode
+					, A.DeptName
+					, A.BaseYear
+					, A.JobType
+					, 'N'
+					, TO_CHAR(SYSDATE, 'YYYYMMDD')
+					, #{userCode}
+					, A.ApplyDate
+					, A.ProcessDateTime
+				</trim>
+	</insert>
+	
+	<insert id="insertSeriesFuncByExcel" parameterType="cmap">
+		MERGE INTO GOV_SERIES_FUNC GSF
+		USING DUAL ON (GSF.FunctionCode = #{FunctionCode})
+		WHEN NOT MATCHED THEN
+			INSERT(GSF.FunctionCode, GSF.FunctionName, GSF.FunctionLevel, GSF.ParentFunctionCode)
+			VALUES(#{FunctionCode}, #{FunctionName}, #{FunctionLevel}, #{ParentFunctionCode})
+	</insert>
+	
+	<update id="updateSeriesData" parameterType="cmap">
+		UPDATE GOV_SERIES
+		SET	  SeriesName = #{SeriesName}
+			, SeriesDescription = #{SeriesDescription}
+			, SFCode = #{SFCode}
+			, KeepPeriod = #{KeepPeriod}
+			, KeepPeriodReason = #{KeepPeriodReason}
+			, KeepMethod = #{KeepMethod}
+			, KeepPlace = #{KeepPlace}
+			, BaseGroupCode = #{DeptCode}
+		WHERE 1 = 1
+		AND SeriesCode = #{SeriesCode}
+	</update> 
+	
+	<update id="updateSeriesMappingData" parameterType="cmap">
+		UPDATE GOV_SERIES_MAPPING
+		SET	  DeptCode = #{DeptCode}
+			, DeptName = #{DeptName}
+			, JobType = '3'
+			, ModifyDate = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			, ModifyReason = #{ModifyReason}
+			, ModifierID = #{userCode}
+			, ApplyDate = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			, ProcessDateTime = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+		WHERE 1 = 1
+		AND MAPPINGID = #{MappingID}
+	</update>
+	
+	<update id="updateMappingSeriesNameData" parameterType="cmap">
+		UPDATE GOV_SERIES_MAPPING
+		SET	  SeriesName = #{SeriesName}
+		WHERE SeriesCode = #{SeriesCode}
+	</update>  
+	
+	<update id="updateRevokeSeries" parameterType="cmap">
+		MERGE INTO GOV_SERIES_MAPPING GSM
+		USING(
+			SELECT	  GSM.SeriesCode
+					, GSM.DeptCode
+			FROM GOV_SERIES_MAPPING GSM
+			WHERE GSM.SeriesCode = #{SeriesCode}
+			AND GSM.DeptCode = #{DeptCode}
+		)A ON (A.SeriesCode = GSM.SeriesCode AND A.DeptCode = GSM.DeptCode)
+		WHEN MATCHED THEN
+		UPDATE SET	  GSM.JobType = '2'
+					, GSM.ApplyDate = TO_CHAR(SYSDATE, 'YYYYMMDD')
+					, GSM.ProcessDateTime = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+					, GSM.AbolitionReason = #{AbolitionReason}
+	</update> 
+	
+	<update id="updateRevokeDeleteData" parameterType="cmap">
+		MERGE INTO GOV_SERIES GS
+		USING(
+			SELECT COUNT(SeriesCode) AS CNT
+			FROM GOV_SERIES_MAPPING GSM 
+			WHERE GSM.SeriesCode = #{SeriesCode}
+			AND GSM.JOBTYPE != '2'
+		)A ON (A.CNT = 0)
+		WHEN MATCHED THEN
+		UPDATE SET	  
+			GS.JobType = '2'
+			, GS.ApplyDate = TO_CHAR(SYSDATE, 'YYYYMMDD')
+			, GS.ProcessDateTime = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+			, GS.AbolitionReason = #{AbolitionReason}
+			WHERE GS.SeriesCode = #{SeriesCode}
+	</update> 
+	
+	<select id="selectSeriesCode" parameterType="cmap" resultType="String">
+		SELECT SeriesCode 
+		FROM GOV_SERIES 
+		WHERE SeriesCode LIKE #{gubun} || '%'
+		AND ROWNUM = 1
+		ORDER BY SeriesCode DESC
+	</select>
+	
+	<select id="selectSeriesPathCnt" parameterType="cmap" resultType="int">
+		SELECT COUNT(*) FROM GOV_SERIES_FUNC
+		WHERE FunctionCode = #{SeriesCode}
+	</select>
+	
+	<select id="selectSeriesPath" parameterType="cmap" resultType="String">
+		SELECT LTRIM(SYS_CONNECT_BY_PATH (GSF.FunctionName, ' > '), ' > ') AS "SeriesPath"
+		FROM GOV_SERIES_FUNC GSF
+		<if test="FunctionCnt == 0">
+			LEFT OUTER JOIN GOV_SERIES GS ON GS.SFCode = GSF.FunctionCode
+		</if>
+		WHERE GSF.FunctionLevel = '3'
+		<choose>
+			<when test="FunctionCnt == 0">
+				AND GS.SeriesCode = #{SeriesCode}
+				AND GS.BaseYear = #{BaseYear}
+			</when>
+			<otherwise>
+				AND GSF.FunctionCode = #{SeriesCode}
+			</otherwise>
+		</choose>
+		START WITH GSF.FunctionLevel = '1'
+		CONNECT BY PRIOR GSF.FunctionCode = GSF.ParentFunctionCode
+		ORDER SIBLINGS BY GSF.FunctionLevel
+	</select>
+	
+	<update id="updateSyncSeries" parameterType="cmap">
+		MERGE INTO GOV_SERIES_MAPPING GSM
+		USING (
+			SELECT  SOG.GroupCode AS DeptCode
+				  , SOG.DisplayName AS DeptName
+				  , GS.SeriesCode
+				  , GS.SeriesName
+				  , GS.BaseYear
+				  , GSM.JobType
+				  , GSM.SyncStatus
+				  , GSM.RegisterID
+			FROM SYS_OBJECT_GROUP SOG
+			LEFT OUTER JOIN GOV_SERIES GS ON SUBSTR(GS.SeriesCode, 0, 2) IN ('ZZ', 'ZA')
+			LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GS.SeriesCode = GSM.SeriesCode
+			WHERE 1 = 1
+			AND GS.BaseYear = #{BaseYear}
+			AND SOG.IsUse = 'Y'
+			AND SOG.IsDisplay = 'Y'
+			AND (SOG.MemberOf != 'NOUSE' OR SOG.MemberOf IS NULL)
+			AND (SOG.MemberOf != 'NOUNIT' OR SOG.MemberOf IS NULL)
+			AND SOG.GroupType IN ('Dept', 'Company')
+			AND SOG.GroupCode NOT IN (
+				SELECT GSM.DeptCode
+				FROM GOV_SERIES_MAPPING GSM
+				WHERE GSM.SeriesCode = GS.SeriesCode
+			)
+			AND (
+				(SUBSTR(GS.SeriesCode, 0, 2) = 'ZZ' AND SOG.GroupPath LIKE '%;' || GS.BaseGroupCode || ';%')
+				OR
+				(SUBSTR(GS.SeriesCode, 0, 2) = 'ZA' AND SOG.CompanyCode = GS.BaseGroupCode)
+			)
+		) A ON (A.DeptCode = GSM.DeptCode AND A.SeriesCode = GSM.SeriesCode)
+		WHEN NOT MATCHED THEN
+			INSERT (
+				  GSM.SeriesCode
+				, GSM.SeriesName
+				, GSM.DeptCode
+				, GSM.DeptName
+				, GSM.BaseYear
+				, GSM.JobType
+				, GSM.SyncStatus
+				, GSM.RegisterID
+				, GSM.RegistDate
+				, GSM.ProcessDateTime
+				, GSM.ApplyDate
+			)
+			VALUES (
+				  A.SeriesCode
+				, A.SeriesName
+				, A.DeptCode
+				, A.DeptName
+				, A.BaseYear
+				, A.JobType
+				, A.SyncStatus
+				, A.RegisterID
+				, TO_CHAR(SYSDATE, 'YYYYMMDD')
+				, TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI')
+				, TO_CHAR(SYSDATE, 'YYYYMMDD')
+			)
+	</update>
+	
+	<insert id="insertSeriesByYear" parameterType="cmap">
+		MERGE INTO GOV_SERIES GS
+		USING(
+			SELECT DISTINCT GS.SeriesCode
+						  , GS.SFCode
+						  , GS.SeriesName
+						  , GS.SeriesDescription
+						  , GS.KeepPeriod
+						  , GS.KeepPeriodReason
+						  , GS.KeepMethod
+						  , GS.KeepPlace
+						  , GS.BaseGroupCode
+						  , #{BaseYear} AS BaseYear
+						  , GS.TempSeriesCode
+						  , GS.ProvisionRecordStatus
+						  , GS.ExpectedFrequency
+						  , GS.OpenPurpose
+						  , GS.SpecialListLocation
+						  , GS.JobType
+						  , GS.SyncStatus
+						  , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI') AS ProcessDateTime
+						  , TO_CHAR(SYSDATE, 'YYYYMMDD') AS ApplyDate
+						  , SYSDATE AS RegistDate
+						  , GS.RegisterID
+			FROM GOV_SERIES GS
+			LEFT OUTER JOIN GOV_SERIES_MAPPING GSM ON GS.SeriesCode = GSM.SeriesCode
+			WHERE GS.BaseYear = #{BaseYear} - 1
+			AND GSM.JobType != '2'
+		) A ON (GS.BaseYear = A.BaseYear AND GS.SeriesCode = A.SeriesCode)
+		WHEN NOT MATCHED THEN
+			INSERT
+			(
+				  GS.SeriesCode
+				, GS.SFCode
+				, GS.SeriesName
+				, GS.SeriesDescription
+				, GS.KeepPeriod
+				, GS.KeepPeriodReason
+				, GS.KeepMethod
+				, GS.KeepPlace
+				, GS.BaseGroupCode
+				, GS.BaseYear
+				, GS.TempSeriesCode
+				, GS.ProvisionRecordStatus
+				, GS.ExpectedFrequency
+				, GS.OpenPurpose
+				, GS.SpecialListLocation
+				, GS.JobType
+				, GS.SyncStatus
+				, GS.ProcessDateTime
+				, GS.ApplyDate
+				, GS.RegistDate
+				, GS.RegisterID
+			)
+			VALUES
+			(
+				  A.SeriesCode
+				, A.SFCode
+				, A.SeriesName
+				, A.SeriesDescription
+				, A.KeepPeriod
+				, A.KeepPeriodReason
+				, A.KeepMethod
+				, A.KeepPlace
+				, A.BaseGroupCode
+				, A.BaseYear
+				, A.TempSeriesCode
+				, A.ProvisionRecordStatus
+				, A.ExpectedFrequency
+				, A.OpenPurpose
+				, A.SpecialListLocation
+				, A.JobType
+				, A.SyncStatus
+				, A.ProcessDateTime
+				, A.ApplyDate
+				, A.RegistDate
+				, A.RegisterID
+			)
+	</insert>
+	
+	<insert id="insertSeriesMappingByYear" parameterType="cmap">
+		MERGE INTO GOV_SERIES_MAPPING GSM
+		USING(
+			SELECT GSM.SeriesCode
+				 , GSM.SeriesName
+				 , GSM.DeptCode
+				 , GSM.DeptName
+				 , #{BaseYear} AS BaseYear
+				 , GSM.JobType
+				 , 'N' AS SyncStatus
+				 , GSM.RegisterID
+				 , TO_CHAR(SYSDATE, 'YYYYMMDD') AS RegistDate
+				 , TO_CHAR(SYSDATE, 'YYYYMMDD') AS ApplyDate
+				 , TO_CHAR(SYSDATE, 'YYYYMMDDHH24MI') AS ProcessDateTime
+			FROM GOV_SERIES_MAPPING GSM
+			WHERE GSM.BaseYear = #{BaseYear} - 1
+			AND GSM.JobType != '2'
+		) A ON (GSM.BaseYear = A.BaseYear AND GSM.SeriesCode = A.SeriesCode)
+		WHEN NOT MATCHED THEN
+			INSERT
+			(
+				  GSM.SeriesCode
+				, GSM.SeriesName
+				, GSM.DeptCode
+				, GSM.DeptName
+				, GSM.BaseYear
+				, GSM.JobType
+				, GSM.SyncStatus
+				, GSM.RegisterID
+				, GSM.RegistDate
+				, GSM.ApplyDate
+				, GSM.ProcessDateTime
+			)
+			VALUES
+			(
+				  A.SeriesCode
+				, A.SeriesName
+				, A.DeptCode
+				, A.DeptName
+				, A.BaseYear
+				, A.JobType
+				, A.SyncStatus
+				, A.RegisterID
+				, A.RegistDate
+				, A.ApplyDate
+				, A.ProcessDateTime
+			)
+	</insert>
+</mapper>

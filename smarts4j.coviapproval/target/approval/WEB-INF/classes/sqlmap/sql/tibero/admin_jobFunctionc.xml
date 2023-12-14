@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.jobFunction">
+    <select id="selectJobFunctionGrid" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/>
+       		SELECT K.* FROM (
+			SELECT			A.EntCode AS "EntCode"
+						  ,Fn_BaseGetDictionary_S(#{lang}, D.MultiDisplayName) AS "EntName"
+						  , A.JobFunctionCode AS "JobFunctionCode"
+					      , A.JobFunctionID AS "JobFunctionID"
+					      , A.JobFunctionName AS "JobFunctionName"
+					      , A.JobFunctionType AS "JobFunctionType"
+					      ,(SELECT CodeName FROM sys_base_code WHERE Code = A.JobFunctionType AND CodeGroup = 'JobFunctionType') AS "JobFunctionTypeName"
+					      , A.Description AS "Description"
+					      , A.SortKey AS "SortKey"
+					      , TO_CHAR(A.InsertDate,'YYYY-MM-DD HH24:MI:SS') AS  "InsertDate"
+					      , A.IsUse AS "IsUse"
+			FROM jwf_jobfunction A
+			LEFT JOIN sys_object_domain D
+			ON D.DomainCode = A.EntCode 
+			<if test='"ChargerName".equalsIgnoreCase(SearchType) or "ChargerCode".equalsIgnoreCase(SearchType) or (icoSearch != null and icoSearch != "" and icoSearch.length() gt 0) '>
+				LEFT JOIN jwf_jobfunctionmember jj 
+				ON A.JobFunctionID = jj.JobFunctionID
+				LEFT JOIN sys_object_user sou 
+				ON jj.UserCode = sou.UserCode
+			</if>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+				<if test="JobFunctionType != null and JobFunctionType != ''">
+					AND JobFunctionType = #{JobFunctionType}
+	        	</if>  		
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND D.DomainId = #{EntCode}
+				</if>
+				<if test="assignedDomain != null and assignedDomain.size() > 0" >
+		        	AND D.DomainId IN 
+		            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+		            	#{item}
+		    		</foreach>
+	        	</if>	
+				<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("JobFunctionName")'>A.JobFunctionName</when>
+						<when test='SearchType.equalsIgnoreCase("JobFunctionCode")'>A.JobFunctionCode</when>
+						<when test='SearchType.equalsIgnoreCase("ChargerName")'>sou.DisplayName</when>
+						<when test='SearchType.equalsIgnoreCase("ChargerCode")'>jj.UserCode</when>
+	           		</choose>
+           			like '%' || #{SearchText} || '%'
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.JobFunctionName LIKE '%'||#{icoSearch}||'%' 			OR 
+						A.JobFunctionCode LIKE '%'||#{icoSearch}||'%' 	OR
+						sou.DisplayName LIKE '%'||#{icoSearch}||'%' 	OR  
+						jj.UserCode LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+			</trim>	
+			GROUP BY A.EntCode, A.JobFunctionID, A.JobFunctionCode, D.MultiDisplayName, A.JobFunctionName, A.JobFunctionType ,A.Description
+				    ,A.SortKey,A.InsertDate,A.IsUse
+			) K
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+						<when test='sortColumn.equalsIgnoreCase("JobFunctionName")'>"JobFunctionName"</when>
+						<when test='sortColumn.equalsIgnoreCase("JobFunctionCode")'>"JobFunctionCode"</when>
+						<when test='sortColumn.equalsIgnoreCase("JobFunctionTypeName")'>"JobFunctionTypeName"</when>
+						<when test='sortColumn.equalsIgnoreCase("Description")'>"Description"</when>
+						<when test='sortColumn.equalsIgnoreCase("InsertDate")'>"InsertDate"</when>
+						<when test='sortColumn.equalsIgnoreCase("EntName")'>EntName</when>
+						<otherwise>"SortKey"</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					"SortKey" ASC
+			   </if>
+			</trim>
+		<include refid="oracle.include.pagingFooter"/>		
+	</select>
+	
+    <select id="selectJobFunctionGridCnt" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM
+		(
+			SELECT 
+				A.JobFunctionID
+			FROM jwf_jobfunction A
+			LEFT JOIN sys_object_domain D
+			ON D.DomainCode = A.EntCode
+			<if test='"ChargerName".equalsIgnoreCase(SearchType) or "ChargerCode".equalsIgnoreCase(SearchType) or (icoSearch != null and icoSearch != "" and icoSearch.length() gt 0) '>
+				LEFT JOIN jwf_jobfunctionmember jj 
+				ON A.JobFunctionID = jj.JobFunctionID
+				LEFT JOIN sys_object_user sou 
+				ON jj.UserCode = sou.UserCode
+			</if>
+			<trim prefix="WHERE" prefixOverrides="AND |OR ">	
+				<if test="JobFunctionType != null and JobFunctionType != ''">
+					AND A.JobFunctionType = #{JobFunctionType}
+				</if>	  		
+				<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+					AND D.DomainId = #{EntCode}
+				</if>
+				<if test="assignedDomain != null and assignedDomain.size() > 0" >
+		        	AND D.DomainId IN 
+		            <foreach item="item" index="index" collection="assignedDomain" open="(" close=")" separator=",">
+		            	#{item}
+		    		</foreach>
+	        	</if>
+	        	<if test="SearchType != null and SearchType != '' and SearchText != null and SearchText != ''">
+	           		AND 
+	           		<choose>
+						<when test='SearchType.equalsIgnoreCase("JobFunctionName")'>A.JobFunctionName</when>
+						<when test='SearchType.equalsIgnoreCase("JobFunctionCode")'>A.JobFunctionCode</when>
+						<when test='SearchType.equalsIgnoreCase("ChargerName")'>sou.DisplayName</when>
+						<when test='SearchType.equalsIgnoreCase("ChargerCode")'>jj.UserCode</when>
+	           		</choose>
+	          		like '%' || #{SearchText} || '%'
+				</if>
+				<if test="icoSearch != null and icoSearch != '' and icoSearch.length() gt 0">
+					AND (
+						A.JobFunctionName LIKE '%'||#{icoSearch}||'%' 			OR 
+						A.JobFunctionCode LIKE '%'||#{icoSearch}||'%' 	OR
+						sou.DisplayName LIKE '%'||#{icoSearch}||'%' 	OR  
+						jj.UserCode LIKE '%'||#{icoSearch}||'%'		   
+					)
+				</if>
+	        </trim>
+			GROUP BY A.JobFunctionID
+		) A
+	</select>
+	
+    <select id="selectJobFunctionMemberGrid" parameterType="cmap" resultType="cmap">
+       <include refid="oracle.include.pagingHeader"/> 
+			SELECT 	  M.JobFunctionMemberID AS "JobFunctionMemberID"
+						, M.JobFunctionID AS "JobFunctionID"
+						, M.UserCode AS "UserCode"
+						, M.SortKey AS "SortKey"
+						, M.Weight AS "Weight"
+						, P.UserID AS "UR_ID"
+						, P.DisplayName AS "UR_Name"
+						, BG.DeptName AS "DEPT_NAME"
+						, BG.DeptName AS "DEPT_CODE"
+						, DN.DisplayName AS "DN_Name"
+			FROM jwf_jobfunctionmember M
+			INNER JOIN  sys_object_user P ON M.UserCode =P.UserCode
+			INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode AND BG.JobType ='Origin'
+			INNER JOIN sys_object_domain DN ON BG.CompanyCode = DN.DomainCode		
+			WHERE M.JobFunctionID = #{JobFunctionID}
+			<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			    <choose>
+				    <when test="sel_Search == 'DEPT_NAME'"> <!-- 제목 -->
+				      AND BG.DeptName LIKE '%'||#{search}||'%'
+				    </when>
+				    <otherwise>
+				        AND 
+				        <choose>
+							<when test='sel_Search.equalsIgnoreCase("DEPT_NAME")'>BG.DeptName</when>
+							<when test='sel_Search.equalsIgnoreCase("UR_Name")'>P.DisplayName</when>
+							<otherwise>M.UserCode</otherwise>
+						</choose> 
+				        LIKE '%'||#{search}||'%'
+				    </otherwise>
+			    </choose>
+			</if>	
+			<!-- Order by 절 -->
+			<trim prefix="ORDER BY">
+				<if test="sortColumn != null and sortDirection != null">
+		    		<choose>
+						<when test='sortColumn.equalsIgnoreCase("UR_Name")'>P.DisplayName</when>
+						<when test='sortColumn.equalsIgnoreCase("UserCode")'>M.UserCode</when>
+						<when test='sortColumn.equalsIgnoreCase("DEPT_NAME")'>BG.DeptName</when>
+						<otherwise>M.SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if> 
+				<if test="sortColumn == null or sortDirection == null">
+					M.SortKey ASC
+			   </if>
+			</trim>
+       <include refid="oracle.include.pagingFooter"/>
+	</select>
+    
+    <select id="selectJobFunctionMemberGridCnt" resultType="java.lang.Long">
+        SELECT 	COUNT(*)
+		FROM jwf_jobfunctionmember M
+		INNER JOIN  sys_object_user P ON M.UserCode =P.UserCode
+		INNER JOIN sys_object_user_basegroup BG ON P.UserCode = BG.UserCode AND BG.JobType ='Origin'
+		INNER JOIN sys_object_domain DN ON BG.CompanyCode = DN.DomainCode		
+		WHERE M.JobFunctionID = #{JobFunctionID}
+		<if test="sel_Search != null and sel_Search != '' and sel_Search.length() gt 0">
+			<choose>
+			    <when test="sel_Search == 'DEPT_NAME'"> <!-- 제목 -->
+			      AND BG.DeptName LIKE '%'||#{search}||'%'
+			    </when>
+			    <otherwise>
+			        AND  
+			        <choose>
+						<when test='sel_Search.equalsIgnoreCase("DEPT_NAME")'>BG.DeptName</when>
+						<when test='sel_Search.equalsIgnoreCase("UR_Name")'>P.DisplayName</when>
+						<otherwise>M.UserCode</otherwise>
+					</choose>  
+			        LIKE '%'||#{search}||'%'
+			    </otherwise>
+		    </choose>
+		</if>		
+	</select>
+    
+  	<select id="selectJobFunctionData" resultType="cmap">
+		SELECT EntCode AS "EntCode"
+				  , JobFunctionCode AS "JobFunctionCode"
+			      , JobFunctionID AS "JobFunctionID"    
+			      , JobFunctionName AS "JobFunctionName"
+			      , JobFunctionType AS "JobFunctionType"
+			      , Description AS "Description"
+			      , SortKey AS "SortKey"
+			      , TO_CHAR(InsertDate,'YYYY-MM-DD HH24:MI') AS "InsertDate"
+			      , IsUse AS "IsUse"
+		FROM jwf_jobfunction
+		WHERE JobFunctionID = 	#{JobFunctionID}		
+	</select>
+  	
+	<select id="selectJobFunctionMemberData" resultType="cmap">
+        SELECT M.JobFunctionMemberID AS "JobFunctionMemberID"
+				 , M.JobFunctionID AS "JobFunctionID"
+				 , M.UserCode AS "UserCode"
+				 , M.SortKey AS "SortKey"
+				 , M.Weight	 AS "Weight"			
+				 , P.DisplayName AS "UR_Name"
+				 , BG.DeptName AS "DEPT_NAME" -- 부서이름 
+				 , BG.DeptName AS "DEPT_CODE"
+		FROM jwf_jobfunctionmember M
+		left join sys_object_user P ON M.UserCode =P.UserCode
+		left join sys_object_user_basegroup BG ON P.UserCode = BG.UserCode AND BG.JobType ='Origin'
+		WHERE JobFunctionMemberID = #{JobFunctionMemberID}
+	</select>
+  	
+  	<delete id="deleteJobFunction" parameterType="cmap" >
+      	DELETE FROM jwf_jobfunction
+  		WHERE JobFunctionID = #{JobFunctionID}  		
+	</delete>
+	
+	<delete id="deleteJobFunctionAfter" parameterType="cmap" >        		
+  		DELETE FROM jwf_jobfunctionmember
+  		WHERE JobFunctionID = #{JobFunctionID}
+	</delete>
+  	
+  	<select id="duplicateJobFunctionCode" parameterType="cmap" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*) FROM jwf_jobfunction
+			WHERE JobFunctionCode = #{JobFunctionCode} 
+			AND EntCode = #{EntCode}
+		]]>
+	</select>
+	
+	<select id="selectJobFunctionCode" parameterType="String" resultType="cmap">
+		SELECT JobFunctionCode 
+		FROM jwf_jobfunction 
+		WHERE EntCode = #{EntCode}
+	</select>
+	
+  	<insert id="insertJobFunction" parameterType="cmap" >         
+		INSERT INTO jwf_jobfunction
+		(
+			EntCode,
+			JobFunctionCode,
+			JobFunctionName,
+			JobFunctionType,
+			Description,
+			SortKey,
+			InsertDate,
+			IsUse 
+		)
+		SELECT
+			#{EntCode}
+	   		<choose>
+				<when test='JobFunctionCode != null and !JobFunctionCode.equalsIgnoreCase("")'>
+					, #{JobFunctionCode}
+				</when>
+				<otherwise>
+					, 'JF_CODE_' || jwf_jobfunction_code_seq.nextval		
+				</otherwise>
+			</choose>
+			,#{JobFunctionName}
+			,#{JobFunctionType}
+			,#{Description}
+			,#{SortKey}
+			,SYSDATE
+			,#{IsUse}
+		FROM dual		 			
+	</insert>
+	
+  	<update id="updateJobFunction" parameterType="cmap">
+  	    UPDATE jwf_jobfunction
+		SET
+			EntCode=#{EntCode}
+			, JobFunctionCode=#{JobFunctionCode}
+			, JobFunctionName=#{JobFunctionName}
+			, JobFunctionType=#{JobFunctionType}
+			, Description=#{Description}
+			, SortKey=#{SortKey}
+			, IsUse=#{IsUse}
+		WHERE JobFunctionID=#{JobFunctionID}
+  	</update>
+  	
+  	<insert id="insertJobFunctionMember" parameterType="cmap" >         
+		INSERT INTO jwf_jobfunctionmember
+		(
+			JobFunctionID
+			,SortKey
+			,Weight
+			,UserCode 
+		)
+		VALUES ( 
+			#{JobFunctionID},
+			#{SortKey},
+			#{Weight} ,
+			#{UserCode}
+		)
+	</insert>
+	
+  	<update id="updateJobFunctionMember" parameterType="cmap" >         
+		UPDATE jwf_jobfunctionmember
+		SET  SortKey = #{SortKey}		  
+		WHERE JobFunctionMemberID = #{JobFunctionMemberID}
+	</update>
+	
+	<delete  id="deleteJobFunctionMember" parameterType="cmap" >
+		DELETE FROM jwf_jobfunctionmember				  
+		WHERE	JobFunctionMemberID = #{JobFunctionMemberID}		
+	</delete>
+</mapper>

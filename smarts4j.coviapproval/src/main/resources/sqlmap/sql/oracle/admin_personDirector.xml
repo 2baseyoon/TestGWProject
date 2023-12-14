@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="admin.personDirector">
+    <select id="select" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM (
+			SELECT A.UserCode AS "UserCode" 
+			       , A.EntCode AS "EntCode"
+			       , A.UserName AS "UserName"
+			       , A.Description AS "Description"
+			       , A.SortKey AS "SortKey"
+			       , TO_CHAR(A.AuthStartDate,'YYYY-MM-DD') AS "AuthStartDate"
+			       , TO_CHAR(A.AuthEndDate,'YYYY-MM-DD')	AS "AuthEndDate"	
+			       , B.TargetCode AS "TargetCode"
+			       , B.TargetName AS "TargetName"
+			       , TO_CHAR(B.ViewStartDate,'YYYY-MM-DD') AS "ViewStartDate"
+			       , TO_CHAR(B.ViewEndDate,'YYYY-MM-DD') AS "ViewEndDate"
+			FROM jwf_persondirector A 
+			LEFT OUTER JOIN jwf_persondirectormember B ON A.UserCode = B.UserCode AND A.EntCode = B.EntCode
+		    WHERE	A.UserCode = #{UserCode}
+		    AND A.EntCode = #{EntCode}
+		) A
+	</select>
+	
+ 	<select id="selectgrid" parameterType="cmap" resultType="cmap">
+ 	    <include refid="oracle.include.pagingHeader"/>
+ 	    	SELECT 
+ 	    	 	UserCode AS "UserCode"
+	 	      	, EntCode AS "EntCode"
+	 	      	, UserName AS "UserName"
+	 	      	, Description AS "Description"
+	 	      	, SortKey AS "SortKey"
+	 	      	, AuthStartDate AS "AuthStartDate"
+	 	      	, AuthEndDate AS "AuthEndDate" 
+	 	      	, TargetCode AS "TargetCode"
+	 	      	, TargetName AS "TargetName" 
+ 	    	FROM (
+	 	 		SELECT  A.UserCode AS UserCode
+		                  , MAX(A.EntCode) AS EntCode
+		                  , MAX(Fn_BaseGetDictionary_S(#{lang}, A.UserName)) AS UserName
+		                  , MAX(A.Description) AS Description
+		                  , MAX(A.SortKey) AS SortKey
+				          , TO_CHAR(MAX(A.AuthStartDate),'YYYY-MM-DD') AS AuthStartDate
+				          , TO_CHAR(MAX(A.AuthEndDate),'YYYY-MM-DD')	AS AuthEndDate	
+		                  , LISTAGG(B.TargetCode, ',') WITHIN GROUP(ORDER BY B.TargetCode) AS TargetCode
+		                 , LISTAGG(Fn_BaseGetDictionary_S(#{lang}, B.TargetName)||'('||B.TargetCode||')' , ',') WITHIN GROUP(ORDER BY B.TargetName) AS TargetName 
+	 	 		FROM jwf_persondirector A LEFT OUTER JOIN jwf_persondirectormember B ON A.UserCode = B.UserCode
+	 	 		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						  	<if test="UserCode != null and UserCode != '' and UserCode.length() gt 0">
+							 	A.UserCode = #{UserCode}
+							</if>	
+							<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+							 	AND A.EntCode = #{EntCode}
+							</if>		
+	 	 		</trim>
+	 	 		GROUP BY A.UserCode, A.UserName
+	 	 	) LIST
+ 	 		<trim prefix="ORDER BY">
+			  	<if test="sortColumn != null and sortDirection != null">
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("SortKey")'>SortKey</when>
+						<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+						<when test='sortColumn.equalsIgnoreCase("TargetName")'>TargetName</when>
+						<when test='sortColumn.equalsIgnoreCase("Description")'>Description</when>
+						<otherwise>SortKey</otherwise>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</if>
+ 	 		</trim>
+ 	    <include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+ 	<select id="selectgridcnt" resultType="java.lang.Long">
+	 		SELECT COUNT(*) FROM (
+	 	 		SELECT  A.UserCode
+	 	 		FROM jwf_persondirector A 
+	 	 		LEFT OUTER JOIN jwf_persondirectormember B ON A.UserCode = B.UserCode AND A.EntCode = B.EntCode
+	 	 		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+						  	<if test="UserCode != null and UserCode != '' and UserCode.length() gt 0">
+							 	A.UserCode = #{UserCode}
+							</if>	
+							<if test="EntCode != null and EntCode != '' and EntCode.length() gt 0">
+							 	AND A.EntCode = #{EntCode}
+							</if>		
+	 	 		</trim>
+	 	 		GROUP BY A.UserCode
+	 	 	) LIST
+	</select>
+ 	
+ 	<delete id="deletejwf_persondirector" parameterType="cmap">
+        DELETE FROM jwf_persondirector 
+  		WHERE   UserCode = #{UserCode} AND EntCode = #{EntCode}
+	</delete>
+	
+	<delete id="deletejwf_persondirectormember" parameterType="cmap">
+        DELETE FROM jwf_persondirectormember
+  		WHERE UserCode = #{UserCode} 
+  		AND EntCode = #{EntCode}
+	</delete>
+ 	
+	<insert id="insertjwf_persondirector" parameterType="cmap">
+		INSERT INTO jwf_persondirector ( UserCode, EntCode, UserName, Description, SortKey, AuthStartDate	 ,AuthEndDate	 )
+		VALUES ( #{UserCode}, #{EntCode}, #{UserName}, #{Description}, #{SortKey}, TO_DATE(#{AuthStartDate}, 'YYYY-MM-DD'), TO_DATE(#{AuthEndDate}, 'YYYY-MM-DD')		)
+	</insert>
+	
+	<insert id="insertjwf_persondirectormember" parameterType="cmap">
+		INSERT INTO jwf_persondirectormember (UserCode,EntCode,TargetCode,TargetName,ViewStartDate,ViewEndDate)
+		VALUES (#{UserCode},#{EntCode},#{TargetCode},#{TargetName},TO_DATE(#{ViewStartDate}, 'YYYY-MM-DD'),TO_DATE(#{ViewEndDate}, 'YYYY-MM-DD')	)
+	</insert>
+	
+	<select id="selectDuplicateTargetCnt" parameterType="cmap" resultType="java.lang.Integer">
+		SELECT 
+			COUNT(*) 
+		FROM jwf_persondirector PD
+		LEFT OUTER JOIN jwf_persondirectormember PDM ON PD.UserCode = PDM.UserCode AND PD.EntCode = PDM.EntCode
+		WHERE PD.UserCode = #{UserCode}
+		AND PD.EntCode <![CDATA[<>]]> #{EntCode}
+	    <if test="TargetCodes != null and TargetCodes.size != 0">
+	       	AND PDM.TargetCode IN
+	        <foreach collection="TargetCodes" item="TargetCode" open="(" close=")" separator=",">
+	           #{TargetCode}
+	        </foreach>
+		</if>
+	</select>
+
+</mapper>
+

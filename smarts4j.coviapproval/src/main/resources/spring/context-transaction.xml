@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd">
+
+	<!-- JTA(Transaction) 사용시 아래 설정 -->
+	
+	<!-- 1. Tomcat 9.x 사용시 Atomikos 관련 -->
+	<!-- 
+	<bean id="userTransactionService" class="com.atomikos.icatch.config.UserTransactionServiceImp" init-method="init" destroy-method="shutdownForce">
+		<constructor-arg>
+			<props>
+				<prop key="com.atomikos.icatch.service">com.atomikos.icatch.standalone.UserTransactionServiceFactory</prop>
+			</props>
+		</constructor-arg>
+	</bean>
+	<bean id="atomikosTransactionManager" class="com.atomikos.icatch.jta.UserTransactionManager" init-method="init" destroy-method="close" depends-on="userTransactionService">
+		<property name="startupTransactionService" value="false" />
+		<property name="forceShutdown" value="false" />
+	</bean>
+	<bean id="atomikosUserTransaction" class="com.atomikos.icatch.jta.UserTransactionImp" depends-on="userTransactionService">
+		<property name="transactionTimeout" value="30" />
+	</bean>
+	<bean id="txManagerLegacy" class="org.springframework.transaction.jta.JtaTransactionManager">
+		<property name="userTransaction" ref="atomikosUserTransaction" />
+    	<property name="transactionManager" ref="atomikosTransactionManager" />
+	</bean>
+	 -->
+	 
+	<!-- 2. Tomcat 외 컨테이너기반 WAS 사용시 -->
+	<!--  
+	<bean id="txManagerLegacy" class="org.springframework.transaction.jta.JtaTransactionManager" />
+	-->
+
+	<!-- 공통 -->
+	<!-- 
+	<tx:annotation-driven transaction-manager="txManagerLegacy" proxy-target-class="true"/>
+	 -->
+	 
+</beans>

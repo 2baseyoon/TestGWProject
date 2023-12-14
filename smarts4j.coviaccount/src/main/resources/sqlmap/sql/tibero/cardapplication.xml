@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.cardApplication">
+
+	<select id="getCardApplicationList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	ACA.CardApplicationID AS "CardApplicationID"
+			,	ACA.CompanyCode AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACA.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACA.CardNo AS "CardNo"
+			,	ACA.CardCompany AS "CardCompany"
+			,	FN_GETACTBASECODENAME('CardCompany', ACA.CardCompany, #{companyCode})	AS "CardCompanyName"
+			,	ACA.RegisterID AS "RegisterID"
+			,	USR.DisplayName															AS "RegisterName"
+			,	ACA.RegistDate					AS "RegistDate"
+			,	ACA.IsUse AS "IsUse"
+		FROM	act_card_application	ACA
+		LEFT OUTER JOIN
+				sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE '%' || #{cardNo} || '%' 
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACA.CardApplicationID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>"CardNo"</when>
+					<when test='sortColumn.equalsIgnoreCase("CardCompanyName")'>"CardCompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>"RegisterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getCardApplicationExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	ACA.CardNo AS "CardNo"
+			,	FN_GETACTBASECODENAME('CardCompany', ACA.CardCompany, #{companyCode})	AS "CardCompanyName"
+			,	USR.DisplayName		AS "RegisterName"
+			,	ACA.RegistDate		AS "RegistDate"
+			,	ACA.IsUse AS "IsUse"
+		FROM	act_card_application	ACA
+		LEFT OUTER JOIN
+				sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+		ORDER BY ACA.CardApplicationID
+	</select>
+	
+	<select id="getCardApplicationListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	act_card_application	ACA
+		LEFT OUTER JOIN
+				sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACA.CompanyCode = #{companyCode}
+		</if>
+		<if test ="registerCode != null and registerCode !=''">
+		AND		ACA.RegisterID = #{registerCode}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACA.CardNo LIKE '%' || #{cardNo} || '%'
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		ACA.IsUse = #{isUse}
+		</if>
+	</select>
+	
+	<select id="getCardApplicationDetail" parameterType="cmap" resultType="cmap">
+		SELECT	ACA.CardApplicationID AS "CardApplicationID"
+			,	ACA.CardNo AS "CardNo"
+			,	FN_GETACTBASECODENAME('CardCompany', ACA.CardCompany, #{companyCode})	AS "CardCompanyName"
+			,	USR.DisplayName															AS "RegisterName"
+			,	ACA.IsUse AS "IsUse"
+			,	ACA.ApplicationReason AS "ApplicationReason"
+		FROM	act_card_application	ACA
+		LEFT OUTER JOIN
+				sys_object_user	USR
+		ON		ACA.RegisterID	= USR.UserCode
+		WHERE	ACA.ApplicationClass	= 'PE'
+		AND		ACA.ApplicationStatus	= 'A'
+		AND		ACA.CardApplicationID = #{cardApplicationID}
+	</select>
+	
+	<update id="updateCardApplicationUseYN" parameterType="cmap" >
+ 		UPDATE act_card_application
+ 			SET
+ 				IsUse		= #{isUse}
+ 			,	ModifierID	= #{UR_Code}
+			,	ModifyDate	= SYSDATE
+ 		WHERE	CardApplicationID = #{cardApplicationID}
+ 	</update>
+ 	
+</mapper>
+

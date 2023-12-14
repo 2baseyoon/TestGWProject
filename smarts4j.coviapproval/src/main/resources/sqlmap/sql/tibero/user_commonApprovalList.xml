@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user.commonApprovalList">
+
+    <select id="selectDomainListData" parameterType="cmap" resultType="cmap">
+        SELECT
+        	DomainDataID AS "DomainDataID"
+			,DomainDataName AS "DomainDataName"
+			,ProcessID AS "ProcessID"
+			,DomainDataContext AS "DomainDataContext"
+        FROM (
+			SELECT
+					 DomainDataID
+					,DomainDataName
+					,ProcessID
+					,DomainDataContext
+			FROM JWF_DOMAINDATA
+			WHERE ProcessID = #{ProcessID}
+		) A
+	</select>
+
+	<select id="selectCommFileListData" parameterType="cmap" resultType="cmap">
+	    SELECT
+				A.FileID AS "FileID"
+				, A.StorageID AS "StorageID"
+				, A.ServiceType AS "ServiceType"
+				, A.ObjectID AS "ObjectID"
+				, A.ObjectType AS "ObjectType"
+				, A.MessageID AS "MessageID"
+				, A.Version AS "Version"
+				, A.SaveType AS "SaveType"
+				, A.LastSeq AS "LastSeq"
+				, A.Seq AS "Seq"
+				, A.FilePath AS "FilePath"
+				, A.FileName AS "FileName"
+				, A.SavedName AS "SavedName"
+				, A.Size_ AS "Size"
+				, A.ThumWidth AS "ThumWidth"
+				, A.ThumHeight AS "ThumHeight"
+				, A.Description AS "Description"
+				, A.RegistDate AS "RegistDate"
+				, Fn_BaseGetDictionary_S(#{lang}, B.MultiDisplayName) || ' (' || Fn_BaseGetDictionary_S(#{lang}, C.MultiDeptName) || ')' AS "UserName"
+				, ROWNUM AS "Num"
+		FROM SYS_FILE A
+	    INNER JOIN SYS_OBJECT_USER B  ON B.UserCode = A.RegisterCode
+	    INNER JOIN SYS_OBJECT_USER_BASEGROUP C ON C.UserCode = B.UserCode
+		WHERE MessageID = #{FormInstID}  AND A.ServiceType = #{ServiceType} AND A.SaveType != 'INLINE' AND C.JobType = 'Origin'
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("FileName")'>FileName</when>
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+				<otherwise> FileID</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</select>
+
+	<select id="selectDocreadHistoryListData" parameterType="cmap" resultType="cmap">
+    	SELECT
+			 A.DocReadID AS "DocReadID"
+			, A.UserID AS "UserID"
+			, A.JobTitle AS "JobTitle"
+			, A.JobLevel AS "JobLevel"
+			, TO_CHAR(A.ReadDate, 'YYYY-MM-DD HH24:MI:SS') AS "ReadDate"
+			, A.ProcessID AS "ProcessID"
+			, A.FormInstID AS "FormInstID"
+			, A.AdminYN AS "AdminYN"
+			, B.MultiDisplayName  AS "UserName"
+			, C.MultiDeptName AS "DeptName"
+		FROM JWF_DOCREADHISTORY A
+		INNER JOIN SYS_OBJECT_USER B ON B.UserCode = A.UserID
+		INNER JOIN SYS_OBJECT_USER_BASEGROUP C ON C.UserCode = B.UserCode
+		<choose>
+			<when test="FormInstID != null and FormInstID != '' and FormInstID != 'undefined'">
+				WHERE FormInstID = #{FormInstID}
+			</when>
+			<otherwise>
+				WHERE ProcessID = #{ProcessID}
+			</otherwise>
+		</choose>
+		AND C.JobType = 'Origin'
+		AND A.AdminYN = 'N'
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			ORDER BY
+			<choose>  
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+				<otherwise> ReadDate</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</select>
+	
+	<select id="selectSingleDocreadData" resultType="java.lang.Long">
+	    SELECT COUNT(DocReadID)
+		FROM JWF_DOCREADHISTORY
+		WHERE UserID = #{userID}
+		AND ProcessID = #{ProcessID}
+		AND FormInstID = #{FormInstID}
+	</select>
+</mapper>
+

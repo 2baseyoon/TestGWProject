@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.cardBill">
+
+    <select id="getCardBillmmSumAmountWon" parameterType="cmap" resultType="cmap">
+        SELECT	FORMAT(IFNULL(NULLIF(SUM(ACB.AmountWon),''),'0'),0)	AS AmountWon
+        FROM	covi_account4j_si.act_card_bill	ACB
+        WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+        <if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="UR_Code != null and UR_Code !=''">
+		AND		ACB.CardUserCode = #{UR_Code}
+		</if>
+    </select>
+    
+	<select id="getCardBillList" parameterType="cmap" resultType="cmap">
+		SELECT	ACB.CardBillID
+			,	ACB.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACB.CompanyCode, #{companyCode}) AS CompanyName
+			,	CONCAT('**********',SUBSTRING(ACB.CardNo,11))		AS CardNo
+			,	ACB.ApproveNo
+			,	CASE	WHEN IFNULL(NULLIF(ACB.ApproveDate,''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE DATE_FORMAT(ACB.ApproveDate,'%Y.%m.%d')
+				END	AS ApproveDate
+			,	ACB.StoreName
+			,	ACB.ForeignCurrency
+			,	FORMAT(ACB.AmountWon,0)	AS AmountWon
+			,	ACB.AmountWon	AS SortAmountWon
+			,	IFNULL(NULLIF(covi_account4j_si.Fn_GetBaseCodeName('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS CountryIndexName
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%') 
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACB.CardBillID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>ApproveDate</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>ForeignCurrency</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>SortAmountWon</when>
+					<when test='sortColumn.equalsIgnoreCase("CountryIndexName")'>CountryIndexName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getCardBillExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	CONCAT('**********',SUBSTRING(ACB.CardNo,11))		AS CardNo
+			,	ACB.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACB.CompanyCode, #{companyCode}) AS CompanyName
+			,	ACB.ApproveNo
+			,	CASE	WHEN IFNULL(NULLIF(ACB.ApproveDate,''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE DATE_FORMAT(ACB.ApproveDate,'%Y.%m.%d')
+				END	AS ApproveDate
+			,	ACB.StoreName
+			,	ACB.ForeignCurrency
+			,	FORMAT(ACB.AmountWon,0)	AS AmountWon
+			,	IFNULL(NULLIF(covi_account4j_si.Fn_GetBaseCodeName('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS CountryIndexName
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		ORDER BY ACB.CardBillID DESC
+	</select>
+	
+	<select id="getCardBillListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+	</select>
+	
+	<select id="getCardBillUserList" parameterType="cmap" resultType="cmap">
+		SELECT	ACB.CardBillID
+			,	ACB.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACB.CompanyCode, #{companyCode}) AS CompanyName
+			,	CONCAT('**********',SUBSTRING(ACB.CardNo,11))	AS CardNo
+			,	ACB.ApproveNo
+			,	CASE	WHEN IFNULL(NULLIF(ACB.ApproveDate,''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE DATE_FORMAT(ACB.ApproveDate,'%Y.%m.%d')
+				END	AS ApproveDate
+			,	ACB.StoreName
+			,	ACB.ForeignCurrency
+			,	FORMAT(ACB.AmountWon,0)	AS AmountWon
+			,	IFNULL(NULLIF(covi_account4j_si.Fn_GetBaseCodeName('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS CountryIndexName
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACB.CardBillID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("CardNo")'>CardNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+					<when test='sortColumn.equalsIgnoreCase("ApproveDate")'>ApproveDate</when>
+					<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+					<when test='sortColumn.equalsIgnoreCase("ForeignCurrency")'>ForeignCurrency</when>
+					<when test='sortColumn.equalsIgnoreCase("AmountWon")'>CAST(AmountWon AS SIGNED)</when>
+					<when test='sortColumn.equalsIgnoreCase("CountryIndexName")'>CountryIndexName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getCardBillUserExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	CONCAT('**********',SUBSTRING(ACB.CardNo,11))		AS CardNo
+			,	ACB.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', ACB.CompanyCode, #{companyCode}) AS CompanyName
+			,	ACB.ApproveNo
+			,	CASE	WHEN IFNULL(NULLIF(ACB.ApproveDate,''),'NODATA') = 'NODATA'
+						THEN ''
+						ELSE DATE_FORMAT(ACB.ApproveDate,'%Y.%m.%d')
+				END	AS ApproveDate
+			,	ACB.StoreName
+			,	ACB.ForeignCurrency
+			,	FORMAT(ACB.AmountWon,0)	AS AmountWon
+			,	IFNULL(NULLIF(covi_account4j_si.Fn_GetBaseCodeName('Country', ACB.CountryIndex, #{companyCode}),''),'')	AS CountryIndexName
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+		ORDER BY ACB.CardBillID DESC
+	</select>
+	
+	<select id="getCardBillUserListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_card_bill	ACB
+		WHERE	1=1
+		AND		ACB.CardUserCode = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACB.CompanyCode = #{companyCode}
+		</if>
+		<if test ="approveDate != null and approveDate !=''">
+		AND		SUBSTRING(ACB.ApproveDate,1,6) = #{approveDate}
+		</if>
+		<if test ="cardNo != null and cardNo !=''">
+		AND		ACB.CardNo LIKE CONCAT('%',#{cardNo},'%')
+		</if>
+	</select>
+	
+	<select id="getCardBillInterfaceSaveCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	covi_account4j_si.act_card_bill	ACB
+	    WHERE	ACB.ApproveNo	= #{approveNo}
+	</select>
+	
+	<insert id="cardBillInterfaceInsert" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.act_card_bill (
+		    	SendDate,			ItemNo,					CardNo,			InfoIndex
+			,	InfoType,			CardCompIndex,			CardRegType,	CardType
+			,	BizPlaceNo,			Dept,					CardUserCode,	UseDate
+			,	ApproveDate,		ApproveTime,			ApproveNo,		WithdrawDate
+			,	CountryIndex,		AmountSign,				AmountCharge,	AmountWon
+			,	ForeignCurrency,	AmountForeign,			StoreRegNo,		StoreName
+			,	StoreNo,			StoreRepresentative,	StoreCondition,	StoreCategory
+			,	StoreZipCode,		StoreAddress1,			StoreAddress2,	StoreTel
+			,	RepAmount,			TaxAmount,				ServiceAmount,	PaymentFlag
+			,	PaymentDate,		CollNo,					ClassCode,		CompanyCode
+	    ) VALUES (
+	    		#{sendDate},		#{itemNo},				#{cardNo},			#{infoIndex}
+			,	#{infoType},		#{cardCompIndex},		#{cardRegType},		#{cardType}
+			,	#{bizPlaceNo},		#{dept},				#{cardUserCode},	#{useDate}
+			,	#{approveDate},		#{approveTime},			#{approveNo},		#{withdrawDate}
+			,	#{countryIndex},	#{amountSign},			#{amountCharge},	#{amountWon}
+			,	#{foreignCurrency},	#{amountForeign},		#{storeRegNo},		#{storeName}
+			,	#{storeNo},			#{storeRepresentative},	#{storeCondition},	#{storeCategory}
+			,	#{storeZipCode},	#{storeAddress1},		#{storeAddress2},	#{storeTel}
+			,	#{repAmount},		#{taxAmount},			#{serviceAmount},	#{paymentFlag}
+			,	#{paymentDate},		#{collNo},				#{classCode},		#{companyCode}
+	    )
+ 	</insert>
+ 	
+	<update id="cardBillInterfaceUpdate" parameterType="cmap" >
+	    UPDATE covi_account4j_si.act_card_bill
+	    	SET
+				SendDate			= #{sendDate},				ItemNo			= #{itemNo}
+			,	CardNo				= #{cardNo},				InfoIndex		= #{infoIndex}
+			,	InfoType			= #{infoType},				CardCompIndex	= #{cardCompIndex}
+			,	CardRegType			= #{cardRegType},			CardType		= #{cardType}
+			,	BizPlaceNo			= #{bizPlaceNo},			Dept			= #{dept}
+			,	CardUserCode		= #{cardUserCode},			UseDate			= #{useDate}
+			,	ApproveDate			= #{approveDate},			ApproveTime		= #{approveTime}
+			,	WithdrawDate		= #{withdrawDate},			CountryIndex	= #{countryIndex}
+			,	AmountSign			= #{amountSign},			AmountCharge	= #{amountCharge}
+			,	AmountWon			= #{amountWon},				ForeignCurrency	= #{foreignCurrency}
+			,	AmountForeign		= #{amountForeign},			StoreRegNo		= #{storeRegNo}
+			,	StoreName			= #{storeName},				StoreNo			= #{storeNo}
+			,	StoreRepresentative	= #{storeRepresentative},	StoreCondition	= #{storeCondition}
+			,	StoreCategory		= #{storeCategory},			StoreZipCode	= #{storeZipCode}
+			,	StoreAddress1		= #{storeAddress1},			StoreAddress2	= #{storeAddress2}
+			,	StoreTel			= #{storeTel},				RepAmount		= #{repAmount}
+			,	TaxAmount			= #{taxAmount},				ServiceAmount	= #{serviceAmount}
+			,	PaymentFlag			= #{paymentFlag},			PaymentDate		= #{paymentDate}
+			,	CollNo				= #{collNo},				ClassCode		= #{classCode}
+			,	CompanyCode			= #{companyCode}
+		WHERE ApproveNo	= #{approveNo}
+	</update>
+</mapper>

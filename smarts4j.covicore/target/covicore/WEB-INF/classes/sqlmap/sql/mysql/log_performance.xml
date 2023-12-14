@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="sys.LogPerformanceLog">    
+ 	<select id="selectgrid" parameterType="cmap" resultType="cmap">			
+	<![CDATA[
+		SELECT LogID
+			,MachineName
+			,p.UserCode
+			,Fn_BaseGetDictionary_S(#{lang}, IFNULL(u.MultiDisplayName,'')) AS UserName
+			,Fn_BaseGetDictionary_S(#{lang}, IFNULL(bg.MultiDeptName,'')) AS DeptName
+			,p.LogonID
+			,SiteName
+			,LogType
+			,LogTitle
+			,ThreadID
+			,RunTime
+			,MethodName
+			,PageURL
+			,PageParam
+			,IPAddress
+			,EventDate
+		FROM LOG_PERFORMANCE AS p
+		LEFT JOIN sys_object_user AS u ON p.LogonID = u.UserCode
+		LEFT JOIN sys_object_user_basegroup AS bg ON u.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+
+    ]]>
+    <trim prefix="WHERE" prefixOverrides="AND |OR ">
+		<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">EventDate BETWEEN #{startDate} AND #{endDate}</if>
+		<if test="searchText != null and searchText != '' ">AND ( u.MultiDisplayName LIKE CONCAT('%', #{searchText}, '%')  OR bg.MultiDeptName LIKE CONCAT('%', #{searchText}, '%') ) </if>
+	</trim>
+	<trim prefix="ORDER BY">
+		<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection != ''">
+			<choose>
+				<when test='sortColumn.equalsIgnoreCase("LogType")'>LogType</when>
+				<when test='sortColumn.equalsIgnoreCase("ThreadID")'>ThreadID</when>
+				<when test='sortColumn.equalsIgnoreCase("RunTime")'>RunTime</when>
+				<when test='sortColumn.equalsIgnoreCase("PageURL")'>PageURL</when>
+				<when test='sortColumn.equalsIgnoreCase("LogonID")'>LogonID</when>
+				<when test='sortColumn.equalsIgnoreCase("UserName")'>UserName</when>
+				<when test='sortColumn.equalsIgnoreCase("DeptName")'>DeptName</when>
+				<when test='sortColumn.equalsIgnoreCase("IPAddress")'>IPAddress</when>
+				<when test='sortColumn.equalsIgnoreCase("MachineName")'>MachineName</when>
+				<otherwise>EventDate</otherwise>
+			</choose>
+			<choose>
+				<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+				<otherwise> DESC</otherwise>
+			</choose>
+		</if>
+	</trim>
+    <!-- paging query
+    	LIMIT {가져오는 로우수} OFFSET {몇번째 로우부터인지}
+     -->
+     <if test="pageSize != null and pageOffset != null">
+     		LIMIT #{pageSize} OFFSET #{pageOffset}
+     	</if>
+	</select>	
+ 	<select id="selectCount" resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(0) AS CNT
+			FROM LOG_PERFORMANCE AS p
+			LEFT JOIN sys_object_user AS u ON p.LogonID = u.UserCode
+			LEFT JOIN sys_object_user_basegroup AS bg ON u.UserCode = bg.UserCode AND bg.JobType = 'Origin'
+		]]>		
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="startDate != null and startDate != '' and endDate != null and endDate != '' ">EventDate BETWEEN #{startDate} AND #{endDate}</if>
+			<if test="searchText != null and searchText != '' ">AND ( u.MultiDisplayName LIKE CONCAT('%', #{searchText}, '%')  OR bg.MultiDeptName LIKE CONCAT('%', #{searchText}, '%') ) </if>
+		</trim>
+	</select>	
+</mapper>
