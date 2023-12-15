@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.opinet">
+    <select id="getListCnt" resultType="java.lang.Long">
+	    SELECT	
+	    	COUNT(*)
+	    FROM	
+	    	ACT_OPINET
+	    WHERE 
+	    	1 = 1
+	  		<if test="startDD != null and startDD != ''">
+	    	    <![CDATA[ AND YYYYMMDD >= #{startDD} ]]>
+	    	</if>
+	  		<if test="endDD != null and endDD != ''">
+	    	    <![CDATA[ AND YYYYMMDD <= #{endDD} ]]>
+	    	</if>
+	    	<if test="prodcd != null and prodcd != ''">
+	    	    <![CDATA[ AND PRODCD = #{prodcd} ]]>
+	    	</if>
+    </select>
+    
+    <select id="getList" parameterType="cmap" resultType="cmap">
+    	<include refid="oracle.include.pagingHeader" />
+	    SELECT
+	    	*
+	    FROM
+	    	ACT_OPINET
+	    WHERE
+	    	1 = 1
+	  		<if test="startDD != null and startDD != ''">
+	    	    <![CDATA[ AND YYYYMMDD >= #{startDD} ]]>
+	    	</if>
+	  		<if test="endDD != null and endDD != ''">
+	    	    <![CDATA[ AND YYYYMMDD <= #{endDD} ]]>
+	    	</if>
+	    	<if test="prodcd != null and prodcd != ''">
+	    	    <![CDATA[ AND PRODCD = #{prodcd} ]]>
+	    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , YYYYMMDD DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("YYYYMMDD")'>BaseCodeID</when>
+					<when test='sortColumn.equalsIgnoreCase("PRICE")'>CompanyCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	      
+            </if>
+        </trim>
+		<include refid="oracle.include.pagingFooter" />
+    </select>
+    
+    <select id="registerCnt" resultType="java.lang.Long">
+    	SELECT 
+    		COUNT(*)
+    	FROM
+    		ACT_OPINET
+    	WHERE
+    		YYYYMMDD = #{YYYYMMDD}
+    		AND PRODCD = #{PRODCD}
+    </select>
+    
+    <insert id="register" parameterType="cmap">
+    	<selectKey keyProperty="SEQ" resultType="Integer" order="BEFORE">
+			SELECT NVL(MAX(SEQ) + 1, 1) AS SEQ FROM ACT_OPINET
+		</selectKey>
+    	INSERT INTO ACT_OPINET (
+    		SEQ,
+			YYYYMMDD,
+			PRICE,
+			PRODCD,
+			REGISTERID,
+			REGISTDATE,
+			MODIFIERID,
+			MODIFYDATE
+    	) VALUES (
+    		#{SEQ},
+    		#{YYYYMMDD},
+    		#{PRICE},
+    		#{PRODCD},
+    		#{REGISTERID},
+			SYSDATE,
+			#{MODIFIERID},
+			SYSDATE
+    	)
+    </insert>
+    
+    <select id="getOpinet" parameterType="cmap" resultType="cmap">
+    	SELECT
+    		*
+    	FROM
+    		ACT_OPINET
+    	WHERE
+    		YYYYMMDD = #{YYYYMMDD}
+    		AND PRODCD = #{PRODCD}
+    </select>
+</mapper>

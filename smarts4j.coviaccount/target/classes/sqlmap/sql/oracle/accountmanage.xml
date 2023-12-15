@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.accountmanage">
+
+	<select id="getAccountmanagelist" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+	    SELECT	AC.AccountID AS "AccountID"
+	    	,	AC.CompanyCode AS "CompanyCode"
+	    	,	FN_GETACTBASECODENAME('CompanyCode',AC.CompanyCode,#{companyCode})		AS "CompanyName"
+	    	,	AC.AccountCode AS "AccountCode"
+			,	AC.AccountName AS "AccountName"
+			,	AC.AccountShortName AS "AccountShortName"
+			,	FN_GETACTBASECODENAME('AccountClass',AC.AccountClass,#{companyCode})	AS "AccountClassName"
+			,	FN_GETACTBASECODENAME('TaxType',AC.TaxType,#{companyCode})				AS "TaxTypeName"
+			,	FN_GETACTBASECODENAME('TaxCode',AC.TaxCode,#{companyCode})				AS "TaxCodeName"
+			,	AC.IsUse AS "IsUse"
+			,	TO_CHAR(AC.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+	    FROM	act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AC.AccountID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountShortName")'>"AccountShortName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountClassName")'>"AccountClassName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxCodeName")'>"TaxCodeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxTypeName")'>"TaxTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>"IsUse"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>"RegistDate"</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getAccountmanageExcellist" parameterType="cmap" resultType="cmap">
+	    SELECT	FN_GETACTBASECODENAME('CompanyCode',AC.CompanyCode,#{companyCode})		AS "CompanyName"
+	    	,	AC.AccountCode AS "AccountCode"
+	    	,	AC.AccountName AS "AccountName"
+			,	AC.AccountShortName AS "AccountShortName"
+			,	FN_GETACTBASECODENAME('AccountClass',AC.AccountClass,#{companyCode})	AS "AccountClassName"
+			,	FN_GETACTBASECODENAME('TaxType',AC.TaxType,#{companyCode})				AS "TaxTypeName"
+			,	FN_GETACTBASECODENAME('TaxCode',AC.TaxCode,#{companyCode})				AS "TaxCodeName"
+			,	AC.TaxType AS "TaxType"
+			,	AC.TaxCode AS "TaxCode"
+			,	AC.IsUse AS "IsUse"
+			,	TO_CHAR(AC.RegistDate, 'YYYY-MM-DD HH24:MI:SS') AS "RegistDate"
+	    FROM	act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		ORDER BY AC.AccountID
+	</select>
+	
+	<select id="getAccountCodeCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_account
+	    WHERE	AccountCode	= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<select id="getAccountmanagelistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_account AC
+	    WHERE	1=1
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		AC.CompanyCode = #{companyCode}
+		</if>
+		<if test ="accountClass != null and accountClass !=''">
+		AND		AC.AccountClass = #{accountClass}
+		</if>
+		<if test ="taxCode != null and taxCode !=''">
+		AND		AC.TaxCode = #{taxCode}
+		</if>
+		<if test ="taxType != null and taxType !=''">
+		AND		AC.TaxType = #{taxType}
+		</if>
+		<if test ="isUse != null and isUse !=''">
+		AND		AC.IsUse = #{isUse}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	AC.AccountCode		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		AC.AccountCode		LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		AC.AccountName		LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		AC.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+	</select>
+	
+	<select id="getAccountManageDetail" parameterType="cmap" resultType="cmap">
+	    SELECT	AC.AccountID AS "AccountID"
+			,	AC.AccountClass AS "AccountClass"
+	    	,	AC.AccountCode AS "AccountCode"
+			,	AC.AccountName AS "AccountName"
+			,	AC.AccountShortName AS "AccountShortName"
+			,	AC.TaxCode AS "TaxCode"
+			,	AC.TaxType AS "TaxType"
+			,	AC.IsUse AS "IsUse"
+			,	AC.Description AS "Description"
+			,	AC.CompanyCode AS "CompanyCode"
+	    FROM	act_account AC
+	    WHERE	AC.AccountID = #{accountID}
+	</select>
+	
+	<insert id="insertAccountManageInfo" parameterType="cmap" >
+	    INSERT INTO act_account (
+				CompanyCode
+			,	AccountClass
+			,	AccountCode
+			,	AccountName
+			,	AccountShortName
+			,	TaxCode
+			,	TaxType
+			,	IsUse
+			,	Description
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+				#{companyCode}
+			,	#{accountClass}
+			,	#{accountCode}
+			,	#{accountName}
+			,	#{accountShortName}
+			,	#{taxCode}
+			,	#{taxType}
+			,	#{isUse}
+			,	#{description ,jdbcType=VARCHAR}
+			,	#{UR_Code}
+			,	SYSDATE
+			,	#{UR_Code}
+			,	SYSDATE
+	    )
+ 	</insert>
+ 	
+	<update id="updateAccountManageInfo" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.updateAccountManageInfo
+	    */
+ 		UPDATE act_account
+ 			SET	IsUse				= #{isUse}
+			<if test = "listPage == 'N'.toString()">
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+ 			,	Description			= #{description}
+			,	TaxType				= #{taxType}
+			,	TaxCode				= #{taxCode}
+			</if>
+ 		WHERE	AccountID	= #{accountID}
+ 	</update>
+	
+	<delete id="deleteAccountManageInfo">
+	    DELETE FROM act_account		
+		WHERE	AccountID = #{accountID}	
+	</delete>
+	
+	<select id="getAccountCodeAccountID" parameterType="cmap" resultType="java.lang.String">
+	    SELECT AC.AccountID AS "AccountID"
+	    FROM	act_account AC
+	    WHERE	AC.AccountCode = #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<update id="updateAccountManageInfoExcel" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.updateAccountManageInfoExcel
+	    */
+ 		UPDATE act_account
+ 			SET	IsUse				= #{isUse}
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+ 			,	Description			= #{description}
+ 			,	TaxType				= #{taxType}
+ 			,	TaxCode				= #{taxCode}
+ 		WHERE	AccountID	= #{accountID}
+ 	</update>
+	
+	<select id="getAccountmanageInterfaceSaveCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_account
+	    WHERE	AccountCode	= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</select>
+	
+	<insert id="accountmanageInterfaceInsert" parameterType="cmap" >
+	    /*
+	    	account.accountmanage.accountmanageInterfaceInsert
+	    */
+	    INSERT INTO act_account (
+					CompanyCode
+				,	AccountClass
+				,	AccountCode
+				,	AccountName
+				,	AccountShortName
+				,	IsUse
+				,	Description
+				,	RegisterID
+				,	RegistDate
+				,	ModifierID
+				,	ModifyDate
+		    ) VALUES (
+					#{companyCode}
+				,	#{accountClass}
+				,	#{accountCode}
+				,	#{accountName}
+				,	#{accountShortName}
+				,	#{isUse}
+				,	#{description}
+				,	#{UR_Code}
+				,	SYSDATE
+				,	#{UR_Code}
+				,	SYSDATE
+		    )
+	</insert>
+	
+	<update id="accountmanageInterfaceUpdate" parameterType="cmap" >
+		/*
+			account.accountmanage.accountmanageInterfaceUpdate
+		*/
+		UPDATE act_account
+	 			SET	IsUse			= #{isUse}
+			,	CompanyCode			= #{companyCode}
+			,	AccountClass		= #{accountClass}
+			,	AccountName			= #{accountName}
+			,	AccountShortName	= #{accountShortName}
+			,	Description			= #{description}
+		WHERE	AccountCode			= #{accountCode}
+	    <if test ="companyCode != null and companyCode !=''">
+		AND		CompanyCode = #{companyCode}
+		</if>
+	</update>
+</mapper>
+

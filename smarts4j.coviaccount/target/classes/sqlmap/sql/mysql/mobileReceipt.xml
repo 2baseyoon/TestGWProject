@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.mobileReceipt">
+    
+	<select id="getMobileReceiptList" parameterType="cmap" resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AR.CompanyCode, #{companyCode}) AS CompanyName,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				AR.PhotoDate AS PhotoDate,
+				AR.PhotoDate AS PhotoDateStr,
+				AR.ReceiptType,
+				covi_account4j_si.Fn_GetBaseCodeName('ReceiptType', AR.ReceiptType, #{companyCode}) AS ReceiptTypeName,
+				AR.ReceiptFileID,
+				AR.Active,
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName,
+				AR.RegisterID,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS RegisterName,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiDeptName) AS RegisterDept,
+				DATE_FORMAT(AR.RegistDate, '%Y%m%d') AS RegistDate,
+				DATE_FORMAT(AR.RegistDate, '%Y.%m.%d %H:%i') AS RegistDateStr,				
+				SB.StandardBriefID,
+				SB.StandardBriefName		
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN
+				covi_account4j_si.act_standard_brief SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AR.ReceiptID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>ActiveName</when>
+					<when test='sortColumn.equalsIgnoreCase("PhotoDateStr")'>PhotoDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptTypeName")'>ReceiptTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageText")'>UsageText</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterDept")'>RegisterDept</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getMobileReceiptExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AR.CompanyCode, #{companyCode}) AS CompanyName,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				DATE_FORMAT(AR.PhotoDate, '%Y%m%d') AS PhotoDate,
+				DATE_FORMAT(AR.PhotoDate, '%Y.%m.%d %H:%i') AS PhotoDateStr,
+				AR.ReceiptType,
+				covi_account4j_si.Fn_GetBaseCodeName('ReceiptType', AR.ReceiptType, #{companyCode}) AS ReceiptTypeName,
+				AR.ReceiptFileID,
+				AR.Active,
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName,
+				AR.RegisterID,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS RegisterName,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiDeptName) AS RegisterDept,
+				AR.RegistDate AS RegistDate,
+				AR.RegistDate AS RegistDateStr,				
+				SB.StandardBriefID,
+				SB.StandardBriefName		
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN
+				covi_account4j_si.act_standard_brief SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		ORDER BY AR.ReceiptID DESC
+	</select>
+	
+	<select id="getMobileReceiptListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_receipt	AR
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+	</select>
+	
+	<select id="getMobileReceiptUserList" parameterType="cmap" resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AR.CompanyCode, #{companyCode}) AS CompanyName,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				DATE_FORMAT(AR.PhotoDate, '%Y%m%d') AS PhotoDate,
+				DATE_FORMAT(AR.PhotoDate, '%Y.%m.%d %H:%i') AS PhotoDateStr,
+				AR.ReceiptType,
+				covi_account4j_si.Fn_GetBaseCodeName('ReceiptType', AR.ReceiptType, #{companyCode}) AS ReceiptTypeName,
+				AR.ReceiptFileID,
+				AR.Active,
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName,
+				AR.RegisterID,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS RegisterName,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiDeptName) AS RegisterDept,
+				AR.RegistDate AS RegistDate,
+				AR.RegistDate AS RegistDateStr,				
+				SB.StandardBriefID,
+				SB.StandardBriefName		
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN
+				covi_account4j_si.act_standard_brief SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		AND		AR.RegisterID = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AR.ReceiptID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>ActiveName</when>
+					<when test='sortColumn.equalsIgnoreCase("PhotoDateStr")'>PhotoDateStr</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptTypeName")'>ReceiptTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageText")'>UsageText</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>StandardBriefName</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getMobileReceiptUserExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	AR.ReceiptID,
+				AR.CompanyCode,
+				covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', AR.CompanyCode, #{companyCode}) AS CompanyName,
+				AR.ExpenceMgmtCode,
+				AR.UsageText,
+				DATE_FORMAT(AR.PhotoDate, '%Y%m%d') AS PhotoDate,
+				DATE_FORMAT(AR.PhotoDate, '%Y.%m.%d %H:%i') AS PhotoDateStr,
+				AR.ReceiptType,
+				covi_account4j_si.Fn_GetBaseCodeName('ReceiptType', AR.ReceiptType, #{companyCode}) AS ReceiptTypeName,
+				AR.ReceiptFileID,
+				AR.Active,
+				covi_account4j_si.Fn_GetBaseCodeName('Active', AR.Active, #{companyCode}) AS ActiveName,
+				AR.RegisterID,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOU.MultiDisplayName) AS RegisterName,
+				covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, SOUB.MultiDeptName) AS RegisterDept,
+				AR.RegistDate AS RegistDate,
+				AR.RegistDate AS RegistDateStr,				
+				SB.StandardBriefID,
+				SB.StandardBriefName		
+		FROM	covi_account4j_si.act_receipt AR
+		LEFT OUTER JOIN
+				covi_account4j_si.act_standard_brief SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		ORDER BY AR.ReceiptID DESC
+	</select>
+	
+	<select id="getMobileReceiptUserListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	covi_account4j_si.act_receipt	AR
+		INNER JOIN
+				covi_smart4j.sys_object_user SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				covi_smart4j.sys_object_user_basegroup SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		AND		AR.RegisterID = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+	</select>
+	
+	<delete id="deleteMobileReceipt">
+	    DELETE FROM covi_account4j_si.act_receipt		
+		WHERE 	
+		<choose>
+			<when test="deleteSeq != null">
+				<foreach collection="deleteSeq" item="item" index="index" separator="," open="ReceiptID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+	</delete>
+	
+	<insert id="insertMobileReceipt" parameterType="cmap">
+		INSERT INTO covi_account4j_si.act_receipt (
+			CompanyCode,
+			StandardBriefID,
+			AccountCode,
+			UseDate,
+			UseTime,
+			PhotoDate,
+			UsageText,
+			StoreName,
+			Amount,
+			TotalAmount,
+			ReceiptFileID,
+			Active,
+			RegisterID,
+			RegistDate
+		) VALUES (
+			#{companyCode},
+			CAST(#{standardBriefId} AS UNSIGNED),
+			#{accountCode},
+			DATE_FORMAT(STR_TO_DATE(#{useDate}, '%Y%m%d'),'%Y-%m-%d'),
+			#{useTime},
+			#{photoDate},
+			#{usageText},
+			#{storeName},
+			CAST(#{amount} AS UNSIGNED),
+			CAST(#{amount} AS UNSIGNED),
+			CAST(#{receiptFileId} AS UNSIGNED),
+			'N',
+			#{registerId},
+			NOW()
+		);
+	</insert>
+</mapper>

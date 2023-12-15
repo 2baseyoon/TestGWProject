@@ -1,0 +1,77 @@
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xmlns:p="http://www.springframework.org/schema/p"
+		xmlns:context="http://www.springframework.org/schema/context"
+		xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+		xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+			http://www.springframework.org/schema/jdbc  http://www.springframework.org/schema/jdbc/spring-jdbc-4.0.xsd">
+    
+    
+    <bean id="encryptorConfig" class="org.jasypt.encryption.pbe.config.EnvironmentStringPBEConfig">
+		<property name="algorithm" value="PBEWithMD5AndDES" /><!-- 패스워드 인코더에 사용될 hash function 알고리즘 -->
+		<property name="password" value="Devsno1@)17" />
+	</bean>
+
+	<!-- jasyp Encryption password property -->
+	<bean id="encryptor" class="org.jasypt.encryption.pbe.StandardPBEStringEncryptor">
+		<property name="config" ref="encryptorConfig" />
+	</bean>
+
+	<!-- 암복호화 설정 값저장 프로퍼티 위치 설정 
+	<bean id="propertyConfigurer" class="org.jasypt.spring31.properties.EncryptablePropertyPlaceholderConfigurer">
+		<constructor-arg ref="encryptor" />
+		<property name="locations">
+			<list>
+				<value>classpath:/property/db.properties</value>
+			</list>
+		</property>
+	</bean> 
+    -->
+	<!-- classpath 및 tomcat path 외부 경로에 있는 property를 미리 읽어서 Bean으로 참조 -->
+	<bean id="db" class="org.jasypt.spring31.properties.EncryptablePropertyPlaceholderConfigurer">
+	    <constructor-arg ref="encryptor" />
+	    <property name="ignoreUnresolvablePlaceholders" value="true" />
+    	<property name="ignoreResourceNotFound" value="true" />
+	    <property name="locations">
+	        <list>
+	        	<value>file://${DEPLOY_PATH}/covi_property/db.properties</value>
+	        </list>
+	    </property>
+	</bean>
+	
+	<bean id="globals" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+	    <property name="ignoreUnresolvablePlaceholders" value="true" />
+    	<property name="ignoreResourceNotFound" value="true" />
+	    <property name="locations">
+	        <list>
+	        	<value>file://${DEPLOY_PATH}/covi_property/globals.properties</value>
+	        </list>
+	    </property>
+	</bean>
+	
+	<bean id="security" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+	    <property name="ignoreUnresolvablePlaceholders" value="true" />
+    	<property name="ignoreResourceNotFound" value="true" />
+	    <property name="locations">
+	        <list>
+	        	<value>file://${DEPLOY_PATH}/covi_property/security.properties</value>
+	        </list>
+	    </property>
+	</bean>
+	
+	<!-- 확인필요한 사항  -->
+	<bean id="dbPropertiesSet" class="egovframework.baseframework.vo.DBPropertiesSet">
+	</bean>
+	
+	<!-- JNDI Datasource -->
+	<bean id="dataSourceOne" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.one.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>	
+	
+	<bean id="dataSourceLegacyOne" class="org.springframework.jndi.JndiObjectFactoryBean">
+	    <property name="jndiName" value="${db.mapper.legacyframework.datasource}"/>
+	    <property name="resourceRef" value="true" />
+	</bean>
+
+</beans>

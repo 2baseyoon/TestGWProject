@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd">
+
+    <!-- mapper별 저장 경로는 별도로 뽑는 것이 맞을 거 같다
+    	 /sqlmap/sql/mapperone/*.xml
+    	 /sqlmap/sql/mappertwo/*.xml
+     -->
+	<!-- SqlSession setup for MyBatis Database Layer -->
+	
+	
+	<!-- 	<bean id="sqlSessionOne" class="org.mybatis.spring.SqlSessionFactoryBean"> -->
+	<bean id="sqlSessionOne" class="egovframework.coviframework.base.RefreshableSqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceOne" />
+		<property name="configLocation" value="classpath:/sqlmap/config/mapper-one-config.xml" />
+		<property name="mapperLocations" value="#{dbPropertiesSet.getClassPath('1')}" />
+	</bean>
+	
+	<!-- 	<bean id="sessionLegacyOne" class="org.mybatis.spring.SqlSessionFactoryBean"> -->
+ 	<bean id="sessionLegacyOne" class="egovframework.coviframework.base.RefreshableSqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSourceLegacyOne" /> 
+		<property name="configLocation" value="classpath:/sqlmap/config/mapper-legacy-config.xml" />
+		<property name="mapperLocations" value="classpath*:/sqlmap/sql/mysql/*" />
+ 	</bean>
+</beans>

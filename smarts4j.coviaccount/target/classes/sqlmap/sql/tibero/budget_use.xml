@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget.use">
+	<select id="getBudgetExecuteListCnt" parameterType="cmap" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	bem_execute_regist a
+	    JOIN	bem_regist r ON a.CompanyCode = r.CompanyCode AND a.FiscalYear = r.FiscalYear AND a.BudgetCode = r.CostCenter AND a.AccountCode = r.AccountCode AND a.StandardBriefid = r.StandardBriefid	AND a.ExecuteDate BETWEEN r.ValidFrom AND r.ValidTo
+	    JOIN    vw_cost_center b  ON a.CompanyCode = b.CompanyCode AND a.BudgetCode = b.CostCenterCode
+	    JOIN    act_account c ON a.CompanyCode = c.CompanyCode AND a.AccountCode = c.AccountCode
+	    WHERE	a.companyCode = #{companyCode}
+	    AND     a.FiscalYear = #{fiscalYear}
+	    <if test ="costCenterType != null and costCenterType !=''">
+		AND		b.costCenterType = #{costCenterType}
+		</if>
+	    <if test ="costCenterName != null and costCenterName !=''">
+		AND		b.costCenterName like '%'|| #{costCenterName}||'%'
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	c.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+					C.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+					C.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				)
+				    </when>
+				    <when test="searchType == 'GLC'.toString()">
+		AND		C.AccountCode		LIKE '%' || #{searchStr} || '%'
+				    </when>
+				    <when test="searchType == 'GLN'.toString()">
+		AND		C.AccountName		LIKE '%' || #{searchStr} || '%'
+				    </when>
+					<when test="searchType == 'GLS'.toString()">
+		AND		C.AccountShortName	LIKE '%' || #{searchStr} || '%'
+				    </when>
+				</choose>
+			</when>
+		</choose>
+		<if test ='authMode == null or authMode != "A" '>
+			AND a.BudgetCode IN (
+				SELECT u.CostCenterCode
+				FROM act_user_cost_center u
+				WHERE u.CompanyCode = a.CompanyCode
+				AND u.CostCenterCode = a.BudgetCode
+				AND u.usercode = #{UR_Code}
+				UNION 
+				SELECT #{UR_Code}
+				FROM DUAL
+			)
+		</if>
+	</select>
+	
+	<select id="getBudgetExecuteList"  parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT a.ExecuteID "ExecuteID"
+		        ,   a.FiscalYear "FiscalYear"
+		        ,	a.CostCenterType "CostCenterType"
+		    	,	FN_GETACTBASECODENAME('BudgetType', a.CostCenterType, #{companyCode}) AS "CostCenterTypeName"
+		    	,	a.CostCenter "CostCenter"
+		    	,   a.CostCenterName "CostCenterName"
+		    	,	a.AccountCode "AccountCode"
+		    	,   a.AccountName "AccountName"
+		    	,   a.StandardBriefID "StandardBriefID"
+		    	,   nvl(d.StandardBriefName,'') "StandardBriefName"
+				,   to_char(a.ExecuteDate,'yyyy-mm-dd') "ExecuteDate"
+				,   a.UsedAmount "UsedAmount"
+				,	a.Description "Description"
+				,   a.Status "Status"
+		    	,	FN_GETACTBASECODENAME('ExcuteStatus',a.Status,'ALL')		AS "StatusName"
+				,   a.ReservedStr1 "ReservedStr1"
+				,   a.FormInstID "FormInstID"
+				,   a.ExpenceApplicationListID "ExpenceApplicationListID"
+				,   ProcessID "ProcessID"
+				,   a.CompanyCode "CompanyCode"
+				,   FN_GETACTBASECODENAME('CompanyCode',a.CompanyCode, #{companyCode}) "CompanyCodeName"
+		FROM  (
+		    SELECT	a.ExecuteID
+		            ,   a.FiscalYear
+		            ,	b.CostCenterType
+			    	,	a.BudgetCode AS "CostCenter"
+			    	,	a.CostCenter
+			    	,   b.CostCenterName
+			    	,   c.Accountid
+			    	,	a.AccountCode
+			    	,   c.AccountName
+			    	,   a.StandardBriefID
+					,	a.ExecuteDate
+					,   a.UsedAmount
+					,   a.Description
+					,   a.Status
+					,   a.ReservedStr1 
+					,   a.FormInstID
+					,   a.ExpenceApplicationListID
+					,   ProcessID
+					,   a.CompanyCode
+		    FROM	bem_execute_regist a
+		    JOIN	bem_regist r ON a.CompanyCode = r.CompanyCode AND a.FiscalYear = r.FiscalYear AND a.BudgetCode = r.CostCenter AND a.AccountCode = r.AccountCode AND a.StandardBriefid = r.StandardBriefid	AND a.ExecuteDate BETWEEN r.ValidFrom AND r.ValidTo
+		    JOIN    vw_cost_center b ON a.CompanyCode = b.CompanyCode AND a.BudgetCode = b.CostCenterCode
+		    JOIN    act_account c ON a.CompanyCode = c.CompanyCode AND a.AccountCode = c.AccountCode
+       LEFT JOIN    act_expence_application_list l ON a.ExpenceApplicationListID = l.ExpenceApplicationListID
+	   LEFT JOIN    act_expence_application p ON p.ExpenceApplicationID = l.ExpenceApplicationID
+		    WHERE	a.companyCode = #{companyCode}
+		    AND     a.FiscalYear = #{fiscalYear}
+		    <if test ="costCenterType != null and costCenterType !=''">
+			AND		b.costCenterType = #{costCenterType}
+			</if>
+		    <if test ="costCenterName != null and costCenterName !=''">
+			AND		b.costCenterName like '%'|| #{costCenterName}||'%'
+			</if>
+			<choose>
+				<when test="searchStr != null and searchStr !=''">
+					<choose>
+					    <when test="searchType == null or searchType ==''">
+			AND		(	c.AccountCode		LIKE '%' || #{searchStr} || '%'	OR 
+						C.AccountName		LIKE '%' || #{searchStr} || '%'	OR
+						C.AccountShortName	LIKE '%' || #{searchStr} || '%'
+					)
+					    </when>
+					    <when test="searchType == 'GLC'.toString()">
+			AND		C.AccountCode		LIKE '%' || #{searchStr} || '%'
+					    </when>
+					    <when test="searchType == 'GLN'.toString()">
+			AND		C.AccountName		LIKE '%' || #{searchStr} || '%'
+					    </when>
+						<when test="searchType == 'GLS'.toString()">
+			AND		C.AccountShortName	LIKE '%' || #{searchStr} || '%'
+					    </when>
+					</choose>
+				</when>
+			</choose>
+			<if test ='authMode == null or authMode != "A" '>
+			AND a.BudgetCode IN (
+				SELECT u.CostCenterCode
+				FROM act_user_cost_center u
+				WHERE u.CompanyCode = a.CompanyCode
+				AND u.CostCenterCode = a.BudgetCode
+				AND u.usercode = #{UR_Code}
+				UNION 
+				SELECT #{UR_Code}
+				FROM DUAL
+			)
+			</if>
+		) a	
+		LEFT JOIN act_standard_brief d ON a.AccountID = d.AccountID AND a.StandardBriefID = d.StandardBriefID
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,a.CostCenter , a.AccountCode, a.StandardBriefID desc 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	<choose>
+					<when test='sortColumn.equalsIgnoreCase("FiscalYear")'>"FiscalYear"</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterTypeName")'>CostCenterTypeName</when>
+					<when test='sortColumn.equalsIgnoreCase("CostCenterName")'>"CostCenterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountCode")'>"AccountCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("AccountName")'>"AccountName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ExecuteDate")'>"ExecuteDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("UsedAmount")'>"UsedAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("Description")'>"Description"</when>
+					<when test='sortColumn.equalsIgnoreCase("Status")'>"Status"</when>
+					<otherwise>"CompanyCodeName"</otherwise>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+ 		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getBudgetCtrlInfo" parameterType="cmap" resultType="cmap">
+		SELECT CostCenterType AS "CostCenterType"
+			, MAX(r.PeriodLabel) AS "PeriodLabel"
+			, MAX(NVL(PeriodLabelName, TO_DATE(r.ValidFrom,'YYYY-MM-DD')||' ~ '||TO_DATE(r.ValidTo,'YYYY-MM-DD'))) AS "PeriodLabelName"
+		FROM bem_regist r
+		JOIN vw_cost_center c 		ON r.CompanyCode = c.CompanyCode AND r.CostCenter = c.CostCenterCode
+		LEFT JOIN bem_base_term t 	ON r.PeriodLabel = t.PeriodLabel
+		WHERE 	r.AccountCode = #{accountCode}
+		AND 	r.StandardBriefID = #{standardBriefID}
+		AND		r.CompanyCode = #{companyCode}
+		AND 	TO_DATE(#{executeDate},'YYYYMMDD') BETWEEN r.ValidFrom AND r.ValidTo
+		<choose>
+		 	<when test="fiscalYear != null and fiscalYear != ''">
+		 		AND	r.FiscalYear = #{fiscalYear}
+		 	</when>
+		 	<otherwise>
+				<choose>
+				 	<when test="executeDate != null and executeDate != ''">
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM bem_base_term WHERE CompanyCode = #{companyCode} AND STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN ValidFrom AND ValidTo)
+				 	</when>
+				 	<otherwise>
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM bem_base_term WHERE CompanyCode = #{companyCode} AND NOW(3) BETWEEN ValidFrom AND ValidTo)
+				 	</otherwise>
+			 	</choose>
+		 	</otherwise>
+		</choose>
+		GROUP BY CostCenterType
+	</select>
+	
+	<select id="getBudgetType" parameterType="cmap" resultType="java.lang.String">
+		SELECT CostCenterType AS "CostCenterType"
+		FROM bem_regist r
+		JOIN vw_cost_center c ON r.CompanyCode = c.CompanyCode AND r.CostCenter = c.CostCenterCode
+		WHERE 	r.AccountCode = #{accountCode}
+		AND 	r.StandardBriefID = #{standardBriefID}
+		AND		r.CompanyCode = #{companyCode}
+		<choose>
+		 	<when test="fiscalYear != null and fiscalYear != ''">
+		 		AND	r.FiscalYear = #{fiscalYear}
+		 	</when>
+		 	<otherwise>
+				<choose>
+				 	<when test="executeDate != null and executeDate != ''">
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM bem_base_term WHERE CompanyCode = #{companyCode} AND STR_TO_DATE(#{executeDate},'%Y%m%d') BETWEEN ValidFrom AND ValidTo)
+				 	</when>
+				 	<otherwise>
+				 		AND	r.FiscalYear = (SELECT MAX(FiscalYear) FROM bem_base_term WHERE CompanyCode = #{companyCode} AND NOW(3) BETWEEN ValidFrom AND ValidTo)
+				 	</otherwise>
+			 	</choose>
+		 	</otherwise>
+		</choose>
+		GROUP BY CostCenterType
+	</select>
+	
+	<select id="getBudgetAmount"  parameterType="cmap" resultType="cmap">
+		SELECT max(budgetAmount) "BudgetAmount",  max(IsControl) "IsControl", max(IsUse) "IsUse"
+				, sum(case when STATUS='P' then usedAmount else 0 END) "PendingAmount"
+				, sum(case when STATUS='C' then usedAmount else 0 end) "CompletAmount"
+				, max(budgetAmount) - sum(case when STATUS in ('P','C') then usedAmount else 0 end)  "RemainAmount"
+		FROM  bem_regist r
+		LEFT JOIN bem_execute_regist e ON   r.FiscalYear = e.FiscalYear AND r.CompanyCode = e.CompanyCode AND r.CostCenter = e.BudgetCode AND r.accountcode = e.accountcode AND r.standardBriefid = e.standardBriefid
+		AND    e.ExecuteDate BETWEEN r.validFrom AND r.validTo
+	    WHERE  r.companyCode = #{companyCode}
+	    AND    r.FiscalYear = #{fiscalYear}
+	    AND    r.CostCenter = #{budgetCode}
+	    AND    r.accountcode= #{accountCode}
+	     <if test ="standardBriefID != null and standardBriefID !=''">
+		AND	   r.standardBriefID = #{standardBriefID}
+		</if>
+	    AND    to_date(#{executeDate},'yyyymmdd') BETWEEN r.ValidFrom and r.ValidTo
+	</select>
+	
+	<insert id="addExecuteRegist"  parameterType="cmap">
+	INSERT INTO bem_execute_regist
+	(
+		ExecuteId
+		,CompanyCode
+		,FiscalYear
+		,CostCenter
+		,AccountCode
+		,StandardBriefID 
+		,ExecuteDate
+		,UsedAmount
+		,Description
+		,InitiatorID
+		,InitiatorName
+		,InitiatorDeptCode
+		,InitiatorDeptName
+		,ForminstID
+		,ExpenceApplicationListID
+		,ExpenceApplicationDivID
+		,Status
+		,BudgetCode
+		,ReservedStr1
+		,ReservedStr2
+		,ReservedStr3 
+		,ReservedStr4 
+		,ReservedStr5
+		,ReservedInt1
+		,ReservedInt2 
+		,RegisterID
+		,RegistDate
+	)
+     VALUES
+	 (
+	 	bem_execute_regist_id_seq.nextval
+	 	,#{companyCode}
+		,<choose>
+		 	<when test="fiscalYear != null and fiscalYear != ''">
+		 		#{fiscalYear}
+		 	</when>
+		 	<otherwise>
+				<choose>
+				 	<when test="executeDate != null and executeDate != ''">
+				 		(SELECT MAX(FiscalYear) FROM bem_base_term WHERE to_date(#{executeDate},'yyyymmdd') BETWEEN ValidFrom AND ValidTo)
+				 	</when>
+				 	<otherwise>
+				 		(SELECT MAX(FiscalYear) FROM bem_base_term WHERE SYSDATE BETWEEN ValidFrom AND ValidTo)
+				 	</otherwise>
+			 	</choose>
+		 	</otherwise>
+	 	</choose>
+		,#{costCenter}
+		,#{accountCode}
+		,nvl(#{standardBriefID},0) 
+		<choose>
+		 	<when test="executeDate != null and executeDate != ''">
+		 		,#{executeDate}
+		 	</when>
+		 	<otherwise>
+		 		,SYSDATE
+		 	</otherwise>
+	 	</choose> 
+		,#{usedAmount}
+		,#{description}
+		,#{initiatorID}
+		,#{initiatorName}
+		,#{initiatorDeptCode}
+		,#{initiatorDeptName}
+		,#{forminstID}
+		,#{expenceApplicationListID}
+		,#{expenceApplicationDivID}
+		,#{status}
+		,#{budgetCode}
+		,#{reservedStr1}
+		,#{reservedStr2}
+		,#{reservedStr3}
+		,#{reservedStr4}
+		,#{reservedStr5}
+		,#{reservedInt1}
+		,#{reservedInt2}
+		,#{UR_Code}
+		, sysdate
+	 )
+	</insert>
+	
+	<update id="changeStatus"  parameterType="cmap">
+		UPDATE bem_execute_regist
+		SET    Status = #{status}
+		<if test="status == 'C'.toString()">
+			, FiscalYear = (SELECT MAX(FiscalYear) FROM bem_base_term WHERE ExecuteDate BETWEEN ValidFrom AND ValidTo)
+		</if>
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<choose>
+			    <when test="executeID != null and executeID !=''">
+			    	ExecuteID = #{executeID}
+			    </when>
+			    <otherwise>
+					ExpenceApplicationListID IN (
+						SELECT ExpenceApplicationListID 
+						FROM act_expence_application_list 
+						WHERE ExpenceApplicationID = #{ExpenceApplicationID}
+					)
+			    </otherwise>
+			</choose>
+		</trim>
+	</update>
+	
+	<delete id="deleteExecuteRegist" parameterType="cmap">
+		DELETE FROM BEM_EXECUTE_REGIST BER
+		WHERE EXISTS (
+		SELECT 1 FROM ACT_EXPENCE_APPLICATION_LIST AEAL
+		WHERE AEAL.ExpenceApplicationListID = BER.ExpenceApplicationListID AND AEAL.ExpenceApplicationID = #{ExpenceApplicationID}
+		)
+	</delete>
+</mapper>
+

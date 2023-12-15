@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountInterFace.Account4JIF">
+	<select id="getInterFaceListTaxInvoice" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account4JIF.getInterFaceListTaxInvoice
+	    */
+		SELECT	MAIN.CONVERSATION_ID
+			,	MAIN.SUPBUY_TYPE
+			,	MAIN.DIRECTION
+			,	MAIN.INTERFACE_BATCH_ID
+			,	DATE_FORMAT(MAIN.DTI_WDATE,'%Y%m%d')	AS DTI_WDATE
+			,	DATE_FORMAT(MAIN.DTI_IDATE,'%Y%m%d')	AS DTI_IDATE
+			,	DATE_FORMAT(MAIN.DTI_SDATE,'%Y%m%d')	AS DTI_SDATE
+			,	MAIN.TYPE_CODE
+			,	MAIN.DTI_TYPE
+			,	MAIN.TAX_DEMAND
+			,	MAIN.SEQ_ID
+			,	MAIN.SUP_COM_ID
+			,	MAIN.SUP_COM_REGNO
+			,	MAIN.SUP_REP_NAME
+			,	MAIN.SUP_COM_NAME
+			,	MAIN.SUP_COM_TYPE
+			,	MAIN.SUP_COM_CLASSIFY
+			,	MAIN.SUP_COM_ADDR
+			,	MAIN.SUP_DEPT_NAME
+			,	MAIN.SUP_EMP_NAME
+			,	MAIN.SUP_TEL_NUM
+			,	MAIN.SUP_EMAIL
+			,	MAIN.SUP_BIZPLACE_CODE
+			,	MAIN.BYR_COM_ID
+			,	MAIN.BYR_COM_REGNO
+			,	MAIN.BYR_REP_NAME
+			,	MAIN.BYR_COM_NAME
+			,	MAIN.BYR_COM_TYPE
+			,	MAIN.BYR_COM_CLASSIFY
+			,	MAIN.BYR_COM_ADDR
+			,	MAIN.BYR_DEPT_NAME
+			,	MAIN.BYR_EMP_NAME
+			,	MAIN.BYR_TEL_NUM
+			,	MAIN.BYR_EMAIL
+			,	MAIN.BYR_DEPT_NAME2
+			,	MAIN.BYR_EMP_NAME2
+			,	MAIN.BYR_TEL_NUM2
+			,	MAIN.BYR_EMAIL2
+			,	MAIN.BYR_BIZPLACE_CODE
+			,	MAIN.BROKER_COM_ID
+			,	MAIN.BROKER_COM_REGNO
+			,	MAIN.BROKER_REP_NAME
+			,	MAIN.BROKER_COM_NAME
+			,	MAIN.BROKER_COM_TYPE
+			,	MAIN.BROKER_COM_CLASSIFY
+			,	MAIN.BROKER_COM_ADDR
+			,	MAIN.BROKER_DEPT_NAME
+			,	MAIN.BROKER_EMP_NAME
+			,	MAIN.BROKER_TEL_NUM
+			,	MAIN.BROKER_EMAIL
+			,	MAIN.BRK_BIZPLACE_CODE
+			,	MAIN.CASH_CODE
+			,	MAIN.CASH_AMOUNT
+			,	MAIN.CHECK_CODE
+			,	MAIN.CHECK_AMOUNT
+			,	MAIN.NOTE_CODE
+			,	MAIN.NOTE_AMOUNT
+			,	MAIN.RECEIVABLE_CODE
+			,	MAIN.RECEIVABLE_AMOUNT
+			,	MAIN.SUP_AMOUNT								AS SUP_AMOUNT_MAIN
+			,	MAIN.TAX_AMOUNT								AS TAX_AMOUNT_MAIN
+			,	MAIN.TOT_FOREIGN_AMOUNT
+			,	MAIN.TOTAL_AMOUNT
+			,	MAIN.TOTAL_QUANTITY
+			,	MAIN.DTT_YN
+			,	MAIN.REMARK
+			,	MAIN.REMARK2
+			,	MAIN.REMARK3
+			,	MAIN.ETCNUM1
+			,	MAIN.ETCNUM2
+			,	MAIN.ETCNUM3
+			,	MAIN.ETCNUM4
+			,	MAIN.DTI_MSG
+			,	MAIN.AMEND_CODE
+			,	MAIN.EXCHANGED_DOC_ID
+			,	MAIN.APPROVE_ID
+			,	MAIN.ATTACHFILE_YN
+			,	MAIN.ASP_SMTP_MAIL
+			,	MAIN.ORI_ISSUE_ID
+			,	DATE_FORMAT(MAIN.CREATION_DATE,'%Y%m%d')	AS CREATION_DATE_MAIN
+			,	MAIN.CREATED_BY
+			,	MAIN.LAST_UPDATED_BY
+			,	DATE_FORMAT(MAIN.LAST_UPDATE_DATE,'%Y%m%d')	AS LAST_UPDATE_DATE
+			,	ITEM.SUPBUY_TYPE
+			,	ITEM.DIRECTION
+			,	ITEM.DTI_LINE_NUM
+			,	ITEM.ITEM_CODE
+			,	ITEM.ITEM_NAME
+			,	ITEM.ITEM_SIZE
+			,	DATE_FORMAT(ITEM.ITEM_MD,'%Y%m%d')	AS ITEM_MD
+			,	ITEM.UNIT_PRICE
+			,	ITEM.ITEM_QTY
+			,	ITEM.SUP_AMOUNT								AS SUP_AMOUNT_ITEM
+			,	ITEM.TAX_AMOUNT								AS TAX_AMOUNT_ITEM
+			,	ITEM.FOREIGN_AMOUNT
+			,	ITEM.CURRENCY_CODE
+			,	ITEM.ITEM_GUBUN
+			,	ITEM.REMARK
+			,	ITEM.CREATED_BY
+			,	DATE_FORMAT(ITEM.CREATION_DATE,'%Y%m%d')	AS CREATION_DATE_ITEM
+			,	ITEM.LAST_UPDATED_BY
+			,	ITEM.LAST_UPDATE_DATE
+		FROM	covi_account4j_if.xxsb_dti_main MAIN
+		JOIN	covi_account4j_if.xxsb_dti_item ITEM
+			ON	MAIN.CONVERSATION_ID	= ITEM.CONVERSATION_ID
+		ORDER BY MAIN.CONVERSATION_ID
+	</select>
+	
+	<select id="getInterFaceListTaxInvoiceInfoTech" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account4JIF.getInterFaceListTaxInvoiceInfoTech
+	    */
+	    SELECT	/*세무_계산서_내역*/
+			#{CompanyCode} AS CompanyCode
+			,	CONCAT(covi_account4j_if.IFT_DEC(INFO_MAIN.공급자사업자등록번호), INFO_MAIN.승인번호) AS CONVERSATION_ID
+			,	INFO_MAIN.사업자번호
+			,	INFO_MAIN.내역구분코드
+			,	INFO_MAIN.승인번호
+			,	INFO_MAIN.작성일자
+			,	INFO_MAIN.발행일자
+			,	INFO_MAIN.전송일자
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자사업자등록번호) AS 공급자사업자등록번호
+			,	INFO_MAIN.공급자종사업장코드
+			,	INFO_MAIN.공급자상호명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자대표자명) AS 공급자대표자명
+			,	INFO_MAIN.공급자주소
+			,	INFO_MAIN.공급자업태
+			,	INFO_MAIN.공급자업종
+			,	INFO_MAIN.공급자담당부서명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자담당자명) AS 공급자담당자명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자담당자이메일주소) AS 공급자담당자이메일주소
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자사업자등록번호) AS 받는자사업자등록번호
+			,	INFO_MAIN.받는자종사업장코드
+			,	INFO_MAIN.받는자상호명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자대표자명) AS 받는자대표자명
+			,	INFO_MAIN.받는자주소
+			,	INFO_MAIN.받는자업태
+			,	INFO_MAIN.받는자업종
+			,	INFO_MAIN.받는자담당부서명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자명) AS 받는자담당자명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자이메일주소1) AS 받는자담당자이메일주소1
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자이메일주소2) AS 받는자담당자이메일주소2
+			,	INFO_MAIN.수탁사사업자등록번호
+			,	INFO_MAIN.수탁사종사업장코드
+			,	INFO_MAIN.수탁사상호명
+			,	INFO_MAIN.수탁사대표자명
+			,	INFO_MAIN.수탁사주소
+			,	INFO_MAIN.수탁사업태
+			,	INFO_MAIN.수탁사업종
+			,	INFO_MAIN.수탁사담당부서명
+			,	INFO_MAIN.수탁사담당자명
+			,	INFO_MAIN.수탁사담당자이메일주소
+			,	INFO_MAIN.합계금액
+			,	INFO_MAIN.공급가액
+			,	INFO_MAIN.세액
+			,	INFO_MAIN.전자세금계산서분류
+			,	INFO_MAIN.전자세금계산서종류
+			,	INFO_MAIN.전자세금계산서발급유형
+			,	INFO_MAIN.비고
+			,	INFO_MAIN.기타
+			,	INFO_MAIN.영수청구구분
+			,	INFO_MAIN.품목일자
+			,	INFO_MAIN.품목명
+			,	INFO_MAIN.품목규격
+			,	INFO_MAIN.품목수량
+			,	INFO_MAIN.품목단가
+			,	INFO_MAIN.품목공급가액
+			,	INFO_MAIN.품목세액
+			,	INFO_MAIN.품목비고
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.XML) AS XML
+			,	INFO_MAIN.ERP전송여부
+			,	INFO_MAIN.등록일자
+			,	INFO_MAIN.등록시간
+			,	INFO_MAIN.수정일자
+			,	INFO_MAIN.수정시간
+			,	INFO_MAIN.수정사유코드
+			,	INFO_MAIN.원승인번호
+			,	INFO_MAIN.전자세금계산서종류구분자
+			,	INFO_MAIN.결제방법코드1
+			,	INFO_MAIN.결제방법별금액1
+			,	INFO_MAIN.결제방법코드2
+			,	INFO_MAIN.결제방법별금액2
+			,	INFO_MAIN.결제방법코드3
+			,	INFO_MAIN.결제방법별금액3
+			,	INFO_MAIN.결제방법코드4
+			,	INFO_MAIN.결제방법별금액4
+			/*세무_계산서_품목_내역*/
+			,	INFO_ITEM.승인번호		AS 승인번호_품목
+			,	INFO_ITEM.품목순번
+			,	INFO_ITEM.일자		AS 일자_품목
+			,	INFO_ITEM.품목명		AS 품목명_품목
+			,	INFO_ITEM.규격
+			,	INFO_ITEM.수량
+			,	INFO_ITEM.단가
+			,	INFO_ITEM.공급가액		AS 공급가액_품목
+			,	INFO_ITEM.세액		AS 세액_품목
+			,	INFO_ITEM.비고		AS 비고_품목
+			,	INFO_ITEM.등록일자		AS 등록일자_품목
+			,	INFO_ITEM.등록시간		AS 등록시간_품목
+			,	INFO_ITEM.수정일자		AS 수정일자_품목
+			,	INFO_ITEM.수정시간		AS 수정시간_품목
+		FROM	covi_account4j_if.${CompanyCodePrefix}세무_계산서_내역	INFO_MAIN
+		JOIN	covi_account4j_if.${CompanyCodePrefix}세무_계산서_품목_내역		INFO_ITEM
+			ON	INFO_MAIN.승인번호	= INFO_ITEM.승인번호
+		WHERE INFO_MAIN.내역구분코드 IN ('2', '4')
+		AND NOT EXISTS (
+			SELECT 1 FROM covi_account4j_si.act_taxinvoice A 
+			INNER JOIN covi_account4j_si.act_taxinvoice_item B ON A.TaxInvoiceID = B.TaxInvoiceID   
+			WHERE A.NTSConfirmNum = INFO_MAIN.승인번호
+			AND A.InvoicerCorpNum = covi_account4j_if.IFT_DEC(INFO_MAIN.공급자사업자등록번호)
+			AND A.WriteDate = INFO_MAIN.작성일자
+			AND SUBSTR(A.IssueDT,1,8) = INFO_MAIN.발행일자
+		)
+	</select>
+	
+	<select id="getInterFaceListCashBillInfoTech" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account4JIF.getInterFaceListCashBillInfoTech
+	    */
+		SELECT	사업자번호
+			,	거래구분코드
+			,	승인일자
+			,	승인시간
+			,	승인순번
+			,	승인번호
+			,	승인상태
+			,	승인금액
+			,	(승인금액 - 부가세 - 봉사료) AS 공급가액
+			,	부가세
+			,	봉사료
+			,	가맹점사업자번호
+			,	가맹점명
+			,	사용자코드
+			,	공제구분명
+			,	발행구분명
+			,	등록일자
+			,	등록시간
+			,	수정일자
+			,	수정시간
+			,	업종코드
+			,	업종명
+		FROM	covi_account4j_if.${CompanyCodePrefix}세무_현금영수증_내역
+	</select>
+	
+	<select id="getInterFaceListCardReceiptInfoTech" parameterType="cmap" resultType="cmap">
+		SELECT	CONCAT(사업자번호,카드사코드,카드번호,승인일자,승인시간,승인순번,승인번호)	AS RECEIPT_ID
+			,	사업자번호
+			,	카드사코드
+			,	카드번호
+			,	승인일자
+			,	승인시간
+			,	승인순번
+			,	승인번호
+			,	승인상태
+			,	CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS INFO_INDEX
+			,	CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'B' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS CLASS
+			,	승인구분
+			,	할부기간
+			,	승인금액
+			,	(승인금액 - 부가세 - 봉사료) AS 공급가액
+			,	부가세
+			,	봉사료
+			,	가맹점사업자번호
+			,	가맹점명
+			,	가맹점대표자명
+			,	가맹점주소
+			,	가맹점전화번호
+			,	등록일자
+			,	등록시간
+			,	수정일자
+			,	수정시간
+		FROM	covi_account4j_if.${CompanyCodePrefix}카드_승인_내역 X
+		WHERE 승인상태 in ('승인','전표매입','취소','승인취소','부분취소')
+		AND 승인금액 != 0
+		AND NOT EXISTS (
+			SELECT * FROM covi_account4j_si.act_card_receipt  
+			WHERE BizPlaceNo = X.사업자번호
+            AND CardNo = X.카드번호
+            AND InfoIndex = (CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END)
+            AND ApproveDate = X.승인일자
+            AND ApproveNo = X.승인번호
+		)
+	</select>
+	
+	<select id="getInterFaceListCardReceiptKwic" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM (
+			SELECT	CONCAT(covi_account4j_if.IFT_DEC(사업자번호),카드사코드,covi_account4j_if.IFT_DEC(카드번호),승인일자,승인시간,승인순번,승인번호)	AS RECEIPT_ID
+				,	covi_account4j_if.IFT_DEC(사업자번호) AS 사업자번호
+				,	카드사코드
+				,	covi_account4j_if.IFT_DEC(카드번호) AS 카드번호
+				,	승인일자
+				,	승인시간
+				,	승인순번
+				,	승인번호
+				,	승인상태
+				,	CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS INFO_INDEX
+				,	CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'B' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS CLASS
+				,	승인구분
+				,	할부기간
+				,	승인금액
+				,	(승인금액 - 부가세 - 봉사료) AS 공급가액
+				,	부가세
+				,	봉사료
+				,	가맹점사업자번호
+				,	가맹점명
+				,	가맹점대표자명
+				,	가맹점주소
+				,	가맹점전화번호
+				,	등록일자
+				,	등록시간
+				,	수정일자
+				,	수정시간
+			FROM	covi_account4j_if.카드_승인_내역 X
+			WHERE 승인상태 in ('승인','전표매입','취소','승인취소','부분취소')
+			AND 승인금액 != 0
+			AND 승인일자 > DATE_SUB(NOW(), INTERVAL ${AccountBatchDay} DAY)
+		) A
+		LEFT OUTER JOIN covi_account4j_si.act_card_receipt r ON A.RECEIPT_ID = r.ReceiptID AND r.BizPlaceNo = A.사업자번호
+            AND r.CardNo = A.카드번호
+            AND r.InfoIndex = (CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END)
+            AND r.ApproveDate = A.승인일자
+            AND r.ApproveNo = A.승인번호
+        WHERE r.ReceiptID IS NULL
+		<if test="CompanyCode != null and CompanyCode != ''">
+		AND A.카드번호 IN (SELECT CardNo FROM covi_account4j_si.act_corp_card WHERE CompanyCode = #{CompanyCode} AND CardStatus != 'CSTS03')
+		</if>
+	</select>
+	
+	<select id="getInterFaceListTaxInvoiceKwic" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account4JIF.getInterFaceListTaxInvoiceKwic
+	    */
+	    SELECT	/*세무_계산서_내역*/
+			#{CompanyCode} AS CompanyCode
+			,	CONCAT(covi_account4j_if.IFT_DEC(INFO_MAIN.공급자사업자등록번호), INFO_MAIN.승인번호) AS CONVERSATION_ID
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.사업자번호) AS 사업자번호
+			,	INFO_MAIN.내역구분코드
+			,	INFO_MAIN.승인번호
+			,	INFO_MAIN.작성일자
+			,	INFO_MAIN.발행일자
+			,	INFO_MAIN.전송일자
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자사업자등록번호) AS 공급자사업자등록번호
+			,	INFO_MAIN.공급자종사업장코드
+			,	INFO_MAIN.공급자상호명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자대표자명) AS 공급자대표자명
+			,	INFO_MAIN.공급자주소
+			,	INFO_MAIN.공급자업태
+			,	INFO_MAIN.공급자업종
+			,	INFO_MAIN.공급자담당부서명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자담당자명) AS 공급자담당자명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.공급자담당자이메일주소) AS 공급자담당자이메일주소
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자사업자등록번호) AS 받는자사업자등록번호
+			,	INFO_MAIN.받는자종사업장코드
+			,	INFO_MAIN.받는자상호명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자대표자명) AS 받는자대표자명
+			,	INFO_MAIN.받는자주소
+			,	INFO_MAIN.받는자업태
+			,	INFO_MAIN.받는자업종
+			,	INFO_MAIN.받는자담당부서명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자명) AS 받는자담당자명
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자이메일주소1) AS 받는자담당자이메일주소1
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.받는자담당자이메일주소2) AS 받는자담당자이메일주소2
+			,	INFO_MAIN.수탁사사업자등록번호
+			,	INFO_MAIN.수탁사종사업장코드
+			,	INFO_MAIN.수탁사상호명
+			,	INFO_MAIN.수탁사대표자명
+			,	INFO_MAIN.수탁사주소
+			,	INFO_MAIN.수탁사업태
+			,	INFO_MAIN.수탁사업종
+			,	INFO_MAIN.수탁사담당부서명
+			,	INFO_MAIN.수탁사담당자명
+			,	INFO_MAIN.수탁사담당자이메일주소
+			,	INFO_MAIN.합계금액
+			,	INFO_MAIN.공급가액
+			,	INFO_MAIN.세액
+			,	INFO_MAIN.전자세금계산서분류
+			,	INFO_MAIN.전자세금계산서종류
+			,	INFO_MAIN.전자세금계산서발급유형
+			,	INFO_MAIN.비고
+			,	INFO_MAIN.기타
+			,	INFO_MAIN.영수청구구분
+			,	INFO_MAIN.품목일자
+			,	INFO_MAIN.품목명
+			,	INFO_MAIN.품목규격
+			,	INFO_MAIN.품목수량
+			,	INFO_MAIN.품목단가
+			,	INFO_MAIN.품목공급가액
+			,	INFO_MAIN.품목세액
+			,	INFO_MAIN.품목비고
+			,	covi_account4j_if.IFT_DEC(INFO_MAIN.XML) AS XML
+			,	INFO_MAIN.ERP전송여부
+			,	INFO_MAIN.등록일자
+			,	INFO_MAIN.등록시간
+			,	INFO_MAIN.수정일자
+			,	INFO_MAIN.수정시간
+			,	INFO_MAIN.수정사유코드
+			,	INFO_MAIN.원승인번호
+			,	INFO_MAIN.전자세금계산서종류구분자
+			,	INFO_MAIN.결제방법코드1
+			,	INFO_MAIN.결제방법별금액1
+			,	INFO_MAIN.결제방법코드2
+			,	INFO_MAIN.결제방법별금액2
+			,	INFO_MAIN.결제방법코드3
+			,	INFO_MAIN.결제방법별금액3
+			,	INFO_MAIN.결제방법코드4
+			,	INFO_MAIN.결제방법별금액4
+			/*세무_계산서_품목_내역*/
+			,	INFO_ITEM.승인번호		AS 승인번호_품목
+			,	INFO_ITEM.품목순번
+			,	INFO_ITEM.일자		AS 일자_품목
+			,	INFO_ITEM.품목명		AS 품목명_품목
+			,	INFO_ITEM.규격
+			,	INFO_ITEM.수량
+			,	INFO_ITEM.단가
+			,	INFO_ITEM.공급가액		AS 공급가액_품목
+			,	INFO_ITEM.세액		AS 세액_품목
+			,	INFO_ITEM.비고		AS 비고_품목
+			,	INFO_ITEM.등록일자		AS 등록일자_품목
+			,	INFO_ITEM.등록시간		AS 등록시간_품목
+			,	INFO_ITEM.수정일자		AS 수정일자_품목
+			,	INFO_ITEM.수정시간		AS 수정시간_품목
+		FROM	covi_account4j_if.세무_계산서_내역	INFO_MAIN
+		JOIN	covi_account4j_if.세무_계산서_품목_내역		INFO_ITEM
+			ON	INFO_MAIN.승인번호	= INFO_ITEM.승인번호		
+		WHERE INFO_MAIN.내역구분코드 IN ('2', '4')
+			AND 전송일자 > DATE_SUB(NOW(), INTERVAL ${AccountBatchDay} DAY)
+			AND covi_account4j_if.IFT_DEC(INFO_MAIN.사업자번호) IN
+			<foreach collection="BizNumberList" item="item" open="(" close=")" separator=",">
+				#{item}
+			</foreach>
+	</select>
+	
+	<select id="getInterFaceListCashBillKwic" parameterType="cmap" resultType="cmap">
+	    /*
+		    accountInterFace.Account4JIF.getInterFaceListCashBillKwic
+	    */
+		SELECT	covi_account4j_if.IFT_DEC(사업자번호) AS 사업자번호
+			,	거래구분코드
+			,	승인일자
+			,	승인시간
+			,	승인순번
+			,	승인번호
+			,	승인상태
+			,	승인금액
+			,	(승인금액 - 부가세 - 봉사료) AS 공급가액
+			,	부가세
+			,	봉사료
+			,	가맹점사업자번호
+			,	가맹점명
+			,	사용자코드
+			,	공제구분명
+			,	발행구분명
+			,	등록일자
+			,	등록시간
+			,	수정일자
+			,	수정시간
+			,	업종코드
+			,	업종명
+		FROM	covi_account4j_if.세무_현금영수증_내역
+	</select>
+
+	<select id="getInterFaceListCardReceiptKwicPurchase" parameterType="cmap" resultType="cmap">
+		SELECT A.* FROM (
+			SELECT  CONCAT(covi_account4j_if.IFT_DEC(사업자번호),카드사코드,covi_account4j_if.IFT_DEC(카드번호),매입일자,매입순번,SUBSTRING_INDEX(승인번호,'.',1))       AS RECEIPT_ID
+				,	covi_account4j_if.IFT_DEC(사업자번호) AS 사업자번호
+				,   카드사코드
+				,   covi_account4j_if.IFT_DEC(카드번호) AS 카드번호
+				,   이용일
+				,   이용시간
+				,   매입순번
+				,   승인번호
+				,   승인상태
+				,   CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' OR 승인상태 =  '정상' OR 승인상태 =  '정당전표' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' OR 승인상태 = '취소전표' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS INFO_INDEX
+				,   CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' OR 승인상태 =  '정상' OR 승인상태 =  '정당전표' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' OR 승인상태 = '취소전표' THEN 'B' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END AS CLASS
+				,   할부개월
+				,   이용금액
+				,   (이용금액 - 부가세) AS 공급가액
+				,   부가세
+				,   가맹점사업자번호
+				,   이용가맹점명
+				,   가맹점대표자명
+				,   가맹점주소
+				,   가맹점전화번호
+				,   가맹점상태
+				,   등록일자
+				,   등록시간
+				,   수정일자
+				,   수정시간
+			FROM	covi_account4j_if.카드_매입_내역 x
+				WHERE 승인상태 != '-'
+					AND 이용금액 != 0
+					AND 승인번호 != ''
+					AND 이용일 > DATE_SUB(NOW(), INTERVAL ${AccountBatchDay} DAY)
+		) A	
+		LEFT OUTER JOIN covi_account4j_si.act_card_receipt r ON A.RECEIPT_ID = r.ReceiptID AND r.BizPlaceNo = A.사업자번호
+			AND r.CardNo = A.카드번호
+			AND r.InfoIndex = (CASE WHEN 승인상태 = '승인' OR 승인상태 =  '전표매입' OR 승인상태 =  '정상' OR 승인상태 =  '정당전표' THEN 'A' WHEN 승인상태 = '취소' OR 승인상태 = '승인취소' OR 승인상태 = '취소전표' THEN 'C' WHEN 승인상태 = '부분취소' THEN 'D' ELSE '' END)
+			AND r.ApproveDate = A.이용일
+			AND r.ApproveNo = A.승인번호
+		WHERE r.ReceiptID IS NULL	
+			<if test="CompanyCode != null and CompanyCode != ''">
+                AND A.카드번호 IN (SELECT CardNo FROM covi_account4j_si.act_corp_card WHERE CompanyCode = #{CompanyCode} AND CardStatus != 'CSTS03')
+			</if>
+	</select>
+	
+</mapper>

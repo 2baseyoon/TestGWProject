@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.taxInvoiceTaxTotal">
+    
+	<select id="getTaxInvoiceTaxTotalList" parameterType="cmap" resultType="cmap">
+	    <include refid="oracle.include.pagingHeader" />
+		SELECT	ACI.TaxInvoiceID					AS "TaxInvoiceID"
+			,	ACI.CompanyCode						AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACI.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	TO_CHAR(TO_DATE(ACI.WriteDate, 'YYYYMMDD'),'YYYY.MM.DD') AS "WriteDate"
+			,	ACI.NTSConfirmNum					AS "NTSConfirmNum"
+			,	ACI.InvoicerCorpName				AS "InvoicerCorpName"
+			,	ACI.InvoicerCorpNum					AS "InvoicerCorpNum"
+			,	ACI.InvoicerContactName				AS "InvoicerContactName"
+			,	TO_CHAR(ACI.TotalAmount,'999,999,999,999,999,999,999,999')			AS "TotalAmount"
+			,	TO_CHAR(ACI.SupplyCostTotal,'999,999,999,999,999,999,999,999')		AS "SupplyCostTotal"
+			,	TO_CHAR(ACI.TaxTotal,'999,999,999,999,999,999,999,999')				AS "TaxTotal"
+			,	ACI.InvoiceeEmail1					AS "InvoiceeEmail1"
+			,	REPLACE(ACI.InvoiceEmail2,' ','')	AS "InvoiceEmail2"
+			,	FN_GETACTBASECODENAME('TaxInvoiceActive', 
+														CASE	
+										                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+										                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+										                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+										                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+									                    	ELSE 'R' 
+									                    END
+													, #{companyCode})	AS "TaxInvoiceActive"
+			,	ACI.Remark1							AS "Remark1"
+			,	ACI.InvoiceType						AS "InvoiceType"
+			,	ACI.ModifyCode						AS "ModifyCode"
+			,	FN_GETACTBASECODENAME('ModifyCode',ACI.ModifyCode, #{companyCode})	AS "ModifyName"
+			,	ACI.OrgNTSConfirmNum				AS "OrgNTSConfirmNum"
+			,	ACI.TossUserCode					AS "TossUserCode"
+			,	USR.DisplayName						AS "TossUserName"
+			,	ATI_ITEM.ItemName					AS "ItemName"
+	    FROM	ACT_TAXINVOICE	ACI
+	    LEFT OUTER JOIN
+				act_taxinvoice_item	ATI_ITEM
+		ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+	    LEFT OUTER JOIN
+				SYS_OBJECT_USER	USR
+		ON		ACI.TossUserCode	= USR.UserCode
+		WHERE	1=1
+		AND		ACI.DataIndex	= 'BUY'
+		AND		ACI.TaxTotal > 0
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACI.CompanyCode	= #{companyCode}
+		</if>
+		<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= #{taxInvoiceActive}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'	OR 
+					ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.NTSConfirmNum		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoiceeEmail1		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoiceEmail2		LIKE '%' || #{searchStr} || '%'	OR
+					ATI_ITEM.ItemName		LIKE '%' || #{searchStr} || '%'	OR
+					ATI_ITEM.Remark			LIKE '%' || #{searchStr} || '%'	OR
+					ACI.Remark1				LIKE '%' || #{searchStr} || '%'
+				)
+					</when>
+					<when test="searchType == 'InvoicerCorpName'.toString()">
+		AND		ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoicerContactName'.toString()">
+		AND		ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoicerCorpNum'.toString()">
+		AND		ACI.InvoicerCorpNum	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'NTSConfirmNum'.toString()">
+		AND		ACI.NTSConfirmNum	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoiceeEmail1'.toString()">
+		AND		(
+            	ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%' OR
+            	ACI.InvoiceEmail2  LIKE '%' || #{searchStr} || '%'
+            	)
+					</when>
+					<when test="searchType == 'ItemName'.toString()">
+		AND		ATI_ITEM.ItemName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'Remark'.toString()">
+		AND		(
+				ATI_ITEM.Remark	LIKE '%' || #{searchStr} || '%'	OR
+				ACI.Remark1		LIKE '%' || #{searchStr} || '%'
+				)
+					</when>
+				</choose>
+			</when>
+		</choose>
+		<if test ="writeDateS != null and writeDateS !=''">
+		AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+		</if>
+		<if test ="writeDateE != null and writeDateE !=''">
+		AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ACI.TaxInvoiceID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("WriteDate")'>"WriteDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("NTSConfirmNum")'>"NTSConfirmNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>"InvoicerCorpName"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>"InvoicerCorpNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerContactName")'>"InvoicerContactName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ItemName")'>"ItemName"</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>"TotalAmount"</when>
+					<when test='sortColumn.equalsIgnoreCase("SupplyCostTotal")'>"SupplyCostTotal"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxTotal")'>"TaxTotal"</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoiceeEmail1")'>"InvoiceeEmail1"</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxInvoiceActive")'>"TaxInvoiceActive"</when>
+					<when test='sortColumn.equalsIgnoreCase("Remark1")'>"Remark1"</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyName")'>"ModifyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("OrgNTSConfirmNum")'>"OrgNTSConfirmNum"</when>
+					<when test='sortColumn.equalsIgnoreCase("TossUserName")'>"TossUserName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getTaxInvoiceTaxTotalExcelList" parameterType="cmap" resultType="cmap">
+		SELECT	TO_CHAR(TO_DATE(ACI.WriteDate, 'YYYYMMDD'),'YYYY.MM.DD') AS "WriteDate"
+			,	ACI.CompanyCode	AS "CompanyCode"
+			,	FN_GETACTBASECODENAME('CompanyCode', ACI.CompanyCode, #{companyCode})	AS "CompanyName"
+			,	ACI.NTSConfirmNum					AS "NTSConfirmNum"
+			,	ACI.InvoicerCorpName				AS "InvoicerCorpName"
+			,	ACI.InvoicerCorpNum					AS "InvoicerCorpNum"
+			,	ACI.InvoicerContactName				AS "InvoicerContactName"
+			,	TO_CHAR(ACI.TotalAmount,'999,999,999,999,999,999,999,999')			AS "TotalAmount"
+			,	TO_CHAR(ACI.SupplyCostTotal,'999,999,999,999,999,999,999,999')		AS "SupplyCostTotal"
+			,	TO_CHAR(ACI.TaxTotal,'999,999,999,999,999,999,999,999')				AS "TaxTotal"
+			,	ACI.InvoiceeEmail1					AS "InvoiceeEmail1"
+			,	REPLACE(ACI.InvoiceEmail2,' ','')	AS "InvoiceEmail2"
+			,	FN_GETACTBASECODENAME('TaxInvoiceActive', 
+														CASE	
+										                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+										                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+										                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+										                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+									                    	ELSE 'R' 
+									                    END
+													, #{companyCode})	AS "TaxInvoiceActive"
+			,	ACI.Remark1							AS "Remark1"
+			,	ACI.InvoiceType						AS "InvoiceType"
+			,	ACI.ModifyCode						AS "ModifyCode"
+			,	FN_GETACTBASECODENAME('ModifyCode',ACI.ModifyCode, #{companyCode})	AS "ModifyName"
+			,	ACI.OrgNTSConfirmNum				AS "OrgNTSConfirmNum"
+			,	USR.DisplayName						AS "TossUserName"
+			,	ATI_ITEM.ItemName					AS "ItemName"
+	    FROM	ACT_TAXINVOICE	ACI
+	    LEFT OUTER JOIN
+				act_taxinvoice_item	ATI_ITEM
+		ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+	    LEFT OUTER JOIN
+				SYS_OBJECT_USER	USR
+		ON		ACI.TossUserCode	= USR.UserCode
+		WHERE	1=1
+		AND		ACI.DataIndex	= 'BUY'
+		AND		ACI.TaxTotal > 0
+		<if test ="companyCode != null and companyCode !=''">
+		AND		ACI.CompanyCode	= #{companyCode}
+		</if>
+		<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+		AND		(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= #{taxInvoiceActive}
+		</if>
+		<choose>
+			<when test="searchStr != null and searchStr !=''">
+				<choose>
+				    <when test="searchType == null or searchType ==''">
+		AND		(	ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.NTSConfirmNum		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoiceeEmail1		LIKE '%' || #{searchStr} || '%'	OR
+					ACI.InvoiceEmail2		LIKE '%' || #{searchStr} || '%'	OR
+					ATI_ITEM.ItemName		LIKE '%' || #{searchStr} || '%'	OR
+					ATI_ITEM.Remark			LIKE '%' || #{searchStr} || '%'	OR
+					ACI.Remark1				LIKE '%' || #{searchStr} || '%'
+				)
+					</when>
+					<when test="searchType == 'InvoicerCorpName'.toString()">
+		AND		ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoicerContactName'.toString()">
+		AND		ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoicerCorpNum'.toString()">
+		AND		ACI.InvoicerCorpNum	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'NTSConfirmNum'.toString()">
+		AND		ACI.NTSConfirmNum	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'InvoiceeEmail1'.toString()">
+		AND		(
+            	ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%' OR
+            	ACI.InvoiceEmail2  LIKE '%' || #{searchStr} || '%'
+            	)
+					</when>
+					<when test="searchType == 'ItemName'.toString()">
+		AND		ATI_ITEM.ItemName	LIKE '%' || #{searchStr} || '%'
+					</when>
+					<when test="searchType == 'Remark'.toString()">
+		AND		(
+				ATI_ITEM.Remark	LIKE '%' || #{searchStr} || '%'	OR
+				ACI.Remark1		LIKE '%' || #{searchStr} || '%'
+				)
+					</when>
+				</choose>
+			</when>
+		</choose>
+		<if test ="writeDateS != null and writeDateS !=''">
+		AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+		</if>
+		<if test ="writeDateE != null and writeDateE !=''">
+		AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+		</if>
+		ORDER BY ACI.TaxInvoiceID DESC
+	</select>
+	
+	<select id="getTaxInvoiceTaxTotalListCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(AA.TaxInvoiceID)
+	    FROM	(
+			SELECT	ACI.TaxInvoiceID
+		    FROM	ACT_TAXINVOICE	ACI
+		    LEFT OUTER JOIN
+					act_taxinvoice_item	ATI_ITEM
+			ON		ACI.TaxInvoiceID	= ATI_ITEM.TaxInvoiceID
+		    LEFT OUTER JOIN
+					SYS_OBJECT_USER	USR
+			ON		ACI.TossUserCode	= USR.UserCode
+			WHERE	1=1
+			AND		ACI.DataIndex	= 'BUY'
+			AND		ACI.TaxTotal > 0
+			<if test ="companyCode != null and companyCode !=''">
+			AND		ACI.CompanyCode	= #{companyCode}
+			</if>
+			<if test ="taxInvoiceActive != null and taxInvoiceActive !=''">
+			AND	(	
+					CASE	
+	                    WHEN ACI.IsOffset = 'Y' THEN 'Y'
+	                    WHEN ACI.IsOffset = 'A' OR ACI.ApproveStatus = 'I' THEN 'A'
+	                    WHEN ACI.ApproveStatus = 'Y' THEN 'T'
+	                    WHEN ACI.ApproveStatus = 'N' THEN 'N'
+                    	ELSE 'R' 
+                    END
+				)	= #{taxInvoiceActive}
+			</if>
+			<choose>
+				<when test="searchStr != null and searchStr !=''">
+					<choose>
+					    <when test="searchType == null or searchType ==''">
+			AND		(	ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'	OR
+						ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'	OR
+						ACI.InvoicerCorpNum		LIKE '%' || #{searchStr} || '%'	OR
+						ACI.NTSConfirmNum		LIKE '%' || #{searchStr} || '%'	OR
+						ACI.InvoiceeEmail1		LIKE '%' || #{searchStr} || '%'	OR
+						ACI.InvoiceEmail2		LIKE '%' || #{searchStr} || '%'	OR
+						ATI_ITEM.ItemName		LIKE '%' || #{searchStr} || '%'	OR
+						ATI_ITEM.Remark			LIKE '%' || #{searchStr} || '%'	OR
+						ACI.Remark1				LIKE '%' || #{searchStr} || '%'
+					)
+						</when>
+						<when test="searchType == 'InvoicerCorpName'.toString()">
+			AND		ACI.InvoicerCorpName	LIKE '%' || #{searchStr} || '%'
+						</when>
+						<when test="searchType == 'InvoicerContactName'.toString()">
+			AND		ACI.InvoicerContactName	LIKE '%' || #{searchStr} || '%'
+						</when>
+						<when test="searchType == 'InvoicerCorpNum'.toString()">
+			AND		ACI.InvoicerCorpNum	LIKE '%' || #{searchStr} || '%'
+						</when>
+						<when test="searchType == 'NTSConfirmNum'.toString()">
+			AND		ACI.NTSConfirmNum	LIKE '%' || #{searchStr} || '%'
+						</when>
+						<when test="searchType == 'InvoiceeEmail1'.toString()">
+			AND		(
+            		ACI.InvoiceeEmail1 LIKE '%' || #{searchStr} || '%' OR
+            		ACI.InvoiceEmail2  LIKE '%' || #{searchStr} || '%'
+            		)
+						</when>
+						<when test="searchType == 'ItemName'.toString()">
+			AND		ATI_ITEM.ItemName	LIKE '%' || #{searchStr} || '%'
+						</when>
+						<when test="searchType == 'Remark'.toString()">
+			AND		(
+					ATI_ITEM.Remark	LIKE '%' || #{searchStr} || '%'	OR
+					ACI.Remark1		LIKE '%' || #{searchStr} || '%'
+					)
+						</when>
+					</choose>
+				</when>
+			</choose>
+			<if test ="writeDateS != null and writeDateS !=''">
+			AND		ACI.WriteDate <![CDATA[>=]]> REPLACE(#{writeDateS},'.','')
+			</if>
+			<if test ="writeDateE != null and writeDateE !=''">
+			AND		ACI.WriteDate <![CDATA[<=]]> REPLACE(#{writeDateE},'.','')
+			</if>
+	    ) AA
+	</select>
+</mapper>

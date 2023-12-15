@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.deadline">
+    
+	<select id="getDeadlineInfo" parameterType="cmap" resultType="cmap">
+	    /*
+	    account.deadline.getDeadlineInfo
+	    */
+		SELECT					
+    			DL.CompanyCode	AS "CompanyCode"
+			,	DL.DeadlineID	AS "DeadlineID"
+    		,	DL.NoticeText	AS "NoticeText"
+			,	TO_CHAR(TO_DATE(DL.DeadlineStartDate),'YYYY.MM.DD')		AS "DeadlineStartDate"
+			,	TO_CHAR(TO_DATE(DL.DeadlineFinishDate),'YYYY.MM.DD')	AS "DeadlineFinishDate"
+			,	DL.StandardMonth AS "StandardMonth"
+			,	DL.IsUse AS "IsUse"
+			,	DL.Control AS "Control"
+    	FROM	act_deadline DL
+		WHERE	ROWNUM <![CDATA[<=]]> 1
+    	AND		CompanyCode = #{companyCode}
+		ORDER BY DL.DeadlineID DESC		
+	</select>
+    
+    <select id="getDeadlineCnt" resultType="java.lang.Long">
+	    /*
+	    account.deadline.getDeadlineCnt
+	    */
+        SELECT COUNT(*)
+		FROM act_deadline
+		WHERE CompanyCode = #{companyCode}        
+    </select>
+	
+    <insert id="insertDeadlineInfo" parameterType="cmap">
+	    /*
+	    account.deadline.insertDeadlineInfo
+	    */
+        INSERT INTO act_deadline (
+        		CompanyCode
+	        ,	NoticeText
+	        ,	DeadlineStartDate
+	        ,	DeadlineFinishDate
+	        ,	StandardMonth
+	        ,	RegisterID
+	        ,	RegistDate
+	        ,	ModifierID
+	        ,	ModifyDate      
+	        ,	IsUse
+	        ,	Control  
+        ) VALUES (
+        		#{companyCode}
+        	,	#{noticeText}
+	        ,	#{deadlineStartDate}
+	        ,	#{deadlineFinishDate}
+	        ,	#{standardMonth}
+	        ,	#{UR_Code}
+	        ,	SYSDATE
+	        ,	#{UR_Code}
+	        ,	SYSDATE
+	        ,	#{isUse}
+	        ,	#{control}
+        )        
+    </insert>
+    
+    <update id="updateDeadlineInfo" parameterType="cmap">	    
+	    /*
+	    account.deadline.updateDeadlineInfo
+	    */	    
+	    UPDATE act_deadline
+	    SET
+	    		NoticeText = #{noticeText}
+	        ,	DeadlineStartDate = #{deadlineStartDate}
+	        ,	DeadlineFinishDate = #{deadlineFinishDate}
+	        ,	StandardMonth = #{standardMonth}
+	        ,	ModifierID = #{UR_Code}
+	        ,	ModifyDate = SYSDATE
+	        ,	IsUse = #{isUse}
+	        ,	Control = #{control}
+	    WHERE CompanyCode = #{companyCode}
+    </update>
+    
+</mapper>

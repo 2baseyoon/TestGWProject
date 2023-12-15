@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="baseCode">
+    
+    <select id="selectBaseCode" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	baseCode.selectBaseCode
+ 	    	기초코드 조회
+ 	    */
+	<![CDATA[
+		SELECT CD.BaseCodeID 
+			, CD.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, #{companyCode}) AS CompanyName 
+			, CD.CodeGroup
+			, CASE WHEN CD.IsGroup = 'Y' THEN CD.CodeName ELSE GrpCD.CodeName END AS CodeGroupName
+			, CD.Code
+			, CD.SortKey
+			, CD.IsUse
+			, CD.CodeName
+			, CD.Reserved1
+			, CD.Reserved2
+			, CD.Reserved3
+			, CD.Reserved4
+			, CD.ReservedInt
+			, CD.ReservedFloat
+			, CD.Description
+			, CD.ModifierID
+			, CD.ModifierID AS ModifierName
+			, CD.IsGroup
+			, CD.RegisterID
+			, CD.ModifyDate AS ModifyDate
+			, CD.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_base_code CD
+		LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+		WHERE 1=1
+    	]]>
+	  	<if test="searchGrp != null and searchGrp != ''">
+		 	AND CD.CodeGroup = #{searchGrp}
+		</if>
+	  	<if test="searchText != null and searchText != ''">
+		 	AND (UPPER(CD.CodeName) LIKE UPPER(CONCAT('%', #{searchText}, '%')) OR UPPER(CD.Code) LIKE UPPER(CONCAT('%', #{searchText}, '%')))
+		</if>
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+		<if test="searchGrpText != null and searchGrpText != ''">
+		 	AND (UPPER(CD.CodeGroup) LIKE UPPER(CONCAT('%', #{searchGrpText}, '%')) OR UPPER(GrpCD.CodeName) LIKE UPPER(CONCAT('%', #{searchGrpText}, '%')))
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			,	CD.CompanyCode
+			,	CD.CodeGroup
+			,	CD.SortKey
+			,	CD.Code 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsGroup")'>IsGroup</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeGroup")'>CodeGroup</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeGroupName")'>CodeGroupName</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>Code</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeName")'>CodeName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifierName")'>ModifierName</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+
+ 	<select id="selectBaseCodeCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	baseCode.selectBaseCodeCnt
+ 	    	기초코드 페이징용 갯수 카운트
+ 	    */
+		<![CDATA[
+			SELECT COUNT(*) CNT 
+			FROM covi_account4j_si.act_base_code CD
+			LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+			ON GrpCd.IsGroup = 'Y' AND GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+			WHERE 1=1
+		]]>
+	  	<if test="searchGrp != null and searchGrp != ''">
+		 	AND CD.CodeGroup = #{searchGrp}
+		</if>
+	  	<if test="searchText != null and searchText != ''">
+		 	AND (UPPER(CD.CodeName) LIKE UPPER(CONCAT('%', #{searchText}, '%')) OR UPPER(CD.Code) LIKE UPPER(CONCAT('%', #{searchText}, '%')))
+		</if>
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+		<if test="searchGrpText != null and searchGrpText != ''">
+		 	AND (UPPER(CD.CodeGroup) LIKE UPPER(CONCAT('%', #{searchGrpText}, '%')) OR UPPER(GrpCD.CodeName) LIKE UPPER(CONCAT('%', #{searchGrpText}, '%')))
+		</if>
+	</select>
+	
+ 	
+    <select id="selectBaseCodeView" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	baseCode.selectBaseCodeView
+ 	    	기초코드 조회
+ 	    */
+	<![CDATA[
+		SELECT CD.BaseCodeID 
+			, CD.CompanyCode 
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, #{companyCode}) AS CompanyName 
+			, CD.CodeGroup
+			, CASE WHEN CD.IsGroup = 'Y' THEN CD.CodeName ELSE GrpCD.CodeName END AS CodeGroupName
+			, CD.Code
+			, CD.SortKey
+			, CD.IsUse
+			, CD.CodeName
+			, CD.Reserved1
+			, CD.Reserved2
+			, CD.Reserved3
+			, CD.Reserved4
+			, CD.ReservedInt
+			, CD.ReservedFloat
+			, CD.Description
+			, CD.ModifierID
+			, CD.ModifierID AS ModifierName
+			, CD.IsGroup
+			, CD.RegisterID
+			, CD.ModifyDate AS ModifyDate
+			, CD.RegistDate AS RegistDate
+		FROM covi_account4j_si.act_base_code CD
+		LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+    	]]>
+		WHERE 1=1
+		AND CD.CodeGroup = #{searchGrp}
+	  	<if test="searchText != null and searchText != ''">
+		 	AND UPPER(CD.CodeName) LIKE  UPPER(CONCAT('%', #{searchText}, '%'))
+		</if>
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+		AND CD.IsGroup = 'N'
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+			, CD.CompanyCode
+			, CD.CodeGroup
+			, CD.SortKey
+			, CD.Code
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("Code")'>Code</when>
+					<when test='sortColumn.equalsIgnoreCase("CodeName")'>CodeName</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+					<when test='sortColumn.equalsIgnoreCase("RegistDate")'>RegistDate</when>
+					<when test='sortColumn.equalsIgnoreCase("ModifyDate")'>ModifyDate</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+ 	<select id="selectBaseCodeViewCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	baseCode.selectBaseCodeCnt
+ 	    	기초코드 페이징용 갯수 카운트
+ 	    */
+		<![CDATA[
+			SELECT COUNT(*) CNT 
+			FROM covi_account4j_si.act_base_code CD
+			LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+			ON GrpCd.IsGroup = 'Y' AND GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+			WHERE 1=1
+		]]>
+		AND CD.CodeGroup = #{searchGrp}
+	  	<if test="searchText != null and searchText != ''">
+		 	AND UPPER(CD.CodeName) LIKE  UPPER(CONCAT('%', #{searchText}, '%'))
+		</if>
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>
+		AND CD.IsGroup = 'N'
+	</select>
+ 	
+    <select id="selectBaseGrpCode4Delete" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	baseCode.selectBaseGrpCode4Delete
+ 	    	기초코드 조회
+ 	    */
+	
+		SELECT CD.BaseCodeID 
+			, CD.Code
+		FROM
+			covi_account4j_si.act_base_code CD
+		WHERE 
+			<choose>
+				<when test="baseCodeList != null">
+					<foreach collection="baseCodeList" item="item" index="index" separator="," open="BaseCodeID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>     
+	</select>
+    
+    
+    
+    <select id="selectBaseCodeDetail" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	baseCode.selectBaseCodeDetail
+ 	    	기초코드 조회
+ 	    */
+	<![CDATA[
+		SELECT CD.BaseCodeID 
+			, CD.CompanyCode
+			, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, CD.CompanyCode) AS CompanyName	
+			, CD.CodeGroup
+			, CASE WHEN CD.IsGroup = 'Y' THEN CD.CodeName ELSE GrpCD.CodeName END AS CodeGroupName
+			, CD.Code
+			, CD.SortKey
+			, CD.IsUse
+			, CD.CodeName
+			, CD.Reserved1
+			, CD.Reserved2
+			, CD.Reserved3
+			, CD.Reserved4
+			, CD.ReservedInt
+			, CD.ReservedFloat
+			, CD.Description
+			, CD.ModifierID
+			, CD.ModifierID AS ModifierName
+			, CD.IsGroup
+			, DATE_FORMAT(CD.ModifyDate, '%Y-%m-%d %T') AS ModifyDate
+			, DATE_FORMAT(CD.RegistDate, '%Y-%m-%d %T') AS RegistDate
+		FROM covi_account4j_si.act_base_code CD
+		LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+		ON GrpCd.IsGroup = 'Y' AND GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+		WHERE 1=1
+		AND CD.BaseCodeID = #{BaseCodeID}
+    ]]>
+	</select>
+	
+	<select id="selectBaseCodeExcel" parameterType="cmap" resultType="cmap">
+		/*	baseCode.selectBaseCodeExcel
+			기초코드 조회
+		*/
+		SELECT	CD.IsGroup
+			,	CD.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode', CD.CompanyCode, #{companyCode}) AS CompanyName	
+			,	CD.CodeGroup
+			,	CASE WHEN CD.IsGroup = 'Y' THEN CD.CodeName ELSE GrpCD.CodeName END AS CodeGroupName
+			,	CD.Code
+			,	CD.CodeName
+			,	CD.IsUse
+			,	CD.ModifierID	AS ModifierName
+			,	CD.ModifyDate	AS ModifyDate
+		FROM	covi_account4j_si.act_base_code CD
+		LEFT OUTER JOIN covi_account4j_si.act_base_code GrpCD
+		ON	GrpCd.IsGroup = 'Y' AND	GrpCD.Code = Cd.CodeGroup AND GrpCD.CompanyCode = CD.CompanyCode
+		WHERE 1=1
+		<if test="searchGrp != null and searchGrp != ''">
+		 	AND CD.CodeGroup = #{searchGrp}
+		</if>
+	  	<if test="searchText != null and searchText != ''">
+		 	AND UPPER(CD.CodeName) LIKE  UPPER(CONCAT('%',#{searchText},'%'))
+		</if>
+	  	<if test="companyCode != null and companyCode != ''">
+		 	AND CD.CompanyCode = #{companyCode}
+		</if>		
+		ORDER BY	CD.CompanyCode
+				,	CD.CodeGroup
+				,	CD.SortKey
+				,	CD.Code
+				
+	</select>
+	
+	<select id="selectCompanyCodeIsUseCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	baseCode.selectCompanyCodeCnt
+ 	    	회사코드 미사용/삭제 전 사용중 갯수 카운트
+ 	    */
+		SELECT	COUNT(*) CNT 
+		FROM 	covi_account4j_si.act_base_code CD
+		WHERE	1=1
+	 	AND		CD.CodeGroup = #{CodeGroup}
+	 	AND		CD.BaseCodeID != #{BaseCodeID}
+	 	AND		CD.Code = #{Code}
+	 	AND		CD.IsUse = 'Y'
+	</select>
+    
+    <update id="changeBaseCodeIsUse" parameterType="cmap">
+	<![CDATA[
+	
+ 	    /*
+ 	    	baseCode.changeBaseCodeIsUse
+ 	    	기초코드 사용여부 수정
+ 	    */
+		UPDATE covi_account4j_si.act_base_code
+		SET IsUse = #{isUseValue} 
+		, ModifierID = #{UserId}
+		, ModifyDate = now(3)
+		WHERE BaseCodeID = #{BaseCodeID}
+	
+	]]>
+	</update>
+    
+    <update id="updateBaseCode" parameterType="cmap">
+	<![CDATA[
+	
+ 	    /*
+ 	    	baseCode.updateBaseCode
+ 	    	기초코드 수정
+ 	    */
+		UPDATE covi_account4j_si.act_base_code
+		SET IsUse = #{IsUse} 
+			, CompanyCode = #{CompanyCode}
+			, Description = #{Description} 
+			, SortKey = #{SortKey} 
+			, CodeName = #{CodeName}			
+			, Reserved1 = #{Reserved1} 
+			, Reserved2 = #{Reserved2} 
+			, Reserved3 = #{Reserved3} 
+			, Reserved4 = #{Reserved4} 
+			, ReservedInt = #{ReservedInt} 
+			, ReservedFloat = #{ReservedFloat} 
+			, ModifierID = #{SessionUser}
+			, ModifyDate = now(3)
+		WHERE BaseCodeID = #{BaseCodeID}
+	
+	]]>
+	</update>
+    
+    <update id="updateBaseGrpCode" parameterType="cmap">
+	<![CDATA[
+	
+ 	    /*
+ 	    	baseCode.updateBaseGrpCode
+ 	    	기초코드 그룹코드 수정
+ 	    */
+		UPDATE covi_account4j_si.act_base_code
+		SET IsUse = #{IsUse} 
+			, CompanyCode = #{CompanyCode}
+			, CodeName = #{CodeGroupName} 
+			, ModifierID = #{SessionUser}
+			, ModifyDate = now(3)
+			
+			, Description = #{Description} 
+			, Reserved1 = #{Reserved1} 
+			, Reserved2 = #{Reserved2} 
+			, Reserved3 = #{Reserved3} 
+			, Reserved4 = #{Reserved4} 
+			, ReservedInt = #{ReservedInt} 
+			, ReservedFloat = #{ReservedFloat} 
+		WHERE BaseCodeID = #{BaseCodeID}
+	
+	]]>
+	</update>
+	<delete id="deleteBaseCodeList" parameterType="cmap">
+ 	    /*
+ 	    	baseCode.deleteBaseCodeList
+ 	    	기초코드 목록삭제
+ 	    */
+	    DELETE FROM covi_account4j_si.act_base_code
+	    WHERE 
+	    	<choose>
+				<when test="baseCodeList != null">
+					<foreach collection="baseCodeList" item="item" index="index" separator="," open="BaseCodeID IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>  
+    </delete>
+    
+	<delete id="deleteBaseGrpCodeList" parameterType="cmap">
+ 	    /*
+ 	    	baseCode.deleteBaseGrpCodeList
+ 	    	기초코드 그룹코드 삭제시 하위 모두 삭제
+ 	    */
+	    DELETE FROM covi_account4j_si.act_base_code
+	    WHERE 
+	    	<choose>
+				<when test="grpCdList != null">
+					<foreach collection="grpCdList" item="item" index="index" separator="," open="CodeGroup IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>  
+    </delete>
+    
+ 	<select id="selectBaseCodeDuplCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	baseCode.selectBaseCodeDuplCnt
+ 	    	기초코드  중복갯수 카운트
+ 	    */
+		<![CDATA[
+			SELECT COUNT(*) CNT 
+			FROM covi_account4j_si.act_base_code CD
+			WHERE Code = #{Code}
+			AND CodeGroup = #{CodeGroup}
+			AND CompanyCode = #{CompanyCode}
+		]]>
+	</select>	
+	
+ 	<select id="checkBaseCodeGrpDetail" resultType="java.lang.Long">
+ 	    /*
+ 	    	baseCode.checkBaseCodeGrpDetail
+ 	    	기초코드 추가전 그룹 체크
+ 	    */
+	<![CDATA[
+		SELECT COUNT(*)
+		FROM covi_account4j_si.act_base_code CD
+		WHERE Code = #{CodeGroup}
+		AND CompanyCode = #{CompanyCode}
+    ]]>
+	</select>
+	
+    <insert id="insertBaseCode" parameterType="cmap">
+	<![CDATA[
+ 	    /*
+ 	    	baseCode.insertBaseCode
+ 	    	기초코드 코드 
+ 	    */
+		INSERT INTO covi_account4j_si.act_base_code
+		(
+			CompanyCode
+			, CodeGroup
+			, Code
+			, SortKey
+			, IsGroup
+			, IsUse
+			, CodeName
+			, Reserved1
+			, Reserved2
+			, Reserved3
+			, Reserved4
+			, ReservedInt
+			, ReservedFloat
+			, Description
+			, RegisterID
+			, RegistDate
+			, ModifierID
+			, ModifyDate
+		)
+		VALUES
+		(
+			#{CompanyCode}
+			, #{CodeGroup}
+			, #{Code}
+			, IF(#{SortKey} = '', '1', #{SortKey})
+			, #{IsGroup}
+			, #{IsUse}
+			, #{CodeName}
+			, #{Reserved1}
+			, #{Reserved2}
+			, #{Reserved3}
+			, #{Reserved4}
+			, IF(#{ReservedInt} = '', NULL, #{ReservedInt})
+			, IF(#{ReservedFloat} = '', NULL, #{ReservedFloat})
+			, #{Description}
+			,#{SessionUser}
+			, now(3)
+			,#{SessionUser}
+			, now(3)
+		)
+	]]>
+	</insert>
+    
+    <select id="selectCodeListByCodeGroup" parameterType="cmap" resultType="cmap">
+ 	    SELECT Code, CodeName, IsUse, IsGroup
+		FROM covi_account4j_si.act_base_code
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="codeGroup != null and codeGroup !=''">
+				AND CodeGroup = #{codeGroup}
+			</if>
+			AND	CompanyCode = (
+					CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND CompanyCode = #{companyCode})
+					THEN #{companyCode}
+					ELSE 'ALL'
+					END
+				)
+		</trim>		
+	</select>
+    
+    <select id="selectOnlyCodeByCodeGroup" parameterType="cmap" resultType="java.lang.String">
+ 	    SELECT Code
+		FROM covi_account4j_si.act_base_code
+		<trim prefix="WHERE" prefixOverrides="AND |OR ">
+			<if test="codeGroup != null and codeGroup !=''">
+				AND CodeGroup = #{codeGroup}
+			</if>
+			AND IsUse = 'Y'
+			AND IsGroup = 'N'
+			AND	CompanyCode = (
+					CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND IsUse = 'Y' AND IsGroup = 'N' AND CompanyCode = #{companyCode})
+					THEN #{companyCode}
+					ELSE 'ALL'
+					END
+				)
+		</trim>		
+	</select>
+    
+    <select id="selectMaxSortKey" resultType="java.lang.Long">
+    	SELECT MAX(SortKey)
+    	FROM covi_account4j_si.act_base_code
+    	WHERE CodeGroup = 'IOCode'
+		AND IsUse = 'Y'
+		AND IsGroup = 'N'
+    </select>
+    
+    <select id="selectBaseCodeNameByCode" parameterType="cmap" resultType="java.lang.String">
+ 	    SELECT CodeName
+		FROM covi_account4j_si.act_base_code
+		WHERE CodeGroup = #{codeGroup}
+		AND Code = #{code}
+		AND	CompanyCode = (
+				CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND Code = #{code} AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		LIMIT 1
+    </select>
+    
+    <select id="selectInvestBaseCodeNameByCode" parameterType="cmap" resultType="java.lang.String">
+   		SELECT InvestCodeName
+		FROM covi_account4j_si.act_investigation
+		WHERE InvestCode = #{code}
+		AND	CompanyCode = (
+				CASE WHEN EXISTS (SELECT InvestCode FROM covi_account4j_si.act_investigation WHERE InvestCode = #{code} AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		LIMIT 1
+    </select>
+    
+    <select id="selectBaseCodeByCodeName" parameterType="cmap" resultType="java.lang.String">
+	    SELECT BC.Code
+		FROM covi_account4j_si.act_base_code BC 
+		WHERE BC.CodeGroup = #{codeGroup}
+		AND BC.CodeName = #{codeName}    
+		AND	BC.CompanyCode = (
+				CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = #{codeGroup} AND CodeName = #{codeName} AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		LIMIT 1
+    </select>
+    
+	<select id="selectCompanyCodeCheck" parameterType="cmap" resultType="cmap">
+		SELECT A.CompanyCode FROM covi_account4j_si.act_base_code A 
+			INNER JOIN covi_smart4j.sys_object_domain B 
+			ON  A.CompanyCode = B.DomainCode 
+		WHERE A.CodeGroup = 'CompanyCode' 
+		AND B.DomainID = #{DomainID}
+	</select>
+	
+	<select id="selectDomainCheck" parameterType="cmap" resultType="cmap">
+		SELECT DISTINCT B.DomainID FROM covi_account4j_si.act_base_code A 
+			INNER JOIN covi_smart4j.sys_object_domain B 
+			<if test="CompanyCode == 'ALL'.toString()">
+				ON  B.DomainCode = 'ORGROOT'
+			</if>
+			<if test="CompanyCode != 'ALL'.toString()">
+				ON  B.DomainCode = A.CompanyCode
+			</if>
+		WHERE A.CodeGroup = 'CompanyCode'
+		AND A.CompanyCode = #{CompanyCode}
+	</select>
+</mapper>

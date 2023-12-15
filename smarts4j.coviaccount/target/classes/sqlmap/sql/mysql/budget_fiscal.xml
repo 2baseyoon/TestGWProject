@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="budget.fiscal">
+		<select id="getBudgetFiscalListCnt" resultType="java.lang.Long">
+			SELECT COUNT(*)
+			FROM  covi_budget4j.bem_base_term e
+			WHERE e.CompanyCode = #{companyCode}
+			  AND e.FiscalYear = #{fiscalYear}
+   	</select>
+	<select id="getBudgetFiscalList"  parameterType="cmap" resultType="cmap">
+		SELECT a.FiscalYear
+		    	,	a.BaseTerm
+		    	,   a.BaseTermName
+		    	,	a.PeriodLabel
+		    	,   covi_account4j_si.Fn_GetBaseCodeName('PeriodLabel',a.PeriodLabel,'ALL') PeriodLabelName
+				,	concat(DATE_FORMAT(a.ValidFrom, '%Y/%m/%d'),'~', DATE_FORMAT(a.ValidTo, '%Y/%m/%d'))  ValidTerm
+				,   covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',a.CompanyCode,'ALL') CompanyCodeName
+		FROM  (
+			SELECT   e.FiscalYear, BaseTerm, PeriodLabel, ValidFrom, ValidTo
+					, b.CodeName BaseTermName
+					, sortKey
+					, e.ordinal
+					, e.CompanyCode
+			FROM   covi_budget4j.bem_base_term e 
+			LEFT JOIN covi_account4j_si.act_base_code b on e.BaseTerm = b.code and B.CodeGroup = 'BaseTerm'
+			WHERE e.CompanyCode = #{companyCode}
+			  AND e.FiscalYear = #{fiscalYear}
+			ORDER BY  sortKey, ordinal	 	
+			<if test="pageSize != null and pageOffset != null">
+				LIMIT #{pageSize} OFFSET #{pageOffset}
+			</if>
+		) a	
+		ORDER BY  sortKey, ordinal	 	
+	</select>
+	<select id="getBudgetFiscalCode" resultType="cmap">
+		SELECT Code, Reserved1
+		FROM   covi_account4j_si.act_base_code a
+		WHERE  CodeGroup='FiscalYearBasis'
+		AND    isGroup='N'
+	</select>
+	<select id="getBudgetFiscalMaxYear" resultType="long">
+		SELECT MAX(FiscalYear) FiscalYear FROM covi_budget4j.bem_base_term WHERE CompanyCode = 'ALL'
+	</select>
+	<update id="saveBudgetFiscalCode" parameterType="cmap" >
+		INSERT INTO covi_account4j_si.act_base_code 
+		     (BaseCodeId, CodeGroup, Code, CodeName, Reserved1, isGroup, IsUse, SortKey, RegistDate, ModifyDate)
+		 (SELECT (SELECT BaseCodeId FROM    covi_account4j_si.act_base_code WHERE   CodeGroup = 'FiscalYearBasis'	AND  Code =  #{code}  )
+		 		,'FiscalYearBasis', #{code}, #{code}, #{date}, 'N', 'Y', 1, NOW(), now())
+		ON   DUPLICATE KEY
+	    UPDATE Reserved1 = #{date}
+	</update>
+	<insert id="addBudgetFiscal" parameterType="cmap" >
+	    INSERT INTO covi_budget4j.bem_base_term 
+		      (  CompanyCode, BaseTerm,   FiscalYear,   Ordinal,   ValidFrom,   Validto, PeriodLabel, PeriodLabelName, RegisterID ,RegistDate ,ModifierID  ,ModifyDate)
+		  SELECT CompanyCode, BaseTerm, #{fiscalYear},  ordinal,   ValidFrom,   ValidTo, PeriodLabel, PeriodLabelName, #{UR_Code} ,NOW()  ,#{UR_Code}  ,NOW()
+		  FROM	(SELECT	#{companyCode} CompanyCode, BaseTerm, 	ordinal, PeriodLabel, PeriodLabelName
+						, DATE_ADD(STR_TO_DATE(CONCAT(#{fiscalYear},#{yearStart},'01'), '%Y%m%d'), INTERVAL (ordinal-1)*#{addTerm} MONTH) ValidFrom
+						, DATE_ADD(DATE_ADD(STR_TO_DATE(CONCAT(#{fiscalYear},#{yearStart},'01'), '%Y%m%d'), INTERVAL (ordinal)*#{addTerm} MONTH), INTERVAL -1 DAY) ValidTo
+				 FROM  covi_budget4j.bem_base_term
+				 WHERE CompanyCode = 'ALL'
+			     AND   fiscalyear = #{orgFiscalYear}
+				 AND   BaseTerm   = #{baseTerm}) b
+	    ON   DUPLICATE KEY
+		UPDATE 	 ValidFrom = b.ValidFrom, ValidTo = b.ValidTo
+				,ModifierID = #{UR_Code}, ModifyDate= NOW()	
+	</insert>
+
+	<select id="getFiscalYearByDate" resultType="long">
+		SELECT MAX(FiscalYear) FiscalYear 
+		FROM   covi_budget4j.bem_base_term
+	    WHERE  CompanyCode = #{companyCode}
+		AND    DATE_FORMAT(#{executeDate}, '%Y%m%d') BETWEEN ValidFrom AND ValidTo
+	</select>
+</mapper>
+

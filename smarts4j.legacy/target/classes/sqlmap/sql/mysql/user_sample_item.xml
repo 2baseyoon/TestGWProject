@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://www.mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="user.sample">
+ 	<insert id="insertSampleItem" parameterType="cmap">
+ 		insert into sample_item(itemVal)
+ 		values (#{value})
+	</insert>
+	
+	<select id="selectSampleItem" parameterType="cmap" resultType="cmap">
+ 		SELECT itemId, itemVal
+		FROM legacy.sample_item
+		ORDER BY itemId DESC
+		LIMIT 5
+	</select>
+</mapper>

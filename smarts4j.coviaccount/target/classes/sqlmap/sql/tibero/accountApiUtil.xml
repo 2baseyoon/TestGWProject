@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="accountApi.util">
+	  <insert id="saveAccountApiLog" parameterType="cmap" >
+        /*
+		    accountApi.Account.saveAccountApiLog
+	    */
+		INSERT INTO act_api_status_log(
+			ApiType
+			,   ApiRecvType
+			,   CallUrl
+			,   ReqParam
+			,   ApiStatus
+			,   ErrorLog
+			,   ApiDate
+		) VALUES (
+			#{apiType}
+			,	#{apiRecvType}
+			,	#{callUrl}
+			,	#{reqParam}
+			,	#{apiStatus}
+			,	#{errorLog}
+			,	TO_DATE(SYSDATE,'YYYY-MM-DD HH24:MI:SS')
+		)
+	</insert>
+</mapper>

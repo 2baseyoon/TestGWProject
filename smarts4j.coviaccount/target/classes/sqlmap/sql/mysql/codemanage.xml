@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.codemanage">
+
+	<select id="getCodeSearchGroupList" parameterType="cmap" resultType="cmap">
+		SELECT	BC.CodeGroup
+			,	BC.Code
+			,	BC.CodeName
+			,	CONCAT('[',BC.Code,']',BC.CodeName)	AS ViewName
+		FROM	covi_account4j_si.act_base_code BC
+		WHERE	BC.CodeGroup	= 'TaxCode'
+		AND		BC.IsUse		= 'Y'
+		AND		BC.IsGroup		= 'N'
+		AND		BC.CompanyCode = (
+				CASE WHEN EXISTS (SELECT Code FROM covi_account4j_si.act_base_code WHERE CodeGroup = 'TaxCode' AND IsUse = 'Y' AND IsGroup = 'N' AND CompanyCode = #{companyCode})
+				THEN #{companyCode}
+				ELSE 'ALL'
+				END
+			)
+		ORDER BY BC.SortKey
+	</select>
+	
+	<select id="getCodeSearchList" parameterType="cmap" resultType="cmap">
+		SELECT	BC.CodeGroup
+			,	BC.Code
+			,	BC.CodeName
+			,	TM.ProofTaxMappID
+			,	TM.DeductionType
+			,	CONCAT('[',	covi_account4j_si.Fn_GetBaseCodeName('DeductionType', TM.DeductionType, #{companyCode})
+						,']','[',BC.Code,']',BC.CodeName)	AS ViewName
+		FROM	covi_account4j_si.act_proof_tax_mapp	TM
+		INNER JOIN covi_account4j_si.act_base_code		BC
+		ON		BC.CodeGroup	= TM.CodeGroup AND BC.Code = TM.Code AND TM.CompanyCode = BC.CompanyCode
+		WHERE	BC.IsUse		= 'Y'
+		AND		BC.IsGroup		= 'N'
+		AND		TM.ProofCode	= #{proofCode}
+		AND		TM.CompanyCode	= #{companyCode}
+		ORDER BY BC.SortKey,TM.DeductionType DESC
+	</select>
+	
+	<insert id="insertCodeManageInfo" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.act_proof_tax_mapp (
+	    		CompanyCode
+			,	ProofCode
+			,	CodeGroup
+			,	Code
+			,	DeductionType
+			,	RegisterID
+			,	RegistDate
+			,	ModifierID
+			,	ModifyDate
+	    ) VALUES (
+	    		#{companyCode}
+	    	,	#{proofCode}
+			,	#{codeGroup}
+			,	#{code}
+			,	#{deductionType}
+			,	#{UR_Code}
+			,	NOW(3)
+			,	#{UR_Code}
+			,	NOW(3)
+	    )
+ 	</insert>
+ 	
+	<delete id="deleteCodeManageInfo">
+	    DELETE FROM covi_account4j_si.act_proof_tax_mapp		
+		WHERE	ProofCode		= #{proofCode}
+		AND		ProofTaxMappId	= #{proofTaxMappID}
+	</delete>
+</mapper>

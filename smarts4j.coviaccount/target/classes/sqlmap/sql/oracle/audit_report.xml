@@ -1,0 +1,661 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.audit_report">
+	<select id="getDupStoreListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+	    FROM act_expence_application AEA
+	    INNER JOIN act_expence_application_list AEAL
+	    ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		LEFT OUTER JOIN act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+	    INNER JOIN (			
+				SELECT     
+					  CR.StoreRegNo 
+					, CR.StoreName
+				FROM       act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				LEFT OUTER JOIN act_card_receipt CR
+				ON AEAL.CardUID = CR.ReceiptID
+				WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND (CR.StoreRegNo IS NOT NULL OR CR.StoreName IS NOT NULL)
+		        GROUP BY CR.StoreRegNo, CR.StoreName			
+			    HAVING COUNT(AEA.ExpenceApplicationID) > 1
+		) DUP
+        ON CR.StoreRegNo = DUP.StoreRegNo AND CR.StoreName = DUP.StoreName
+        WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getDupStoreList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT    
+					A.RegisterID AS "RegisterID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, SOU.DisplayName AS "RegisterName"
+					, SOUB.DeptName AS "UserDept"
+					, A.ProofDate AS "ProofDate"
+					, A.ProofTime AS "ProofTime"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, A.StoreAddress2 AS "StoreAddress2"
+					, (
+						SELECT SUM(AEAD.Amount) 
+						FROM act_expence_application_div AEAD 
+						WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					)  AS "AmountSumNum"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ReceiptID AS "ReceiptID"
+		    FROM (
+		    	SELECT
+						AEA.RegisterID
+						, AEA.CompanyCode
+						, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS ProofDate
+						, CASE
+							WHEN AEAL.ProofCode = 'CorpCard' THEN (SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2))
+							WHEN AEAL.ProofCode = 'Receipt' THEN (AR.UseTime || ':00')
+							WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+							ELSE NULL 
+						  END AS ProofTime
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+							WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)					
+							ELSE TO_CHAR(AEAL.ExpenceApplicationListID) 
+						  END AS ReceiptID
+						, AEAL.ExpenceApplicationListID
+						, AEAL.ProofCode
+						, CR.ApproveNo
+						, CR.StoreRegNo
+	    				, CR.StoreName
+						, CR.StoreAddress1
+						, CR.StoreAddress2
+			    FROM act_expence_application AEA
+			    INNER JOIN act_expence_application_list AEAL
+			    ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				LEFT OUTER JOIN act_card_receipt CR
+				ON AEAL.CardUID = CR.ReceiptID
+				LEFT OUTER JOIN act_receipt AR
+				ON AEAL.ReceiptID = AR.ReceiptID
+			    INNER JOIN (			
+					SELECT     
+							CR.StoreRegNo
+							, CR.StoreName
+					FROM act_expence_application AEA
+					INNER JOIN act_expence_application_list AEAL
+					ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+					LEFT OUTER JOIN act_card_receipt CR 
+					ON AEAL.CardUID = CR.ReceiptID
+					WHERE AEAL.ProofDate	LIKE (#{proofDate}||'%')
+					AND AEA.ApplicationStatus = 'E'
+					AND AEA.ApplicationType != 'CO'
+					AND (CR.StoreRegNo IS NOT NULL OR CR.StoreName IS NOT NULL)
+			        GROUP BY CR.StoreRegNo, CR.StoreName			
+				    HAVING COUNT(AEA.ExpenceApplicationID) > 1
+				) DUP
+		        ON CR.StoreRegNo = DUP.StoreRegNo AND CR.StoreName = DUP.StoreName
+		        WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+			) A
+			LEFT OUTER JOIN sys_object_user SOU
+			ON A.RegisterID	= SOU.UserCode		
+			LEFT OUTER JOIN sys_object_user_basegroup SOUB
+			ON A.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+			ORDER BY A.StoreRegNo, A.StoreName		
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getLimitAmountListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+		    SELECT
+		    		AEA.ExpenceApplicationID 
+					, AEA.RegisterID
+		    		, AEAL.ProofCode
+		    		, AEAL.ProofDate
+					, CR.StoreRegNo
+					, CR.StoreName
+					, CR.ApproveNo
+					, CR.StoreAddress1
+					, (
+						SELECT SUM(AEAD.Amount)
+						FROM act_expence_application_div AEAD 
+						WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AmountSumNum
+	  		FROM act_expence_application AEA
+			INNER JOIN act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN act_card_receipt CR
+			ON AEAL.CardUID = CR.ReceiptID
+			LEFT OUTER JOIN act_receipt AR
+			ON AEAL.ReceiptID = AR.ReceiptID
+			WHERE AEAL.ProofDate	LIKE (#{proofDate}||'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		INNER JOIN act_audit AAA
+		ON AAA.RuleCode = 'amount' AND AAA.IsUse = 'Y' AND A.AmountSumNum > (AAA.StdValue * 10000)
+	</select>
+
+	<select id="getLimitAmountList" parameterType="cmap"  resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT  
+					A.ExpenceApplicationID AS "ExpenceApplicationID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, A.RegisterID AS "RegisterID"
+					, A.RegisterName AS "RegisterName"
+					, A.UserDept AS "UserDept"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ProofDate AS "ProofDate"
+					, A.ProofTime AS "ProofTime"
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, A.AmountSumNum AS "AmountSumNum"
+					, A.ReceiptID AS "ReceiptID"
+			FROM  (
+				SELECT
+						A.ExpenceApplicationID
+						, A.CompanyCode
+						, A.RegisterID
+						, A.RegisterName
+						, A.UserDept
+						, A.ProofCode
+						, A.ReceiptID
+						, A.ProofDate
+						, A.ProofTime
+						, A.StoreRegNo
+						, A.StoreName
+						, A.ApproveNo
+						, A.StoreAddress1
+						, A.AmountSumNum
+				FROM (
+				    SELECT 
+				    		AEA.ExpenceApplicationID
+							, AEA.CompanyCode
+				    		, AEA.RegisterID
+							, SOU.DisplayName AS RegisterName
+							, SOUB.DeptName AS UserDept
+				    		, AEAL.ProofCode
+				    		, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS ProofDate
+							, CASE
+								WHEN AEAL.ProofCode = 'CorpCard' THEN (SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2))
+								WHEN AEAL.ProofCode = 'Receipt' THEN (AR.UseTime || ':00')
+								WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+								ELSE NULL 
+							  END AS ProofTime
+							, CASE 
+								WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+								WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)
+								ELSE TO_CHAR(AEAL.ExpenceApplicationListID) 
+							  END AS ReceiptID
+							, CR.StoreRegNo
+							, CR.StoreName
+							, CR.ApproveNo
+							, CR.StoreAddress1
+							, (
+								SELECT SUM(AEAD.Amount) 
+								FROM act_expence_application_div AEAD 
+								WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+							) AmountSumNum
+			  		FROM act_expence_application AEA
+					INNER JOIN act_expence_application_list AEAL 
+					ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+					LEFT OUTER JOIN act_card_receipt CR
+					ON AEAL.CardUID = CR.ReceiptID
+					LEFT OUTER JOIN act_receipt AR
+					ON AEAL.ReceiptID = AR.ReceiptID
+					LEFT OUTER JOIN sys_object_user SOU
+					ON AEA.RegisterID	= SOU.UserCode
+					LEFT OUTER JOIN sys_object_user_basegroup SOUB
+					ON AEA.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+					WHERE AEAL.ProofDate	LIKE (#{proofDate}||'%')
+					AND AEA.ApplicationStatus = 'E'
+					AND AEA.ApplicationType != 'CO'
+					AND AEA.CompanyCode = #{companyCode}
+				) A
+				INNER JOIN act_audit AAA
+				ON AAA.RuleCode = 'amount' AND AAA.IsUse = 'Y' AND A.AmountSumNum > (AAA.StdValue * 10000)
+			) A
+			ORDER BY A.ExpenceApplicationID
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getHolidayUseListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT 
+				SC.Anniversary
+				, AEAL.ProofDate					
+				, CASE 
+					WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2) 
+					WHEN AEAL.ProofCode = 'Receipt' THEN SUBSTR(AR.UseTime, 1, 2) 
+					WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN SUBSTR(AEAL.ProofTime, 1, 2) ELSE NULL END)
+					ELSE NULL 
+				  END AS ProofHour
+		  	FROM act_expence_application AEA
+			INNER JOIN act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN act_card_receipt CR
+			ON AEAL.CardUID = CR.ReceiptID
+			LEFT OUTER JOIN act_receipt AR
+			ON AEAL.ReceiptID = AR.ReceiptID
+			LEFT OUTER JOIN sys_calendar SC
+			ON SC.SolarDate = TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY-MM-DD')
+			WHERE AEAL.ProofDate	LIKE (#{proofDate}||'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		LEFT OUTER JOIN act_audit AAM
+		ON AAM.RuleCode = 'midnight' AND AAM.IsUse = 'Y'
+		WHERE (
+			TO_CHAR(TO_DATE(A.ProofDate), 'd') IN ('1', '7')
+			OR A.Anniversary IS NOT NULL
+			OR A.ProofHour >= AAM.StdStartTime OR A.ProofHour <![CDATA[<=]]> AAM.StdEndTime
+		)
+	</select>
+	<select id="getHolidayUseList" parameterType="cmap"  resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT  
+					A.RegisterID AS "RegisterID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"	
+					, SOU.DisplayName AS "RegisterName"
+					, SOUB.DeptName AS "UserDept"
+					, A.ProofDate AS "ProofDate"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, TO_CHAR(TO_DATE(A.ProofDate), 'd') AS "WEEKEND"
+					, (
+						CASE 
+						WHEN A.Anniversary IS NOT NULL THEN Fn_BaseGetDictionary_S(#{lang}, A.Anniversary) 
+						ELSE  
+					   		CASE TO_CHAR(TO_DATE(A.ProofDate), 'd')
+					   			WHEN '1' THEN 'Sun' 
+					   			WHEN '7' THEN 'Sat'
+					   		END
+					   	END 
+					) AS "Anniversary"
+					, A.ProofTime AS "ProofTime"
+					, A.ProofHour AS "ProofHour"
+					, ( 
+						CASE 
+						WHEN A.Anniversary IS NOT NULL OR TO_CHAR(TO_DATE(A.ProofDate), 'd') IN (1,7) THEN 'H'
+						ELSE 'N' 
+					  	END
+					) AS "HolidayType"
+					, (
+						SELECT SUM(AEAD.Amount)
+						FROM act_expence_application_div AEAD
+						WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AS "AmountSumNum"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ReceiptID AS "ReceiptID"
+			FROM (
+			    SELECT  
+		    		AEA.RegisterID
+					, AEA.CompanyCode
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ProofCode
+					, AEAL.TotalAmount
+					, AEAL.TaxAmount
+					, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS ProofDate
+		    		, CR.StoreRegNo
+		    		, CR.StoreName
+					, CR.ApproveNo
+					, CR.AmountWon
+					, CR.StoreAddress1
+					, CR.StoreAddress2
+					, CR.ApproveTime
+					, AR.UseTime
+					, SC.Anniversary
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2)  
+						WHEN AEAL.ProofCode = 'Receipt' THEN SUBSTR(AR.UseTime, 1, 2)  
+						WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN SUBSTR(AEAL.ProofTime, 1, 2) ELSE NULL END)
+						ELSE NULL 
+					  END AS ProofHour
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2)
+						WHEN AEAL.ProofCode = 'Receipt' THEN AR.UseTime || ':00'
+						WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+						ELSE NULL 
+					  END AS ProofTime
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+						WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)
+						ELSE TO_CHAR(AEAL.ExpenceApplicationListID) 
+					  END AS ReceiptID
+		  		FROM act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL 
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+				LEFT OUTER JOIN act_card_receipt CR 
+				ON AEAL.CardUID = CR.ReceiptID
+				LEFT OUTER JOIN act_receipt AR
+				ON AEAL.ReceiptID = AR.ReceiptID
+				LEFT OUTER JOIN sys_calendar SC
+				ON SC.SolarDate = TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY-MM-DD')
+				WHERE AEAL.ProofDate	LIKE (#{proofDate}||'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+				AND AEA.CompanyCode = #{companyCode}
+			) A
+			LEFT OUTER JOIN sys_object_user SOU ON A.RegisterID = SOU.UserCode		
+			LEFT OUTER JOIN	sys_object_user_basegroup SOUB ON A.RegisterID = SOUB.UserCode AND SOUB.JobType = 'Origin'
+			LEFT OUTER JOIN act_audit AAM 
+			ON AAM.RuleCode = 'midnight' AND AAM.IsUse = 'Y'
+			<![CDATA[
+			WHERE (
+				TO_CHAR(TO_DATE(A.ProofDate), 'd') IN ('1', '7') 
+				OR A.Anniversary IS NOT NULL
+				OR A.ProofHour >= AAM.StdStartTime OR A.ProofHour <= AAM.StdEndTime
+			)
+			]]>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getEnterTainListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		<![CDATA[
+		    SELECT COUNT(*)
+	  		FROM act_expence_application AEA
+			INNER JOIN act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN act_card_receipt CR
+			ON AEAL.CardUID = CR.ReceiptID
+			WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationStatus != 'CO'
+			AND AEA.RequestType = 'ENTERTAIN'
+			AND AEA.CompanyCode = #{companyCode}
+		]]>		  
+	</select>
+	
+	<select id="getEnterTainList" parameterType="cmap"  resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT  
+					A.RegisterID AS "RegisterID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, A.RegisterName AS "RegisterName" 
+					, A.UserDept AS "UserDept"
+					, A.ProofDate AS "ProofDate"	
+					, A.ProofTime AS "ProofTime"	
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, (
+						SELECT SUM(AEAD.Amount)
+					   	FROM act_expence_application_div AEAD
+					  	WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AS "AmountSumNum"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ReceiptID AS "ReceiptID"
+			FROM (
+				    SELECT  
+				    		AEA.RegisterID
+							, AEA.CompanyCode
+				    		, SOU.DisplayName AS RegisterName
+				    		, SOUB.DeptName AS UserDept
+				    		, AEAL.ExpenceApplicationListID
+				    		, AEAL.ProofCode
+							, AEAL.TotalAmount
+							, AEAL.TaxAmount
+				    		, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS ProofDate
+							, CASE 
+								WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2)
+								WHEN AEAL.ProofCode = 'Receipt' THEN AR.UseTime || ':00'
+								WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+								ELSE NULL 
+							  END AS ProofTime
+							, CASE 
+								WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+								WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)
+								ELSE TO_CHAR(AEAL.ExpenceApplicationListID)
+							  END AS ReceiptID
+				    		, CR.StoreRegNo
+				    		, CR.StoreName
+							, CR.ApproveNo
+							, CR.AmountWon
+							, CR.StoreAddress1
+							, CR.StoreAddress2
+			  		FROM act_expence_application AEA
+					INNER JOIN act_expence_application_list AEAL
+					ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+					LEFT OUTER JOIN act_card_receipt CR 
+					ON AEAL.CardUID = CR.ReceiptID
+					LEFT OUTER JOIN act_receipt AR
+					ON AEAL.ReceiptID = AR.ReceiptID
+			   		LEFT OUTER JOIN	sys_object_user SOU
+			   		ON AEA.RegisterID = SOU.UserCode		
+					LEFT OUTER JOIN	sys_object_user_basegroup SOUB 
+					ON AEA.RegisterID	= SOUB.UserCode	AND	SOUB.JobType = 'Origin'
+					WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+					AND AEA.ApplicationStatus = 'E'
+					AND AEA.ApplicationType != 'CO'
+					AND AEA.RequestType = 'ENTERTAIN'
+					AND AEA.CompanyCode = #{companyCode}
+			) A
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getLimitStoreListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	    SELECT COUNT(*)
+  		FROM act_expence_application AEA
+		INNER JOIN act_expence_application_list AEAL 
+		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		LEFT OUTER JOIN act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+		INNER JOIN act_base_code BC 
+		ON (BC.CodeGroup = 'LimitStoreRegNo' AND BC.Code = CR.StoreRegNo) OR (BC.CodeGroup = 'LimitStoreCategory' AND BC.Code = CR.StoreCategory) 
+		WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'		  
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getLimitStoreList" parameterType="cmap"  resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT  
+					A.RegisterID AS "RegisterID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, SOU.DisplayName AS "RegisterName"
+					, SOUB.DeptName AS "UserDept"
+					, A.ProofDate AS "ProofDate"
+					, A.ProofTime AS "ProofTime"	
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, A.StoreCategory AS "StoreCategory"
+					, A.LimitCategoryName AS "LimitCategoryName"
+					,(
+						SELECT SUM(AEAD.Amount)
+					   	FROM act_expence_application_div AEAD
+					  	WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AS "AmountSumNum"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ReceiptID AS "ReceiptID"
+			FROM (
+			    SELECT  
+						AEA.RegisterID
+						, AEA.CompanyCode
+						, AEA.ExpenceApplicationID
+						, AEAL.ExpenceApplicationListID
+						, AEAL.ProofCode
+						, AEAL.TotalAmount
+						, AEAL.TaxAmount
+				    	, TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS ProofDate
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2)
+							WHEN AEAL.ProofCode = 'Receipt' THEN AR.UseTime || ':00'
+							WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+							ELSE NULL 
+						  END AS ProofTime				    	
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+							WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)
+							ELSE TO_CHAR(AEAL.ExpenceApplicationListID)
+						  END AS ReceiptID
+				    	, CR.StoreRegNo
+				    	, CR.StoreName
+						, CR.ApproveNo
+						, CR.AmountWon
+						, CR.StoreAddress1
+						, CR.StoreAddress2
+						, CR.StoreCategory
+						, CASE 
+							WHEN BC.CodeGroup = 'LimitStoreCategory' THEN BC.CodeName 
+							ELSE '' 
+						END AS LimitCategoryName
+		  		FROM act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				LEFT OUTER JOIN act_card_receipt CR
+				ON AEAL.CardUID = CR.ReceiptID
+				LEFT OUTER JOIN act_receipt AR
+				ON AEAL.ReceiptID = AR.ReceiptID
+				INNER JOIN act_base_code BC
+				ON (BC.CodeGroup = 'LimitStoreRegNo' AND BC.Code = CR.StoreRegNo) OR (BC.CodeGroup = 'LimitStoreCategory' AND BC.Code = CR.StoreCategory) 
+				WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+				AND AEA.CompanyCode = #{companyCode}
+			) A
+			LEFT OUTER JOIN	sys_object_user SOU
+			ON A.RegisterID	= SOU.UserCode		
+			LEFT OUTER JOIN	sys_object_user_basegroup SOUB
+			ON A.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+			ORDER BY A.ExpenceApplicationID
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getUserVacationListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	    SELECT COUNT(*)
+  		FROM act_expence_application AEA
+		INNER JOIN act_expence_application_list AEAL
+		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		LEFT OUTER JOIN act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+		INNER JOIN vm_vacationinfo VI 
+		ON AEA.RegisterID = VI.UR_Code 
+		AND (TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY-MM-DD') BETWEEN VI.Sdate AND VI.Edate)
+		AND VI.GUBUN NOT IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') 
+		AND VI.UR_Code = AEA.RegisterID
+		AND SDate NOT IN (
+			SELECT SDate 
+			FROM vm_vacationinfo VVI
+			WHERE VVI.GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL')
+			AND VI.VacFlag = VVI.VacFlag
+			AND VI.VacDay = VVI.VacDay * -1
+			AND VVI.UR_Code = AEA.RegisterID
+		)
+		WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	<select id="getUserVacationList" parameterType="cmap"  resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+			SELECT  
+					A.RegisterID AS "RegisterID"
+					, A.CompanyCode AS "CompanyCode"
+					, FN_GETACTBASECODENAME('CompanyCode',A.CompanyCode,#{companyCode}) AS "CompanyName"
+					, SOU.DisplayName AS "RegisterName"
+					, SOUB.DeptName	AS "UserDept"
+					, A.ProofDate AS "ProofDate"
+					, A.ProofTime AS "ProofTime"
+					, A.StoreRegNo AS "StoreRegNo"
+					, A.StoreName AS "StoreName"
+					, A.ApproveNo AS "ApproveNo"
+					, A.StoreAddress1 AS "StoreAddress1"
+					, GubunName AS "GubunName"
+					, AmountSumNum AS "AmountSumNum"
+					, A.ProofCode AS "ProofCode"
+					, FN_GETACTBASECODENAME('ProofCode', A.ProofCode,#{companyCode}) AS "ProofCodeName"
+					, A.ReceiptID AS "ReceiptID"
+			FROM (
+			    SELECT  
+			    		AEA.RegisterID
+						, AEA.CompanyCode
+						, AEAL.ExpenceApplicationListID
+						, AEAL.ProofCode
+						, AEAL.TotalAmount
+						, AEAL.TaxAmount
+			    		, AEAL.ProofDate
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN SUBSTR(CR.ApproveTime, 1, 2) || ':' || SUBSTR(CR.ApproveTime, 3, 2) || ':' || SUBSTR(CR.ApproveTime, -2)
+							WHEN AEAL.ProofCode = 'Receipt' THEN AR.UseTime || ':00'
+							WHEN AEAL.ProofCode = 'EtcEvid' THEN (CASE WHEN AEAL.ProofTime IS NOT NULL THEN (AEAL.ProofTime || ':00') ELSE NULL END)
+							ELSE NULL 
+						  END AS ProofTime				    	
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+							WHEN AEAL.ProofCode = 'Receipt' THEN TO_CHAR(AR.ReceiptFileID)
+							ELSE TO_CHAR(AEAL.ExpenceApplicationListID) 
+						  END AS ReceiptID
+			    		, CR.StoreRegNo
+			    		, CR.StoreName
+			    		, CR.StoreCategory
+						, CR.ApproveNo
+						, CR.AmountWon
+						, CR.StoreAddress1
+						, CR.StoreAddress2
+						, BC.CodeName AS GubunName
+						,(
+							SELECT SUM(AEAD.Amount)
+						   	FROM act_expence_application_div AEAD 
+						  	WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+						) AmountSumNum
+		  		FROM act_expence_application AEA
+				INNER JOIN act_expence_application_list AEAL
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+				LEFT OUTER JOIN act_card_receipt CR
+				ON AEAL.CardUID = CR.ReceiptID
+				LEFT OUTER JOIN act_receipt AR
+				ON AEAL.ReceiptID = AR.ReceiptID
+				INNER JOIN vm_vacationinfo VI 
+				ON AEA.RegisterID = VI.UR_Code 
+				AND (TO_CHAR(TO_DATE(AEAL.ProofDate, 'YYYYMMDD'), 'YYYY-MM-DD') BETWEEN VI.Sdate AND VI.Edate)
+				AND VI.GUBUN NOT IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') 
+				AND VI.UR_Code = AEA.RegisterID
+				AND SDate NOT IN (
+					SELECT SDate 
+					FROM vm_vacationinfo VVI
+					WHERE VVI.GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL')
+					AND VI.VacFlag = VVI.VacFlag
+					AND VI.VacDay = VVI.VacDay * -1
+					AND VVI.UR_Code = AEA.RegisterID
+				)
+				INNER JOIN sys_base_code BC 
+				ON CodeGroup = 'VACATION_TYPE' AND IsUse = 'Y' AND Reserved1 = '+' AND VI.VacFlag = BC.Code
+				WHERE AEAL.ProofDate LIKE (#{proofDate}||'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+			) A
+		    LEFT OUTER JOIN sys_object_user SOU
+		    ON A.RegisterID = SOU.UserCode		
+		    LEFT OUTER JOIN	sys_object_user_basegroup SOUB
+		    ON A.RegisterID = SOUB.UserCode AND SOUB.JobType = 'Origin'
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+</mapper>

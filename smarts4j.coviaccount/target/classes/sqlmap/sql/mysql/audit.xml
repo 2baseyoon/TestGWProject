@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.audit">
+	<select id="getAuditList" parameterType="cmap" resultType="cmap">
+		SELECT	@adRowNumber:=@adRowNumber+1	AS AuditNum	
+			,	AD.AuditID
+			,	AD.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',AD.CompanyCode,#{companyCode}) AS CompanyName
+			,	AD.RuleCode
+			,	AD.RuleName
+			,	AD.RuleDescription	
+			,	covi_account4j_si.Fn_GetBaseCodeName('AuditStdType',AD.StdType,#{companyCode}) AS StdType
+			,	AD.StdType StdTypeCode
+			,	AD.StdDescription
+			,	AD.StdValue
+			,	AD.StdStartTime
+			,	AD.StdEndTime
+			,	covi_account4j_si.Fn_GetBaseCodeName('AuditColor',AD.ApplicationColor,#{companyCode})	AS ApplicationColor
+			, 	AD.ApplicationColor ApplicationColorCode
+			,	AD.IsUse
+			,	AD.RuleInfo
+		FROM	covi_account4j_si.act_audit	AD
+			,	(SELECT @adRowNumber := 0)	AD_TabRow
+		WHERE 1=1
+		<if test="companyCode != null and companyCode != ''">
+			AND AD.CompanyCode = #{companyCode}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AuditID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 
+				<choose>
+					<when test='sortColumn.equalsIgnoreCase("AuditNum")'>AuditNum</when>
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>CompanyCode</when>
+					<when test='sortColumn.equalsIgnoreCase("StdType")'>StdType</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleCode")'>RuleCode</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleName")'>RuleName</when>
+					<when test='sortColumn.equalsIgnoreCase("RuleDescription")'>RuleDescription</when>
+					<when test='sortColumn.equalsIgnoreCase("StdDescription")'>StdDescription</when>
+					<when test='sortColumn.equalsIgnoreCase("ApplicationColor")'>ApplicationColor</when>
+					<when test='sortColumn.equalsIgnoreCase("IsUse")'>IsUse</when>
+				</choose>
+				<choose>
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>
+			</if>
+		</trim>
+	</select>
+	
+	<select id="getAuditDetail" parameterType="cmap" resultType="cmap">
+		SELECT	AD.AuditID
+			,	AD.CompanyCode
+			,	covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',AD.CompanyCode,AD.CompanyCode) AS CompanyName
+			,	AD.RuleCode
+			,	AD.RuleName
+			,	AD.RuleDescription
+			,	AD.StdType
+			,	AD.StdDescription
+			,	AD.StdValue
+			,	AD.StdStartTime
+			,	AD.StdEndTime
+			,	AD.ApplicationColor
+			,	AD.IsUse
+			,	AD.RuleInfo
+		FROM covi_account4j_si.act_audit AD
+		WHERE	AuditID	= #{auditID}	
+	</select>
+	
+	<update id="updateAuditInfo" parameterType="cmap" >
+ 		UPDATE covi_account4j_si.act_audit
+ 			SET
+ 				IsUse				= #{isUse}
+			,	ModifierID			= #{UR_Code}
+			,	ModifyDate			= NOW(3)			
+ 			<if test ="popupYN == 'Y'.toString()">
+ 			,	StdType				= #{stdType}
+			,	StdValue			= #{stdValue}
+			,	StdStartTime		= #{stdStartTime}
+			,	StdEndTime			= #{stdEndTime}
+			,	StdDescription		= #{stdDescription}
+			,	ApplicationColor	= #{applicationColor}
+			,	RuleInfo			= #{ruleInfo}
+			</if>
+ 		WHERE	AuditID	= #{auditID}
+ 	</update>
+ 	
+ 	<select id="getAuditRuleInfo" parameterType="cmap" resultType="cmap">
+	 	SELECT
+	 		RuleCode, 
+	 		RuleName, 
+	 		StdType, 
+	 		StdValue, 
+	 		StdStartTime,
+	 		StdEndTime, 
+	 		ApplicationColor, 
+	 		RuleInfo 
+	 	FROM covi_account4j_si.act_audit
+		WHERE 
+			<choose>
+				<when test="ruleCodes != null">
+					<foreach collection="ruleCodes" item="item" index="index" separator="," open="RuleCode IN (" close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1=2
+				</otherwise>
+			</choose>
+		AND IsUse = 'Y'
+ 	</select>
+</mapper>

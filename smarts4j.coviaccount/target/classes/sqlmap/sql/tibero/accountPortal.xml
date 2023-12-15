@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ 
+<mapper namespace="accountPortal">
+    
+    <select id="selectPortalCorpCardList" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	accountPortal.selectPortalCorpCardList
+ 	    	포탈 법인카드 사용내역
+ 	    */
+		SELECT 
+			ACR.ReceiptID AS "ReceiptID"
+			, ACR.CardNo AS "CardNo"
+			, ACR.ItemNo AS "ItemNo"
+			, ACR.ApproveNo AS "ApproveNo"
+			, ACR.StoreRegNo AS "StoreRegNo"
+			, ACR.StoreName AS "StoreName"
+			, ACR.StoreNo AS "StoreNo"
+			, ACR.UseDate AS "UseDate"
+			, TO_CHAR(TO_DATE(ACR.UseDate), 'YYYY.MM.DD') AS "UseDateStr"
+		FROM act_card_receipt ACR
+		INNER JOIN act_corp_card	ACC
+			ON		ACR.CardNo	= ACC.CardNo
+		WHERE 1=1
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+		AND ROWNUM &lt;= 5
+		ORDER BY ACR.UseDate DESC		
+	</select>
+    <select id="selectPortalCorpCardListCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	accountPortal.selectPortalCorpCardListCnt
+ 	    	포탈 법인카드 사용내역
+ 	    */
+		SELECT Count(*)
+		FROM act_card_receipt ACR
+		INNER JOIN act_corp_card	ACC
+			ON		ACR.CardNo	= ACC.CardNo
+		WHERE 1=1
+		AND ( (NVL(NULLIF(ACR.TossUserCode,''),'NODATA') = 'NODATA' AND ACC.OwnerUserCode	= #{UR_Code})
+			OR (ACR.TossUserCode	= #{UR_Code})
+			OR (ACC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+									FROM	act_corp_card_search_user	ACCSU
+									WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+				)
+		)
+		AND		NVL(NULLIF(ACR.IsPersonalUse,''),'N') = 'N'
+	</select>
+	
+    <select id="selectExpAppAprvList" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	accountPortal.selectExpAppAprvList
+ 	    	포탈 승인신청내역
+ 	    */
+		SELECT EA.ExpenceApplicationID AS "ExpenceApplicationID"
+			, EA.ApplicationTitle AS "ApplicationTitle"
+			, EA.CompanyCode AS "CompanyCode"
+			, EA.ApplicationType AS "ApplicationType"
+			, EA.ApplicationDate AS "ApplicationDate"
+			, EA.UR_Code AS "UR_Code"
+			, EA.ApplicationDate AS "ApplicationDateStr"
+			, EA.ProcessID AS "ProcessID"
+		FROM act_expence_application EA
+		WHERE 1=1
+		AND EA.UR_Code = #{UR_Code}
+		AND ROWNUM &lt;= 5
+		ORDER BY EA.ApplicationDate DESC		
+	</select>
+	
+    <select id="selectExpAppAprvListCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	accountPortal.selectExpAppAprvListCnt
+ 	    	포탈 승인신청내역
+ 	    */
+		SELECT Count(*)
+		FROM act_expence_application EA
+		WHERE 1=1
+		AND EA.UR_Code = #{UR_Code}
+	</select>
+    
+    <select id="selectTaxInvioceList" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	accountPortal.selectTaxInvioceList
+ 	    	포탈 세금계산서 목록
+ 	    */
+		SELECT TI.TaxInvoiceID AS "TaxInvoiceID"
+			, TI.CompanyCode AS "CompanyCode"
+			, TI.WriteDate AS "WriteDate"
+			, TI.TaxTotal AS "TaxTotal"
+			, TI.SupplyCostTotal AS "SupplyCostTotal"
+			, TI.TotalAmount AS "TotalAmount"
+			, TI.Remark1 AS "Remark1"
+			, TI.InvoicerCorpName AS "InvoicerCorpName"
+			, TO_CHAR(TO_DATE(TI.WriteDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS "WriteDateStr"
+		FROM act_taxinvoice TI
+		WHERE 1=1
+		AND		TI.DataIndex	= 'BUY'
+		<if test="UR_Code != null and UR_Code != ''">
+			AND 
+			(	UPPER(TI.InvoiceeEmail1) IN (
+					SELECT UPPER(AM.TaxMailAddress)
+					FROM act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT UPPER(SOU.MailAddress)
+					FROM sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)
+				OR
+				TI.TossUserCode = #{UR_Code}
+			)
+		</if>
+		AND ROWNUM &lt;= 5
+		ORDER BY TI.WriteDate DESC		
+	</select>
+    <select id="selectTaxInvioceListCnt" resultType="java.lang.Long">
+ 	    /*
+ 	    	accountPortal.selectTaxInvioceListCnt
+ 	    	포탈 세금계산서 목록
+ 	    */
+		SELECT Count(*)
+		FROM act_taxinvoice TI
+		WHERE 1=1
+		<if test="UR_Code != null and UR_Code != ''">
+			AND 
+			(	UPPER(TI.InvoiceeEmail1) IN (
+					SELECT UPPER(AM.TaxMailAddress)
+					FROM act_manager AM
+					WHERE AM.ManagerUserCode = #{UR_Code}
+					UNION
+					SELECT UPPER(SOU.MailAddress)
+					FROM sys_object_user SOU
+					WHERE SOU.UserCode = #{UR_Code}
+				)
+				OR
+				TI.TossUserCode = #{UR_Code}
+			)
+		</if>
+		AND		TI.DataIndex	= 'BUY'
+	</select>
+	
+    
+    <select id="selectDeadlineInfo" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	accountPortal.selectDeadlineInfo
+ 	    	마감일자 조회
+ 	    */
+		SELECT	
+		 	DL.DeadlineID AS "DeadlineID",	
+		 	TO_CHAR(TO_DATE(DL.DeadlineStartDate),'YYYY.MM.DD')	AS "DeadlineStartDate",	
+		 	TO_CHAR(TO_DATE(DL.DeadlineStartDate),'MM') AS "DeadlineStartMon",	
+		 	TO_CHAR(TO_DATE(DL.DeadlineFinishDate),'YYYY.MM.DD') AS "DeadlineFinishDate",
+		 	TO_CHAR(TO_DATE(DL.DeadlineFinishDate),'MM') AS "DeadlineFinishDateMon",	
+		 	TO_CHAR(TO_DATE(DL.DeadlineFinishDate),'DD') AS "DeadlineFinishDateDay",
+		 	DL.StandardMonth AS "StandardMonth"
+    	FROM	
+    		ACT_DEADLINE DL
+    	WHERE
+    		ROWNUM &lt;= 1
+    		AND DL.COMPANYCODE = #{companyCode}
+		ORDER BY 
+			DL.DeadlineID DESC
+	</select>
+	
+    
+    <select id="selectCorpCardUseInfoList" parameterType="cmap" resultType="cmap">
+ 	    /*
+ 	    	accountPortal.selectCorpCardUseInfoList
+ 	    	포탈 카드정보 목록
+ 	    */
+			SELECT 
+				A.CardNo AS "CardNo"
+				, '****-****-**' || substr(A.CardNo,11,2)|| '-'|| substr(A.CardNo,13) AS "CardNoView"
+				, A.CardCompany AS "CardCompany"
+				, A.CardCompanyName AS "CardCompanyName"
+				, A.OwnerUserCode AS "OwnerUserCode"
+				, A.OwnerUser AS "OwnerUser"
+				, A.LimitAmount AS "LimitAmount"
+				, A.UseAmt AS "UseAmt"
+				, (A.UseAmt/A.LimitAmount)*100 AS "UsePer"
+				, (A.LimitAmount - A.UseAmt) AS "RemainAmt"
+				, 100-((A.UseAmt/A.LimitAmount)*100) AS "RemainPer"
+			FROM
+			(
+				
+				SELECT CC.CardNo
+					, CC.CardCompany
+					, FN_GETACTBASECODENAME('CardCompany', CC.CardCompany 'ALL') CardCompanyName
+					, CC.OwnerUserCode
+					, USR.DisplayName OwnerUser
+					, CC.LimitAmount
+					, NVL(SUM(CR.AmountWon), 0) UseAmt
+				FROM act_corp_card CC
+				LEFT OUTER JOIN act_card_receipt CR
+					ON CC.CardNo = CR.CardNo
+					AND TO_CHAR(TO_DATE(CR.UseDate), 'YYYYMM') = TO_CHAR( SYSTIMESTAMP, 'YYYYMM')
+				LEFT OUTER JOIN sys_object_user USR
+					ON CC.OwnerUserCode = USR.UserCode
+				WHERE 1=1
+				AND ( (NVL(NULLIF(CR.TossUserCode,''),'NODATA') = 'NODATA' AND CC.OwnerUserCode	= #{UR_Code})
+					OR (CR.TossUserCode	= #{UR_Code})
+					OR (CC.CorpCardID IN (SELECT	ACCSU.CorpCardID
+											FROM	act_corp_card_search_user	ACCSU
+											WHERE	ACCSU.OwnerUserCode = #{UR_Code})
+						)
+				)
+				AND CC.CardStatus = 'CSTS01'
+				GROUP BY CC.CardNo, CC.CardCompany, CC.OwnerUserCode, USR.DisplayName, CC.LimitAmount, CR.AmountWon
+			) A
+	</select>
+</mapper>
+	
+
+

@@ -1,0 +1,782 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.audit_report">
+	<select id="getDupStoreListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+	    FROM covi_account4j_si.act_expence_application AEA
+	    INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+	    ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+	    INNER JOIN (			
+				SELECT     
+					  CR.StoreRegNo 
+					, CR.StoreName
+				FROM       covi_account4j_si.act_expence_application AEA
+				INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+				ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+				LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR
+				ON AEAL.CardUID = CR.ReceiptID
+				WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND (CR.StoreRegNo IS NOT NULL OR CR.StoreName IS NOT NULL)
+		        GROUP BY CR.StoreRegNo, CR.StoreName			
+			    HAVING COUNT(AEA.ExpenceApplicationID) > 1
+		) DUP
+        ON CR.StoreRegNo = DUP.StoreRegNo AND CR.StoreName = DUP.StoreName
+        WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	
+	<select id="getDupStoreList" parameterType="cmap" resultType="cmap">
+		SELECT    
+				A.RegisterID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, SOU.DisplayName AS RegisterName
+				, SOUB.DeptName AS UserDept
+				, A.ProofDate
+				, A.ProofTime
+				, A.ApproveNo
+				, A.StoreRegNo
+				, A.StoreName
+				, A.StoreAddress1
+				, A.StoreAddress2
+				, (
+					SELECT SUM(AEAD.Amount) 
+					FROM covi_account4j_si.act_expence_application_div AEAD 
+					WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				) AmountSumNum
+				,ProofCode
+				,covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				,ReceiptID
+	    FROM (
+	    	SELECT
+					AEA.RegisterID
+					, AEA.CompanyCode
+					, DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+						WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+						ELSE NULL 
+					  END AS ProofTime
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+						WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID				
+						ELSE AEAL.ExpenceApplicationListID 
+					  END AS ReceiptID
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ProofCode
+					, CR.ApproveNo
+					, CR.StoreRegNo
+    				, CR.StoreName
+					, CR.StoreAddress1
+					, CR.StoreAddress2
+			FROM covi_account4j_si.act_expence_application AEA
+		    INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+	   		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR			    ON AEAL.CardUID = CR.ReceiptID
+	   		LEFT OUTER JOIN covi_account4j_si.act_receipt AR			            ON AEAL.ReceiptID = AR.ReceiptID
+		    INNER JOIN (			
+						SELECT CR.StoreRegNo, CR.StoreName
+						FROM covi_account4j_si.act_expence_application AEA
+						INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+			   			LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR 				ON AEAL.CardUID = CR.ReceiptID
+						WHERE AEAL.ProofDate	LIKE concat(#{proofDate},'%')
+						AND AEA.ApplicationStatus = 'E'
+						AND AEA.ApplicationType != 'CO'
+						AND AEA.CompanyCode = #{companyCode}
+						AND (CR.StoreRegNo IS NOT NULL OR CR.StoreName IS NOT NULL)
+				      	GROUP BY CR.StoreRegNo, CR.StoreName			
+					    HAVING COUNT(AEA.ExpenceApplicationID) > 1
+			) DUP
+	        ON CR.StoreRegNo = DUP.StoreRegNo AND CR.StoreName = DUP.StoreName
+	        WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU
+		ON A.RegisterID	= SOU.UserCode		
+		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup SOUB
+		ON A.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.StoreRegNo, A.StoreName
+				</otherwise>
+			</choose>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getLimitAmountListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+		    SELECT
+		    		AEA.ExpenceApplicationID 
+					, AEA.RegisterID
+		    		, AEAL.ProofCode
+		    		, AEAL.ProofDate
+					, CR.StoreRegNo
+					, CR.StoreName
+					, CR.ApproveNo
+					, CR.StoreAddress1
+					, (
+						SELECT SUM(AEAD.Amount)
+						FROM covi_account4j_si.act_expence_application_div AEAD 
+						WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AmountSumNum
+	  		FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR			ON AEAL.CardUID = CR.ReceiptID
+			LEFT OUTER JOIN covi_account4j_si.act_receipt AR			ON AEAL.ReceiptID = AR.ReceiptID
+			WHERE AEAL.ProofDate	LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		INNER JOIN covi_account4j_si.act_audit AAA		ON AAA.RuleCode = 'amount' AND AAA.IsUse = 'Y' AND A.AmountSumNum > (AAA.StdValue * 10000)
+	</select>
+
+	<select id="getLimitAmountList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+				A.ExpenceApplicationID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, A.RegisterID
+				, A.RegisterName
+				, A.UserDept
+				, A.ProofCode
+				, covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				, ReceiptID
+				, A.ProofDate
+				, A.ProofTime
+				, A.StoreRegNo
+				, A.StoreName
+				, A.ApproveNo
+				, A.StoreAddress1
+				, A.AmountSumNum
+		FROM  (
+			SELECT
+					A.ExpenceApplicationID
+					, A.CompanyCode
+					, A.RegisterID
+					, A.RegisterName
+					, A.UserDept
+					, A.ProofCode
+					, A.ReceiptID
+					, A.ProofDate
+					, A.ProofTime
+					, A.StoreRegNo
+					, A.StoreName
+					, A.ApproveNo
+					, A.StoreAddress1
+					, A.AmountSumNum
+			FROM (
+			    SELECT 
+			    		AEA.ExpenceApplicationID
+			    		, AEA.CompanyCode
+			    		, AEA.RegisterID
+						, SOU.DisplayName AS RegisterName
+						, SOUB.DeptName AS UserDept
+			    		, AEAL.ProofCode
+						, DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+							WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+							ELSE NULL 
+						  END AS ProofTime
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+							WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID
+							ELSE AEAL.ExpenceApplicationListID 
+						  END AS ReceiptID
+						, CR.StoreRegNo
+						, CR.StoreName
+						, CR.ApproveNo
+						, CR.StoreAddress1
+						, (
+							SELECT SUM(AEAD.Amount) 
+							FROM covi_account4j_si.act_expence_application_div AEAD 
+							WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+						) AmountSumNum
+		  		FROM covi_account4j_si.act_expence_application AEA
+				INNER JOIN covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		   		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR  				ON AEAL.CardUID = CR.ReceiptID
+	  	   		LEFT OUTER JOIN covi_account4j_si.act_receipt AR				        ON AEAL.ReceiptID = AR.ReceiptID
+ 		   		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU				        ON AEA.RegisterID	= SOU.UserCode
+		   		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup SOUB	        ON AEA.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+				WHERE AEAL.ProofDate	LIKE concat(#{proofDate},'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+				AND AEA.CompanyCode = #{companyCode}
+			) A
+			INNER JOIN covi_account4j_si.act_audit AAA ON AAA.RuleCode = 'amount' AND AAA.IsUse = 'Y' AND A.AmountSumNum > (AAA.StdValue * 10000)
+		) A
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.ExpenceApplicationID
+				</otherwise>
+			</choose>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getHolidayUseListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		<![CDATA[
+			SELECT COUNT(*)
+			FROM (
+				SELECT 
+					SC.Anniversary
+					, AEAL.ProofDate					
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN LEFT(CR.ApproveTime, 2) 
+						WHEN AEAL.ProofCode = 'Receipt' THEN LEFT(AR.UseTime, 2) 
+						ELSE NULL 
+					  END AS ProofHour
+			  	FROM covi_account4j_si.act_expence_application AEA
+				INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		   		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR				ON AEAL.CardUID = CR.ReceiptID
+		   		LEFT OUTER JOIN covi_account4j_si.act_receipt AR				        ON AEAL.ReceiptID = AR.ReceiptID
+		   		LEFT OUTER JOIN covi_smart4j.sys_calendar SC				            ON SC.SolarDate = DATE_FORMAT(AEAL.ProofDate, '%Y-%m-%d')
+				WHERE AEAL.ProofDate	LIKE concat(#{proofDate},'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+				AND AEA.CompanyCode = #{companyCode}
+			) A
+			LEFT OUTER JOIN covi_account4j_si.act_audit AAM			ON AAM.RuleCode = 'midnight' AND AAM.IsUse = 'Y'
+			WHERE (
+				DAYOFWEEK(A.ProofDate) IN (1, 7) 
+				OR A.Anniversary IS NOT NULL
+				OR A.ProofHour >= AAM.StdStartTime OR A.ProofHour <= AAM.StdEndTime
+			)
+		]]>		  
+	</select>
+	<select id="getHolidayUseList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+				A.RegisterID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, A.StoreRegNo
+				, A.StoreName	
+				, SOU.DisplayName AS RegisterName
+				, SOUB.DeptName AS UserDept
+				, A.ProofDate
+				, A.ApproveNo
+				, A.StoreAddress1
+				, DAYOFWEEK(A.ProofDate) WEEKEND
+				, (
+					CASE 
+					WHEN A.Anniversary IS NOT NULL THEN covi_smart4j.Fn_BaseGetDictionary_S(#{lang}, A.Anniversary) 
+					ELSE  
+				   		CASE DAYOFWEEK(A.ProofDate) 
+				   			WHEN 1 THEN 'Sun' 
+				   			WHEN 7 THEN 'Sat'
+				   		END
+				   	END 
+				) AS Anniversary
+				, A.ProofTime
+				, A.ProofHour
+				, ( 
+					CASE 
+					WHEN A.Anniversary IS NOT NULL OR DAYOFWEEK(A.ProofDate) IN (1,7) THEN 'H'
+					ELSE 'N' 
+				  	END
+				) AS HolidayType 
+				, (
+					SELECT SUM(AEAD.Amount)
+					FROM covi_account4j_si.act_expence_application_div AEAD
+					WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				) AS AmountSumNum
+				, ProofCode
+				, covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				, ReceiptID
+		FROM (
+		    SELECT  
+	    		AEA.RegisterID
+	    		, AEA.CompanyCode
+				, AEAL.ExpenceApplicationListID
+				, AEAL.ProofCode
+				, AEAL.TotalAmount
+				, AEAL.TaxAmount
+	    		, DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+	    		, CR.StoreRegNo
+	    		, CR.StoreName
+				, CR.ApproveNo
+				, CR.AmountWon
+				, CR.StoreAddress1
+				, CR.StoreAddress2
+				, CR.ApproveTime
+				, AR.UseTime
+				, SC.Anniversary
+				, CASE 
+					WHEN AEAL.ProofCode = 'CorpCard' THEN LEFT(CR.ApproveTime, 2) 
+					WHEN AEAL.ProofCode = 'Receipt' THEN LEFT(AR.UseTime, 2) 
+					ELSE NULL 
+				  END AS ProofHour
+				, CASE 
+					WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+					WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+					ELSE NULL 
+				  END AS ProofTime
+				, CASE 
+					WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+					WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID
+					ELSE AEAL.ExpenceApplicationListID 
+				  END AS ReceiptID
+			FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR 			ON AEAL.CardUID = CR.ReceiptID
+	    	LEFT OUTER JOIN covi_account4j_si.act_receipt AR			    ON AEAL.ReceiptID = AR.ReceiptID
+			LEFT OUTER JOIN covi_smart4j.sys_calendar SC			        ON SC.SolarDate = DATE_FORMAT(AEAL.ProofDate, '%Y-%m-%d')
+		    WHERE AEAL.ProofDate	LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU ON A.RegisterID = SOU.UserCode		
+		LEFT OUTER JOIN	covi_smart4j.sys_object_user_basegroup SOUB ON A.RegisterID = SOUB.UserCode AND SOUB.JobType = 'Origin'
+		LEFT OUTER JOIN covi_account4j_si.act_audit AAM 
+		ON AAM.RuleCode = 'midnight' AND AAM.IsUse = 'Y'
+		<![CDATA[
+		WHERE (
+			DAYOFWEEK(A.ProofDate) IN (1, 7) 
+			OR A.Anniversary IS NOT NULL
+			OR A.ProofHour >= AAM.StdStartTime OR A.ProofHour <= AAM.StdEndTime
+		)
+		]]>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.StoreRegNo, A.StoreName
+				</otherwise>
+			</choose>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	<select id="getEnterTainListCnt" parameterType="cmap"  resultType="java.lang.Long">
+		<![CDATA[
+		    SELECT COUNT(*)
+	  		FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+			ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+			LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR
+			ON AEAL.CardUID = CR.ReceiptID
+			WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationStatus != 'CO'
+			AND AEA.RequestType = 'ENTERTAIN'
+			AND AEA.CompanyCode = #{companyCode}
+		]]>		  
+	</select>
+	
+	<select id="getEnterTainList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+				A.RegisterID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, A.RegisterName 
+				, A.UserDept
+				, A.ProofDate	
+				, A.ProofTime
+				, A.StoreRegNo
+				, A.StoreName
+				, A.ApproveNo
+				, A.StoreAddress1
+				, (
+					SELECT SUM(AEAD.Amount)
+				   	FROM covi_account4j_si.act_expence_application_div AEAD
+				  	WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				) AmountSumNum
+				, ProofCode
+				, covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				, ReceiptID
+		FROM (
+			    SELECT  
+			    		AEA.RegisterID
+			    		, AEA.CompanyCode
+			    		, SOU.DisplayName AS RegisterName
+			    		, SOUB.DeptName AS UserDept
+			    		, AEAL.ExpenceApplicationListID
+			    		, AEAL.ProofCode
+						, AEAL.TotalAmount
+						, AEAL.TaxAmount
+			    		, DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+							WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+							ELSE NULL 
+						  END AS ProofTime
+						, CASE 
+							WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+							WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID
+							ELSE AEAL.ExpenceApplicationListID 
+						  END AS ReceiptID
+			    		, CR.StoreRegNo
+			    		, CR.StoreName
+						, CR.ApproveNo
+						, CR.AmountWon
+						, CR.StoreAddress1
+						, CR.StoreAddress2
+				FROM covi_account4j_si.act_expence_application AEA
+				INNER JOIN covi_account4j_si.act_expence_application_list AEAL ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+		 		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR 				 ON AEAL.CardUID = CR.ReceiptID
+	     		LEFT OUTER JOIN covi_account4j_si.act_receipt AR			         ON AEAL.ReceiptID = AR.ReceiptID
+		 		LEFT OUTER JOIN covi_smart4j.sys_object_user SOU		   		     ON AEA.RegisterID = SOU.UserCode		
+		 		LEFT OUTER JOIN covi_smart4j.sys_object_user_basegroup SOUB		 ON AEA.RegisterID	= SOUB.UserCode	AND	SOUB.JobType = 'Origin'
+			   	WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+				AND AEA.ApplicationStatus = 'E'
+				AND AEA.ApplicationType != 'CO'
+				AND AEA.RequestType = 'ENTERTAIN'
+				AND AEA.CompanyCode = #{companyCode}	
+		) A
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.StoreRegNo, A.StoreName
+				</otherwise>
+			</choose>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+	<select id="getLimitStoreListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	    SELECT COUNT(*)
+  		FROM covi_account4j_si.act_expence_application AEA
+		INNER JOIN covi_account4j_si.act_expence_application_list AEAL 
+		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+		INNER JOIN covi_account4j_si.act_base_code BC 
+		ON (BC.CodeGroup = 'LimitStoreRegNo' AND BC.Code = CR.StoreRegNo) OR (BC.CodeGroup = 'LimitStoreCategory' AND BC.Code = CR.StoreCategory) 
+		WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'		  
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	<select id="getLimitStoreList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+				A.RegisterID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, SOU.DisplayName AS RegisterName
+				, SOUB.DeptName AS UserDept
+				, A.ProofDate
+				, A.ProofTime
+				, A.StoreRegNo
+				, A.StoreName
+				, A.ApproveNo
+				, A.StoreAddress1
+				, A.StoreCategory
+				, A.LimitCategoryName
+				,(
+					SELECT SUM(AEAD.Amount)
+				   	FROM covi_account4j_si.act_expence_application_div AEAD
+				  	WHERE A.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+				) AmountSumNum
+				,ProofCode
+				,covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				,ReceiptID
+		FROM (
+		    SELECT  
+					AEA.RegisterID
+					, AEA.CompanyCode
+					, AEA.ExpenceApplicationID
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ProofCode
+					, AEAL.TotalAmount
+					, AEAL.TaxAmount
+			    	, DATE_FORMAT(AEAL.ProofDate, '%Y.%m.%d') AS ProofDate
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+						WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+						ELSE NULL 
+					  END AS ProofTime
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+						WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID
+						ELSE AEAL.ExpenceApplicationListID 
+					  END AS ReceiptID
+			    	, CR.StoreRegNo
+			    	, CR.StoreName
+					, CR.ApproveNo
+					, CR.AmountWon
+					, CR.StoreAddress1
+					, CR.StoreAddress2
+					, CR.StoreCategory
+					, CASE 
+						WHEN BC.CodeGroup = 'LimitStoreCategory' THEN BC.CodeName 
+						ELSE '' 
+					END AS LimitCategoryName
+	  		FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID
+	   		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR			    ON AEAL.CardUID = CR.ReceiptID
+	   		LEFT OUTER JOIN covi_account4j_si.act_receipt AR			            ON AEAL.ReceiptID = AR.ReceiptID
+		    INNER JOIN covi_account4j_si.act_base_code BC			        ON (BC.CodeGroup = 'LimitStoreRegNo' AND BC.Code = CR.StoreRegNo) OR (BC.CodeGroup = 'LimitStoreCategory' AND BC.Code = CR.StoreCategory) 
+			WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+		LEFT OUTER JOIN	covi_smart4j.sys_object_user SOU		      ON A.RegisterID	= SOU.UserCode		
+		LEFT OUTER JOIN	covi_smart4j.sys_object_user_basegroup SOUB	  ON A.RegisterID	= SOUB.UserCode AND SOUB.JobType = 'Origin'
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.ExpenceApplicationID
+				</otherwise>
+			</choose>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	<select id="getUserVacationListCnt" parameterType="cmap"  resultType="java.lang.Long">
+	    SELECT COUNT(*)
+  		FROM covi_account4j_si.act_expence_application AEA
+		INNER JOIN covi_account4j_si.act_expence_application_list AEAL
+		ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR
+		ON AEAL.CardUID = CR.ReceiptID
+		INNER JOIN covi_smart4j.vm_vacationinfo VI 
+		ON AEA.RegisterID = VI.UR_Code 
+		AND (DATE_FORMAT(AEAL.ProofDate, '%Y-%m-%d') BETWEEN VI.Sdate AND VI.Edate)
+		AND VI.GUBUN NOT IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') 
+		AND VI.UR_Code = AEA.RegisterID
+		AND SDate NOT IN (
+			SELECT SDate 
+			FROM covi_smart4j.vm_vacationinfo VVI
+			WHERE VVI.GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL')
+			AND VI.VacFlag = VVI.VacFlag
+			AND VI.VacDay = VVI.VacDay * -1
+			AND VVI.UR_Code = AEA.RegisterID
+		)
+		WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+		AND AEA.ApplicationStatus = 'E'
+		AND AEA.ApplicationType != 'CO'
+		AND AEA.CompanyCode = #{companyCode}
+	</select>
+	<select id="getUserVacationList" parameterType="cmap"  resultType="cmap">
+		SELECT  
+				A.RegisterID
+				, A.CompanyCode
+				, covi_account4j_si.Fn_GetBaseCodeName('CompanyCode',A.CompanyCode,#{companyCode}) CompanyName
+				, SOU.DisplayName AS RegisterName
+				, SOUB.DeptName	AS UserDept
+				, A.ProofDate
+				, A.ProofTime
+				, A.StoreRegNo
+				, A.StoreName
+				, A.ApproveNo
+				, A.StoreAddress1
+				, GubunName
+				, AmountSumNum
+				, ProofCode
+				, covi_account4j_si.Fn_GetBaseCodeName('ProofCode',A.ProofCode,#{companyCode}) ProofCodeName
+				, ReceiptID
+		FROM (
+		    SELECT  
+		    		AEA.RegisterID
+		    		, AEA.CompanyCode
+					, AEAL.ExpenceApplicationListID
+					, AEAL.ProofCode
+					, AEAL.TotalAmount
+					, AEAL.TaxAmount
+		    		, AEAL.ProofDate
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN concat(LEFT(CR.ApproveTime, 2) , ':' , SUBSTRING(CR.ApproveTime, 3, 2) , ':' , RIGHT(CR.ApproveTime, 2))
+						WHEN AEAL.ProofCode = 'Receipt' THEN concat(AR.UseTime , ':00')
+						ELSE NULL 
+					  END AS ProofTime
+					, CASE 
+						WHEN AEAL.ProofCode = 'CorpCard' THEN CR.ReceiptID
+						WHEN AEAL.ProofCode = 'Receipt' THEN AR.ReceiptFileID
+						ELSE AEAL.ExpenceApplicationListID 
+					  END AS ReceiptID
+		    		, CR.StoreRegNo
+		    		, CR.StoreName
+		    		, CR.StoreCategory
+					, CR.ApproveNo
+					, CR.AmountWon
+					, CR.StoreAddress1
+					, CR.StoreAddress2
+					, BC.CodeName AS GubunName
+					,(
+						SELECT SUM(AEAD.Amount)
+					   	FROM covi_account4j_si.act_expence_application_div AEAD 
+					  	WHERE AEAL.ExpenceApplicationListID = AEAD.ExpenceApplicationListID
+					) AmountSumNum
+			FROM covi_account4j_si.act_expence_application AEA
+			INNER JOIN covi_account4j_si.act_expence_application_list AEAL	ON AEA.ExpenceApplicationID = AEAL.ExpenceApplicationID 
+	   		LEFT OUTER JOIN covi_account4j_si.act_card_receipt CR			    ON AEAL.CardUID = CR.ReceiptID
+	   		LEFT OUTER JOIN covi_account4j_si.act_receipt AR			            ON AEAL.ReceiptID = AR.ReceiptID
+		    INNER JOIN covi_smart4j.vm_vacationinfo VI 						ON AEA.RegisterID = VI.UR_Code 
+						AND (DATE_FORMAT(AEAL.ProofDate, '%Y-%m-%d') BETWEEN VI.Sdate AND VI.Edate)
+						AND VI.GUBUN NOT IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL') 
+						AND VI.UR_Code = AEA.RegisterID
+						AND SDate NOT IN (
+							SELECT SDate 
+							FROM covi_smart4j.vm_vacationinfo VVI
+							WHERE VVI.GUBUN IN ('VACATION_CANCEL', 'VACATION_PUBLIC_CANCEL')
+							AND VI.VacFlag = VVI.VacFlag
+							AND VI.VacDay = VVI.VacDay * -1
+							AND VVI.UR_Code = AEA.RegisterID
+						)
+			INNER JOIN covi_smart4j.sys_base_code BC 	ON CodeGroup = 'VACATION_TYPE' AND IsUse = 'Y' AND Reserved1 = '+' AND VI.VacFlag = BC.Code
+		    WHERE AEAL.ProofDate LIKE concat(#{proofDate},'%')
+			AND AEA.ApplicationStatus = 'E'
+			AND AEA.ApplicationType != 'CO'
+			AND AEA.CompanyCode = #{companyCode}
+		) A
+	    LEFT OUTER JOIN covi_smart4j.sys_object_user SOU	          ON A.RegisterID = SOU.UserCode		
+	    LEFT OUTER JOIN	covi_smart4j.sys_object_user_basegroup SOUB	  ON A.RegisterID = SOUB.UserCode AND SOUB.JobType = 'Origin'
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+			<choose>
+				<when test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 		, 
+					<choose>
+						<when test='sortColumn.equalsIgnoreCase("CompanyName")'>CompanyName</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofDate")'>ProofDate</when>
+						<when test='sortColumn.equalsIgnoreCase("ProofTime")'>ProofTime</when>
+						<when test='sortColumn.equalsIgnoreCase("UserDept")'>UserDept</when>
+						<when test='sortColumn.equalsIgnoreCase("RegisterName")'>RegisterName</when>
+						<when test='sortColumn.equalsIgnoreCase("ApproveNo")'>ApproveNo</when>
+						<when test='sortColumn.equalsIgnoreCase("AmountSumNum")'>AmountSumNum</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreAddress1")'>StoreAddress1</when>
+						<when test='sortColumn.equalsIgnoreCase("StoreName")'>StoreName</when>
+						<when test='sortColumn.equalsIgnoreCase("Anniversary")'>Anniversary</when>
+						<when test='sortColumn.equalsIgnoreCase("LimitCategoryName")'>LimitCategoryName</when>
+						<when test='sortColumn.equalsIgnoreCase("GubunName")'>GubunName</when>
+					</choose>
+					<choose>
+						<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+						<otherwise> DESC</otherwise>
+					</choose>
+				</when>
+				<otherwise>
+					A.StoreRegNo, A.StoreName
+				</otherwise>
+			</choose>
+		</trim>	    
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+</mapper>

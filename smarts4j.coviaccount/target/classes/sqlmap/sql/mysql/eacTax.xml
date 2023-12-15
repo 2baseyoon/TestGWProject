@@ -1,0 +1,753 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.eactax">
+    <select id="getEACTaxMapList" parameterType="cmap" resultType="cmap">
+		SELECT IFNULL(B.BELNR_KIND, '') AS BELNR_KIND
+		, CASE WHEN IFNULL(B.BELNR_KIND, '') = '01' THEN '물류'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '02' THEN 'DMS'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '03' THEN 'CMS'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '04' THEN '회계'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '05' THEN 'SSMS'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '06' THEN '팀장'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '07' THEN '차량'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '08' THEN 'SAP'
+			   WHEN IFNULL(B.BELNR_KIND, '') = '09' THEN '자동대사'
+			   #WHEN D.SLIP_NUM IS NOT NULL THEN '후전표'
+			   ELSE '' END AS BELNR_KIND_NAME
+		, A.BUPLA # 사업장코드
+		, NAME1, STCD2, BUDAT
+		, CASE WHEN IFNULL(A.BELNR, '') != '' THEN A.BELNR
+			   #WHEN IFNULL(D.SLIP_NUM, '') != '' THEN D.SLIP_NUM
+			   ELSE '' END AS BELNR
+		, KUNNR
+		, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+		, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+		#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+		, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+		#, CASE WHEN IFNULL(B.APPROVE_ID, '') != '' THEN B.APPROVE_ID ELSE '' END AS APPROVE_ID
+		, CASE WHEN B.APPROVE_ID IS NULL THEN '' ELSE B.APPROVE_ID END AS APPROVE_ID
+		#, CASE WHEN DTI_WDATE IS NOT NULL THEN SUBSTRING(DATE_FORMAT(DTI_WDATE, '%Y-%m-%d'), 1, 22) ELSE '' END AS DTI_WDATE
+		, CASE WHEN C.WriteDate IS NOT NULL THEN SUBSTRING(DATE_FORMAT(C.WriteDate, '%Y-%m-%d'), 1, 22) ELSE '' END AS WriteDate
+		#, CASE WHEN SUP_AMOUNT IS NULL THEN 0 ELSE SUP_AMOUNT END AS SUP_AMOUNT
+		, CASE WHEN C.SupplyCostTotal IS NULL THEN 0 ELSE C.SupplyCostTotal END AS SupplyCostTotal
+		#, CASE WHEN C.TAX_AMOUNT IS NULL THEN 0 ELSE C.TAX_AMOUNT END AS TAX_AMOUNT
+		, CASE WHEN C.TaxTotal IS NULL THEN 0 ELSE C.TaxTotal END AS TaxTotal
+		#, CASE WHEN C.TOTAL_AMOUNT IS NULL THEN 0 ELSE C.TOTAL_AMOUNT END AS TOTAL_AMOUNT
+		, CASE WHEN C.TotalAmount IS NULL THEN 0 ELSE C.TotalAmount END AS TotalAmount
+		, CASE WHEN IFNULL(APPROVE_STATE, '') != '' THEN APPROVE_STATE
+			   #WHEN D.SLIP_NUM IS NOT NULL THEN '03'
+			   ELSE '' END AS APPROVE_STATE
+		, BSTKD
+		#, SUP_COM_REGNO, SUP_COM_NAME
+		, CASE WHEN B.APPROVE_ID != '' THEN 'Y' ELSE 'N' END AS MAPPING
+		, C.InvoicerCorpNum, C.InvoicerCorpName #사업자 번호, 업체명
+		FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+		LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+		ON A.BELNR = B.BELNR
+		LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+		ON B.APPROVE_ID = C.TaxInvoiceID
+		WHERE 1 = 1
+		<if test ="companyCode != null and companyCode !=''">
+			AND A.BUKRS = #{companyCode}
+		</if>
+		<if test="searchWord != null and searchWord !=''">
+	 	    <choose>
+	 	         <when test="searchType == 'CODE'.toString()">
+	 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+	 	         </when>
+	 	         <when test="searchType == 'NAME'.toString()">
+	 	             AND (
+	 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+	 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+	 	             )
+	 	         </when>
+	 	         <when test="searchType == 'NUMB'.toString()">
+	 	             AND (
+	 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+	            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+	 	             )
+	 	         </when>
+	 	         <otherwise>
+	 	             AND (
+	            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+							OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+							OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+							OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+							OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+	           			)
+	 	         </otherwise>
+	 	     </choose>
+ 	     </if>
+ 	     <if test="useMapping != null and useMapping !=''">
+			 <choose>
+	 	         <when test="useMapping == 'Y'.toString()">
+	 	             AND B.APPROVE_ID != ''
+	 	         </when>
+	 	         <when test="useMapping == 'N'.toString()">
+	 	             AND (	
+ 	             		B.APPROVE_ID = ''
+ 	            	 	OR B.APPROVE_ID IS NULL
+ 	            	 )
+	 	         </when>
+	        </choose>
+		</if>
+		<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+			AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,BELNR DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("BUPLA")'>BUPLA</when>
+					<when test='sortColumn.equalsIgnoreCase("BELNR_KIND_NAME")'>BELNR_KIND_NAME</when>
+					<when test='sortColumn.equalsIgnoreCase("KUNNR")'>KUNNR</when>
+					<when test='sortColumn.equalsIgnoreCase("NAME1")'>NAME1</when>
+					<when test='sortColumn.equalsIgnoreCase("STCD2")'>STCD2</when>
+					<when test='sortColumn.equalsIgnoreCase("BUDAT")'>BUDAT</when>
+					<when test='sortColumn.equalsIgnoreCase("BELNR")'>BELNR</when>
+					<when test='sortColumn.equalsIgnoreCase("HWBAS")'>HWBAS</when>
+					<when test='sortColumn.equalsIgnoreCase("HWSTE")'>HWSTE</when>
+					<when test='sortColumn.equalsIgnoreCase("RMWWR")'>RMWWR</when>
+					<when test='sortColumn.equalsIgnoreCase("APPROVE_ID")'>APPROVE_ID</when>
+					<when test='sortColumn.equalsIgnoreCase("MAPPING")'>MAPPING</when>
+					<when test='sortColumn.equalsIgnoreCase("WriteDate")'>WriteDate</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpNum")'>InvoicerCorpNum</when>
+					<when test='sortColumn.equalsIgnoreCase("InvoicerCorpName")'>InvoicerCorpName</when>
+					<when test='sortColumn.equalsIgnoreCase("SupplyCostTotal")'>SupplyCostTotal</when>
+					<when test='sortColumn.equalsIgnoreCase("TaxTotal")'>TaxTotal</when>
+					<when test='sortColumn.equalsIgnoreCase("TotalAmount")'>TotalAmount</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+    <select id="getEACTaxMapCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+		LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+		ON A.BELNR = B.BELNR
+		LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+		ON B.APPROVE_ID = C.TaxInvoiceID
+		WHERE 1 = 1
+		<if test ="companyCode != null and companyCode !=''">
+			AND A.BUKRS = #{companyCode}
+		</if>
+		<if test="searchWord != null and searchWord !=''">
+	 	    <choose>
+	 	         <when test="searchType == 'CODE'.toString()">
+	 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+	 	         </when>
+	 	         <when test="searchType == 'NAME'.toString()">
+	 	             AND (
+	 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+	 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+	 	             )
+	 	         </when>
+	 	         <when test="searchType == 'NUMB'.toString()">
+	 	             AND (
+	 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+	            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+	 	             )
+	 	         </when>
+	 	         <otherwise>
+	 	             AND (
+	            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+							OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+							OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+							OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+							OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+	           			)
+	 	         </otherwise>
+	 	     </choose>
+ 	     </if>
+ 	     <if test="useMapping != null and useMapping !=''">
+			 <choose>
+	 	         <when test="useMapping == 'Y'.toString()">
+	 	             AND B.APPROVE_ID != ''
+	 	         </when>
+	 	         <when test="useMapping == 'N'.toString()">
+	 	             AND (	
+	 	             		B.APPROVE_ID = ''
+	 	            	 	OR B.APPROVE_ID IS NULL
+	 	            	 )
+	 	         </when>
+	        </choose>
+		</if>
+		<if test="BELNR != null and BELNR !=''">
+			AND A.BELNR = #{BELNR}
+		</if>
+		<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+			AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+		</if>
+	</select>
+	
+    <select id="getEACTaxByCompanyList" parameterType="cmap" resultType="cmap">
+		SELECT MAX(KUNNR) AS KUNNR
+			, MAX(NAME1) AS NAME1
+			, STCD2
+			, COUNT(BELNR) AS SAP_COUNT
+			, SUM(HWBAS) AS HWBAS
+			, SUM(HWSTE) AS HWSTE
+			, SUM(RMWWR) AS RMWWR
+			, COUNT(APPROVE_ID) AS BILL_COUNT
+			, SUM(SUP_AMOUNT) AS SUP_AMOUNT
+			, SUM(TAX_AMOUNT) AS TAX_AMOUNT
+			, SUM(TOTAL_AMOUNT) AS TOTAL_AMOUNT
+		FROM (
+			SELECT CASE WHEN APPROVE_ID != '' THEN 'Y' ELSE 'N' END AS MAPPING, A.*
+			FROM (
+				SELECT  IFNULL(BELNR_KIND, '') AS BELNR_KIND
+				, CASE WHEN IFNULL(BELNR_KIND, '') = '01' THEN '물류'
+					   WHEN IFNULL(BELNR_KIND, '') = '02' THEN 'DMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '03' THEN 'CMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '04' THEN '회계'
+					   WHEN IFNULL(BELNR_KIND, '') = '05' THEN 'SSMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '06' THEN '팀장'
+					   WHEN IFNULL(BELNR_KIND, '') = '07' THEN '차량'
+					   WHEN IFNULL(BELNR_KIND, '') = '08' THEN 'SAP'
+					   WHEN IFNULL(BELNR_KIND, '') = '09' THEN '자동대사'
+					   ELSE '' END AS BELNR_KIND_NAME
+				, NAME1, STCD2, BUDAT, A.BELNR, KUNNR
+				, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+				, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+				#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+				, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+				, CASE WHEN B.APPROVE_ID IS NULL THEN '' ELSE B.APPROVE_ID END AS APPROVE_ID
+				#, CONVERT(VARCHAR(10),DTI_WDATE,121) AS DTI_WDATE
+				, CASE WHEN C.WriteDate IS NOT NULL THEN SUBSTRING(DATE_FORMAT(C.WriteDate, '%Y-%m-%d'), 1, 22) ELSE '' END AS DTI_WDATE
+				#, CASE WHEN SUP_AMOUNT IS NULL THEN 0 ELSE SUP_AMOUNT END AS SUP_AMOUNT		
+				, CASE WHEN C.SupplyCostTotal IS NULL THEN 0 ELSE C.SupplyCostTotal END AS SUP_AMOUNT
+				#, CASE WHEN TAX_AMOUNT IS NULL THEN 0 ELSE TAX_AMOUNT END AS TAX_AMOUNT
+				, CASE WHEN C.TaxTotal IS NULL THEN 0 ELSE C.TaxTotal END AS TAX_AMOUNT
+				#, CASE WHEN TOTAL_AMOUNT IS NULL THEN 0 ELSE TOTAL_AMOUNT END AS TOTAL_AMOUNT
+				, CASE WHEN C.TotalAmount IS NULL THEN 0 ELSE C.TotalAmount END AS TOTAL_AMOUNT
+				, APPROVE_STATE, BSTKD
+				#, SUP_COM_REGNO, SUP_COM_NAME
+				FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+				LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+				ON A.BELNR = B.BELNR
+				LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+				ON B.APPROVE_ID = C.TaxInvoiceID
+				WHERE 1=1
+				<if test ="companyCode != null and companyCode !=''">
+					AND A.BUKRS = #{companyCode}
+				</if>
+				<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+					AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+				</if>
+				<if test="searchWord != null and searchWord !=''">
+			 	    <choose>
+			 	         <when test="searchType == 'CODE'.toString()">
+			 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+			 	         </when>
+			 	         <when test="searchType == 'NAME'.toString()">
+			 	             AND (
+			 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+			 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+			 	             )
+			 	         </when>
+			 	         <when test="searchType == 'NUMB'.toString()">
+			 	             AND (
+			 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+			            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+			 	             )
+			 	         </when>
+			 	         <otherwise>
+			 	             AND (
+			            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+									OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+									OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+									OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+									OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+			           			)
+			 	         </otherwise>
+			 	     </choose>
+			     </if>
+			) AS A
+			
+			UNION
+			
+			SELECT 'N' AS MAPPING
+			, 'APP' AS BELNR_KIND
+			, '' AS BELNR_KIND_NAME
+			, A.InvoicerCorpName AS SUP_COM_NAME, A.InvoicerCorpNum AS SUP_COM_REGNO
+			#, B.NAME1, STCD2
+			, B.BUDAT, B.BELNR, B.KUNNR
+			, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+			, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+			#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+			, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+			, A.TaxInvoiceID
+			, CASE WHEN A.WriteDate IS NOT NULL THEN CONCAT(SUBSTRING(A.WriteDate,0,4), '-', SUBSTRING(A.WriteDate,4,2), '-', SUBSTRING(A.WriteDate,6,2))
+				   ELSE '' END AS DTI_WDATE
+			, CASE WHEN A.SupplyCostTotal IS NULL THEN 0 ELSE A.SupplyCostTotal END AS SUP_AMOUNT
+			, CASE WHEN A.TaxTotal IS NULL THEN 0 ELSE A.TaxTotal END AS TAX_AMOUNT
+			, CASE WHEN A.TotalAmount IS NULL THEN 0 ELSE A.TotalAmount END AS TOTAL_AMOUNT
+			, B.APPROVE_STATE, '' AS BSTKD
+			#, A.SUP_COM_REGNO, A.SUP_COM_NAME
+			from covi_account4j_si.act_taxinvoice  AS A
+			LEFT JOIN (
+				SELECT  IFNULL(BELNR_KIND, '') AS BELNR_KIND
+				, CASE WHEN IFNULL(BELNR_KIND, '') = '01' THEN '물류'
+					   WHEN IFNULL(BELNR_KIND, '') = '02' THEN 'DMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '03' THEN 'CMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '04' THEN '회계'
+					   WHEN IFNULL(BELNR_KIND, '') = '05' THEN 'SSMS'
+					   WHEN IFNULL(BELNR_KIND, '') = '06' THEN '팀장'
+					   WHEN IFNULL(BELNR_KIND, '') = '07' THEN '차량'
+					   WHEN IFNULL(BELNR_KIND, '') = '08' THEN 'SAP'
+					   WHEN IFNULL(BELNR_KIND, '') = '09' THEN '자동대사'
+					   ELSE '' END AS BELNR_KIND_NAME
+				, NAME1, STCD2, BUDAT, A.BELNR, KUNNR
+				, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+				, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+				#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+				, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+				, CASE WHEN B.APPROVE_ID IS NULL THEN '' ELSE B.APPROVE_ID END AS APPROVE_ID
+				#, CONVERT(VARCHAR(10),DTI_WDATE,121) AS DTI_WDATE
+				, CASE WHEN C.WriteDate IS NOT NULL THEN SUBSTRING(DATE_FORMAT(C.WriteDate, '%Y-%m-%d'), 1, 22) ELSE '' END AS DTI_WDATE
+				#, CASE WHEN SUP_AMOUNT IS NULL THEN 0 ELSE SUP_AMOUNT END AS SUP_AMOUNT		
+				, CASE WHEN C.SupplyCostTotal IS NULL THEN 0 ELSE C.SupplyCostTotal END AS SUP_AMOUNT
+				#, CASE WHEN TAX_AMOUNT IS NULL THEN 0 ELSE TAX_AMOUNT END AS TAX_AMOUNT
+				, CASE WHEN C.TaxTotal IS NULL THEN 0 ELSE C.TaxTotal END AS TAX_AMOUNT
+				#, CASE WHEN TOTAL_AMOUNT IS NULL THEN 0 ELSE TOTAL_AMOUNT END AS TOTAL_AMOUNT
+				, CASE WHEN C.TotalAmount IS NULL THEN 0 ELSE C.TotalAmount END AS TOTAL_AMOUNT
+				, APPROVE_STATE, BSTKD
+				#, SUP_COM_REGNO, SUP_COM_NAME
+				FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+				LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+				ON A.BELNR = B.BELNR
+				LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+				ON B.APPROVE_ID = C.TaxInvoiceID
+				WHERE 1=1
+				<if test ="companyCode != null and companyCode !=''">
+					AND A.BUKRS = #{companyCode}
+				</if>
+				<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+					AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+				</if>
+				<if test="searchWord != null and searchWord !=''">
+			 	    <choose>
+			 	         <when test="searchType == 'CODE'.toString()">
+			 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+			 	         </when>
+			 	         <when test="searchType == 'NAME'.toString()">
+			 	             AND (
+			 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+			 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+			 	             )
+			 	         </when>
+			 	         <when test="searchType == 'NUMB'.toString()">
+			 	             AND (
+			 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+			            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+			 	             )
+			 	         </when>
+			 	         <otherwise>
+			 	             AND (
+			            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+									OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+									OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+									OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+									OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+			           			)
+			 	         </otherwise>
+			 	     </choose>
+			     </if>
+			) AS B
+			ON A.TaxInvoiceID = B.APPROVE_ID
+			WHERE B.APPROVE_ID IS NULL
+			<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+				AND A.WriteDate BETWEEN #{sDate} AND #{eDate}
+			</if>
+			<if test="searchWord != null and searchWord !=''">
+		 	    <choose>
+		 	         <when test="searchType == 'CODE'.toString()">
+		 	             AND B.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+		 	         </when>
+		 	         <when test="searchType == 'NAME'.toString()">
+		 	             AND A.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+		 	         </when>
+		 	         <when test="searchType == 'NUMB'.toString()">
+		 	             AND A.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+		 	         </when>
+		 	         <otherwise>
+		 	             AND (
+		            			B.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+								OR A.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+								OR A.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+		           			)
+		 	         </otherwise>
+		 	     </choose>
+		     </if>
+		) AS A
+		GROUP BY STCD2
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,KUNNR DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("KUNNR")'>KUNNR</when>
+					<when test='sortColumn.equalsIgnoreCase("NAME1")'>NAME1</when>
+					<when test='sortColumn.equalsIgnoreCase("STCD2")'>STCD2</when>
+					<when test='sortColumn.equalsIgnoreCase("HWBAS")'>HWBAS</when>
+					<when test='sortColumn.equalsIgnoreCase("HWSTE")'>HWSTE</when>
+					<when test='sortColumn.equalsIgnoreCase("RMWWR")'>RMWWR</when>
+					<when test='sortColumn.equalsIgnoreCase("SAP_COUNT")'>SAP_COUNT</when>
+					<when test='sortColumn.equalsIgnoreCase("SUP_AMOUNT")'>SUP_AMOUNT</when>
+					<when test='sortColumn.equalsIgnoreCase("TAX_AMOUNT")'>TAX_AMOUNT</when>
+					<when test='sortColumn.equalsIgnoreCase("TOTAL_AMOUNT")'>TOTAL_AMOUNT</when>
+					<when test='sortColumn.equalsIgnoreCase("BILL_COUNT")'>BILL_COUNT</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<if test="pageSize != null and pageOffset != null">
+			LIMIT #{pageSize} OFFSET #{pageOffset}
+		</if>
+	</select>
+	
+    <select id="getEACTaxByCompanyCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT COUNT(*)
+		FROM (
+			SELECT STCD2
+			FROM (
+				SELECT CASE WHEN APPROVE_ID != '' THEN 'Y' ELSE 'N' END AS MAPPING, A.*
+				FROM (
+					SELECT  IFNULL(BELNR_KIND, '') AS BELNR_KIND
+					, CASE WHEN IFNULL(BELNR_KIND, '') = '01' THEN '물류'
+						   WHEN IFNULL(BELNR_KIND, '') = '02' THEN 'DMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '03' THEN 'CMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '04' THEN '회계'
+						   WHEN IFNULL(BELNR_KIND, '') = '05' THEN 'SSMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '06' THEN '팀장'
+						   WHEN IFNULL(BELNR_KIND, '') = '07' THEN '차량'
+						   WHEN IFNULL(BELNR_KIND, '') = '08' THEN 'SAP'
+						   WHEN IFNULL(BELNR_KIND, '') = '09' THEN '자동대사'
+						   ELSE '' END AS BELNR_KIND_NAME
+					, NAME1, STCD2, BUDAT, A.BELNR, KUNNR
+					, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+					, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+					#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+					, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+					, CASE WHEN B.APPROVE_ID IS NULL THEN '' ELSE B.APPROVE_ID END AS APPROVE_ID
+					#, CONVERT(VARCHAR(10),DTI_WDATE,121) AS DTI_WDATE
+					, CASE WHEN C.WriteDate IS NOT NULL THEN SUBSTRING(DATE_FORMAT(C.WriteDate, '%Y-%m-%d'), 1, 22) ELSE '' END AS DTI_WDATE
+					#, CASE WHEN SUP_AMOUNT IS NULL THEN 0 ELSE SUP_AMOUNT END AS SUP_AMOUNT		
+					, CASE WHEN C.SupplyCostTotal IS NULL THEN 0 ELSE C.SupplyCostTotal END AS SUP_AMOUNT
+					#, CASE WHEN TAX_AMOUNT IS NULL THEN 0 ELSE TAX_AMOUNT END AS TAX_AMOUNT
+					, CASE WHEN C.TaxTotal IS NULL THEN 0 ELSE C.TaxTotal END AS TAX_AMOUNT
+					#, CASE WHEN TOTAL_AMOUNT IS NULL THEN 0 ELSE TOTAL_AMOUNT END AS TOTAL_AMOUNT
+					, CASE WHEN C.TotalAmount IS NULL THEN 0 ELSE C.TotalAmount END AS TOTAL_AMOUNT
+					, APPROVE_STATE, BSTKD
+					#, SUP_COM_REGNO, SUP_COM_NAME
+					FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+					LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+					ON A.BELNR = B.BELNR
+					LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+					ON B.APPROVE_ID = C.TaxInvoiceID
+					WHERE 1=1
+					<if test ="companyCode != null and companyCode !=''">
+						AND A.BUKRS = #{companyCode}
+					</if>
+					<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+						AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+					</if>
+					<if test="searchWord != null and searchWord !=''">
+				 	    <choose>
+				 	         <when test="searchType == 'CODE'.toString()">
+				 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+				 	         </when>
+				 	         <when test="searchType == 'NAME'.toString()">
+				 	             AND (
+				 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+				 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+				 	             )
+				 	         </when>
+				 	         <when test="searchType == 'NUMB'.toString()">
+				 	             AND (
+				 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+				            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+				 	             )
+				 	         </when>
+				 	         <otherwise>
+				 	             AND (
+				            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+										OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+										OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+										OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+										OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+				           			)
+				 	         </otherwise>
+				 	     </choose>
+				     </if>
+				) AS A
+				
+				UNION
+				
+				SELECT 'N' AS MAPPING
+				, 'APP' AS BELNR_KIND
+				, '' AS BELNR_KIND_NAME
+				, A.InvoicerCorpName AS SUP_COM_NAME, A.InvoicerCorpNum AS SUP_COM_REGNO
+				#, B.NAME1, STCD2
+				, B.BUDAT, B.BELNR, B.KUNNR
+				, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+				, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+				#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+				, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+				, A.TaxInvoiceID
+				, CASE WHEN A.WriteDate IS NOT NULL THEN CONCAT(SUBSTRING(A.WriteDate,0,4), '-', SUBSTRING(A.WriteDate,4,2), '-', SUBSTRING(A.WriteDate,6,2))
+					   ELSE '' END AS DTI_WDATE
+				, CASE WHEN A.SupplyCostTotal IS NULL THEN 0 ELSE A.SupplyCostTotal END AS SUP_AMOUNT
+				, CASE WHEN A.TaxTotal IS NULL THEN 0 ELSE A.TaxTotal END AS TAX_AMOUNT
+				, CASE WHEN A.TotalAmount IS NULL THEN 0 ELSE A.TotalAmount END AS TOTAL_AMOUNT
+				, B.APPROVE_STATE, '' AS BSTKD
+				#, A.SUP_COM_REGNO, A.SUP_COM_NAME
+				from covi_account4j_si.act_taxinvoice  AS A
+				LEFT JOIN (
+					SELECT  IFNULL(BELNR_KIND, '') AS BELNR_KIND
+					, CASE WHEN IFNULL(BELNR_KIND, '') = '01' THEN '물류'
+						   WHEN IFNULL(BELNR_KIND, '') = '02' THEN 'DMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '03' THEN 'CMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '04' THEN '회계'
+						   WHEN IFNULL(BELNR_KIND, '') = '05' THEN 'SSMS'
+						   WHEN IFNULL(BELNR_KIND, '') = '06' THEN '팀장'
+						   WHEN IFNULL(BELNR_KIND, '') = '07' THEN '차량'
+						   WHEN IFNULL(BELNR_KIND, '') = '08' THEN 'SAP'
+						   WHEN IFNULL(BELNR_KIND, '') = '09' THEN '자동대사'
+						   ELSE '' END AS BELNR_KIND_NAME
+					, NAME1, STCD2, BUDAT, A.BELNR, KUNNR
+					, CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS HWBAS
+					, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS HWSTE
+					#, CONCAT(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END, CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END) AS RMWWR
+					, (CAST(CASE WHEN HWBAS IS NULL THEN 0 ELSE HWBAS END AS UNSIGNED) + CAST(CASE WHEN HWSTE IS NULL THEN 0 ELSE HWSTE END AS UNSIGNED)) AS RMWWR
+					, CASE WHEN B.APPROVE_ID IS NULL THEN '' ELSE B.APPROVE_ID END AS APPROVE_ID
+					#, CONVERT(VARCHAR(10),DTI_WDATE,121) AS DTI_WDATE
+					, CASE WHEN C.WriteDate IS NOT NULL THEN SUBSTRING(DATE_FORMAT(C.WriteDate, '%Y-%m-%d'), 1, 22) ELSE '' END AS DTI_WDATE
+					#, CASE WHEN SUP_AMOUNT IS NULL THEN 0 ELSE SUP_AMOUNT END AS SUP_AMOUNT		
+					, CASE WHEN C.SupplyCostTotal IS NULL THEN 0 ELSE C.SupplyCostTotal END AS SUP_AMOUNT
+					#, CASE WHEN TAX_AMOUNT IS NULL THEN 0 ELSE TAX_AMOUNT END AS TAX_AMOUNT
+					, CASE WHEN C.TaxTotal IS NULL THEN 0 ELSE C.TaxTotal END AS TAX_AMOUNT
+					#, CASE WHEN TOTAL_AMOUNT IS NULL THEN 0 ELSE TOTAL_AMOUNT END AS TOTAL_AMOUNT
+					, CASE WHEN C.TotalAmount IS NULL THEN 0 ELSE C.TotalAmount END AS TOTAL_AMOUNT
+					, APPROVE_STATE, BSTKD
+					#, SUP_COM_REGNO, SUP_COM_NAME
+					FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+					LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS B
+					ON A.BELNR = B.BELNR
+					LEFT JOIN covi_account4j_si.act_taxinvoice AS C
+					ON B.APPROVE_ID = C.TaxInvoiceID
+					WHERE 1=1
+					<if test ="companyCode != null and companyCode !=''">
+						AND A.BUKRS = #{companyCode}
+					</if>
+					<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+						AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+					</if>
+					<if test="searchWord != null and searchWord !=''">
+				 	    <choose>
+				 	         <when test="searchType == 'CODE'.toString()">
+				 	             AND A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+				 	         </when>
+				 	         <when test="searchType == 'NAME'.toString()">
+				 	             AND (
+				 	             	C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+				 	             	OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+				 	             )
+				 	         </when>
+				 	         <when test="searchType == 'NUMB'.toString()">
+				 	             AND (
+				 	             	C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+				            		OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+				 	             )
+				 	         </when>
+				 	         <otherwise>
+				 	             AND (
+				            			A.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+										OR C.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+										OR A.NAME1 LIKE CONCAT('%',#{searchWord},'%')
+										OR C.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+										OR A.STCD2 LIKE CONCAT('%',#{searchWord},'%')
+				           			)
+				 	         </otherwise>
+				 	     </choose>
+				     </if>
+				) AS B
+				ON A.TaxInvoiceID = B.APPROVE_ID
+				WHERE B.APPROVE_ID IS NULL
+				<if test="sDate != null and sDate !='' and eDate != null and eDate !=''">
+					AND A.WriteDate BETWEEN #{sDate} AND #{eDate}
+				</if>
+				<if test="searchWord != null and searchWord !=''">
+			 	    <choose>
+			 	         <when test="searchType == 'CODE'.toString()">
+			 	             AND B.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+			 	         </when>
+			 	         <when test="searchType == 'NAME'.toString()">
+			 	             AND A.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+			 	         </when>
+			 	         <when test="searchType == 'NUMB'.toString()">
+			 	             AND A.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+			 	         </when>
+			 	         <otherwise>
+			 	             AND (
+			            			B.KUNNR LIKE CONCAT('%',#{searchWord},'%')
+									OR A.InvoicerCorpName LIKE CONCAT('%',#{searchWord},'%')
+									OR A.InvoicerCorpNum LIKE CONCAT('%',#{searchWord},'%')
+			           			)
+			 	         </otherwise>
+			 	     </choose>
+			     </if>
+			) AS A
+			GROUP BY STCD2
+		) AS A
+    </select>
+	
+	<insert id="insertEACTaxInfo" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.sap_t_zf31_if (
+	    		BUKRS
+			,	BELNR
+			,	BUPLA
+			,	BUDAT
+			,	KUNNR
+			,	STCD2
+			,	NAME1
+			,	BSTKD
+			,	FWBAS
+			,	FWSTE
+			,	HWBAS
+			,	HWSTE
+			,	SGTXT
+			,	MWSKZ
+			,	WAERS
+			,	KURSF
+			,	CREATE_DATE
+			,	CREATE_TIME
+	    ) VALUES (
+	    		#{BUKRS}
+			,	#{BELNR}
+			,	#{BUPLA}
+			,	#{BUDAT}
+			,	#{KUNNR}
+			,	#{STCD2}
+			,	#{NAME1}
+			,	#{BSTKD}
+			,	#{FWBAS}
+			,	#{FWSTE}
+			,	#{HWBAS}
+			,	#{HWSTE}
+			,	#{SGTXT}
+			,	#{MWSKZ}
+			,	#{WAERS}
+			,	#{KURSF}
+			,	#{CREATE_DATE}
+			,	#{CREATE_TIME}
+	    )
+ 	</insert>
+ 	
+	<insert id="insertTaxMapBind" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.t_sap_dti_mppng (
+	    		APPROVE_ID
+			,	BELNR
+			,	BELNR_KIND
+			,	FORM_INST_ID
+			,	INITIATOR_ID
+			,	APPROVE_STATE
+			,	CREATED_BY
+			,	CREATION_DATE
+			,	LAST_UPDATED_BY
+			,	LAST_UPDATE_DATE
+	    ) 
+    	SELECT 	  B.TaxInvoiceID AS APPROVE_ID 
+		    	, A.BELNR
+		    	, '09' AS BELNR_KIND
+				, NULL AS FORM_INST_ID
+				, #{userCode} AS INITIATOR_ID
+				, '00' AS APPROVE_STATE
+				, #{userCode} AS CREATED_BY
+				, NOW(3) AS CREATION_DATE
+				, #{userCode} AS LAST_UPDATED_BY
+				, NOW(3) AS LAST_UPDATE_DATE
+		FROM covi_account4j_si.SAP_T_ZF31_IF A
+		INNER JOIN covi_account4j_si.act_taxinvoice B
+		ON A.STCD2 = B.InvoicerCorpNum # 사업자 번호
+		AND A.FWBAS = B.SupplyCostTotal # 공급가
+		AND A.FWSTE	= B.TaxTotal # 세액
+		AND REPLACE(A.BUDAT, '-', '') = B.WriteDate # 등록일
+		AND DATE_FORMAT(CAST(B.WriteDate AS DATE), '%Y-%m-%d') BETWEEN #{sDate} AND #{eDate} # 이후 조건.
+		AND A.BUDAT BETWEEN #{sDate} AND #{eDate}
+		LEFT JOIN covi_account4j_si.T_SAP_DTI_MPPNG AS C
+		ON A.BELNR = C.BELNR
+		WHERE C.BELNR IS NULL 
+		AND C.APPROVE_ID IS NULL
+ 	</insert>
+ 	
+	<delete id="deleteTaxMap" parameterType="cmap">
+		DELETE FROM covi_account4j_si.t_sap_dti_mppng
+		WHERE BELNR IN (
+			SELECT BELNR
+			FROM (SELECT A.BELNR
+				FROM covi_account4j_si.t_sap_dti_mppng AS A
+				INNER JOIN (
+					SELECT A.BELNR, A.BUDAT, B.APPROVE_STATE
+					FROM covi_account4j_si.SAP_T_ZF31_IF AS A
+					LEFT JOIN covi_account4j_si.t_sap_dti_mppng AS B
+					ON A.BELNR = B.BELNR
+					WHERE A.BUDAT BETWEEN #{sDate} AND #{eDate}
+				)AS B
+				ON A.BELNR = B.BELNR
+			) A
+		)
+	</delete>
+	
+	<delete id="deleteTaxInfo" parameterType="cmap">
+		DELETE FROM covi_account4j_si.SAP_T_ZF31_IF
+		WHERE BUDAT BETWEEN #{sDate} AND #{eDate}
+	</delete>
+	
+	<delete id="deleteRegistTaxMap" parameterType="cmap">
+		DELETE FROM covi_account4j_si.T_SAP_DTI_MPPNG
+		WHERE APPROVE_ID = #{tID} 
+		AND BELNR = #{sID}
+	</delete>
+	
+	<insert id="insertRegistTaxMap" parameterType="cmap" >
+	    INSERT INTO covi_account4j_si.T_SAP_DTI_MPPNG (
+	    		APPROVE_ID
+    		,	BELNR
+    		,	BELNR_KIND
+    		,	INITIATOR_ID
+    		,	APPROVE_STATE
+    		,	CREATED_BY
+    		,	CREATION_DATE
+    		,	LAST_UPDATED_BY
+    		,	LAST_UPDATE_DATE
+	    ) VALUES (
+				#{tID}
+			,	#{sID}
+			,	''
+			,	#{userCode}
+			,	'00'
+			,	#{userCode}
+			,	NOW(3)
+			,	#{userCode}
+			,	NOW(3)
+		)
+ 	</insert>
+</mapper>

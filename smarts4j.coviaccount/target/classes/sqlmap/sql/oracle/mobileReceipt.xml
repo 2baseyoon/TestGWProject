@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.mobileReceipt">
+    
+	<select id="getMobileReceiptList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+		SELECT	AR.ReceiptID AS "ReceiptID",
+				AR.CompanyCode AS "CompanyCode",
+				FN_GETACTBASECODENAME('CompanyCode', AR.CompanyCode, #{companyCode}) AS "CompanyName",
+				AR.ExpenceMgmtCode AS "ExpenceMgmtCode",
+				AR.UsageText AS "UsageText",
+        		TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS "PhotoDate",
+        		TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "PhotoDateStr",
+				AR.ReceiptType AS "ReceiptType",
+				FN_GETACTBASECODENAME('ReceiptType', AR.ReceiptType, #{companyCode}) AS "ReceiptTypeName",
+				AR.ReceiptFileID AS "ReceiptFileID",
+				AR.Active AS "Active",
+				FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName",
+				AR.RegisterID AS "RegisterID",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOU.MultiDisplayName) AS "RegisterName",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiDeptName) AS "RegisterDept",
+				AR.RegistDate AS "RegistDate",
+				TO_CHAR(AR.RegistDate, 'YYYY-MM-DD HH24:MI') AS "RegistDateStr",				
+				SB.StandardBriefID AS "StandardBriefID",
+				SB.StandardBriefName AS "StandardBriefName"		
+		FROM	ACT_RECEIPT AR
+		LEFT OUTER JOIN
+				ACT_STANDARD_BRIEF SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AR.ReceiptID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyCode")'>"CompanyCode"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("PhotoDateStr")'>"PhotoDateStr"</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptTypeName")'>"ReceiptTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageText")'>"UsageText"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterName")'>"RegisterName"</when>
+					<when test='sortColumn.equalsIgnoreCase("RegisterDept")'>"RegisterDept"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getMobileReceiptExcelList" parameterType="cmap" resultType="cmap">
+	    SELECT	AR.ReceiptID AS "ReceiptID",
+				AR.CompanyCode AS "CompanyCode",
+				FN_GETACTBASECODENAME('CompanyCode', AR.CompanyCode, #{companyCode}) AS "CompanyName",
+				AR.ExpenceMgmtCode AS "ExpenceMgmtCode",
+				AR.UsageText AS "UsageText",
+        		TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS "PhotoDate",
+        		TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "PhotoDateStr",
+				AR.ReceiptType AS "ReceiptType",
+				FN_GETACTBASECODENAME('ReceiptType', AR.ReceiptType, #{companyCode}) AS "ReceiptTypeName",
+				AR.ReceiptFileID AS "ReceiptFileID",
+				AR.Active AS "Active",
+				FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName",
+				AR.RegisterID AS "RegisterID",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOU.MultiDisplayName) AS "RegisterName",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiDeptName) AS "RegisterDept",
+				AR.RegistDate AS "RegistDate",
+				TO_CHAR(AR.RegistDate, 'YYYY.MM.DD HH24:MI') AS "RegistDateStr",				
+				SB.StandardBriefID AS "StandardBriefID",
+				SB.StandardBriefName AS "StandardBriefName"	
+		FROM	ACT_RECEIPT AR
+		LEFT OUTER JOIN
+				ACT_STANDARD_BRIEF SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		ORDER BY AR.ReceiptID DESC
+	</select>
+	
+	<select id="getMobileReceiptListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	ACT_RECEIPT	AR
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+	</select>
+	
+	<select id="getMobileReceiptUserList" parameterType="cmap" resultType="cmap">
+		<include refid="oracle.include.pagingHeader" />
+	    SELECT	AR.ReceiptID AS "ReceiptID",
+				AR.CompanyCode AS "CompanyCode",
+				FN_GETACTBASECODENAME('CompanyCode', AR.CompanyCode, #{companyCode}) AS "CompanyName",
+				AR.ExpenceMgmtCode AS "ExpenceMgmtCode",
+				AR.UsageText AS "UsageText",
+		        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS "PhotoDate",
+		        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "PhotoDateStr",
+				AR.ReceiptType AS "ReceiptType",
+				FN_GETACTBASECODENAME('ReceiptType', AR.ReceiptType, #{companyCode}) AS "ReceiptTypeName",
+				AR.ReceiptFileID AS "ReceiptFileID",
+				AR.Active AS "Active",
+				FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName",
+				AR.RegisterID AS "RegisterID",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOU.MultiDisplayName) AS "RegisterName",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiDeptName) AS "RegisterDept",
+				AR.RegistDate AS "RegistDate",
+				TO_CHAR(AR.RegistDate, 'YYYY.MM.DD HH24:MI') AS "RegistDateStr",				
+				SB.StandardBriefID AS "StandardBriefID",
+				SB.StandardBriefName AS "StandardBriefName"	
+		FROM	ACT_RECEIPT AR
+		LEFT OUTER JOIN
+				ACT_STANDARD_BRIEF SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		AND		AR.RegisterID = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		<trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,AR.ReceiptID DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("CompanyName")'>"CompanyName"</when>
+					<when test='sortColumn.equalsIgnoreCase("ActiveName")'>"ActiveName"</when>
+					<when test='sortColumn.equalsIgnoreCase("PhotoDateStr")'>"PhotoDateStr"</when>
+					<when test='sortColumn.equalsIgnoreCase("ReceiptTypeName")'>"ReceiptTypeName"</when>
+					<when test='sortColumn.equalsIgnoreCase("UsageText")'>"UsageText"</when>
+					<when test='sortColumn.equalsIgnoreCase("StandardBriefName")'>"StandardBriefName"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim>
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<select id="getMobileReceiptUserExcelList" parameterType="cmap" resultType="cmap">
+		 SELECT	AR.ReceiptID AS "ReceiptID",
+				AR.CompanyCode AS "CompanyCode",
+				FN_GETACTBASECODENAME('CompanyCode', AR.CompanyCode, #{companyCode}) AS "CompanyName",
+				AR.ExpenceMgmtCode AS "ExpenceMgmtCode",
+				AR.UsageText AS "UsageText",
+		        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD') AS "PhotoDate",
+		        TO_CHAR(TO_DATE(AR.PhotoDate, 'YYYY-MM-DD HH24:MI:SS'), 'YYYY.MM.DD HH24:MI') AS "PhotoDateStr",
+				AR.ReceiptType AS "ReceiptType",
+				FN_GETACTBASECODENAME('ReceiptType', AR.ReceiptType, #{companyCode}) AS "ReceiptTypeName",
+				AR.ReceiptFileID AS "ReceiptFileID",
+				AR.Active AS "Active",
+				FN_GETACTBASECODENAME('Active', AR.Active, #{companyCode}) AS "ActiveName",
+				AR.RegisterID AS "RegisterID",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOU.MultiDisplayName) AS "RegisterName",
+				FN_BASEGETDICTIONARY_S(#{lang}, SOUB.MultiDeptName) AS "RegisterDept",
+				AR.RegistDate AS "RegistDate",
+				TO_CHAR(AR.RegistDate, 'YYYY.MM.DD HH24:MI') AS "RegistDateStr",				
+				SB.StandardBriefID AS "StandardBriefID",
+				SB.StandardBriefName AS "StandardBriefName"
+		FROM	ACT_RECEIPT AR
+		LEFT OUTER JOIN
+				ACT_STANDARD_BRIEF SB
+		ON		AR.StandardBriefID	= SB.StandardBriefID
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+		ORDER BY AR.ReceiptID DESC
+	</select>
+	
+	<select id="getMobileReceiptUserListCnt" resultType="java.lang.Long">
+		SELECT	COUNT(*)
+		FROM	ACT_RECEIPT	AR
+		INNER JOIN
+				SYS_OBJECT_USER SOU
+		ON		AR.RegisterID = SOU.UserCode
+		INNER JOIN
+				SYS_OBJECT_USER_BASEGROUP SOUB
+		ON		SOU.UserCode = SOUB.UserCode
+		AND		SOUB.JobType = 'Origin'
+		WHERE	1=1
+		AND		AR.RegisterID = #{UR_Code}
+		<if test ="companyCode != null and companyCode !=''">
+		AND		AR.CompanyCode = #{companyCode}
+		</if>
+		<if test ="userCode != null and userCode !=''">
+		AND		AR.RegisterID = #{userCode}
+		</if>
+		<if test ="photoDateS != null and photoDateS !=''">
+		AND		AR.PhotoDate  <![CDATA[>=]]> #{photoDateS}
+		</if>
+		<if test ="photoDateE != null and photoDateE !=''">
+		AND		AR.PhotoDate  <![CDATA[<=]]> #{photoDateE}
+		</if>
+		<if test ="active != null and active !=''">
+		AND		AR.Active = #{active}
+		</if>
+		<if test ="receiptType != null and receiptType !=''">
+		AND		AR.ReceiptType = #{receiptType}
+		</if>
+	</select>
+	
+	<delete id="deleteMobileReceipt">
+	    DELETE FROM ACT_RECEIPT		
+		WHERE 
+		<choose>
+			<when test="deleteSeq != null">
+				<foreach collection="deleteSeq" item="item" index="index" separator="," open="ReceiptID IN (" close=")">
+					#{item}
+				</foreach>
+			</when>
+			<otherwise>
+				1=2
+			</otherwise>
+		</choose>
+	</delete>
+</mapper>

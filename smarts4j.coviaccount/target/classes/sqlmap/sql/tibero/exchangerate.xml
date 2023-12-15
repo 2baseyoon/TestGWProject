@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.exchangerate">
+    
+    <!-- 환율 정보 등록 -->
+	<insert id="insertExchangeRateInfo" parameterType="cmap">
+       INSERT INTO act_exchange_rate (
+       		ExchangeRateDate
+       	,	USD
+       	,	EUR
+       	,	AED
+       	,	AUD
+       	,	BRL
+       	,	CAD
+       	,	CHF
+       	,	CNY
+       	,	JPY
+       	,	SGD
+       ) VALUES (
+       		#{exchangeRateDate}
+       	,	#{usd}
+       	,	#{eur}
+       	,	#{aed}
+       	,	#{aud}
+       	,	#{brl}
+       	,	#{cad}
+       	,	#{chf}
+       	,	#{cny}
+       	,	#{jpy}
+       	,	#{sgd}
+       )
+	</insert>
+    
+	
+	<!-- 환율 정보 수정 -->
+	
+	<update id="updateExchangeRateInfo" parameterType="cmap">
+	    UPDATE act_exchange_rate
+	    	SET USD = #{usd}
+	    	,	EUR = #{eur}
+	    	,	AED = #{aed}
+	    	,	AUD = #{aud}
+	    	,	BRL = #{brl}
+	    	,	CAD = #{cad}
+	    	,	CHF = #{chf}
+	    	,	CNY = #{cny}
+	    	,	JPY = #{jpy}
+	    	,	SGD = #{sgd}
+	    	WHERE ExchangeRateID = #{exchangeRateID}
+	    
+	</update>
+	
+	<!-- 환율 정보 조회 -->
+	<select id="getExchangeRatelist" parameterType="cmap" resultType="cmap" >    
+		<include refid="oracle.include.pagingHeader" />
+		SELECT  ExchangeRateID AS "ExchangeRateID"
+	    	,	ExchangeRateDate AS "ExchangeRateDate"
+	    	,	TO_CHAR(TO_DATE(ExchangeRateDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS "ExchangeRateDate_VIEW"
+	    	,	CASE	WHEN INSTR(USD,'.') > 0
+			 			THEN TO_CHAR(SUBSTR(USD,1,INSTR(USD,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(USD,INSTR(USD,'.')+1))
+						ELSE TO_CHAR(USD,'999,999,999,999,999,999,999,999')
+				END	AS USD
+	    	,	CASE	WHEN INSTR(EUR,'.') > 0
+			 			THEN TO_CHAR(SUBSTR(EUR,1,INSTR(EUR,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(EUR,INSTR(EUR,'.')+1))
+						ELSE TO_CHAR(EUR,'999,999,999,999,999,999,999,999')
+				END	AS EUR
+			,	CASE	WHEN INSTR(AED,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(AED,1,INSTR(AED,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(AED,INSTR(AED,'.')+1))
+						ELSE TO_CHAR(AED,'999,999,999,999,999,999,999,999')
+				END	AS AED
+			,	CASE	WHEN INSTR(AUD,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(AUD,1,INSTR(AUD,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(AUD,INSTR(AUD,'.')+1))
+						ELSE TO_CHAR(AUD,'999,999,999,999,999,999,999,999')
+				END	AS AUD
+			,	CASE	WHEN INSTR(BRL,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(BRL,1,INSTR(BRL,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(BRL,INSTR(BRL,'.')+1))
+						ELSE TO_CHAR(BRL,'999,999,999,999,999,999,999,999')
+				END	AS BRL
+			,	CASE	WHEN INSTR(CAD,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(CAD,1,INSTR(CAD,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(CAD,INSTR(CAD,'.')+1))
+						ELSE TO_CHAR(CAD,'999,999,999,999,999,999,999,999')
+				END	AS CAD
+			,	CASE	WHEN INSTR(CHF,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(CHF,1,INSTR(CHF,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(CHF,INSTR(CHF,'.')+1))
+						ELSE TO_CHAR(CHF,'999,999,999,999,999,999,999,999')
+				END	AS CHF
+			,	CASE	WHEN INSTR(CNY,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(CNY,1,INSTR(CNY,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(CNY,INSTR(CNY,'.')+1))
+						ELSE TO_CHAR(CNY,'999,999,999,999,999,999,999,999')
+				END	AS CNY
+			,	CASE	WHEN INSTR(JPY,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(JPY,1,INSTR(JPY,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(JPY,INSTR(JPY,'.')+1))
+						ELSE TO_CHAR(JPY,'999,999,999,999,999,999,999,999')
+				END	AS JPY
+			,	CASE	WHEN INSTR(SGD,'.') > 0
+		 				THEN TO_CHAR(SUBSTR(SGD,1,INSTR(SGD,'.')-1),'999,999,999,999,999,999,999,999')||'.'||TO_CHAR(SUBSTR(SGD,INSTR(SGD,'.')+1))
+						ELSE TO_CHAR(SGD,'999,999,999,999,999,999,999,999')
+				END	AS SGD
+	    FROM act_exchange_rate
+	    WHERE 1=1
+	    
+  		<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+    	    <![CDATA[
+    	    	AND ExchangeRateDate >= #{exchangeRateDateStart}
+    	    ]]>
+    	</if>
+  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+    	    <![CDATA[
+    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+    	    ]]>
+    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+		    <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+				,ExchangeRateDate DESC 
+		    </if>
+		  	<if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+			 	, 	
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("ExchangeRateDate")'>"ExchangeRateDate"</when>
+					<when test='sortColumn.equalsIgnoreCase("USD")'>"USD"</when>
+					<when test='sortColumn.equalsIgnoreCase("EUR")'>"EUR"</when>
+					<when test='sortColumn.equalsIgnoreCase("AED")'>"AED"</when>
+					<when test='sortColumn.equalsIgnoreCase("AUD")'>"AUD"</when>
+					<when test='sortColumn.equalsIgnoreCase("BRL")'>"BRL"</when>
+					<when test='sortColumn.equalsIgnoreCase("CAD")'>"CAD"</when>
+					<when test='sortColumn.equalsIgnoreCase("CHF")'>"CHF"</when>
+					<when test='sortColumn.equalsIgnoreCase("CNY")'>"CNY"</when>
+					<when test='sortColumn.equalsIgnoreCase("JPY")'>"JPY"</when>
+					<when test='sortColumn.equalsIgnoreCase("SGD")'>"SGD"</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	
+			</if>
+		</trim> 
+		<include refid="oracle.include.pagingFooter" />
+	</select>
+	
+	<!-- 환율 정보 카운트 -->
+	<select id="getExchangeRatelistCnt" resultType="java.lang.Long">
+	    SELECT	COUNT(*)
+	    FROM	act_exchange_rate
+	    WHERE 1=1
+	    
+	  		<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate >= #{exchangeRateDateStart}
+	    	    ]]>
+	    	</if>
+	  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+	    	    ]]>
+	    	</if>
+	</select>
+	
+	<!-- 환율 정보 삭제 -->
+	<delete id="deleteExchangeRateInfo">
+	    DELETE FROM act_exchange_rate
+	    WHERE ExchangeRateID = #{exchangeRateID}
+	</delete>
+	
+	<!-- 환율 팝업창 정보 조회 -->
+	<select id="getExchangeRatePopupInfo" parameterType="cmap" resultType="cmap">
+	    SELECT  ExchangeRateID AS "ExchangeRateID"
+	    	,	TO_CHAR(TO_DATE(ExchangeRateDate, 'YYYYMMDD'), 'YYYY.MM.DD') AS "ExchangeRateDate"
+	    	,	USD
+	    	,	EUR
+	    	,	AED
+	    	,	AUD
+	    	,	BRL
+	    	,	CAD
+	    	,	CHF
+	    	,	CNY
+	    	,	JPY
+	    	,	SGD
+	    FROM act_exchange_rate
+	    WHERE ExchangeRateID = #{exchangeRateID}
+	    
+	</select>
+	
+	<!-- 중복 체크 -->
+	<select id="getExchangeRateCnt" resultType="java.lang.Long">
+	    SELECT  COUNT(*)
+	    FROM 	act_exchange_rate
+	    WHERE 	ExchangeRateDate = #{exchangeRateDate}
+	</select>
+	
+	<!-- 환율 정보 엑셀리스트 -->
+	<!-- 
+	<select id="getExchangeRateExcelList" parameterType="cmap" resultType="cmap">
+	    SELECT  ExchangeRateID
+	    	,	ExchangeRateDate
+	    	,	USD
+	    	,	EUR
+	    	,	AED
+	    	,	AUD
+	    	,	BRL
+	    	,	CAD
+	    	,	CHF
+	    	,	CNY
+	    	,	JPY
+	    	,	SGD
+	    FROM act_exchange_rate
+	    WHERE 1=1
+	    	<if test = "exchangeRateDateStart != null and exchangeRateDateStart !='' and exchangeRateDateFinish != null and exchangeRateDateFinish != ''"> 
+	    		AND ExchangeRateDate between #{exchangeRateDateStart} AND #{exchangeRateDateFinish}
+	   		</if>
+	   		<if test = "exchangeRateDateStart == null or exchangeRateDateStart =='' and exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+	    	    <![CDATA[
+	    	    	AND ExchangeRateDate <= #{exchangeRateDateFinish}
+	    	    ]]>
+	    	</if>
+	    ORDER BY ExchangeRateDate
+	</select>
+	 -->
+	 
+	 <update id="updateExchangeRateInfoInterface" parameterType="cmap">
+	    UPDATE act_exchange_rate
+	    	SET
+	    		USD = #{usd}
+	    	,	EUR = #{eur}
+	    	,	AED = #{aed}
+	    	,	AUD = #{aud}
+	    	,	BRL = #{brl}
+	    	,	CAD = #{cad}
+	    	,	CHF = #{chf}
+	    	,	CNY = #{cny}
+	    	,	JPY = #{jpy}
+	    	,	SGD = #{sgd}
+	    WHERE ExchangeRateDate = #{exchangeRateDate}
+	</update>
+	
+	<select id="exchangesList" parameterType="cmap" resultType="cmap" >
+		<include refid="oracle.include.pagingHeader"/>
+		SELECT
+			A.YYYYMMDD,
+			<foreach collection="pivotList" item="pivot" separator=",">
+				SUM(A.${pivot}) AS "${pivot}"
+			</foreach>
+		FROM (
+			SELECT
+				A.YYYYMMDD,
+				<foreach collection="pivotList" item="pivot" separator=",">
+					CASE WHEN CURRENCY = #{pivot} THEN A.PRICE END AS ${pivot}
+				</foreach>
+			FROM
+				ACT_EXCHANGES A
+			WHERE
+				1 = 1
+				<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD >= #{exchangeRateDateStart}
+		    	    ]]>
+		    	</if>
+		  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD <= #{exchangeRateDateFinish}
+		    	    ]]>
+		    	</if>
+		) A
+		GROUP BY
+			A.YYYYMMDD
+		ORDER BY 
+			A.YYYYMMDD DESC 
+		<include refid="oracle.include.pagingFooter"/>
+	</select>
+	
+	<select id="exchangesListCnt" parameterType="cmap" resultType="java.lang.Long">
+		SELECT
+			COUNT(*)
+		FROM (
+			SELECT
+				A.YYYYMMDD
+			FROM
+				ACT_EXCHANGES A
+			WHERE
+				1 = 1
+				<if test="exchangeRateDateStart != null and exchangeRateDateStart != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD >= #{exchangeRateDateStart}
+		    	    ]]>
+		    	</if>
+		  		<if test="exchangeRateDateFinish != null and exchangeRateDateFinish != ''">
+		    	    <![CDATA[
+		    	    	AND A.YYYYMMDD <= #{exchangeRateDateFinish}
+		    	    ]]>
+		    	</if>
+			GROUP BY
+				A.YYYYMMDD
+		) A
+	</select>
+	
+	<select id="exchangesRead" parameterType="cmap" resultType="cmap" >
+		SELECT
+			A.YYYYMMDD,
+			<foreach collection="pivotList" item="pivot" separator=",">
+				SUM(A.${pivot}) AS "${pivot}"
+			</foreach>
+		FROM (
+			SELECT
+				A.YYYYMMDD,
+				<foreach collection="pivotList" item="pivot" separator=",">
+					CASE WHEN CURRENCY = #{pivot} THEN A.PRICE END AS ${pivot}
+				</foreach>
+			FROM
+				ACT_EXCHANGES A
+			WHERE
+				A.YYYYMMDD = #{YYYYMMDD} 
+		) A
+		GROUP BY
+			A.YYYYMMDD
+	</select>
+	
+	<insert id="exchangesRegister" parameterType="cmap">
+		<selectKey keyProperty="SEQ" resultType="Integer" order="BEFORE">
+			SELECT NVL(MAX(SEQ) + 1, 1) AS SEQ FROM ACT_EXCHANGES
+		</selectKey>
+		INSERT INTO ACT_EXCHANGES (
+			SEQ,
+			YYYYMMDD,
+			CURRENCY,
+			PRICE,
+			REGISTERID,
+			REGISTDATE,
+			MODIFIERID,
+			MODIFYDATE
+		) VALUES (
+			#{SEQ},
+			#{YYYYMMDD},
+			#{CURRENCY},
+			#{PRICE},
+			#{REGISTERID},
+			NOW(),
+			#{MODIFIERID},
+			NOW()
+		)
+	</insert>
+	
+	<update id="exchangesModify" parameterType="cmap">
+		UPDATE
+			ACT_EXCHANGES
+		SET
+			PRICE = #{PRICE},
+			MODIFIERID = #{MODIFIERID},
+			MODIFYDATE = NOW()
+		WHERE
+			YYYYMMDD = #{YYYYMMDD}
+			AND CURRENCY = #{CURRENCY}
+	</update>
+	
+	<delete id="exchangesRemove" parameterType="cmap">
+		DELETE FROM
+			ACT_EXCHANGES
+		WHERE
+			YYYYMMDD = #{YYYYMMDD}
+	</delete>
+</mapper>

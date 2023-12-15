@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="account.favorite">
+    <select id="getListCnt" resultType="java.lang.Long">
+	    SELECT	
+	    	COUNT(*)
+	    FROM
+	    	covi_account4j_si.act_user_favorite A
+    	<choose>
+    		<when test="groupId == 'VENDOR'">
+    			INNER JOIN covi_account4j_si.act_vendor B ON A.COMPANYCODE = B.CompanyCode AND A.CODE = B.VendorNo
+    		</when>
+    	</choose>
+	    WHERE 
+	    	1 = 1
+	    	<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND A.COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND A.GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND A.USER_ID = #{userId} ]]>
+	    	</if>
+    </select>
+    <select id="getList" parameterType="cmap" resultType="cmap">
+	    SELECT
+	    	*
+	    FROM
+	    	covi_account4j_si.act_user_favorite A
+	    <choose>
+    		<when test="groupId == 'VENDOR'">
+    			INNER JOIN covi_account4j_si.act_vendor B ON A.COMPANYCODE = B.CompanyCode AND A.CODE = B.VendorNo
+    		</when>
+    	</choose>
+	    WHERE
+	    	1 = 1
+	    	<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND A.COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND A.GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND A.USER_ID = #{userId} ]]>
+	    	</if>
+	    <trim prefix="ORDER BY"  prefixOverrides =",">
+            <if test = "sortColumn == '' or sortColumn == null or sortDirection == '' or sortDirection == null">
+                , A.SEQ DESC
+            </if>
+            <if test="sortColumn != null and sortColumn != '' and sortDirection != null and sortDirection !='' ">
+                , 
+				<choose>	
+					<when test='sortColumn.equalsIgnoreCase("YYYYMMDD")'>BaseCodeID</when>
+					<when test='sortColumn.equalsIgnoreCase("PRICE")'>CompanyCode</when>
+				</choose>	
+				<choose>	
+					<when test='sortDirection.equalsIgnoreCase("ASC")'> ASC</when>
+					<otherwise> DESC</otherwise>
+				</choose>	      
+            </if>
+        </trim>
+        <if test="pageSize != null and pageOffset != null">
+            LIMIT #{pageSize} OFFSET #{pageOffset}
+        </if>
+    </select>
+    
+    <select id="registerCnt" resultType="java.lang.Long">
+    	SELECT 
+    		COUNT(*)
+    	FROM
+    		covi_account4j_si.act_user_favorite
+    	WHERE
+    		1 = 1
+    		<if test="companyCode != null and companyCode != ''">
+	    	    <![CDATA[ AND COMPANYCODE = #{companyCode} ]]>
+	    	</if>
+	  		<if test="gropId != null and gropId != ''">
+	    	    <![CDATA[ AND GROUP_ID = #{gropId} ]]>
+	    	</if>
+	  		<if test="userId != null and userId != ''">
+	    	    <![CDATA[ AND USER_ID = #{userId} ]]>
+	    	</if>
+	    	<if test="code != null and code != ''">
+	    	    <![CDATA[ AND CODE = #{code} ]]>
+	    	</if>
+    </select>
+    
+    <insert id="register" parameterType="cmap">
+    	<selectKey keyProperty="SEQ" resultType="Integer" order="BEFORE">
+			SELECT IFNULL(MAX(SEQ) + 1, 1) AS SEQ FROM covi_account4j_si.act_user_favorite
+		</selectKey>
+    	INSERT INTO covi_account4j_si.act_user_favorite (
+    		SEQ,
+			COMPANYCODE,
+			GROUP_ID,
+			CODE,
+			USER_ID,
+			REG_DATE,
+			REG_USER
+    	) VALUES (
+    		#{SEQ},
+    		#{companyCode},
+    		#{groupId},
+    		#{code},
+    		#{userId},
+			NOW(3),
+			#{regUser}
+    	)
+    </insert>
+</mapper>
